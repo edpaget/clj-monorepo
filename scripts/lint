@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Linting script for Clojure monorepo
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+cd "$ROOT_DIR"
+
+if [ "$1" = "all" ]; then
+    echo "Running linter for all projects..."
+    clojure -X build/build.clj lint-all
+elif [ -n "$1" ]; then
+    if [ -d "$1" ] && [ -f "$1/deps.edn" ]; then
+        echo "Running linter for project: $1"
+        cd "$1"
+        clojure -M:lint --lint src test
+    else
+        echo "Error: Project '$1' not found or missing deps.edn"
+        exit 1
+    fi
+else
+    echo "Usage: $0 [all|<project-name>]"
+    echo ""
+    echo "Examples:"
+    echo "  $0 all           # Lint all projects"
+    echo "  $0 my-lib        # Lint specific project"
+    exit 1
+fi

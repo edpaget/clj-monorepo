@@ -1,0 +1,39 @@
+
+# 2025-09-01 12:26:09.904194
++n
+
+# 2025-09-01 12:26:17.470749
++/add "/Users/edward/Projects/clj-monorepo/build/new_project.clj"
+
+# 2025-09-01 12:26:28.292663
++{aidermacs
+
+# 2025-09-01 12:26:28.389990
++/code Make this change in new_project.clj regarding this section:
+
+# 2025-09-01 12:26:28.393122
++```
+
+# 2025-09-01 12:26:28.394976
++(defn -main
+
+# 2025-09-01 12:26:28.397013
++  [& args]
+
+# 2025-09-01 12:26:28.399918
++  (if-let [project-name (first args)]
+
+# 2025-09-01 12:26:28.402669
++    (new-project project-name)
+
+# 2025-09-01 12:26:28.407673
++    (println "Usage: clojure -M build/new-project.clj <project-name>")))
+
+# 2025-09-01 12:26:28.410567
++```
+
+# 2025-09-01 12:26:28.413292
++: Add a docstring for this function
+
+# 2025-09-01 12:26:28.415075
++aidermacs}

@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Code formatting script for Clojure monorepo
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+cd "$ROOT_DIR"
+
+format_project() {
+    local project_dir="$1"
+    echo "Formatting $project_dir..."
+    cd "$project_dir"
+    clojure -M:format fix src test
+    cd "$ROOT_DIR"
+}
+
+if [ "$1" = "all" ]; then
+    echo "Formatting all projects..."
+    for project in */; do
+        if [ -f "${project}deps.edn" ]; then
+            format_project "${project%/}"
+        fi
+    done
+elif [ "$1" = "check" ]; then
+    if [ -n "$2" ]; then
+        if [ -d "$2" ] && [ -f "$2/deps.edn" ]; then
+            echo "Checking formatting for project: $2"
+            cd "$2"
+            clojure -M:format check src test
+        else
+            echo "Error: Project '$2' not found or missing deps.edn"
+            exit 1
+        fi
+    else
+        echo "Checking formatting for all projects..."
+        for project in */; do
+            if [ -f "${project}deps.edn" ]; then
+                echo "Checking formatting for ${project%/}..."
+                cd "${project%/}"
+                clojure -M:format check src test
+                cd "$ROOT_DIR"
+            fi
+        done
+    fi
+elif [ -n "$1" ]; then
+    if [ -d "$1" ] && [ -f "$1/deps.edn" ]; then
+        format_project "$1"
+    else
+        echo "Error: Project '$1' not found or missing deps.edn"
+        exit 1
+    fi
+else
+    echo "Usage: $0 [all|check|<project-name>]"
+    echo ""
+    echo "Examples:"
+    echo "  $0 all           # Format all projects"
+    echo "  $0 check         # Check formatting for all projects"
+    echo "  $0 check my-lib  # Check formatting for specific project"
+    echo "  $0 my-lib        # Format specific project"
+    exit 1
+fi

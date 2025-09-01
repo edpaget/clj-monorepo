@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# REPL launcher for Clojure monorepo
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+cd "$ROOT_DIR"
+
+if [ -n "$1" ] && [ -d "$1" ] && [ -f "$1/deps.edn" ]; then
+    echo "Starting REPL for project: $1"
+    cd "$1"
+    clojure -M:repl
+else
+    echo "Starting monorepo-wide REPL..."
+    clojure -M:repl
+fi

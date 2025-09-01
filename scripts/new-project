@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Script to create new projects in the monorepo
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+cd "$ROOT_DIR"
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 <project-name>"
+    echo ""
+    echo "Creates a new Clojure project in the monorepo with:"
+    echo "  - deps.edn with common aliases"
+    echo "  - src/ and test/ directories"
+    echo "  - Initial namespace files"
+    exit 1
+fi
+
+clojure -M:new-project -m new-project "$1"
+
+echo ""
+echo "Next steps:"
+echo "1. Update the root deps.edn to include the new project"
+echo "2. Start developing in $1/src/"
+echo "3. Add tests in $1/test/"

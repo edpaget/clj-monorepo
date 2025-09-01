@@ -1,0 +1,23 @@
+{:output  {:analysis {:namespace-definitions {:meta true}
+                      :var-definitions       {:meta true}}
+           :format   :text}
+ :linters {:unused-referred-var          {:level :warning}
+           :unused-namespace             {:level :warning}
+           :unused-binding               {:level :warning}
+           :unresolved-symbol            {:level   :error
+                                          :exclude [(clojure.test/are)]}
+           :unresolved-namespace         {:level :error}
+           :type-mismatch                {:level :warning}
+           :missing-docstring            {:level :warning
+                                          :exclude-when-not-public? true}
+           :unsorted-imports             {:level :warning}
+           :unsorted-required-namespaces {:level :warning}
+           :redundant-let                {:level :warning}
+           :unused-private-var           {:level :warning}
+           :refer-all                    {:level :warning}
+           :consistent-alias             {:level :warning
+                                          :aliases {clojure.string     str
+                                                    clojure.set        set
+                                                    clojure.java.io    io
+                                                    clojure.java.shell shell
+                                                    clojure.test       t}}}}
