@@ -22,8 +22,11 @@
 (defn do-wrap
   "Implements wrap macro"
   [lock-name thunk]
-  (let [lock (make-lock lock-name)]
-    (thunk lock)))
+  (let [{:keys [unlock] :as lock} (make-lock lock-name)]
+    (try
+      (thunk lock)
+      (finally
+        (unlock)))))
 
 (defn reset-locks!
   "Resets all locks created by the wrap macro."
@@ -56,5 +59,6 @@
   Args:
     binding-form: three element vector that bind the functions provided by the macro
     body: the body to execute"
+  {:style/indent 1}
   [[binding-form lock-name] & body]
   `(do-wrap ~lock-name (fn [~binding-form] ~@body)))

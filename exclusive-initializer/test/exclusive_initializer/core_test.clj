@@ -1,14 +1,14 @@
 (ns exclusive-initializer.core-test
   (:require
-   [clojure.test :refer [deftest is testing]]
+   [clojure.test :refer [deftest is testing] :as t]
    [exclusive-initializer.core :as core]))
+
+(t/use-fixtures :each (fn [f] (core/reset-locks!) (f)))
 
 (deftest wrap-run-once-test
   (testing "initialization happens only once"
     (let [run-count (atom 0)
           lock-name ::test-lock]
-      (core/reset-locks!)
-
       (core/wrap [{:keys [lock unlock initialize! initialized?]} lock-name]
                  (lock)
                  (try
@@ -34,7 +34,6 @@
     (let [run-count (atom 0)
           lock-name-1 ::test-lock-1
           lock-name-2 ::test-lock-2]
-      (core/reset-locks!)
 
       (core/wrap [{:keys [lock unlock initialize! initialized?]} lock-name-1]
                  (lock)
@@ -67,7 +66,6 @@
                                             (unlock)))
                                         (deliver p :done)))))
                         promises)]
-      (core/reset-locks!)
       (doseq [t threads] (.start t))
       (doseq [p promises] (deref p 1000 :timeout))
       (is (= 1 @run-count)))))
@@ -76,7 +74,6 @@
   (testing "deinitialization allows re-initialization"
     (let [run-count (atom 0)
           lock-name ::deinit-test-lock]
-      (core/reset-locks!)
 
       ;; First run, should initialize
       (core/wrap [{:keys [lock unlock initialize! initialized?]} lock-name]
