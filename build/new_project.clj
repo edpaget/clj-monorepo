@@ -12,14 +12,17 @@
   '{:deps {org.clojure/clojure {:mvn/version "1.12.2"}
            metosin/malli       {:mvn/version "0.19.1"}}
     :aliases
-    {:test     {:extra-paths ["test"]
-                :jvm-opts    ["-Duser.timezone=UTC"] ; Ensure tests run in UTC
-                :extra-deps  {org.clojure/test.check {:mvn/version "1.1.1"}
-                              eftest/eftest          {:mvn/version "0.6.0"}}}
+    {:test     {:extra-paths ["test"],
+                :jvm-opts    ["-Duser.timezone=UTC"],
+                :main-opts   ["-m" "cognitect.test-runner"]
+                :exec-fn     cognitect.test-runner.api/test
+                :extra-deps  {io.github.cognitect-labs/test-runner
+                              {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
      :repl     {:extra-deps {nrepl/nrepl       {:mvn/version "1.3.0"}
                              cider/cider-nrepl {:mvn/version "0.50.2"}}
                 :main-opts  ["-m" "nrepl.cmdline" "--middleware" "[cider.nrepl/cider-middleware]"]}
-     :lint     {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2025.07.28"}}}
+     :lint     {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2025.07.28"}}
+                :main-opts ["-m" "clj-kondo.main"]}
      :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
                 :main-opts  ["-m" "antq.core"]}}})
 
@@ -37,7 +40,8 @@
   "Create deps.edn file for the new project"
   [project-name]
   (let [deps-file (str project-name "/deps.edn")]
-    (spit deps-file (with-out-str (pprint/pprint project-template-deps)))
+    (binding [*print-namespace-maps* false]
+      (spit deps-file (with-out-str (pprint/pprint project-template-deps))))
     (println (format "Created: %s" deps-file))))
 
 (defn create-config-symlinks
@@ -68,6 +72,16 @@
        (into-array FileAttribute []))
       (println (format "Created symlink: %s/.cljfmt.edn -> ../.cljfmt.edn" project-name)))))
 
+(defn create-readme
+  "Create README.md file for the project"
+  [project-name]
+  (let [readme-file (format "%s/README.md" project-name)
+        title (str/replace project-name #"-" " ")
+        title (str/join " " (map str/capitalize (str/split title #" ")))]
+    (spit readme-file (format "# %s\n\nDescription of the %s library/application.\n\n## Usage\n\n```clojure\n(require '[%s.core :as %s])\n\n(%s/hello \"World\")\n;; => \"Hello, World!\"\n```\n\n## Development\n\n```bash\n# Run tests\nclojure -X:test\n\n# Start REPL\nclojure -M:repl\n\n# Lint code\nclojure -M:lint\n```\n"
+                              title project-name project-name (first (str/split project-name #"-")) (first (str/split project-name #"-"))))
+    (println (format "Created: %s" readme-file))))
+
 (defn create-namespace-files
   "Create initial namespace files"
   [project-name]
@@ -79,13 +93,13 @@
     ;; Create main namespace
     (io/make-parents src-file)
     (spit src-file (format "(ns %s.core\n  \"Core functionality for %s\")\n\n(defn hello\n  \"A simple hello function\"\n  [name]\n  (str \"Hello, \" name \"!\"))\n"
-                           namespace-name project-name))
+                           project-name project-name))
     (println (format "Created: %s" src-file))
 
     ;; Create test namespace
     (io/make-parents test-file)
     (spit test-file (format "(ns %s.core-test\n  (:require\n   [clojure.test :refer [deftest is testing]]\n   [%s.core :as core]))\n\n(deftest hello-test\n  (testing \"hello function\"\n    (is (= \"Hello, World!\" (core/hello \"World\")))))\n"
-                            namespace-name namespace-name))
+                            project-name namespace-name))
     (println (format "Created: %s" test-file))))
 
 (defn new-project
@@ -101,6 +115,7 @@
   (create-project-structure project-name)
   (create-deps-edn project-name)
   (create-config-symlinks project-name)
+  (create-readme project-name)
   (create-namespace-files project-name)
   (println (format "Project %s created successfully!" project-name)))
 

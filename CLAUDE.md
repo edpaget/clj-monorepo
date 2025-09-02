@@ -28,6 +28,7 @@
 
 ## Docstrings
 - All public functions must have a docstring including listing arguments and return values
+  - use the 'google' python docstring style for arguments/returns/raises
 - Privation functions that are sufficiently complex should also have docstrings
 - namespaces should always include a summary docstring
 
