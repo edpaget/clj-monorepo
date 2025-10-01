@@ -1,51 +1,38 @@
 # Exclusive Initializer
 
-Provides a wrapper for test fixtures that ensures a given fixture is run once across tests running in parallel.
+Provides macros for test fixtures that ensure initialization code runs only once across tests running in parallel.
 
 ## Usage
 
-The `wrap` macro provides thread-safe initialization functions for use in test fixtures. It creates a lock with the given name and provides functions to coordinate exclusive access to shared resources.
+The `initialize!` macro ensures that initialization code runs only once per lock name, even when tests run in parallel. The `deinitialize!` macro resets the lock state, allowing re-initialization.
 
 ```clojure
 (require '[exclusive-initializer.core :as exclusive])
 
 ;; Basic fixture example that prints "Good Job" only once
 (defn printer-fixture [f]
-  (exclusive/wrap [{:keys [lock unlock initialize! initialized?]} ::print-lock]
-    (lock)
-    (when-not (initialized?)
-      (prn "Good Job")
-      (initialize!))
-    (unlock)
-    (f)))
+  (exclusive/initialize! ::print-lock
+    (prn "Good Job"))
+  (f))
 
-;; Database setup fixture
+;; Database setup fixture with cleanup
 (defn db-fixture [f]
-  (exclusive/wrap [{:keys [lock unlock initialize! deinitialize! initialized?]} ::db-lock]
-    (lock)
-    (try
-      (when-not (initialized?)
-        ;; Setup database schema/seed data
-        (setup-test-db!)
-        (initialize!))
-      (f)
-      (finally
-        (unlock)))))
+  (exclusive/initialize! ::db-lock
+    ;; Setup database schema/seed data
+    (setup-test-db!))
+  (f)
+  (exclusive/deinitialize! ::db-lock
+    (teardown-test-db!)))
 ```
 
-### Available Functions
+### Available Macros
 
-The `wrap` macro provides these functions through destructuring:
-
-- `lock` - Acquire the exclusive lock
-- `unlock` - Release the exclusive lock
-- `initialize!` - Mark the resource as initialized
-- `deinitialize!` - Mark the resource as uninitialized
-- `initialized?` - Check if the resource has been initialized
+- `initialize!` - Run initialization code only once per lock name
+- `deinitialize!` - Reset the lock state and optionally run cleanup code
 
 ### Thread Safety
 
-The macro automatically wraps the entire body in a try...finally block to ensure locks are released even if exceptions occur. Each lock is identified by a unique lock name (typically a namespaced keyword) and uses `ReentrantLock` internally.
+Both macros use `locking` internally to ensure thread-safe access to shared lock state. Each lock is identified by a unique lock name (typically a namespaced keyword).
 
 ### Utility Functions
 
