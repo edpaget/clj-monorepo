@@ -80,6 +80,19 @@
 
 (def ^:private default-next-jdbc-opts {:builder-fn rs/as-unqualified-kebab-maps})
 
+(defprotocol Connectable
+  (connectable? [this]))
+
+(extend-protocol Connectable
+  java.sql.Connection
+  (connectable? [_] true)
+  javax.sql.DataSource
+  (connectable? [_] true)
+  Object
+  (connectable? [_] false)
+  nil
+  (connectable? [_] false))
+
 (defn- call-jdbc-fn
   "Helper to call the appropriate next.jdbc function, managing connections.
 
@@ -92,8 +105,7 @@
    Returns:
      Result of calling jdbc-fn with managed connection and compiled SQL"
   [jdbc-fn connectable-or-sql sql-or-opts & [opts]]
-  (if (or (instance? java.sql.Connection connectable-or-sql)
-          (instance? javax.sql.DataSource connectable-or-sql))
+  (if (connectable? connectable-or-sql)
     (let [sql-vec (compile-honeysql sql-or-opts)
           opts* (merge default-next-jdbc-opts opts)]
       (jdbc-fn connectable-or-sql sql-vec opts*))
