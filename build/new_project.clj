@@ -9,7 +9,8 @@
    (java.nio.file.attribute FileAttribute)))
 
 (def ^:private project-template-deps
-  '{:deps {org.clojure/clojure {:mvn/version "1.12.2"}
+  '{:paths ["src" "resources"]
+    :deps {org.clojure/clojure {:mvn/version "1.12.2"}
            metosin/malli       {:mvn/version "0.19.1"}}
     :aliases
     {:test     {:extra-paths ["test"],

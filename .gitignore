@@ -2,3 +2,6 @@
 /.lsp/
 .clj-kondo/.cache/*
 .aider*
+*.cpache
+*.nrepl-port
+/db/.cpcache/

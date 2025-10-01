@@ -1,64 +1,57 @@
 (ns exclusive-initializer.core
   "Provides a wrapper for test fixtures that makes sure a given fixture
-  is run once across tests running parallel."
-  (:import
-   [java.util.concurrent.locks ReentrantLock]))
+  is run once across tests running parallel.")
+
+(set! *warn-on-reflection* true)
 
 (def ^:private locks (atom {}))
 
-(defn- make-lock
-  [lock-name]
-  (let [[_ lock-obj] (-> (swap! locks (fn [val]
-                                        (cond-> val
-                                          (not (contains? val lock-name))
-                                          (assoc lock-name [false (ReentrantLock.)]))))
-                         (get lock-name))]
-    {:lock          (fn lock [] (.lock lock-obj))
-     :unlock        (fn unlock [] (.unlock lock-obj))
-     :initialize!   (fn initialize! [] (swap! locks assoc lock-name [true lock-obj]))
-     :deinitialize! (fn deinitialize! [] (swap! locks assoc lock-name [false lock-obj]))
-     :initialized?  (fn initialized? [] (-> @locks lock-name first))}))
-
-(defn do-wrap
-  "Implements wrap macro"
-  [lock-name thunk]
-  (let [{:keys [unlock] :as lock} (make-lock lock-name)]
-    (try
-      (thunk lock)
-      (finally
-        (unlock)))))
+(defn do-handler!
+  "Implements intialize!/de-initialize! macro"
+  [lock-name initialize-state thunk]
+  (locking lock-name
+    (when-not (lock-name @locks)
+      (thunk))
+    (swap! locks assoc lock-name initialize-state)))
 
 (defn reset-locks!
   "Resets all locks created by the wrap macro."
   []
   (reset! locks {}))
 
-(defmacro wrap
-  "Waps a body of code providing the functions `lock`, `unlock`, `initialize!`,
-  `deinitialize!` and  `initialized?` as keys of a map that can be destructured,
-  which can then be used to create a test fixture that runs only one even if tests
-  using the fixture are run concurrently.
+(defmacro initialize!
+  "```Setup something in test fixture that will run once then then not run again
+  until it is deinitialized. Handle multi-threaded test runners.
 
-  For example a fixture that prints \"Good Job\" could use wrap like:
-
-  ```
   (defn printer-fixture [f]
-    (exclusive-initializer.core/wrap [{:keys [lock unlock initialize! initialized?]} ::print-lock]
-       (lock)
-
-       (when-not (initialized?)
-         (prn \"Good Job\")
-         (initialize!))
-       (unlock)
-       (f)))
+    (initialize! ::print-job
+      (prn \"Good Job\"))
+    (f))
   ```
 
-  The entire body is wrapped in a try ... finally form so the fixture will be
-  unlocked if it throws.
+  Args:
+    body: the body to execute"
+  {:style/indent 1}
+  [lock-name & body]
+  `(do-handler! ~lock-name true (fn [] ~@body)))
+
+(defmacro deinitialize!
+  "```Teardown something previously setup in a test fixture.
+
+  (defn printer-fixture [f]
+    (initialize! ::print-job
+      (prn \"Good Job\"))
+    (f)
+    (deintialize! ::print-job
+      (prn \"We deinitialized\")))
+  ```
+
+  This also locks the block in the initializer from running while it is
+  deinitializing.
 
   Args:
     binding-form: three element vector that bind the functions provided by the macro
     body: the body to execute"
   {:style/indent 1}
-  [[binding-form lock-name] & body]
-  `(do-wrap ~lock-name (fn [~binding-form] ~@body)))
+  [lock-name & body]
+  `(do-handler! ~lock-name false (fn [] ~@body)))
