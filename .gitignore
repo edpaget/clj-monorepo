@@ -3,6 +3,5 @@
 .clj-kondo/.cache/*
 .aider*
 *.cpache
-*.nrepl-port
 /db/.cpcache/
-*nrepl-port
+/*/.nrepl-port
