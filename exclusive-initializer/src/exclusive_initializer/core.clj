@@ -8,11 +8,11 @@
 
 (defn do-handler!
   "Implements intialize!/de-initialize! macro"
-  [lock-name initialize-state thunk]
+  [lock-name state thunk]
   (locking lock-name
-    (when-not (lock-name @locks)
+    (when-not (= state (lock-name @locks))
       (thunk))
-    (swap! locks assoc lock-name initialize-state)))
+    (swap! locks assoc lock-name state)))
 
 (defn reset-locks!
   "Resets all locks created by the wrap macro."
