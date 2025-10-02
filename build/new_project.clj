@@ -13,7 +13,9 @@
     :deps {org.clojure/clojure {:mvn/version "1.12.2"}
            metosin/malli       {:mvn/version "0.19.1"}}
     :aliases
-    {:test     {:extra-paths ["test"],
+    {:dev      {:extra-paths ["dev"]
+                :deps        {dev.weavejester/hashp {:mvn/version "0.4.0"}}}
+     :test     {:extra-paths ["test"],
                 :jvm-opts    ["-Duser.timezone=UTC"],
                 :main-opts   ["-m" "cognitect.test-runner"]
                 :exec-fn     cognitect.test-runner.api/test
@@ -21,7 +23,7 @@
                               {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
      :repl     {:extra-deps {nrepl/nrepl       {:mvn/version "1.3.0"}
                              cider/cider-nrepl {:mvn/version "0.50.2"}}
-                :main-opts  ["-m" "nrepl.cmdline" "--middleware" "[cider.nrepl/cider-middleware]"]}
+                :main-opts  ["-m" "nrepl.cmdline" "--middleware" "[cider.nrepl/cider-middleware]" "--port" "7888"]}
      :lint     {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2025.07.28"}}
                 :main-opts ["-m" "clj-kondo.main"]}
      :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}

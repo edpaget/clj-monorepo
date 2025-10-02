@@ -2,7 +2,7 @@
   "Database test utilities providing fixtures and helpers for database testing."
   (:require
    [clojure.string :as str]
-   [clojure.test :as test]
+   [clojure.test :refer [join-fixtures]]
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
@@ -81,10 +81,15 @@
 (defn- migrate-db-fixture
   [migrations]
   (fn [f]
-    (ei/initialize! ::db-migration
-      (log/info "Running migrations...")
-      (migrate/migrate (ragtime-config db/*datasource* migrations)))
-    (f)))
+    (try
+      (ei/initialize! ::db-migration
+        (log/info "Running migrations...")
+        (migrate/migrate (ragtime-config db/*datasource* migrations)))
+      (f)
+      (finally
+        (ei/deinitialize! ::db-migration
+          (log/info "Rolling back migrations...")
+          (migrate/rollback (ragtime-config db/*datasource* migrations)))))))
 
 (defn- pool-fixture
   [db-url]
@@ -110,9 +115,9 @@
   Returns:
     Test fixture function that accepts a test function"
   [{:keys [db-url migrations]}]
-  (test/join-fixtures [(create-db-fixture db-url)
-                       (pool-fixture db-url)
-                       (migrate-db-fixture migrations)]))
+  (join-fixtures [(create-db-fixture db-url)
+                  (pool-fixture db-url)
+                  (migrate-db-fixture migrations)]))
 
 (defn rollback-fixture
   "Transaction fixture that automatically rolls back all database changes.
