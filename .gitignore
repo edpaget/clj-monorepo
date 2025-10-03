@@ -5,3 +5,4 @@
 *.cpache
 /db/.cpcache/
 /*/.nrepl-port
+/*/.cpcache
