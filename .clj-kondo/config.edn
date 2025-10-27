@@ -1,4 +1,5 @@
-{:hooks   {:analyze-call {exclusive-initializer.core/wrap hooks.exclusive-initializer.core/wrap}}
+{:hooks   {:analyze-call {exclusive-initializer.core/wrap hooks.exclusive-initializer.core/wrap
+                        polix.core/defpolicy             hooks.polix/defpolicy}}
  :output  {:analysis {:namespace-definitions {:meta true}
                       :var-definitions       {:meta true}}
            :format   :text}

@@ -3,6 +3,6 @@
 .clj-kondo/.cache/*
 .aider*
 *.cpache
-/db/.cpcache/
 /*/.nrepl-port
 /*/.cpcache
+/.clj-kondo/imports/
