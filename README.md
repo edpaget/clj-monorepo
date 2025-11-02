@@ -12,7 +12,44 @@ Shell scripts for common tasks live in the `/scripts` directory.
 
 ## Usage
 
-The top-level deps.edn file includes all projects in the repo meaning they can all be used from a single nrepl connection.
+The top-level `deps.edn` provides aliases for each project that can be composed together for development and testing.
+
+### Available Aliases
+
+**Project Aliases** - Include individual projects:
+- `:exclusive-initializer` - Exclusive initializer library
+- `:db` - Database utilities
+- `:polix` - Polix library
+
+**Test Aliases** - Run tests for specific projects:
+- `:exclusive-initializer-test` - Test exclusive-initializer
+- `:db-test` - Test db
+- `:polix-test` - Test polix
+
+**Aggregated Aliases** - Work with all projects:
+- `:dev-all` - All projects loaded for development
+- `:test-all` - Run all tests across the monorepo
+
+### Working from the Root Directory
+
+All commands should be run from the monorepo root directory using the top-level aliases:
+
+```bash
+# Start a REPL with all projects loaded
+clojure -M:dev-all:repl
+
+# Run all tests
+clojure -X:test-all
+
+# Run tests for a specific project
+clojure -X:db-test
+
+# Work with a single project in the REPL
+clojure -M:db:repl
+
+# Combine multiple projects
+clojure -M:db:polix:repl
+```
 
 ### Creating New Projects
 
@@ -76,13 +113,24 @@ The build utilities in `build/build.clj` provide programmatic access to monorepo
 
 ```clojure
 ;; From the root directory REPL
-(require '[build :refer [test-all lint-all clean-all deps-all outdated]])
+(require '[build :refer [test-all test-project lint-all clean-all deps-all outdated]])
 
-(test-all)     ; Run tests for all projects
-(lint-all)     ; Lint all projects  
-(clean-all)    ; Clean build artifacts
-(deps-all)     ; Download dependencies for all projects
-(outdated)     ; Check for outdated dependencies
+(test-all)              ; Run tests for all projects using :test-all alias
+(test-project "db")     ; Run tests for a specific project using :{project}-test alias
+(lint-all)              ; Lint all projects
+(clean-all)             ; Clean build artifacts
+(deps-all)              ; Download dependencies for all projects
+(outdated)              ; Check for outdated dependencies
+```
+
+Or use the CLI directly:
+
+```bash
+# Run all tests
+clojure -X:build test-all
+
+# Start REPL with all projects
+clojure -X:build repl
 ```
 
 ## Configuration

@@ -28,14 +28,29 @@
     result))
 
 (defn test-all
-  "Run tests for all projects"
-  [& {:keys [parallel] :or {parallel false}}]
-  (let [projects (find-projects)]
-    (if (empty? projects)
-      (println "No projects found")
-      (doseq [project projects]
-        (println (format "Testing %s..." project))
-        (run-in-project project "clojure" "-X:test")))))
+  "Run tests for all projects using top-level aliases"
+  [& _]
+  (println "Running tests for all projects...")
+  (let [result (shell/sh "clojure" "-X:test-all")]
+    (when (seq (:out result))
+      (println (:out result)))
+    (when (seq (:err result))
+      (binding [*out* *err*]
+        (println (:err result))))
+    result))
+
+(defn test-project
+  "Run tests for a specific project"
+  [project]
+  (println (format "Testing %s..." project))
+  (let [alias (keyword (str project "-test"))
+        result (shell/sh "clojure" (str "-X" alias))]
+    (when (seq (:out result))
+      (println (:out result)))
+    (when (seq (:err result))
+      (binding [*out* *err*]
+        (println (:err result))))
+    result))
 
 (defn check-all
   "Run syntax and type checking for all projects"
@@ -79,9 +94,9 @@
 
 (defn repl
   "Start a REPL with all projects available"
-  []
+  [& _]
   (println "Starting REPL with all projects...")
-  (shell/sh "clojure" "-M:repl"))
+  (shell/sh "clojure" "-M:dev-all:repl"))
 
 (defn outdated
   "Check for outdated dependencies across all projects"
