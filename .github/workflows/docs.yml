@@ -46,34 +46,37 @@ jobs:
             ${{ runner.os }}-clojure-
 
       - name: Generate documentation for exclusive-initializer
+        working-directory: exclusive-initializer
         run: |
           clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
-            -M -m codox.main \
-            --name "exclusive-initializer" \
-            --version "0.1.0" \
-            --source-paths exclusive-initializer/src \
-            --output-path docs-output/exclusive-initializer \
-            --metadata ':doc/format :markdown'
+            -X codox.main/generate-docs \
+            :name '"exclusive-initializer"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/exclusive-initializer"' \
+            :metadata '{:doc/format :markdown}'
 
       - name: Generate documentation for db
+        working-directory: db
         run: |
           clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
-            -M -m codox.main \
-            --name "db" \
-            --version "0.1.0" \
-            --source-paths db/src \
-            --output-path docs-output/db \
-            --metadata ':doc/format :markdown'
+            -X codox.main/generate-docs \
+            :name '"db"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/db"' \
+            :metadata '{:doc/format :markdown}'
 
       - name: Generate documentation for polix
+        working-directory: polix
         run: |
           clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
-            -M -m codox.main \
-            --name "polix" \
-            --version "0.1.0" \
-            --source-paths polix/src \
-            --output-path docs-output/polix \
-            --metadata ':doc/format :markdown'
+            -X codox.main/generate-docs \
+            :name '"polix"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/polix"' \
+            :metadata '{:doc/format :markdown}'
 
       - name: Create .nojekyll file
         run: touch docs-output/.nojekyll

@@ -322,7 +322,7 @@
                                                      (if (either/right? child-result)
                                                        child-result
                                                        (throw (ex-info "Child evaluation failed"
-                                                                       (either/extract child-result))))))
+                                                                       (m/extract child-result))))))
                                                  children)
                                node-with-thunks (assoc node :children (lazy-seq child-thunks))]
                            (eval-node evaluator node-with-thunks document eval-context))

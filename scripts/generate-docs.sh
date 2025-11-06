@@ -8,30 +8,39 @@ mkdir -p docs-output
 
 # Generate docs for exclusive-initializer
 echo "Generating docs for exclusive-initializer..."
-clojure -M:docs \
-  --name "exclusive-initializer" \
-  --version "0.1.0" \
-  --source-paths exclusive-initializer/src \
-  --output-path docs-output/exclusive-initializer \
-  --metadata ':doc/format :markdown'
+cd exclusive-initializer
+clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+  -X codox.main/generate-docs \
+  :name '"exclusive-initializer"' \
+  :version '"0.1.0"' \
+  :source-paths '["src"]' \
+  :output-path '"../docs-output/exclusive-initializer"' \
+  :metadata '{:doc/format :markdown}'
+cd ..
 
 # Generate docs for db
 echo "Generating docs for db..."
-clojure -M:docs \
-  --name "db" \
-  --version "0.1.0" \
-  --source-paths db/src \
-  --output-path docs-output/db \
-  --metadata ':doc/format :markdown'
+cd db
+clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+  -X codox.main/generate-docs \
+  :name '"db"' \
+  :version '"0.1.0"' \
+  :source-paths '["src"]' \
+  :output-path '"../docs-output/db"' \
+  :metadata '{:doc/format :markdown}'
+cd ..
 
 # Generate docs for polix
 echo "Generating docs for polix..."
-clojure -M:docs \
-  --name "polix" \
-  --version "0.1.0" \
-  --source-paths polix/src \
-  --output-path docs-output/polix \
-  --metadata ':doc/format :markdown'
+cd polix
+clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+  -X codox.main/generate-docs \
+  :name '"polix"' \
+  :version '"0.1.0"' \
+  :source-paths '["src"]' \
+  :output-path '"../docs-output/polix"' \
+  :metadata '{:doc/format :markdown}'
+cd ..
 
 # Create index page
 echo "Creating index page..."
