@@ -1,0 +1,179 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  generate-docs:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@12.5
+        with:
+          cli: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: ${{ runner.os }}-clojure-${{ hashFiles('**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-clojure-
+
+      - name: Generate documentation for exclusive-initializer
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -M -m codox.main \
+            --name "exclusive-initializer" \
+            --version "0.1.0" \
+            --source-paths exclusive-initializer/src \
+            --output-path docs-output/exclusive-initializer \
+            --metadata ':doc/format :markdown'
+
+      - name: Generate documentation for db
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -M -m codox.main \
+            --name "db" \
+            --version "0.1.0" \
+            --source-paths db/src \
+            --output-path docs-output/db \
+            --metadata ':doc/format :markdown'
+
+      - name: Generate documentation for polix
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -M -m codox.main \
+            --name "polix" \
+            --version "0.1.0" \
+            --source-paths polix/src \
+            --output-path docs-output/polix \
+            --metadata ':doc/format :markdown'
+
+      - name: Create .nojekyll file
+        run: touch docs-output/.nojekyll
+
+      - name: Create index page
+        run: |
+          cat > docs-output/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Clojure Monorepo Documentation</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 40px 20px;
+                line-height: 1.6;
+                color: #333;
+              }
+              h1 {
+                color: #2c3e50;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 10px;
+              }
+              .package-list {
+                list-style: none;
+                padding: 0;
+              }
+              .package-item {
+                margin: 20px 0;
+                padding: 20px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background: #f9f9f9;
+              }
+              .package-item h2 {
+                margin-top: 0;
+                color: #2980b9;
+              }
+              .package-item a {
+                color: #3498db;
+                text-decoration: none;
+                font-weight: bold;
+              }
+              .package-item a:hover {
+                text-decoration: underline;
+              }
+              .package-description {
+                color: #666;
+                margin-top: 10px;
+              }
+              .github-link {
+                margin-top: 30px;
+                text-align: center;
+              }
+              .github-link a {
+                color: #3498db;
+                text-decoration: none;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>Clojure Monorepo Documentation</h1>
+            <p>Welcome to the API documentation for all packages in this monorepo.</p>
+
+            <ul class="package-list">
+              <li class="package-item">
+                <h2><a href="exclusive-initializer/">exclusive-initializer</a></h2>
+                <p class="package-description">Exclusive initialization utilities for Clojure applications.</p>
+              </li>
+
+              <li class="package-item">
+                <h2><a href="db/">db</a></h2>
+                <p class="package-description">Database utilities and helpers.</p>
+              </li>
+
+              <li class="package-item">
+                <h2><a href="polix/">polix</a></h2>
+                <p class="package-description">A DSL for writing declarative policies with document accessors and URI support.</p>
+              </li>
+            </ul>
+
+            <div class="github-link">
+              <p><a href="${{ github.server_url }}/${{ github.repository }}">View on GitHub</a></p>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'docs-output'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

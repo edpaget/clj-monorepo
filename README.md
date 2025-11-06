@@ -97,6 +97,20 @@ Creates a new project with:
 ./scripts/format check my-new-lib
 ```
 
+### Documentation
+
+Generate API documentation for all packages:
+
+```bash
+# Generate documentation locally
+./scripts/generate-docs.sh
+
+# View locally (requires Python 3)
+python3 -m http.server 8000 -d docs-output
+```
+
+Documentation is automatically published to GitHub Pages when changes are pushed to `main`. The published docs will be available at your GitHub Pages URL.
+
 ### REPL
 
 ```bash

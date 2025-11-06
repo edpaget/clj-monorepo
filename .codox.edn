@@ -1,0 +1,4 @@
+{:metadata {:doc/format :markdown}
+ :themes [:default]
+ :doc-files []
+ :source-uri "https://github.com/{user}/{repo}/blob/{version}/{filepath}#L{line}"}

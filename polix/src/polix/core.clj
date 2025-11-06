@@ -12,43 +12,18 @@
   static data structures or dynamic sources like databases."
 
   (doc-get [this key]
-    "Get the value associated with key.
-
-    Args:
-      this: The document
-      key: The key to look up
-
-    Returns:
-      The value associated with key, or nil if not found")
+    "Returns the value associated with `key`, or `nil` if not found.")
 
   (doc-keys [this]
-    "Get all available keys in this document.
-
-    Args:
-      this: The document
-
-    Returns:
-      A collection of all keys available in the document")
+    "Returns a collection of all keys available in this document.")
 
   (doc-project [this ks]
-    "Project the document to only include specified keys.
-
-    Args:
-      this: The document
-      ks: Collection of keys to project
-
-    Returns:
-      A new document containing only the specified keys")
+    "Returns a new document containing only the specified keys from `ks`.")
 
   (doc-merge [this other]
-    "Merge this document with another, left-to-right.
+    "Merges this document with `other`, with `other`'s values taking precedence.
 
-    Args:
-      this: The first document (left)
-      other: The second document (right)
-
-    Returns:
-      A new merged document where other's values override this's values"))
+    Returns a new merged document."))
 
 (defrecord MapDocument [data]
   Document
@@ -66,13 +41,9 @@
     (->MapDocument (merge data (:data other)))))
 
 (defn map-document
-  "Create a Document from a map.
+  "Creates a [[Document]] from a map `m`.
 
-  Args:
-    m: A map of key-value pairs
-
-  Returns:
-    A MapDocument wrapping the provided map"
+  Returns a `MapDocument` wrapping the provided map."
   [m]
   (->MapDocument m))
 
@@ -82,73 +53,53 @@
     (str "{:type " type " :value " value " :position " position " :children " children "}")))
 
 (defn ast-node
-  "Create an AST node with position tracking.
+  "Creates an AST node with position tracking.
 
-  Args:
-    type: The node type (::literal, ::doc-accessor, ::uri, ::function-call, ::thunk)
-    value: The node value
-    position: Vector of [start-index end-index] in original expression
-    children: Optional vector of child AST nodes
+  Takes a `type` (one of `::literal`, `::doc-accessor`, `::uri`, `::function-call`,
+  or `::thunk`), a `value`, a `position` vector `[start-index end-index]` in the
+  original expression, and optional `children` (vector of child AST nodes).
 
-  Returns:
-    An ASTNode record"
+  Returns an `ASTNode` record."
   ([type value position]
    (->ASTNode type value position nil))
   ([type value position children]
    (->ASTNode type value position children)))
 
 (defn doc-accessor?
-  "Check if a keyword is a document accessor.
+  "Returns `true` if `k` is a document accessor keyword.
 
-  Document accessors are namespaced keywords starting with 'doc'.
-
-  Args:
-    k: The value to check
-
-  Returns:
-    true if k is a document accessor keyword"
+  Document accessors are namespaced keywords with namespace `\"doc\"`,
+  such as `:doc/actor-role`."
   [k]
   (and (keyword? k)
        (= "doc" (namespace k))))
 
 (defn uri-accessor?
-  "Check if a keyword is a URI accessor.
+  "Returns `true` if `k` is a URI accessor keyword.
 
-  URI accessors are namespaced keywords starting with 'uri'.
-
-  Args:
-    k: The value to check
-
-  Returns:
-    true if k is a URI accessor keyword"
+  URI accessors are namespaced keywords with namespace `\"uri\"`,
+  such as `:uri/resource`."
   [k]
   (and (keyword? k)
        (= "uri" (namespace k))))
 
 (defn thunkable?
-  "Check if a form should be wrapped in a thunk.
+  "Returns `true` if `form` should be wrapped in a thunk for delayed evaluation.
 
-  Vars and lists (function calls) should be thunked to delay evaluation.
-
-  Args:
-    form: The form to check
-
-  Returns:
-    true if form should be wrapped in a thunk"
+  Vars and non-empty lists (function calls) should be thunked."
   [form]
   (boolean
    (or (var? form)
        (and (list? form) (seq form)))))
 
 (defn classify-token
-  "Classify a token into its AST node type.
+  "Classifies a `token` into its AST node type based on `position`.
 
-  Args:
-    token: The token to classify
-    position: The position [start end] of the token
-
-  Returns:
-    An ASTNode representing the classified token"
+  Returns an [[ASTNode]] with the appropriate type:
+  - `::doc-accessor` for document accessors
+  - `::uri` for URI accessors
+  - `::thunk` for thunkable forms
+  - `::literal` for all other values"
   [token position]
   (cond
     (doc-accessor? token)
@@ -164,34 +115,25 @@
     (ast-node ::literal token position)))
 
 (defn valid-function-name?
-  "Check if a value is a valid function name for the policy DSL.
+  "Returns `true` if `v` is a valid function name for the policy DSL.
 
-  Valid function names are keywords or symbols.
-
-  Args:
-    v: The value to check
-
-  Returns:
-    true if v is a valid function name"
+  Valid function names are keywords or symbols."
   [v]
   (or (keyword? v) (symbol? v)))
 
 (defn parse-policy
-  "Parse a policy DSL expression into an AST with Either monad error handling.
+  "Parses a policy DSL expression `expr` into an AST with Either monad error handling.
 
   The DSL supports:
-  - Document accessors: :doc/key-name
-  - URI accessors: :uri/uri
-  - Function calls: [:fn-name arg1 arg2 ...]
+  - Document accessors: `:doc/key-name`
+  - URI accessors: `:uri/uri`
+  - Function calls: `[:fn-name arg1 arg2 ...]`
   - Literals: strings, numbers, keywords, etc.
-  - Thunks: Clojure vars and function calls wrapped for delayed eval
+  - Thunks: Clojure vars and function calls wrapped for delayed evaluation
 
-  Args:
-    expr: The policy expression (vector s-expression)
-    position: Optional starting position (default [0 0])
+  Takes an optional `position` vector `[start end]` for tracking location (defaults to `[0 0]`).
 
-  Returns:
-    Either[error-map, ASTNode] - Right with AST on success, Left with error on failure"
+  Returns `Either[error-map, ASTNode]` - `Right` with AST on success, `Left` with error on failure."
   ([expr]
    (parse-policy expr [0 0]))
   ([expr position]
@@ -221,13 +163,9 @@
      (m/return either/context (classify-token expr position)))))
 
 (defn extract-doc-keys
-  "Extract all document accessor keys from a policy AST.
+  "Extracts all document accessor keys from a policy `ast`.
 
-  Args:
-    ast: The policy AST node
-
-  Returns:
-    A set of document accessor keywords (without :doc/ namespace)"
+  Returns a set of document accessor keywords without the `:doc/` namespace."
   [ast]
   (->> (tree-seq :children :children ast)
        (filter #(= ::doc-accessor (:type %)))
@@ -237,28 +175,23 @@
 (defrecord Policy [name docstring schema ast])
 
 (defmacro defpolicy
-  "Define a policy with a name, optional docstring, and policy expression.
+  "Defines a policy with a `name`, optional `docstring`, and policy expression.
 
   A policy is a declarative rule that evaluates to boolean true/false.
   The macro parses the policy expression into an AST and extracts the
   required document schema.
 
-  Usage:
-    (defpolicy MyPolicy
-      \"Optional docstring\"
-      [:= :doc/actor-role \"admin\"])
+  Examples:
 
-    (defpolicy AnotherPolicy
-      [:or [:= :doc/role \"admin\"]
-           [:= :doc/role \"user\"]])
+      (defpolicy MyPolicy
+        \"Optional docstring\"
+        [:= :doc/actor-role \"admin\"])
 
-  Args:
-    name: The policy name (symbol)
-    docstring: Optional docstring (string)
-    expr: The policy expression (vector DSL)
+      (defpolicy AnotherPolicy
+        [:or [:= :doc/role \"admin\"]
+             [:= :doc/role \"user\"]])
 
-  Returns:
-    A def form that creates a Policy record, or throws on parse error"
+  Returns a `def` form that creates a [[Policy]] record, or throws on parse error."
   [name & args]
   (let [[docstring expr] (if (string? (first args))
                            [(first args) (second args)]
@@ -277,34 +210,23 @@
 
 (defprotocol Evaluator
   "Protocol for evaluating AST nodes.
-  
-  Evaluators receive an AST node, a document, and optional context,
-  and return an Either[error, value]."
+
+  Evaluators receive an AST `node`, a [[Document]], and optional `context`,
+  and return an `Either[error, value]`."
 
   (eval-node [this node document context]
-    "Evaluate an AST node with the given document and context.
-    
-    Args:
-      this: The evaluator
-      node: The AST node to evaluate
-      document: The Document to evaluate against
-      context: Optional evaluation context map
-      
-    Returns:
-      Either[error-map, value] - Right with result on success, Left with error on failure"))
+    "Evaluates an AST `node` with the given `document` and `context`.
+
+    Returns `Either[error-map, value]` - `Right` with result on success, `Left` with error on failure."))
 
 (defmulti default-eval
   "Default evaluation multimethod dispatching on AST node type.
-  
-  Does not recurse - recursion is handled by the evaluate function.
-  
-  Args:
-    node: The AST node to evaluate (children already evaluated to thunks)
-    document: The Document to evaluate against
-    context: Evaluation context map
-    
-  Returns:
-    Either[error-map, value]"
+
+  Does not recurse - recursion is handled by the [[evaluate]] function.
+  Takes a `node` (with children already evaluated to thunks), a [[Document]],
+  and a `context` map.
+
+  Returns `Either[error-map, value]`."
   (fn [node _document _context] (:type node)))
 
 (defmethod default-eval ::literal
@@ -368,23 +290,22 @@
     (default-eval node document context)))
 
 (def default-evaluator
-  "The default evaluator instance."
+  "The default [[Evaluator]] instance."
   (->DefaultEvaluator))
 
 (defn evaluate
-  "Evaluate an AST node with a document and optional context.
-  
-  Uses postwalk to traverse the AST, converting each node's children into
+  "Evaluates an AST node with a [[Document]] and optional context.
+
+  Uses `postwalk` to traverse the AST, converting each node's children into
   lazy thunks that return evaluated values. Does not recurse in evaluators.
-  
-  Args:
-    ast: The AST node to evaluate (typically from a Policy)
-    document: The Document to evaluate against
-    evaluator: Optional evaluator (defaults to default-evaluator)
-    context: Optional context map with :uri, :environment, etc.
-    
-  Returns:
-    Either[error-map, value] - Right with result on success, Left with error on failure"
+
+  Takes:
+  - `ast` - The AST node to evaluate (typically from a [[Policy]])
+  - `document` - The [[Document]] to evaluate against
+  - `evaluator` - Optional [[Evaluator]] (defaults to [[default-evaluator]])
+  - `context` - Optional context map with `:uri`, `:environment`, etc.
+
+  Returns `Either[error-map, value]` - `Right` with result on success, `Left` with error on failure."
   ([ast document]
    (evaluate ast document default-evaluator {}))
   ([ast document evaluator]
