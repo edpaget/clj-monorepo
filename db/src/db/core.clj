@@ -107,10 +107,10 @@
   [jdbc-fn connectable-or-sql sql-or-opts & [opts]]
   (if (connectable? connectable-or-sql)
     (let [sql-vec (compile-honeysql sql-or-opts)
-          opts* (merge default-next-jdbc-opts opts)]
+          opts*   (merge default-next-jdbc-opts opts)]
       (jdbc-fn connectable-or-sql sql-vec opts*))
     ;; No explicit connectable, rely on dynamic vars
-    (let [sql-vec (compile-honeysql connectable-or-sql)
+    (let [sql-vec        (compile-honeysql connectable-or-sql)
           effective-opts (merge default-next-jdbc-opts
                                 (if-not (nil? sql-or-opts) sql-or-opts opts))]
       (if *current-connection*

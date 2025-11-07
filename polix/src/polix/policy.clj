@@ -32,13 +32,13 @@
   (let [[docstring expr] (if (string? (first args))
                            [(first args) (second args)]
                            [nil (first args)])
-        ast (-> (parser/parse-policy expr)
-                (either/branch-left
-                 (fn [error]
-                   (throw (ex-info (str "Policy parse error: " (:message error))
-                                   (assoc error :policy-name name)))))
-                (m/extract))
-        schema (parser/extract-doc-keys ast)]
+        ast              (-> (parser/parse-policy expr)
+                             (either/branch-left
+                              (fn [error]
+                                (throw (ex-info (str "Policy parse error: " (:message error))
+                                                (assoc error :policy-name name)))))
+                             (m/extract))
+        schema           (parser/extract-doc-keys ast)]
     `(def ~name
        ~@(when docstring [docstring])
        (->Policy '~name ~docstring ~schema '~ast))))

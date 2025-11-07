@@ -33,8 +33,8 @@
   "Create the basic directory structure for a new project"
   [project-name]
   (let [project-dir project-name
-        src-dir (str project-dir "/src")
-        test-dir (str project-dir "/test")]
+        src-dir     (str project-dir "/src")
+        test-dir    (str project-dir "/test")]
     (doseq [dir [project-dir src-dir test-dir]]
       (io/make-parents (str dir "/dummy"))
       (println (format "Created directory: %s" dir)))))
@@ -50,12 +50,12 @@
 (defn create-config-symlinks
   "Create symlinks to shared configuration files"
   [project-name]
-  (let [root-dir (System/getProperty "user.dir")
-        project-dir (io/file project-name)
-        clj-kondo-link (io/file project-dir ".clj-kondo")
-        cljfmt-link (io/file project-dir ".cljfmt.edn")
+  (let [root-dir         (System/getProperty "user.dir")
+        project-dir      (io/file project-name)
+        clj-kondo-link   (io/file project-dir ".clj-kondo")
+        cljfmt-link      (io/file project-dir ".cljfmt.edn")
         clj-kondo-target (io/file root-dir ".clj-kondo")
-        cljfmt-target (io/file root-dir ".cljfmt.edn")]
+        cljfmt-target    (io/file root-dir ".cljfmt.edn")]
 
     ;; Create .clj-kondo symlink
     (when (.exists clj-kondo-target)
@@ -79,8 +79,8 @@
   "Create README.md file for the project"
   [project-name]
   (let [readme-file (format "%s/README.md" project-name)
-        title (str/replace project-name #"-" " ")
-        title (str/join " " (map str/capitalize (str/split title #" ")))]
+        title       (str/replace project-name #"-" " ")
+        title       (str/join " " (map str/capitalize (str/split title #" ")))]
     (spit readme-file (format "# %s\n\nDescription of the %s library/application.\n\n## Usage\n\n```clojure\n(require '[%s.core :as %s])\n\n(%s/hello \"World\")\n;; => \"Hello, World!\"\n```\n\n## Development\n\n```bash\n# Run tests\nclojure -X:test\n\n# Start REPL\nclojure -M:repl\n\n# Lint code\nclojure -M:lint\n```\n"
                               title project-name project-name (first (str/split project-name #"-")) (first (str/split project-name #"-"))))
     (println (format "Created: %s" readme-file))))
@@ -90,8 +90,8 @@
   [project-name]
   (let [namespace-name (-> (str/replace project-name #"-" "_")
                            (str/replace #"\." "/"))
-        src-file (format "%s/src/%s/core.clj" project-name namespace-name)
-        test-file (format "%s/test/%s/core_test.clj" project-name namespace-name)]
+        src-file       (format "%s/src/%s/core.clj" project-name namespace-name)
+        test-file      (format "%s/test/%s/core_test.clj" project-name namespace-name)]
 
     ;; Create main namespace
     (io/make-parents src-file)

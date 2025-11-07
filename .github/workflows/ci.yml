@@ -18,8 +18,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: "temurin"
+          java-version: "21"
 
       - name: Setup Clojure
         uses: DeLaGuardo/setup-clojure@12.5
@@ -38,7 +38,7 @@ jobs:
             ${{ runner.os }}-clojure-
 
       - name: Check formatting with cljfmt
-        run: clojure -M:format check
+        run: clojure -X:format check '{:paths ["."]}'
 
       - name: Run clj-kondo
         run: clojure -M:lint --lint .
@@ -61,8 +61,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: "temurin"
+          java-version: "21"
 
       - name: Setup Clojure
         uses: DeLaGuardo/setup-clojure@12.5
@@ -115,8 +115,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: "temurin"
+          java-version: "21"
 
       - name: Setup Clojure
         uses: DeLaGuardo/setup-clojure@12.5

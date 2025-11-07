@@ -42,22 +42,22 @@
 (deftest insert-enum-with-lift-keyword
   (jdbc-ext/refresh-enum-cache! db/*datasource*)
   (let [entity-id (random-id)
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "Keyword Test"
-                                       :status [:lift :status-enum/active]}])))
-        result (db/execute-one! (-> (h/select :status)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "Keyword Test"
+                                               :status [:lift :status-enum/active]}])))
+        result    (db/execute-one! (-> (h/select :status)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= :status-enum/active (:status result)))))
 
 (deftest query-with-lift-keyword-in-where-clause
   (jdbc-ext/refresh-enum-cache! db/*datasource*)
-  (let [id1 (random-id)
-        id2 (random-id)
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id id1 :name "Active1" :status [:lift :status-enum/active]}
-                                      {:id id2 :name "Inactive1" :status [:lift :status-enum/inactive]}])))
+  (let [id1     (random-id)
+        id2     (random-id)
+        _       (db/execute! (-> (h/insert-into :entity)
+                                 (h/values [{:id id1 :name "Active1" :status [:lift :status-enum/active]}
+                                            {:id id2 :name "Inactive1" :status [:lift :status-enum/inactive]}])))
         results (db/execute! (-> (h/select :id :name)
                                  (h/from :entity)
                                  (h/where [:= :status [:lift :status-enum/active]])
@@ -68,27 +68,27 @@
 (deftest update-enum-with-lift-keyword
   (jdbc-ext/refresh-enum-cache! db/*datasource*)
   (let [entity-id (random-id)
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "Update Test"
-                                       :status [:lift :status-enum/pending]}])))
-        _ (db/execute! (-> (h/update :entity)
-                           (h/set {:status [:lift :status-enum/active]})
-                           (h/where [:= :id entity-id])))
-        result (db/execute-one! (-> (h/select :status)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "Update Test"
+                                               :status [:lift :status-enum/pending]}])))
+        _         (db/execute! (-> (h/update :entity)
+                                   (h/set {:status [:lift :status-enum/active]})
+                                   (h/where [:= :id entity-id])))
+        result    (db/execute-one! (-> (h/select :status)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= :status-enum/active (:status result)))))
 
 (deftest all-enum-values-read-as-namespaced-keywords
   (jdbc-ext/refresh-enum-cache! db/*datasource*)
-  (let [id1 (random-id)
-        id2 (random-id)
-        id3 (random-id)
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id id1 :name "Active" :status [:lift :status-enum/active]}
-                                      {:id id2 :name "Inactive" :status [:lift :status-enum/inactive]}
-                                      {:id id3 :name "Pending" :status [:lift :status-enum/pending]}])))
+  (let [id1     (random-id)
+        id2     (random-id)
+        id3     (random-id)
+        _       (db/execute! (-> (h/insert-into :entity)
+                                 (h/values [{:id id1 :name "Active" :status [:lift :status-enum/active]}
+                                            {:id id2 :name "Inactive" :status [:lift :status-enum/inactive]}
+                                            {:id id3 :name "Pending" :status [:lift :status-enum/pending]}])))
         results (db/execute! (-> (h/select :id :status)
                                  (h/from :entity)
                                  (h/where [:in :id [id1 id2 id3]])))]
@@ -100,104 +100,104 @@
 (deftest non-enum-string-columns-remain-strings
   (jdbc-ext/refresh-enum-cache! db/*datasource*)
   (let [entity-id (random-id)
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "Test Name"
-                                       :status [:lift :status-enum/active]}])))
-        result (db/execute-one! (-> (h/select :name)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "Test Name"
+                                               :status [:lift :status-enum/active]}])))
+        result    (db/execute-one! (-> (h/select :name)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (string? (:name result)))))
 
 (deftest non-enum-keyword-converts-to-string
   (jdbc-ext/refresh-enum-cache! db/*datasource*)
   (let [entity-id (random-id)
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name [:lift :not-enum/test]
-                                       :status [:lift :status-enum/active]}])))
-        result (db/execute-one! (-> (h/select :name)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name [:lift :not-enum/test]
+                                               :status [:lift :status-enum/active]}])))
+        result    (db/execute-one! (-> (h/select :name)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= "test" (:name result)))))
 
 (deftest insert-jsonb-map
   (let [entity-id (random-id)
-        metadata {:user-id 123 :role "admin"}
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "JSONB Test"
-                                       :status [:lift :status-enum/active]
-                                       :metadata [:lift metadata]}])))
-        result (db/execute-one! (-> (h/select :metadata)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        metadata  {:user-id 123 :role "admin"}
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "JSONB Test"
+                                               :status [:lift :status-enum/active]
+                                               :metadata [:lift metadata]}])))
+        result    (db/execute-one! (-> (h/select :metadata)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= {:user-id 123 :role "admin"} (:metadata result)))))
 
 (deftest insert-json-map
   (let [entity-id (random-id)
-        settings {:theme "dark" :notifications true}
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "JSON Test"
-                                       :status [:lift :status-enum/active]
-                                       :settings [:lift settings]}])))
-        result (db/execute-one! (-> (h/select :settings)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        settings  {:theme "dark" :notifications true}
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "JSON Test"
+                                               :status [:lift :status-enum/active]
+                                               :settings [:lift settings]}])))
+        result    (db/execute-one! (-> (h/select :settings)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= {:theme "dark" :notifications true} (:settings result)))))
 
 (deftest insert-jsonb-vector
   (let [entity-id (random-id)
-        metadata ["tag1" "tag2" "tag3"]
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "JSONB Vector Test"
-                                       :status [:lift :status-enum/active]
-                                       :metadata [:lift metadata]}])))
-        result (db/execute-one! (-> (h/select :metadata)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        metadata  ["tag1" "tag2" "tag3"]
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "JSONB Vector Test"
+                                               :status [:lift :status-enum/active]
+                                               :metadata [:lift metadata]}])))
+        result    (db/execute-one! (-> (h/select :metadata)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= ["tag1" "tag2" "tag3"] (:metadata result)))))
 
 (deftest insert-json-vector
   (let [entity-id (random-id)
-        settings [1 2 3 4 5]
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "JSON Vector Test"
-                                       :status [:lift :status-enum/active]
-                                       :settings [:lift settings]}])))
-        result (db/execute-one! (-> (h/select :settings)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        settings  [1 2 3 4 5]
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "JSON Vector Test"
+                                               :status [:lift :status-enum/active]
+                                               :settings [:lift settings]}])))
+        result    (db/execute-one! (-> (h/select :settings)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= [1 2 3 4 5] (:settings result)))))
 
 (deftest jsonb-preserves-nested-structures
   (let [entity-id (random-id)
-        metadata {:user {:id 123 :name "Alice"}
-                  :permissions ["read" "write"]
-                  :active true}
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "Nested Test"
-                                       :status [:lift :status-enum/active]
-                                       :metadata [:lift metadata]}])))
-        result (db/execute-one! (-> (h/select :metadata)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        metadata  {:user {:id 123 :name "Alice"}
+                   :permissions ["read" "write"]
+                   :active true}
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "Nested Test"
+                                               :status [:lift :status-enum/active]
+                                               :metadata [:lift metadata]}])))
+        result    (db/execute-one! (-> (h/select :metadata)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (= metadata (:metadata result)))))
 
 (deftest json-null-values-handled-correctly
   (let [entity-id (random-id)
-        _ (db/execute! (-> (h/insert-into :entity)
-                           (h/values [{:id entity-id
-                                       :name "Null Test"
-                                       :status [:lift :status-enum/active]
-                                       :metadata nil
-                                       :settings nil}])))
-        result (db/execute-one! (-> (h/select :metadata :settings)
-                                    (h/from :entity)
-                                    (h/where [:= :id entity-id])))]
+        _         (db/execute! (-> (h/insert-into :entity)
+                                   (h/values [{:id entity-id
+                                               :name "Null Test"
+                                               :status [:lift :status-enum/active]
+                                               :metadata nil
+                                               :settings nil}])))
+        result    (db/execute-one! (-> (h/select :metadata :settings)
+                                       (h/from :entity)
+                                       (h/where [:= :id entity-id])))]
     (is (nil? (:metadata result)))
     (is (nil? (:settings result)))))

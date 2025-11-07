@@ -22,7 +22,7 @@
 
 (deftest map-document-project-test
   (testing "projecting document to subset of keys"
-    (let [doc (core/map-document {:foo "bar" :baz 42 :qux "hello"})
+    (let [doc       (core/map-document {:foo "bar" :baz 42 :qux "hello"})
           projected (core/doc-project doc [:foo :baz])]
       (is (= "bar" (core/doc-get projected :foo)))
       (is (= 42 (core/doc-get projected :baz)))
@@ -31,8 +31,8 @@
 
 (deftest map-document-merge-test
   (testing "merging two documents with left-to-right precedence"
-    (let [doc1 (core/map-document {:foo "bar" :baz 42})
-          doc2 (core/map-document {:baz 99 :qux "hello"})
+    (let [doc1   (core/map-document {:foo "bar" :baz 42})
+          doc2   (core/map-document {:baz 99 :qux "hello"})
           merged (core/doc-merge doc1 doc2)]
       (is (= "bar" (core/doc-get merged :foo)))
       (is (= 99 (core/doc-get merged :baz)))
@@ -58,7 +58,7 @@
       (is (false? (core/doc-contains? doc :anything)))))
 
   (testing "doc-contains? after projection"
-    (let [doc (core/map-document {:foo "bar" :baz 42 :qux nil})
+    (let [doc       (core/map-document {:foo "bar" :baz 42 :qux nil})
           projected (core/doc-project doc [:foo :qux])]
       (is (true? (core/doc-contains? projected :foo)))
       (is (true? (core/doc-contains? projected :qux)))  ; nil value preserved
@@ -171,18 +171,18 @@
 (deftest extract-doc-keys-test
   (testing "extracting document keys from simple policy"
     (let [result (core/parse-policy [:= :doc/actor-role "admin"])
-          ast (m/extract result)]
+          ast    (m/extract result)]
       (is (= #{:actor-role} (core/extract-doc-keys ast)))))
 
   (testing "extracting document keys from nested policy"
     (let [result (core/parse-policy [:or [:= :doc/actor-role "admin"]
                                      [:= :doc/actor-name "bob"]])
-          ast (m/extract result)]
+          ast    (m/extract result)]
       (is (= #{:actor-role :actor-name} (core/extract-doc-keys ast)))))
 
   (testing "extracting no keys from policy with only literals"
     (let [result (core/parse-policy [:match :uri/uri "prefix:"])
-          ast (m/extract result)]
+          ast    (m/extract result)]
       (is (= #{} (core/extract-doc-keys ast))))))
 
 (deftest parse-policy-error-test
@@ -233,10 +233,10 @@
 
 (deftest evaluate-with-nil-values-test
   (testing "evaluating doc-accessor with nil value vs missing key"
-    (let [policy-ast (m/extract (core/parse-policy :doc/status))
-          doc-with-nil (core/map-document {:status nil})
-          doc-without-key (core/map-document {})
-          result-with-nil (core/evaluate policy-ast doc-with-nil)
+    (let [policy-ast         (m/extract (core/parse-policy :doc/status))
+          doc-with-nil       (core/map-document {:status nil})
+          doc-without-key    (core/map-document {})
+          result-with-nil    (core/evaluate policy-ast doc-with-nil)
           result-without-key (core/evaluate policy-ast doc-without-key)]
       ;; Document has :status key with nil value - should return nil
       (is (either/right? result-with-nil))
@@ -247,14 +247,14 @@
 
   (testing "evaluating doc-accessor with false value"
     (let [policy-ast (m/extract (core/parse-policy :doc/active))
-          doc (core/map-document {:active false})
-          result (core/evaluate policy-ast doc)]
+          doc        (core/map-document {:active false})
+          result     (core/evaluate policy-ast doc)]
       ;; Document has :active key with false value
       (is (either/right? result))
       (is (false? (m/extract result)))))
 
   (testing "doc-contains? correctly identifies presence"
     (let [doc-with-nil (core/map-document {:status nil})
-          doc-without (core/map-document {})]
+          doc-without  (core/map-document {})]
       (is (true? (core/doc-contains? doc-with-nil :status)))
       (is (false? (core/doc-contains? doc-without :status))))))

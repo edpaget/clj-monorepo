@@ -42,7 +42,7 @@
   Returns:
     Clojure data structure parsed from JSON, or original value if not JSON type"
   [^PGobject v]
-  (let [type (.getType v)
+  (let [type  (.getType v)
         value (.getValue v)]
     (if (#{"jsonb" "json"} type)
       (some-> value <-json (with-meta {:pgtype type}))
@@ -57,7 +57,7 @@
   Returns:
     Set of enum type names as strings"
   [connection]
-  (let [query "SELECT typname FROM pg_type WHERE typtype = 'e'"
+  (let [query   "SELECT typname FROM pg_type WHERE typtype = 'e'"
         results (jdbc/execute! connection [query])]
     (into #{} (map :pg_type/typname results))))
 
@@ -97,7 +97,7 @@
     String enum type name (e.g., \"status_enum\") or nil if not an enum keyword"
   [kw]
   (when (and (keyword? kw) (namespace kw))
-    (let [ns-part (namespace kw)
+    (let [ns-part    (namespace kw)
           snake-case (csk/->snake_case ns-part)]
       (when (enum-type? snake-case)
         snake-case))))

@@ -17,7 +17,7 @@
 
 (deftest initialize-not-shared-test
   (testing "different locks have different states"
-    (let [run-count (atom 0)
+    (let [run-count   (atom 0)
           lock-name-1 ::test-lock-1
           lock-name-2 ::test-lock-2]
 
@@ -29,18 +29,18 @@
 
 (deftest initialize-concurrency-test
   (testing "initialization happens only once under concurrency"
-    (let [run-count (atom 0)
-          lock-name ::concurrent-lock
+    (let [run-count   (atom 0)
+          lock-name   ::concurrent-lock
           num-threads 10
-          promises (repeatedly num-threads promise)
-          threads (mapv (fn [p]
-                          (Thread.
-                           (fn []
-                             (core/initialize! lock-name
-                               (Thread/sleep 10)
-                               (swap! run-count inc))
-                             (deliver p :done))))
-                        promises)]
+          promises    (repeatedly num-threads promise)
+          threads     (mapv (fn [p]
+                              (Thread.
+                               (fn []
+                                 (core/initialize! lock-name
+                                                   (Thread/sleep 10)
+                                                   (swap! run-count inc))
+                                 (deliver p :done))))
+                            promises)]
       (doseq [t threads] (.start t))
       (doseq [p promises] (deref p 1000 :timeout))
       (is (= 1 @run-count)))))

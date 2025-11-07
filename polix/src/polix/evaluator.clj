@@ -59,7 +59,7 @@
   [node _document _context]
   (try
     (let [thunk-fn (:value node)
-          result (thunk-fn)]
+          result   (thunk-fn)]
       (m/return either/context result))
     (catch Exception e
       (either/left {:error :thunk-evaluation-error
@@ -69,7 +69,7 @@
 
 (defmethod default-eval ::ast/function-call
   [node _document context]
-  (let [fn-name (:value node)
+  (let [fn-name    (:value node)
         arg-thunks (:children node)]
     (if-let [operator (get (:environment context) fn-name)]
       (try
@@ -114,21 +114,21 @@
    (evaluate ast document evaluator {}))
   ([ast document evaluator context]
    (let [eval-context (assoc context :evaluator evaluator)
-         result (walk/postwalk
-                 (fn [node]
-                   (if (and (map? node) (:type node))
-                     (let [children (:children node)]
-                       (if children
-                         (let [child-thunks (map (fn [child-result]
-                                                   (fn []
-                                                     (if (either/right? child-result)
-                                                       child-result
-                                                       (throw (ex-info "Child evaluation failed"
-                                                                       (m/extract child-result))))))
-                                                 children)
-                               node-with-thunks (assoc node :children (lazy-seq child-thunks))]
-                           (eval-node evaluator node-with-thunks document eval-context))
-                         (eval-node evaluator node document eval-context)))
-                     node))
-                 ast)]
+         result       (walk/postwalk
+                       (fn [node]
+                         (if (and (map? node) (:type node))
+                           (let [children (:children node)]
+                             (if children
+                               (let [child-thunks     (map (fn [child-result]
+                                                             (fn []
+                                                               (if (either/right? child-result)
+                                                                 child-result
+                                                                 (throw (ex-info "Child evaluation failed"
+                                                                                 (m/extract child-result))))))
+                                                           children)
+                                     node-with-thunks (assoc node :children (lazy-seq child-thunks))]
+                                 (eval-node evaluator node-with-thunks document eval-context))
+                               (eval-node evaluator node document eval-context)))
+                           node))
+                       ast)]
      result)))

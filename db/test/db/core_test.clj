@@ -67,7 +67,7 @@
 (deftest execute!-test
   (testing "Insert using dynamic datasource"
     (let [actor-id (random-email)
-          result (insert-actor! nil {:id actor-id :use-name "pennyg"})]
+          result   (insert-actor! nil {:id actor-id :use-name "pennyg"})]
       (is (= [1] (mapv :next.jdbc/update-count result)) "Should return update count of 1")
       (is (= {:id actor-id :use-name "pennyg"}
              (get-actor-by-id nil actor-id)))))
@@ -75,7 +75,7 @@
   (testing "Insert using explicit connection"
     (jdbc/with-transaction [tx db/*current-connection* {:rollback-only true}]
       (let [actor-id (random-email)
-            result (insert-actor! tx {:id actor-id :use-name "nickw"})]
+            result   (insert-actor! tx {:id actor-id :use-name "nickw"})]
         (is (= [1] (mapv :next.jdbc/update-count result)) "Should return update count of 1")
         (is (= {:id actor-id :use-name "nickw"}
                (get-actor-by-id tx actor-id)))))))
@@ -103,9 +103,9 @@
           id6 (random-email)]
       (insert-actor! nil {:id id5 :use-name "johnnyl"})
       (insert-actor! nil {:id id6 :use-name "betten"})
-      (let [query (-> (h/select :use-name)
-                      (h/from :actor)
-                      (h/where [:in :id [id5 id6]]))
+      (let [query  (-> (h/select :use-name)
+                       (h/from :actor)
+                       (h/where [:in :id [id5 id6]]))
             actors (into #{} (map #(select-keys % [:use_name]))
                          (db/plan query))]
         (is (= #{{:use_name "johnnyl"} {:use_name "betten"}} actors)))))
@@ -116,22 +116,22 @@
             id8 (random-email)]
         (insert-actor! tx {:id id7 :use-name "gracem"})
         (insert-actor! tx {:id id8 :use-name "mattj"})
-        (let [query (-> (h/select :use-name)
-                        (h/from :actor)
-                        (h/where [:in :id [id7 id8]]))
+        (let [query  (-> (h/select :use-name)
+                         (h/from :actor)
+                         (h/where [:in :id [id7 id8]]))
               actors (into #{} (map #(select-keys % [:use_name]))
                            (db/plan tx query))]
           (is (= #{{:use_name "gracem"} {:use_name "mattj"}} actors)))))))
 
 (deftest with-connection-test
   (testing "Operations within with-connection use the same connection"
-    (let [id9 (random-email)
+    (let [id9  (random-email)
           id10 (random-email)]
       (db/with-connection [_conn]
         (let [result1 (insert-actor! nil {:id id9 :use-name "joes"})
-              actor1 (get-actor-by-id nil id9)
+              actor1  (get-actor-by-id nil id9)
               result2 (insert-actor! nil {:id id10 :use-name "chrisg"})
-              actor2 (get-actor-by-id nil id10)]
+              actor2  (get-actor-by-id nil id10)]
           (is (= [1] (mapv :next.jdbc/update-count result1)))
           (is (= {:id id9 :use-name "joes"} actor1))
           (is (= [1] (mapv :next.jdbc/update-count result2)))
@@ -141,6 +141,6 @@
 
 (deftest dynamic-binding-test
   (testing "Throws exception if *datasource* is not bound and no connection given"
-    (binding [db/*datasource* nil
+    (binding [db/*datasource*         nil
               db/*current-connection* nil]
       (is (thrown? IllegalStateException (db/execute! (h/select :* (h/from :actor))))))))

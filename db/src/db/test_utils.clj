@@ -44,7 +44,7 @@
   Raises:
     ExceptionInfo: If database name cannot be parsed from URL"
   [db-url]
-  (let [path (.getPath (java.net.URI. (str/replace-first db-url #"^jdbc:" "")))
+  (let [path    (.getPath (java.net.URI. (str/replace-first db-url #"^jdbc:" "")))
         db-name (when (and path (> (count path) 1)) (subs path 1))]
 
     (when-not db-name
@@ -57,25 +57,25 @@
   [db-url]
   (fn [f]
     (ei/initialize! ::db
-      (let [[base-url db-name] (split-db-name-from-uri db-url)
-            datasource (pool/create-pool base-url)
-            sql (format "CREATE DATABASE \"%s\"" db-name)]
-        (log/info "Ensuring test database exists for URL:" db-url)
-        (try
-          (log/debug "Executing:" sql)
-          (db/execute! datasource [sql])
-          (log/info "Database" db-name "created successfully.")
-          (catch java.sql.SQLException e
+                    (let [[base-url db-name] (split-db-name-from-uri db-url)
+                          datasource         (pool/create-pool base-url)
+                          sql                (format "CREATE DATABASE \"%s\"" db-name)]
+                      (log/info "Ensuring test database exists for URL:" db-url)
+                      (try
+                        (log/debug "Executing:" sql)
+                        (db/execute! datasource [sql])
+                        (log/info "Database" db-name "created successfully.")
+                        (catch java.sql.SQLException e
             ;; Check if the error is "database already exists" (PostgreSQL specific SQLState 42P04)
-            (if (= "42P04" (.getSQLState e))
-              (log/info "Database" db-name "already exists.")
-              (do
-                (log/error e "Failed to ensure database existence for" db-url)
-                (throw (ex-info (str "Failed to ensure test database exists. Check URL, permissions, server status. Original error: " (ex-message e))
-                                {:url db-url} e)))))
-          (finally
-            (pool/close-pool! datasource)))
-        (log/info "Database" db-name "is ready.")))
+                          (if (= "42P04" (.getSQLState e))
+                            (log/info "Database" db-name "already exists.")
+                            (do
+                              (log/error e "Failed to ensure database existence for" db-url)
+                              (throw (ex-info (str "Failed to ensure test database exists. Check URL, permissions, server status. Original error: " (ex-message e))
+                                              {:url db-url} e)))))
+                        (finally
+                          (pool/close-pool! datasource)))
+                      (log/info "Database" db-name "is ready.")))
     (f)))
 
 (defn- migrate-db-fixture
@@ -83,13 +83,13 @@
   (fn [f]
     (try
       (ei/initialize! ::db-migration
-        (log/info "Running migrations...")
-        (migrate/migrate (ragtime-config db/*datasource* migrations)))
+                      (log/info "Running migrations...")
+                      (migrate/migrate (ragtime-config db/*datasource* migrations)))
       (f)
       (finally
         (ei/deinitialize! ::db-migration
-          (log/info "Rolling back migrations...")
-          (migrate/rollback (ragtime-config db/*datasource* migrations)))))))
+                          (log/info "Rolling back migrations...")
+                          (migrate/rollback (ragtime-config db/*datasource* migrations)))))))
 
 (defn- pool-fixture
   [db-url]
@@ -133,7 +133,7 @@
   [f]
   (if-let [ds db/*datasource*] ; Relies on db/*datasource* being bound by db-fixture
     (jdbc/with-transaction [tx ds {:rollback-only true}]
-      (binding [db/*current-connection* tx                 ; Bind connection for tests using it
+      (binding [db/*current-connection*           tx                 ; Bind connection for tests using it
                 next.jdbc.transaction/*nested-tx* :ignore] ; Set nested transaction to ignore to allow silently nested transactions
         (f)))
     (throw (IllegalStateException. "Test datasource is not initialized for transaction fixture. Ensure db-fixture runs first."))))

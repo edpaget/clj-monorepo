@@ -18,7 +18,7 @@
   "Run a command in a specific project directory"
   [project-dir cmd & args]
   (let [full-args (concat [cmd] args)
-        result (apply shell/sh (concat full-args [:dir project-dir]))]
+        result    (apply shell/sh (concat full-args [:dir project-dir]))]
     (println (format "[%s] %s" project-dir (str/join " " full-args)))
     (when (seq (:out result))
       (println (:out result)))
@@ -43,7 +43,7 @@
   "Run tests for a specific project"
   [project]
   (println (format "Testing %s..." project))
-  (let [alias (keyword (str project "-test"))
+  (let [alias  (keyword (str project "-test"))
         result (shell/sh "clojure" (str "-X" alias))]
     (when (seq (:out result))
       (println (:out result)))

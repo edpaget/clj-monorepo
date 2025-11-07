@@ -30,10 +30,10 @@
            ;; provided by the c3p0-loom library.
            ;; Requires com.mchange/c3p0-loom dependency.
            virtual-thread-opts {"taskRunnerFactoryClassName" "com.mchange.v2.c3p0.loom.VirtualThreadPerTaskExecutorTaskRunnerFactory"}
-           base-spec {:jdbcUrl db-url}
+           base-spec           {:jdbcUrl db-url}
               ;; Merge base spec, virtual thread opts, defaults, and user-provided opts
-           db-spec (merge base-spec virtual-thread-opts opts) ; Add the custom factory property
-           pool (connection/->pool ComboPooledDataSource db-spec)]
+           db-spec             (merge base-spec virtual-thread-opts opts) ; Add the custom factory property
+           pool                (connection/->pool ComboPooledDataSource db-spec)]
        (log/info "Database connection pool created successfully.")
        pool)
      (catch Exception e

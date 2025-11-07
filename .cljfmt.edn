@@ -1,1 +1,2 @@
-{:sort-ns-references? true}
+{:sort-ns-references? true
+ :align-form-columns? true}
