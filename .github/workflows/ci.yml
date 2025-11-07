@@ -7,24 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  test-all:
-    name: Test All Projects
+  lint:
+    name: Lint and Format Check
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -52,16 +37,53 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-clojure-
 
-      - name: Run all tests
-        run: clojure -X:test-all
-
       - name: Check formatting with cljfmt
         run: clojure -M:format check
 
       - name: Run clj-kondo
         run: clojure -M:lint --lint .
 
-  test-projects:
+  test-no-db:
+    name: Test ${{ matrix.project }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - exclusive-initializer
+          - polix
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@12.5
+        with:
+          cli: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: ${{ runner.os }}-clojure-${{ hashFiles('**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-clojure-
+
+      - name: Test ${{ matrix.project }}
+        run: clojure -X:${{ matrix.project }}-test
+
+  test-with-db:
     name: Test ${{ matrix.project }}
     runs-on: ubuntu-latest
 
@@ -84,9 +106,7 @@ jobs:
       fail-fast: false
       matrix:
         project:
-          - exclusive-initializer
           - db
-          - polix
 
     steps:
       - name: Checkout code
