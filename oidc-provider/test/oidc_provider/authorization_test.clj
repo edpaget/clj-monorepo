@@ -42,18 +42,18 @@
   (testing "generates authorization code response"
     (let [code-store      (store/create-authorization-code-store)
           provider-config {:issuer "https://test.example.com"
-                          :authorization-code-ttl-seconds 600}
+                           :authorization-code-ttl-seconds 600}
           request         {:response_type "code"
-                          :client_id "test-client"
-                          :redirect_uri "https://app.example.com/callback"
-                          :scope "openid profile"
-                          :state "xyz"
-                          :nonce "abc"}
+                           :client_id "test-client"
+                           :redirect_uri "https://app.example.com/callback"
+                           :scope "openid profile"
+                           :state "xyz"
+                           :nonce "abc"}
           response        (authz/handle-authorization-approval
-                          request
-                          "user-123"
-                          provider-config
-                          code-store)]
+                           request
+                           "user-123"
+                           provider-config
+                           code-store)]
       (is (= "https://app.example.com/callback" (:redirect-uri response)))
       (is (some? (get-in response [:params :code])))
       (is (= "xyz" (get-in response [:params :state])))
@@ -67,11 +67,11 @@
 (deftest handle-authorization-denial-test
   (testing "generates error response"
     (let [request  {:redirect_uri "https://app.example.com/callback"
-                   :state "xyz"}
+                    :state "xyz"}
           response (authz/handle-authorization-denial
-                   request
-                   "access_denied"
-                   "User denied access")]
+                    request
+                    "access_denied"
+                    "User denied access")]
       (is (= "https://app.example.com/callback" (:redirect-uri response)))
       (is (= "access_denied" (get-in response [:params :error])))
       (is (= "User denied access" (get-in response [:params :error_description])))
@@ -80,7 +80,7 @@
 (deftest build-redirect-url-test
   (testing "builds redirect URL with query params"
     (let [response {:redirect-uri "https://app.example.com/callback"
-                   :params {:code "abc123" :state "xyz"}}
+                    :params {:code "abc123" :state "xyz"}}
           url      (authz/build-redirect-url response)]
       (is (str/starts-with? url "https://app.example.com/callback?"))
       (is (str/includes? url "code=abc123"))
@@ -88,7 +88,7 @@
 
   (testing "appends to existing query params"
     (let [response {:redirect-uri "https://app.example.com/callback?existing=param"
-                   :params {:code "abc123"}}
+                    :params {:code "abc123"}}
           url      (authz/build-redirect-url response)]
       (is (str/includes? url "existing=param"))
       (is (str/includes? url "&code=abc123")))))

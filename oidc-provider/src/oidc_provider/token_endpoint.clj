@@ -35,16 +35,16 @@
 (defn- parse-basic-auth
   [authorization-header]
   (when (and authorization-header (str/starts-with? authorization-header "Basic "))
-    (let [encoded  (subs authorization-header 6)
-          decoded  (String. (.decode (Base64/getDecoder) encoded))
+    (let [encoded                   (subs authorization-header 6)
+          decoded                   (String. (.decode (Base64/getDecoder) encoded))
           [client-id client-secret] (str/split decoded #":" 2)]
       {:client-id client-id
        :client-secret client-secret})))
 
 (defn- authenticate-client
   [params authorization-header client-store]
-  (let [basic-auth (parse-basic-auth authorization-header)
-        client-id  (or (:client-id basic-auth) (:client_id params))
+  (let [basic-auth    (parse-basic-auth authorization-header)
+        client-id     (or (:client-id basic-auth) (:client_id params))
         client-secret (or (:client-secret basic-auth) (:client_secret params))]
     (when-not client-id
       (throw (ex-info "Missing client_id" {})))
@@ -84,19 +84,19 @@
     (when (and redirect_uri (not= (:redirect-uri code-data) redirect_uri))
       (throw (ex-info "Redirect URI mismatch" {:expected (:redirect-uri code-data)
                                                :actual redirect_uri})))
-    (let [user-id        (:user-id code-data)
-          scope          (:scope code-data)
-          access-token   (token/generate-access-token)
-          refresh-token  (token/generate-refresh-token)
-          ttl            (or (:access-token-ttl-seconds provider-config) 3600)
-          expiry         (+ (System/currentTimeMillis) (* 1000 ttl))
-          user-claims    (proto/get-claims claims-provider user-id scope)
-          id-token       (token/generate-id-token
-                          provider-config
-                          user-id
-                          (:client-id client)
-                          user-claims
-                          {:nonce (:nonce code-data)})]
+    (let [user-id       (:user-id code-data)
+          scope         (:scope code-data)
+          access-token  (token/generate-access-token)
+          refresh-token (token/generate-refresh-token)
+          ttl           (or (:access-token-ttl-seconds provider-config) 3600)
+          expiry        (+ (System/currentTimeMillis) (* 1000 ttl))
+          user-claims   (proto/get-claims claims-provider user-id scope)
+          id-token      (token/generate-id-token
+                         provider-config
+                         user-id
+                         (:client-id client)
+                         user-claims
+                         {:nonce (:nonce code-data)})]
       (proto/save-access-token token-store access-token user-id (:client-id client) scope expiry)
       (proto/save-refresh-token token-store refresh-token user-id (:client-id client) scope)
       {:access_token access-token
@@ -199,7 +199,7 @@
   (when-not (m/validate TokenRequest params)
     (throw (ex-info "Invalid token request"
                     {:errors (m/explain TokenRequest params)})))
-  (let [client (authenticate-client params authorization-header client-store)
+  (let [client   (authenticate-client params authorization-header client-store)
         response (case (:grant_type params)
                    "authorization_code"
                    (handle-authorization-code-grant params client provider-config

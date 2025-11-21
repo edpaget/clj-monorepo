@@ -70,12 +70,12 @@
            credential-validator
            claims-provider] :as config}]
   {:pre [(m/validate ProviderSetup config)]}
-  (let [key (or signing-key (token/generate-rsa-key))
+  (let [key             (or signing-key (token/generate-rsa-key))
         provider-config {:issuer issuer
-                        :signing-key key
-                        :access-token-ttl-seconds (or access-token-ttl-seconds 3600)
-                        :id-token-ttl-seconds (or id-token-ttl-seconds 3600)
-                        :authorization-code-ttl-seconds (or authorization-code-ttl-seconds 600)}]
+                         :signing-key key
+                         :access-token-ttl-seconds (or access-token-ttl-seconds 3600)
+                         :id-token-ttl-seconds (or id-token-ttl-seconds 3600)
+                         :authorization-code-ttl-seconds (or authorization-code-ttl-seconds 600)}]
     (->Provider config
                 provider-config
                 (or client-store (store/create-client-store))
@@ -163,7 +163,7 @@
 
   Returns:
     Redirect URL string"
-  [provider request error-code error-description]
+  [_provider request error-code error-description]
   (let [response (authz/handle-authorization-denial request error-code error-description)]
     (authz/build-redirect-url response)))
 

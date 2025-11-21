@@ -1,7 +1,6 @@
 (ns oidc-provider.token-endpoint-test
   (:require
    [clojure.test :refer [deftest is testing]]
-   [oidc-provider.core :as core]
    [oidc-provider.protocol :as proto]
    [oidc-provider.store :as store]
    [oidc-provider.token :as token]
@@ -9,7 +8,7 @@
 
 (defrecord TestClaimsProvider []
   proto/ClaimsProvider
-  (get-claims [_ user-id scope]
+  (get-claims [_ user-id _scope]
     {:sub user-id
      :email "test@example.com"
      :name "Test User"}))
@@ -27,9 +26,9 @@
           token-store     (store/create-token-store)
           claims-provider (->TestClaimsProvider)
           provider-config {:issuer "https://test.example.com"
-                          :signing-key (token/generate-rsa-key)
-                          :access-token-ttl-seconds 3600
-                          :id-token-ttl-seconds 3600}
+                           :signing-key (token/generate-rsa-key)
+                           :access-token-ttl-seconds 3600
+                           :id-token-ttl-seconds 3600}
           code            (token/generate-authorization-code)
           expiry          (+ (System/currentTimeMillis) (* 1000 600))]
       (proto/save-authorization-code code-store code "user-123" "test-client"
@@ -62,8 +61,8 @@
           token-store     (store/create-token-store)
           claims-provider (->TestClaimsProvider)
           provider-config {:issuer "https://test.example.com"
-                          :signing-key (token/generate-rsa-key)
-                          :access-token-ttl-seconds 3600}
+                           :signing-key (token/generate-rsa-key)
+                           :access-token-ttl-seconds 3600}
           code            (token/generate-authorization-code)
           expiry          (- (System/currentTimeMillis) 1000)]
       (proto/save-authorization-code code-store code "user-123" "test-client"
@@ -90,8 +89,8 @@
                              :scopes ["openid" "profile"]}])
           token-store     (store/create-token-store)
           provider-config {:issuer "https://test.example.com"
-                          :signing-key (token/generate-rsa-key)
-                          :access-token-ttl-seconds 3600}
+                           :signing-key (token/generate-rsa-key)
+                           :access-token-ttl-seconds 3600}
           refresh-token   (token/generate-refresh-token)]
       (proto/save-refresh-token token-store refresh-token "user-123" "test-client" ["openid" "profile"])
       (let [response (token-ep/handle-refresh-token-grant
@@ -115,14 +114,14 @@
                              :scopes ["api:read" "api:write"]}])
           token-store     (store/create-token-store)
           provider-config {:issuer "https://test.example.com"
-                          :signing-key (token/generate-rsa-key)
-                          :access-token-ttl-seconds 3600}]
-      (let [response (token-ep/handle-client-credentials-grant
-                      {:scope "api:read"}
-                      (proto/get-client client-store "test-client")
-                      provider-config
-                      token-store)]
-        (is (some? (:access_token response)))
-        (is (= "Bearer" (:token_type response)))
-        (is (= 3600 (:expires_in response)))
-        (is (= "api:read" (:scope response)))))))
+                           :signing-key (token/generate-rsa-key)
+                           :access-token-ttl-seconds 3600}
+          response        (token-ep/handle-client-credentials-grant
+                           {:scope "api:read"}
+                           (proto/get-client client-store "test-client")
+                           provider-config
+                           token-store)]
+      (is (some? (:access_token response)))
+      (is (= "Bearer" (:token_type response)))
+      (is (= 3600 (:expires_in response)))
+      (is (= "api:read" (:scope response))))))

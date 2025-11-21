@@ -1,7 +1,5 @@
 (ns oidc-provider.protocol
-  "Core protocols for OIDC provider extensibility."
-  (:require
-   [malli.core :as m]))
+  "Core protocols for OIDC provider extensibility.")
 
 (set! *warn-on-reflection* true)
 

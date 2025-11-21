@@ -1,3 +1,7 @@
+# General Guidelines
+
+Be concise, straightforward, and avoid hyperbole. 
+
 # Clojure Style Guidelines
 
 ## Conditionals

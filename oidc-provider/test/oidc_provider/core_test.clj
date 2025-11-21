@@ -6,7 +6,7 @@
 
 (defrecord TestValidator []
   proto/CredentialValidator
-  (validate-credentials [_ credentials client-id]
+  (validate-credentials [_ credentials _client-id]
     (when (and (= (:username credentials) "test-user")
                (= (:password credentials) "test-pass"))
       "user-123")))

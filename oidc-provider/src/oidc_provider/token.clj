@@ -2,11 +2,9 @@
   "Token generation and validation using Nimbus OAuth SDK."
   (:require
    [cheshire.core :as json]
-   [clojure.string :as str]
-   [malli.core :as m]
-   [oidc-provider.protocol :as proto])
+   [malli.core :as m])
   (:import
-   [com.nimbusds.jose JWSAlgorithm JWSHeader JWSHeader$Builder]
+   [com.nimbusds.jose JWSAlgorithm JWSHeader$Builder]
    [com.nimbusds.jose.crypto RSASSASigner RSASSAVerifier]
    [com.nimbusds.jose.jwk RSAKey RSAKey$Builder]
    [com.nimbusds.jwt JWTClaimsSet JWTClaimsSet$Builder SignedJWT]
@@ -37,17 +35,15 @@
   ([]
    (generate-rsa-key 2048))
   ([key-size]
-   (let [generator (KeyPairGenerator/getInstance "RSA")]
+   (let [^KeyPairGenerator generator (KeyPairGenerator/getInstance "RSA")]
      (.initialize generator ^int key-size (SecureRandom.))
-     (let [key-pair (.generateKeyPair generator)]
-       (-> (RSAKey$Builder. (.getPublic key-pair))
-           (.privateKey (.getPrivate key-pair))
-           (.keyID (str (UUID/randomUUID)))
-           (.build))))))
-
-(defn- current-time-seconds
-  []
-  (.getEpochSecond (Instant/now)))
+     (let [key-pair                                       (.generateKeyPair generator)
+           ^java.security.interfaces.RSAPublicKey pub-key (.getPublic key-pair)
+           ^RSAKey$Builder builder                        (RSAKey$Builder. pub-key)]
+       (doto builder
+         (.privateKey (.getPrivate key-pair))
+         (.keyID (str (UUID/randomUUID))))
+       (.build builder)))))
 
 (defn- add-seconds
   [seconds]
@@ -71,26 +67,27 @@
    user-id client-id claims
    {:keys [nonce auth-time]}]
   {:pre [(m/validate ProviderConfig config)]}
-  (let [ttl       (or id-token-ttl-seconds 3600)
-        now       (current-time-seconds)
-        builder   (-> (JWTClaimsSet$Builder.)
-                      (.issuer issuer)
-                      (.subject user-id)
-                      (.audience [client-id])
-                      (.expirationTime (add-seconds ttl))
-                      (.issueTime (Date/from (Instant/now))))]
+  (let [ttl                           (or id-token-ttl-seconds 3600)
+        ^JWTClaimsSet$Builder builder (JWTClaimsSet$Builder.)]
+    (doto builder
+      (.issuer issuer)
+      (.subject user-id)
+      (.audience (java.util.Arrays/asList (into-array String [client-id])))
+      (.expirationTime ^Date (add-seconds ttl))
+      (.issueTime ^Date (Date/from (Instant/now))))
     (when nonce
       (.claim builder "nonce" nonce))
     (when auth-time
       (.claim builder "auth_time" (long auth-time)))
     (doseq [[k v] claims]
       (.claim builder (name k) v))
-    (let [claims-set (.build builder)
-          header     (-> (JWSHeader$Builder. JWSAlgorithm/RS256)
-                         (.keyID (.getKeyID signing-key))
-                         (.build))
-          signed-jwt (SignedJWT. header claims-set)
-          signer     (RSASSASigner. signing-key)]
+    (let [claims-set            (.build builder)
+          ^RSAKey signing-key'  signing-key
+          header                (-> (JWSHeader$Builder. JWSAlgorithm/RS256)
+                                    (.keyID (.getKeyID signing-key'))
+                                    (.build))
+          ^SignedJWT signed-jwt (SignedJWT. header claims-set)
+          signer                (RSASSASigner. signing-key')]
       (.sign signed-jwt signer)
       (.serialize signed-jwt))))
 
@@ -133,15 +130,16 @@
     ex-info on validation failure"
   [{:keys [issuer signing-key] :as config} token expected-client-id]
   {:pre [(m/validate ProviderConfig config)]}
-  (let [signed-jwt (SignedJWT/parse token)
-        verifier   (RSASSAVerifier. (.toPublicJWK signing-key))]
+  (let [^SignedJWT signed-jwt (SignedJWT/parse ^String token)
+        ^RSAKey signing-key'  signing-key
+        verifier              (RSASSAVerifier. (.toPublicJWK signing-key'))]
     (when-not (.verify signed-jwt verifier)
       (throw (ex-info "Invalid token signature" {:token token})))
-    (let [claims     (.getJWTClaimsSet signed-jwt)
-          issuer-val (.getIssuer claims)
-          audience   (.getAudience claims)
-          expiry     (.getExpirationTime claims)
-          now        (Date.)]
+    (let [^JWTClaimsSet claims (.getJWTClaimsSet signed-jwt)
+          issuer-val           (.getIssuer claims)
+          audience             (.getAudience claims)
+          ^Date expiry         (.getExpirationTime claims)
+          now                  (Date.)]
       (when-not (= issuer-val issuer)
         (throw (ex-info "Issuer mismatch"
                         {:expected issuer
@@ -167,6 +165,7 @@
     Map with :keys vector containing public key in JWK format"
   [{:keys [signing-key] :as config}]
   {:pre [(m/validate ProviderConfig config)]}
-  {:keys [(json/parse-string
-           (.toJSONString (.toPublicJWK signing-key))
-           true)]})
+  (let [^RSAKey signing-key' signing-key]
+    {:keys [(json/parse-string
+             (.toJSONString (.toPublicJWK signing-key'))
+             true)]}))

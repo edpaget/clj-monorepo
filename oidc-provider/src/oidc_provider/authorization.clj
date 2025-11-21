@@ -34,8 +34,9 @@
   (when query-string
     (into {}
           (map (fn [param]
-                 (let [[k v] (str/split param #"=" 2)]
-                   [(keyword k) (URLDecoder/decode (or v "") "UTF-8")])))
+                 (let [[k v]       (str/split param #"=" 2)
+                       ^String val (if v v "")]
+                   [(keyword k) (URLDecoder/decode val "UTF-8")])))
           (str/split query-string #"&"))))
 
 (defn- validate-redirect-uri
@@ -99,7 +100,7 @@
 
   Returns:
     Authorization response map with :redirect-uri and :params"
-  [{:keys [response_type client_id redirect_uri scope state nonce] :as request}
+  [{:keys [response_type client_id redirect_uri scope state nonce]}
    user-id
    provider-config
    code-store]
