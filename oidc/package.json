@@ -1,0 +1,17 @@
+{
+  "name": "oidc",
+  "version": "0.1.0",
+  "description": "OIDC client for Clojure and ClojureScript",
+  "private": true,
+  "dependencies": {
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^2.28.21"
+  },
+  "scripts": {
+    "watch": "shadow-cljs watch test",
+    "compile": "shadow-cljs compile test",
+    "release": "shadow-cljs release test"
+  }
+}

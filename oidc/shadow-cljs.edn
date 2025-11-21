@@ -1,0 +1,10 @@
+{:source-paths ["src" "test"]
+ :dependencies [[binaryage/devtools "1.0.7"]
+                [cljs-http/cljs-http "0.1.48"]
+                [metosin/malli "0.19.1"]]
+ :builds
+ {:test
+  {:target :node-test
+   :output-to "out/node-tests.js"
+   :autorun true
+   :ns-regexp "oidc\\..*-test$"}}}
