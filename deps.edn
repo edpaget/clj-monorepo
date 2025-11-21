@@ -12,6 +12,9 @@
   :polix
   {:extra-deps {local/polix {:local/root "polix"}}}
 
+  :oidc
+  {:extra-deps {local/oidc {:local/root "oidc"}}}
+
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project
   :exclusive-initializer-test
@@ -38,21 +41,31 @@
    :extra-deps  {local/polix {:local/root "polix"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
+  :oidc-test
+  {:extra-paths ["oidc/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :exec-fn     cognitect.test-runner.api/test
+   :exec-args   {:dirs ["oidc/test"]}
+   :extra-deps  {local/oidc {:local/root "oidc"}
+                 io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+
   ;; === Aggregated Aliases ===
   ;; Work with all projects at once
   :dev-all
   {:extra-deps {local/exclusive-initializer {:local/root "exclusive-initializer"}
                 local/db                    {:local/root "db"}
-                local/polix                 {:local/root "polix"}}}
+                local/polix                 {:local/root "polix"}
+                local/oidc                  {:local/root "oidc"}}}
 
   :test-all
-  {:extra-paths ["exclusive-initializer/test" "db/test" "polix/test"]
+  {:extra-paths ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test"]
    :jvm-opts    ["-Duser.timezone=UTC"]
    :exec-fn     cognitect.test-runner.api/test
-   :exec-args   {:dirs ["exclusive-initializer/test" "db/test" "polix/test"]}
+   :exec-args   {:dirs ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test"]}
    :extra-deps  {local/exclusive-initializer {:local/root "exclusive-initializer"}
                  local/db                    {:local/root "db"}
                  local/polix                 {:local/root "polix"}
+                 local/oidc                  {:local/root "oidc"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
   ;; === Development Tools ===
