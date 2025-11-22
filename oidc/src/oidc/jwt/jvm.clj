@@ -5,11 +5,15 @@
    [buddy.sign.jwt :as jwt]
    [cheshire.core :as json]
    [clj-http.client :as http]
+   [clojure.core.cache.wrapped :as cache]
    [clojure.string :as str]
    [malli.core :as m]
    [oidc.jwt.protocol :as proto]))
 
 (set! *warn-on-reflection* true)
+
+(def ^:private jwks-cache
+  (cache/ttl-cache-factory {} :ttl (* 60 60 1000)))
 
 (def IDTokenClaims
   "Malli schema for OIDC ID token claims."
@@ -31,16 +35,20 @@
   [aud]
   (if (string? aud) [aud] aud))
 
+(defn- fetch-jwks-uncached
+  [jwks-uri]
+  (let [response  (http/get jwks-uri {:accept :json})
+        jwks      (json/parse-string (:body response) true)
+        keys-list (:keys jwks)]
+    (into {}
+          (map (fn [jwk]
+                 [(:kid jwk) (parse-jwk jwk)]))
+          keys-list)))
+
 (defrecord JVMValidator []
   proto/IJWTValidator
   (fetch-jwks [_ jwks-uri]
-    (let [response  (http/get jwks-uri {:accept :json})
-          jwks      (json/parse-string (:body response) true)
-          keys-list (:keys jwks)]
-      (into {}
-            (map (fn [jwk]
-                   [(:kid jwk) (parse-jwk jwk)]))
-            keys-list)))
+    (cache/lookup-or-miss jwks-cache jwks-uri fetch-jwks-uncached))
 
   (validate-id-token [_ token jwks expected-issuer expected-audience opts]
     (let [{:keys [now leeway nonce]} opts

@@ -1,13 +1,10 @@
 (ns oidc.discovery
   "OIDC Discovery document fetching and parsing."
   (:require
-   #?(:clj [cheshire.core :as json]
-      :cljs [cljs.core.async :refer [<!]])
-   #?(:clj [clj-http.client :as http]
-      :cljs [cljs-http.client :as http])
+   #?@(:clj [[oidc.discovery.jvm :as jvm]]
+       :cljs [[oidc.discovery.cljs-impl :as cljs-impl]])
    [clojure.string :as str]
-   [malli.core :as m])
-  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
+   [oidc.discovery.protocol :as proto]))
 
 #?(:clj (set! *warn-on-reflection* true))
 
@@ -40,6 +37,15 @@
          issuer)
        "/.well-known/openid-configuration"))
 
+(defn create-client
+  "Creates a platform-specific discovery client.
+
+  Returns:
+    IDiscoveryClient implementation (JVM with caching, ClojureScript without)"
+  []
+  #?(:clj (jvm/create-client)
+     :cljs (cljs-impl/create-client)))
+
 (defn fetch-discovery-document
   "Fetches and parses the OIDC discovery document from the issuer.
 
@@ -52,21 +58,4 @@
   Throws:
     clojure.lang.ExceptionInfo on HTTP errors or invalid document"
   [issuer]
-  (let [url (well-known-url issuer)]
-    #?(:clj
-       (let [response (http/get url {:accept :json})
-             body     (json/parse-string (:body response) true)]
-         (when-not (m/validate DiscoveryDocument body)
-           (throw (ex-info "Invalid discovery document"
-                           {:issuer issuer
-                            :errors (m/explain DiscoveryDocument body)})))
-         body)
-       :cljs
-       (go
-         (let [response (<! (http/get url {:with-credentials? false}))
-               body     (:body response)]
-           (when-not (m/validate DiscoveryDocument body)
-             (throw (ex-info "Invalid discovery document"
-                             {:issuer issuer
-                              :errors (m/explain DiscoveryDocument body)})))
-           body)))))
+  (proto/fetch-discovery-document (create-client) issuer))
