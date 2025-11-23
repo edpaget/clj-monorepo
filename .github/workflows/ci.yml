@@ -53,6 +53,8 @@ jobs:
         project:
           - exclusive-initializer
           - polix
+          - oidc
+          - oidc-provider
           - graphql-server
 
     steps:

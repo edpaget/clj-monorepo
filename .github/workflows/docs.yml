@@ -89,6 +89,17 @@ jobs:
             :output-path '"../docs-output/oidc"' \
             :metadata '{:doc/format :markdown}'
 
+      - name: Generate documentation for oidc-provider
+        working-directory: oidc-provider
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -X codox.main/generate-docs \
+            :name '"oidc-provider"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/oidc-provider"' \
+            :metadata '{:doc/format :markdown}'
+
       - name: Generate documentation for graphql-server
         working-directory: graphql-server
         run: |
@@ -186,6 +197,11 @@ jobs:
               <li class="package-item">
                 <h2><a href="oidc/">oidc</a></h2>
                 <p class="package-description">OpenID Connect (OIDC) client library for Clojure and ClojureScript.</p>
+              </li>
+
+              <li class="package-item">
+                <h2><a href="oidc-provider/">oidc-provider</a></h2>
+                <p class="package-description">OpenID Connect (OIDC) provider library for Clojure.</p>
               </li>
 
               <li class="package-item">
