@@ -1,11 +1,28 @@
 (ns oidc-provider.protocol
-  "Core protocols for OIDC provider extensibility.")
+  "Core protocols for OIDC provider extensibility.
+
+  For authentication protocols ([[authn.protocol/CredentialValidator]] and
+  [[authn.protocol/ClaimsProvider]]), see the authn package."
+  (:require
+   [authn.protocol :as authn]))
 
 (set! *warn-on-reflection* true)
 
+(def CredentialValidator
+  "Re-exported from [[authn.protocol/CredentialValidator]]."
+  authn/CredentialValidator)
+
+(def ClaimsProvider
+  "Re-exported from [[authn.protocol/ClaimsProvider]]."
+  authn/ClaimsProvider)
+
 (def CredentialHash
-  "Malli schema for credential hash - can be any map."
-  :map)
+  "Re-exported from [[authn.protocol/CredentialHash]]."
+  authn/CredentialHash)
+
+(def Claims
+  "Re-exported from [[authn.protocol/Claims]]."
+  authn/Claims)
 
 (def ClientConfig
   "Malli schema for OAuth2/OIDC client configuration."
@@ -18,37 +35,6 @@
    [:scopes [:vector :string]]
    [:token-endpoint-auth-method {:optional true}
     [:enum "client_secret_basic" "client_secret_post" "none"]]])
-
-(def Claims
-  "Malli schema for OIDC claims."
-  [:map-of :keyword :any])
-
-(defprotocol CredentialValidator
-  "Protocol for validating credentials and returning user identity.
-
-  The credential-hash can contain any authentication data:
-  - {:username \"user\" :password \"pass\"}
-  - {:api-key \"key\"}
-  - {:certificate cert-data}
-  - {:bearer-token \"token\"}
-
-  This allows for flexible authentication mechanisms."
-  (validate-credentials [this credential-hash client-id]
-    "Validates credentials for the given client.
-
-    Takes a map containing authentication credentials and an OAuth2 client identifier.
-    Validates the credentials using the implementation's authentication mechanism.
-    Returns the user identifier (string) if valid, or nil otherwise."))
-
-(defprotocol ClaimsProvider
-  "Protocol for providing user claims based on scope."
-  (get-claims [this user-id scope]
-    "Retrieves claims for a user based on requested scope.
-
-    Takes a user identifier (from credential validation) and a vector of scope strings
-    (like `[\"openid\" \"profile\" \"email\"]`). Returns a map of claims appropriate for
-    the requested scopes, such as `{:sub \"user-id\" :email \"user@example.com\" :name
-    \"User Name\"}`."))
 
 (defprotocol ClientStore
   "Protocol for managing OAuth2/OIDC client registrations."

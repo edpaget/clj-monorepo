@@ -14,7 +14,7 @@
            :type-mismatch                {:level :warning}
            :missing-docstring            {:level :warning
                                           :exclude-when-not-public? true
-                                          :exclude [".*test$" ".*test\\..*"]}
+                                          :excluded-namespaces [".*-test$"]}
            :unsorted-imports             {:level :warning}
            :unsorted-required-namespaces {:level :warning}
            :redundant-let                {:level :warning}

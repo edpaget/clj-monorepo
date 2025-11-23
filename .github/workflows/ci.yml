@@ -42,7 +42,7 @@ jobs:
 
       - name: Run clj-kondo
         # Note: polix is excluded as it's still under active research and refactoring
-        run: clojure -M:lint --lint exclusive-initializer db oidc oidc-provider graphql-server build scripts
+        run: clojure -M:lint --lint exclusive-initializer db oidc oidc-provider oidc-github graphql-server build scripts
 
   test-no-db:
     name: Test ${{ matrix.project }}
@@ -56,6 +56,7 @@ jobs:
           - polix
           - oidc
           - oidc-provider
+          - oidc-github
           - graphql-server
 
     steps:
