@@ -2,8 +2,8 @@
 /.lsp/
 .clj-kondo/.cache/*
 .aider*
-*.cpache
+*.cpcache
 /*/.nrepl-port
-/*/.cpcache
+**/.cpcache/
 /.clj-kondo/imports/
 /docs-output/
