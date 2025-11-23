@@ -1,5 +1,7 @@
-{:hooks   {:analyze-call {exclusive-initializer.core/wrap hooks.exclusive-initializer.core/wrap
-                        polix.core/defpolicy             hooks.polix/defpolicy}}
+{:hooks   {:analyze-call {exclusive-initializer.core/wrap      hooks.exclusive-initializer.core/wrap
+                        polix.core/defpolicy                 hooks.polix/defpolicy
+                        graphql-server.core/defresolver      hooks.graphql-server.core/defresolver
+                        graphql-server.core/def-resolver-map hooks.graphql-server.core/def-resolver-map}}
  :output  {:analysis {:namespace-definitions {:meta true}
                       :var-definitions       {:meta true}}
            :format   :text}
