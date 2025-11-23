@@ -23,12 +23,12 @@
 
     (testing "uses default scopes when not specified"
       (let [minimal-config {:client-id "test-client-id"}
-            url (client/authorization-url minimal-config "state-123")]
+            url            (client/authorization-url minimal-config "state-123")]
         (is (str/includes? url "scope=user%3Aemail+read%3Auser+read%3Aorg"))))
 
     (testing "uses enterprise URL when provided"
       (let [enterprise-config (assoc config :enterprise-url "https://github.company.com")
-            url (client/authorization-url enterprise-config "state-123")]
+            url               (client/authorization-url enterprise-config "state-123")]
         (is (str/starts-with? url "https://github.company.com/login/oauth/authorize?"))))))
 
 (deftest refresh-token-test

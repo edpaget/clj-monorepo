@@ -54,16 +54,16 @@
    (authorization-url config state nil))
   ([{:keys [client-id redirect-uri scopes enterprise-url]} state nonce]
    (let [base-url (if enterprise-url
-                   (enterprise-auth-url enterprise-url)
-                   github-auth-url)
-         params (cond-> {:client_id client-id
-                        :state state
-                        :scope (str/join " " (or scopes ["user:email" "read:user" "read:org"]))}
-                  redirect-uri
-                  (assoc :redirect_uri redirect-uri)
+                    (enterprise-auth-url enterprise-url)
+                    github-auth-url)
+         params   (cond-> {:client_id client-id
+                           :state state
+                           :scope (str/join " " (or scopes ["user:email" "read:user" "read:org"]))}
+                    redirect-uri
+                    (assoc :redirect_uri redirect-uri)
 
-                  nonce
-                  (assoc :nonce nonce))]
+                    nonce
+                    (assoc :nonce nonce))]
      (str base-url "?" (build-query-string params)))))
 
 (defn exchange-code
@@ -84,17 +84,17 @@
         \"code-from-github-callback\")"
   [{:keys [client-id client-secret redirect-uri enterprise-url]} code]
   (let [token-url (if enterprise-url
-                   (enterprise-token-url enterprise-url)
-                   github-token-url)
-        response (http/post token-url
-                           {:form-params (cond-> {:client_id client-id
-                                                 :client_secret client-secret
-                                                 :code code}
-                                           redirect-uri
-                                           (assoc :redirect_uri redirect-uri))
-                            :headers {"Accept" "application/json"}
-                            :as :json
-                            :throw-exceptions true})]
+                    (enterprise-token-url enterprise-url)
+                    github-token-url)
+        response  (http/post token-url
+                             {:form-params (cond-> {:client_id client-id
+                                                    :client_secret client-secret
+                                                    :code code}
+                                             redirect-uri
+                                             (assoc :redirect_uri redirect-uri))
+                              :headers {"Accept" "application/json"}
+                              :as :json
+                              :throw-exceptions true})]
     (:body response)))
 
 (defn fetch-user

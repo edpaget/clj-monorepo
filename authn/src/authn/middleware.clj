@@ -43,7 +43,7 @@
   [handler authenticator]
   (fn [request]
     (let [cookie-name (get-in authenticator [:config :session-cookie-name])
-          session-id (get-session-id-from-cookie request cookie-name)]
+          session-id  (get-session-id-from-cookie request cookie-name)]
       (if-let [session-data (and session-id
                                  (core/get-session authenticator session-id))]
         (handler (add-user-to-request request session-data))
@@ -88,7 +88,7 @@
   [handler authenticator]
   (fn [request]
     (let [cookie-name (get-in authenticator [:config :session-cookie-name])
-          session-id (get-session-id-from-cookie request cookie-name)]
+          session-id  (get-session-id-from-cookie request cookie-name)]
       (when (and session-id (:authn/authenticated? request))
         (core/refresh-session authenticator session-id))
       (handler request))))

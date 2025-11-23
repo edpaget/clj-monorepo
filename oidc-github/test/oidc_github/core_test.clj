@@ -24,7 +24,7 @@
   (testing "creates authenticator with credential validator and claims provider"
     (let [config {:client-id "test-id"
                   :client-secret "test-secret"}
-          auth (core/create-github-authenticator config)]
+          auth   (core/create-github-authenticator config)]
       (is (some? (:credential-validator auth)))
       (is (some? (:claims-provider auth)))))
 
@@ -32,7 +32,7 @@
     (let [config {:client-id "test-id"
                   :client-secret "test-secret"
                   :required-org "my-org"}
-          auth (core/create-github-authenticator config)]
+          auth   (core/create-github-authenticator config)]
       (is (some? auth)))))
 
 (deftest authorization-url-test
@@ -40,12 +40,12 @@
     (let [config {:client-id "test-id"
                   :client-secret "test-secret"
                   :redirect-uri "https://example.com/callback"}
-          url (core/authorization-url config "state-123")]
+          url    (core/authorization-url config "state-123")]
       (is (string? url))
       (is (str/starts-with? url "https://github.com/login/oauth/authorize?"))))
 
   (testing "includes nonce when provided"
     (let [config {:client-id "test-id"
                   :client-secret "test-secret"}
-          url (core/authorization-url config "state-123" "nonce-456")]
+          url    (core/authorization-url config "state-123" "nonce-456")]
       (is (str/includes? url "nonce=nonce-456")))))

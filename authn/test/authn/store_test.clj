@@ -10,12 +10,12 @@
       (is (satisfies? proto/SessionStore store)))))
 
 (deftest session-lifecycle-test
-  (let [store (store/create-session-store (* 1000 60))
+  (let [store  (store/create-session-store (* 1000 60))
         claims {:sub "user-123" :email "user@example.com"}]
 
     (testing "creates and retrieves session"
       (let [session-id (proto/create-session store "user-123" claims)
-            session (proto/get-session store session-id)]
+            session    (proto/get-session store session-id)]
         (is (string? session-id))
         (is (= "user-123" (:user-id session)))
         (is (= claims (:claims session)))
@@ -27,8 +27,8 @@
 
     (testing "updates existing session"
       (let [session-id (proto/create-session store "user-456" claims)
-            updated? (proto/update-session store session-id {:extra-data "test"})
-            session (proto/get-session store session-id)]
+            updated?   (proto/update-session store session-id {:extra-data "test"})
+            session    (proto/get-session store session-id)]
         (is (true? updated?))
         (is (= "test" (:extra-data session)))))
 
@@ -42,7 +42,7 @@
 
 (deftest session-expiration-test
   (testing "expired sessions are not returned"
-    (let [store (store/create-session-store 100)
+    (let [store      (store/create-session-store 100)
           session-id (proto/create-session store "user-123" {:sub "user-123"})]
       (is (some? (proto/get-session store session-id)))
       (Thread/sleep 150)

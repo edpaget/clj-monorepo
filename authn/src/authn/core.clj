@@ -61,9 +61,9 @@
    :session-cookie-same-site :lax})
 
 (defrecord Authenticator [credential-validator
-                           claims-provider
-                           session-store
-                           config])
+                          claims-provider
+                          session-store
+                          config])
 
 (defn create-authenticator
   "Creates an authenticator instance.
@@ -86,8 +86,8 @@
            session-ttl-ms] :as config}]
   {:pre [(m/validate Config config)]}
   (let [merged-config (merge default-config config)
-        ttl (or session-ttl-ms (:session-ttl-ms merged-config))
-        store (or session-store (store/create-session-store ttl))]
+        ttl           (or session-ttl-ms (:session-ttl-ms merged-config))
+        store         (or session-store (store/create-session-store ttl))]
     (->Authenticator credential-validator
                      claims-provider
                      store
@@ -144,8 +144,8 @@
   expiration time. Returns true if successful, false if session doesn't exist."
   [authenticator session-id]
   (when-let [session (get-session authenticator session-id)]
-    (let [now (System/currentTimeMillis)
-          ttl (get-in authenticator [:config :session-ttl-ms])
+    (let [now        (System/currentTimeMillis)
+          ttl        (get-in authenticator [:config :session-ttl-ms])
           expires-at (+ now ttl)]
       (proto/update-session
        (:session-store authenticator)

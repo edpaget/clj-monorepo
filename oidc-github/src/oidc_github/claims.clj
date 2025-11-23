@@ -30,8 +30,8 @@
   (try
     (let [response (http/get url
                              {:headers {"Authorization" (str "Bearer " access-token)
-                                       "Accept" "application/vnd.github+json"
-                                       "X-GitHub-Api-Version" "2022-11-28"}
+                                        "Accept" "application/vnd.github+json"
+                                        "X-GitHub-Api-Version" "2022-11-28"}
                               :as :json
                               :throw-exceptions true})]
       (:body response))
@@ -139,11 +139,11 @@
 
   GitHub-specific claims (github_*) are always included regardless of scope."
   [claims scope]
-  (let [scope-set (set scope)
+  (let [scope-set      (set scope)
         profile-claims [:name :preferred_username :profile :picture]
-        email-claims [:email :email_verified]
-        github-claims [:github_login :github_orgs :github_company]
-        base-claims [:sub]]
+        email-claims   [:email :email_verified]
+        github-claims  [:github_login :github_orgs :github_company]
+        base-claims    [:sub]]
     (select-keys claims
                  (concat base-claims
                          github-claims

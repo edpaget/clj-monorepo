@@ -49,7 +49,7 @@
     (let [user-data {:profile sample-profile
                      :emails sample-emails
                      :orgs sample-orgs}
-          claims (claims/github->oidc-claims user-data)]
+          claims    (claims/github->oidc-claims user-data)]
       (is (= "12345" (:sub claims)))
       (is (= "octocat" (:preferred_username claims)))
       (is (= "octocat" (:github_login claims)))
@@ -65,7 +65,7 @@
     (let [minimal-data {:profile {:id 123 :login "user"}
                         :emails []
                         :orgs []}
-          claims (claims/github->oidc-claims minimal-data)]
+          claims       (claims/github->oidc-claims minimal-data)]
       (is (= "123" (:sub claims)))
       (is (= "user" (:preferred_username claims)))
       (is (nil? (:name claims)))
@@ -76,10 +76,10 @@
   (testing "handles no verified email"
     (let [user-data {:profile sample-profile
                      :emails [{:email "test@example.com"
-                              :verified false
-                              :primary true}]
+                               :verified false
+                               :primary true}]
                      :orgs []}
-          claims (claims/github->oidc-claims user-data)]
+          claims    (claims/github->oidc-claims user-data)]
       (is (nil? (:email claims)))
       (is (nil? (:email_verified claims))))))
 

@@ -16,9 +16,9 @@
 (defrecord InMemorySessionStore [sessions session-ttl-ms]
   proto/SessionStore
   (create-session [_this user-id claims]
-    (let [session-id (generate-session-id)
-          now (System/currentTimeMillis)
-          expires-at (+ now session-ttl-ms)
+    (let [session-id   (generate-session-id)
+          now          (System/currentTimeMillis)
+          expires-at   (+ now session-ttl-ms)
           session-data {:user-id user-id
                         :claims claims
                         :created-at now
@@ -47,11 +47,11 @@
     true)
 
   (cleanup-expired [_this]
-    (let [now (System/currentTimeMillis)
+    (let [now          (System/currentTimeMillis)
           expired-keys (filter (fn [[_id session]]
                                  (>= now (:expires-at session)))
                                @sessions)
-          count (count expired-keys)]
+          count        (count expired-keys)]
       (swap! sessions #(apply dissoc % (map first expired-keys)))
       count)))
 

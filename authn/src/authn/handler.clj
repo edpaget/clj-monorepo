@@ -29,7 +29,7 @@
 (defn- set-session-cookie
   "Adds a session cookie to the response."
   [response session-id authenticator]
-  (let [config (:config authenticator)
+  (let [config      (:config authenticator)
         cookie-name (:session-cookie-name config)
         ttl-seconds (/ (:session-ttl-ms config) 1000)
         cookie-opts {:value session-id
@@ -75,12 +75,12 @@
       (if-let [session-id (core/authenticate authenticator credentials)]
         (let [session-data (core/get-session authenticator session-id)]
           (-> (json-response {:success true
-                             :user-id (:user-id session-data)
-                             :claims (:claims session-data)})
+                              :user-id (:user-id session-data)
+                              :claims (:claims session-data)})
               (set-session-cookie session-id authenticator)))
         (json-response {:success false
-                       :error "Invalid credentials"}
-                      401)))))
+                        :error "Invalid credentials"}
+                       401)))))
 
 (defn logout-handler
   "Ring handler for logout requests.
@@ -95,7 +95,7 @@
   [authenticator]
   (fn [request]
     (let [cookie-name (get-in authenticator [:config :session-cookie-name])
-          session-id (get-session-id-from-cookie request cookie-name)]
+          session-id  (get-session-id-from-cookie request cookie-name)]
       (when session-id
         (core/logout authenticator session-id))
       (-> (json-response {:success true})
@@ -117,8 +117,8 @@
   (fn [request]
     (if (:authn/authenticated? request)
       (json-response {:authenticated true
-                     :user-id (:authn/user-id request)
-                     :claims (:authn/claims request)})
+                      :user-id (:authn/user-id request)
+                      :claims (:authn/claims request)})
       (json-response {:authenticated false
-                     :error "Not authenticated"}
-                    401))))
+                      :error "Not authenticated"}
+                     401))))

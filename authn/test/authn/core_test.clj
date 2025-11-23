@@ -32,10 +32,10 @@
 
   (testing "uses provided session store"
     (let [custom-store (store/create-session-store)
-          auth (core/create-authenticator
-                {:credential-validator (->TestValidator)
-                 :claims-provider (->TestClaimsProvider)
-                 :session-store custom-store})]
+          auth         (core/create-authenticator
+                        {:credential-validator (->TestValidator)
+                         :claims-provider (->TestClaimsProvider)
+                         :session-store custom-store})]
       (is (= custom-store (:session-store auth))))))
 
 (deftest authenticate-test
@@ -60,9 +60,9 @@
                                     :password "wrongpass"}))))))
 
 (deftest logout-test
-  (let [auth (core/create-authenticator
-              {:credential-validator (->TestValidator)
-               :claims-provider (->TestClaimsProvider)})
+  (let [auth       (core/create-authenticator
+                    {:credential-validator (->TestValidator)
+                     :claims-provider (->TestClaimsProvider)})
         session-id (core/authenticate auth
                                       {:username "testuser"
                                        :password "testpass"})]
@@ -73,13 +73,13 @@
       (is (nil? (core/get-session auth session-id))))))
 
 (deftest refresh-session-test
-  (let [auth (core/create-authenticator
-              {:credential-validator (->TestValidator)
-               :claims-provider (->TestClaimsProvider)
-               :session-ttl-ms 1000})
-        session-id (core/authenticate auth
-                                      {:username "testuser"
-                                       :password "testpass"})
+  (let [auth             (core/create-authenticator
+                          {:credential-validator (->TestValidator)
+                           :claims-provider (->TestClaimsProvider)
+                           :session-ttl-ms 1000})
+        session-id       (core/authenticate auth
+                                            {:username "testuser"
+                                             :password "testpass"})
         original-session (core/get-session auth session-id)
         original-expires (:expires-at original-session)]
 

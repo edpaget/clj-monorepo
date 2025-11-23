@@ -19,13 +19,13 @@
     (let [token-url (if enterprise-url
                       (str enterprise-url "/login/oauth/access_token")
                       "https://github.com/login/oauth/access_token")
-          response (http/post token-url
-                              {:form-params {:client_id client-id
-                                            :client_secret client-secret
-                                            :code code}
-                               :headers {"Accept" "application/json"}
-                               :as :json
-                               :throw-exceptions false})]
+          response  (http/post token-url
+                               {:form-params {:client_id client-id
+                                              :client_secret client-secret
+                                              :code code}
+                                :headers {"Accept" "application/json"}
+                                :as :json
+                                :throw-exceptions false})]
       (when (= 200 (:status response))
         (get-in response [:body :access_token])))
     (catch Exception _e
@@ -43,11 +43,11 @@
       nil)))
 
 (defrecord GitHubCredentialValidator [client-id
-                                       client-secret
-                                       required-org
-                                       validate-org?
-                                       enterprise-url
-                                       cache-ttl-ms]
+                                      client-secret
+                                      required-org
+                                      validate-org?
+                                      enterprise-url
+                                      cache-ttl-ms]
   proto/CredentialValidator
   (validate-credentials [_this credentials _client-id]
     (let [user-cache (claims/create-cache cache-ttl-ms)]
@@ -56,25 +56,25 @@
         (when-let [login (validate-token (:access-token credentials) enterprise-url)]
           (if validate-org?
             (let [user-data (claims/cached-fetch-user-data user-cache
-                                                          (:access-token credentials)
-                                                          enterprise-url)]
+                                                           (:access-token credentials)
+                                                           enterprise-url)]
               (when (or (nil? required-org)
-                       (claims/user-in-org? user-data required-org))
+                        (claims/user-in-org? user-data required-org))
                 login))
             login))
 
         (:code credentials)
         (when-let [access-token (exchange-code-for-token client-id
-                                                        client-secret
-                                                        (:code credentials)
-                                                        enterprise-url)]
+                                                         client-secret
+                                                         (:code credentials)
+                                                         enterprise-url)]
           (when-let [login (validate-token access-token enterprise-url)]
             (if validate-org?
               (let [user-data (claims/cached-fetch-user-data user-cache
-                                                            access-token
-                                                            enterprise-url)]
+                                                             access-token
+                                                             enterprise-url)]
                 (when (or (nil? required-org)
-                         (claims/user-in-org? user-data required-org))
+                          (claims/user-in-org? user-data required-org))
                   login))
               login)))
 
@@ -84,8 +84,8 @@
 (defrecord GitHubClaimsProvider [enterprise-url cache-ttl-ms]
   proto/ClaimsProvider
   (get-claims [_this user-id scope]
-    (let [user-cache (claims/create-cache cache-ttl-ms)
+    (let [user-cache   (claims/create-cache cache-ttl-ms)
           access-token user-id
-          user-data (claims/cached-fetch-user-data user-cache access-token enterprise-url)
-          all-claims (claims/github->oidc-claims user-data)]
+          user-data    (claims/cached-fetch-user-data user-cache access-token enterprise-url)
+          all-claims   (claims/github->oidc-claims user-data)]
       (claims/filter-by-scope all-claims scope))))

@@ -23,32 +23,32 @@
           :user-id (:authn/user-id request)}})
 
 (deftest wrap-authentication-test
-  (let [auth (core/create-authenticator
-              {:credential-validator (->TestValidator)
-               :claims-provider (->TestClaimsProvider)})
-        handler (mw/wrap-authentication test-handler auth)
+  (let [auth       (core/create-authenticator
+                    {:credential-validator (->TestValidator)
+                     :claims-provider (->TestClaimsProvider)})
+        handler    (mw/wrap-authentication test-handler auth)
         session-id (core/authenticate auth
                                       {:username "testuser"
                                        :password "testpass"})]
 
     (testing "adds user info for valid session"
-      (let [request {:cookies {"session-id" {:value session-id}}}
+      (let [request  {:cookies {"session-id" {:value session-id}}}
             response (handler request)]
         (is (= 200 (:status response)))
         (is (true? (get-in response [:body :authenticated?])))
         (is (= "user-123" (get-in response [:body :user-id])))))
 
     (testing "marks request as unauthenticated for missing session"
-      (let [request {:cookies {}}
+      (let [request  {:cookies {}}
             response (handler request)]
         (is (= 200 (:status response)))
         (is (false? (get-in response [:body :authenticated?])))
         (is (nil? (get-in response [:body :user-id])))))))
 
 (deftest wrap-require-authentication-test
-  (let [auth (core/create-authenticator
-              {:credential-validator (->TestValidator)
-               :claims-provider (->TestClaimsProvider)})
+  (let [auth    (core/create-authenticator
+                 {:credential-validator (->TestValidator)
+                  :claims-provider (->TestClaimsProvider)})
         handler (-> test-handler
                     mw/wrap-require-authentication
                     (mw/wrap-authentication auth))]
@@ -57,11 +57,11 @@
       (let [session-id (core/authenticate auth
                                           {:username "testuser"
                                            :password "testpass"})
-            request {:cookies {"session-id" {:value session-id}}}
-            response (handler request)]
+            request    {:cookies {"session-id" {:value session-id}}}
+            response   (handler request)]
         (is (= 200 (:status response)))))
 
     (testing "blocks unauthenticated requests"
-      (let [request {:cookies {}}
+      (let [request  {:cookies {}}
             response (handler request)]
         (is (= 401 (:status response)))))))
