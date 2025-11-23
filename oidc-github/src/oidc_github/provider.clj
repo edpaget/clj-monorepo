@@ -1,13 +1,13 @@
 (ns oidc-github.provider
   "Provider-side GitHub authentication for oidc-provider.
 
-  Implements [[oidc-provider.protocol/CredentialValidator]] and
-  [[oidc-provider.protocol/ClaimsProvider]] protocols to enable using GitHub
+  Implements [[authn.protocol/CredentialValidator]] and
+  [[authn.protocol/ClaimsProvider]] protocols to enable using GitHub
   as an authenticator in your OIDC provider."
   (:require
+   [authn.protocol :as proto]
    [clj-http.client :as http]
-   [oidc-github.claims :as claims]
-   [oidc-provider.protocol :as proto]))
+   [oidc-github.claims :as claims]))
 
 (defn- exchange-code-for-token
   "Exchanges a GitHub OAuth authorization code for an access token.

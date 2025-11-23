@@ -1,10 +1,18 @@
 {:hooks   {:analyze-call {exclusive-initializer.core/wrap      hooks.exclusive-initializer.core/wrap
                         polix.core/defpolicy                 hooks.polix/defpolicy
                         graphql-server.core/defresolver      hooks.graphql-server.core/defresolver
-                        graphql-server.core/def-resolver-map hooks.graphql-server.core/def-resolver-map}}
+                        graphql-server.core/def-resolver-map hooks.graphql-server.core/def-resolver-map
+                        db.core/with-connection              hooks.db.core/with-connection}}
  :output  {:analysis {:namespace-definitions {:meta true}
                       :var-definitions       {:meta true}}
            :format   :text}
+ :config-in-ns {graphql-server.encoding-test              {:ignore [:missing-docstring]}
+                graphql-server.ring-test                  {:ignore [:missing-docstring]}
+                graphql-server.test-resolvers             {:ignore [:missing-docstring]}
+                graphql-server.test-resolvers-with-middleware {:ignore [:missing-docstring]}
+                oidc-github.claims-test                   {:ignore [:missing-docstring]}
+                oidc-github.client-test                   {:ignore [:missing-docstring]}
+                oidc-github.core-test                     {:ignore [:missing-docstring]}}
  :linters {:unused-referred-var          {:level :warning}
            :unused-namespace             {:level :warning}
            :unused-binding               {:level :warning}
@@ -13,8 +21,7 @@
            :unresolved-namespace         {:level :error}
            :type-mismatch                {:level :warning}
            :missing-docstring            {:level :warning
-                                          :exclude-when-not-public? true
-                                          :excluded-namespaces [".*-test$"]}
+                                          :exclude-when-not-public? true}
            :unsorted-imports             {:level :warning}
            :unsorted-required-namespaces {:level :warning}
            :redundant-let                {:level :warning}

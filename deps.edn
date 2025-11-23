@@ -12,6 +12,9 @@
   :polix
   {:extra-deps {local/polix {:local/root "polix"}}}
 
+  :authn
+  {:extra-deps {local/authn {:local/root "authn"}}}
+
   :oidc
   {:extra-deps {local/oidc {:local/root "oidc"}}}
 
@@ -23,6 +26,9 @@
 
   :oidc-github
   {:extra-deps {local/oidc-github {:local/root "oidc-github"}}}
+
+  :bashketball-editor-api
+  {:extra-deps {local/bashketball-editor-api {:local/root "bashketball-editor-api"}}}
 
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project
@@ -48,6 +54,14 @@
    :exec-fn     cognitect.test-runner.api/test
    :exec-args   {:dirs ["polix/test"]}
    :extra-deps  {local/polix {:local/root "polix"}
+                 io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+
+  :authn-test
+  {:extra-paths ["authn/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :exec-fn     cognitect.test-runner.api/test
+   :exec-args   {:dirs ["authn/test"]}
+   :extra-deps  {local/authn {:local/root "authn"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
   :oidc-test
@@ -82,29 +96,41 @@
    :extra-deps  {local/oidc-github {:local/root "oidc-github"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
+  :bashketball-editor-api-test
+  {:extra-paths ["bashketball-editor-api/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :exec-fn     cognitect.test-runner.api/test
+   :exec-args   {:dirs ["bashketball-editor-api/test"]}
+   :extra-deps  {local/bashketball-editor-api {:local/root "bashketball-editor-api"}
+                 io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+
   ;; === Aggregated Aliases ===
   ;; Work with all projects at once
   :dev-all
-  {:extra-deps {local/exclusive-initializer {:local/root "exclusive-initializer"}
-                local/db                    {:local/root "db"}
-                local/polix                 {:local/root "polix"}
-                local/oidc                  {:local/root "oidc"}
-                local/oidc-provider         {:local/root "oidc-provider"}
-                local/oidc-github           {:local/root "oidc-github"}
-                local/graphql-server        {:local/root "graphql-server"}}}
+  {:extra-deps {local/exclusive-initializer    {:local/root "exclusive-initializer"}
+                local/db                       {:local/root "db"}
+                local/polix                    {:local/root "polix"}
+                local/authn                    {:local/root "authn"}
+                local/oidc                     {:local/root "oidc"}
+                local/oidc-provider            {:local/root "oidc-provider"}
+                local/oidc-github              {:local/root "oidc-github"}
+                local/graphql-server           {:local/root "graphql-server"}
+                local/bashketball-editor-api   {:local/root "bashketball-editor-api"}}}
 
   :test-all
-  {:extra-paths ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test" "oidc-provider/test" "oidc-github/test" "graphql-server/test"]
+  {:extra-paths ["exclusive-initializer/test" "db/test" "polix/test" "authn/test" "oidc/test" "oidc-provider/test" "oidc-github/test" "graphql-server/test" "bashketball-editor-api/test"]
    :jvm-opts    ["-Duser.timezone=UTC"]
    :exec-fn     cognitect.test-runner.api/test
-   :exec-args   {:dirs ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test" "oidc-provider/test" "oidc-github/test" "graphql-server/test"]}
-   :extra-deps  {local/exclusive-initializer {:local/root "exclusive-initializer"}
-                 local/db                    {:local/root "db"}
-                 local/polix                 {:local/root "polix"}
-                 local/oidc                  {:local/root "oidc"}
-                 local/oidc-provider         {:local/root "oidc-provider"}
-                 local/oidc-github           {:local/root "oidc-github"}
-                 local/graphql-server        {:local/root "graphql-server"}
+   :exec-args   {:dirs ["exclusive-initializer/test" "db/test" "polix/test" "authn/test" "oidc/test" "oidc-provider/test" "oidc-github/test" "graphql-server/test" "bashketball-editor-api/test"]}
+   :extra-deps  {local/exclusive-initializer    {:local/root "exclusive-initializer"}
+                 local/db                       {:local/root "db"}
+                 local/polix                    {:local/root "polix"}
+                 local/authn                    {:local/root "authn"}
+                 local/oidc                     {:local/root "oidc"}
+                 local/oidc-provider            {:local/root "oidc-provider"}
+                 local/oidc-github              {:local/root "oidc-github"}
+                 local/graphql-server           {:local/root "graphql-server"}
+                 local/bashketball-editor-api   {:local/root "bashketball-editor-api"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
   ;; === Development Tools ===

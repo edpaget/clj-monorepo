@@ -16,6 +16,10 @@
   "Re-exported from [[authn.protocol/ClaimsProvider]]."
   authn/ClaimsProvider)
 
+(def get-claims
+  "Re-exported from [[authn.protocol/get-claims]]."
+  authn/get-claims)
+
 (def CredentialHash
   "Re-exported from [[authn.protocol/CredentialHash]]."
   authn/CredentialHash)
