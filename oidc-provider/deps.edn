@@ -7,7 +7,9 @@
   buddy/buddy-sign       {:mvn/version "3.6.1-359"}
   buddy/buddy-core       {:mvn/version "1.12.0-430"}
   ring/ring-core         {:mvn/version "1.13.0"}
-  cheshire/cheshire      {:mvn/version "5.13.0"}}
+  cheshire/cheshire      {:mvn/version "5.13.0"}
+  com.nimbusds/nimbus-jose-jwt {:mvn/version "9.37.3"}
+  com.nimbusds/oauth2-oidc-sdk {:mvn/version "11.9.1"}}
 
  :aliases
  {:test
