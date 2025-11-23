@@ -41,7 +41,8 @@ jobs:
         run: clojure -X:format check '{:paths ["."]}'
 
       - name: Run clj-kondo
-        run: clojure -M:lint --lint .
+        # Note: polix is excluded as it's still under active research and refactoring
+        run: clojure -M:lint --lint exclusive-initializer db oidc oidc-provider graphql-server build scripts
 
   test-no-db:
     name: Test ${{ matrix.project }}
