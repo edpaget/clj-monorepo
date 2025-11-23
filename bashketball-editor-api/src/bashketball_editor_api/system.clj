@@ -1,0 +1,170 @@
+(ns bashketball-editor-api.system
+  "Integrant system configuration.
+
+  Defines the application's component system with dependencies between
+  configuration, database, authentication, GraphQL, and HTTP server."
+  (:require
+   [authn.core :as authn]
+   [bashketball-editor-api.config :as config]
+   [bashketball-editor-api.github.cards :as cards]
+   [bashketball-editor-api.github.client :as gh-client]
+   [bashketball-editor-api.github.sets :as sets]
+   [bashketball-editor-api.graphql.schema :as gql-schema]
+   [bashketball-editor-api.handler :as handler]
+   [bashketball-editor-api.models.session :as session]
+   [bashketball-editor-api.models.user :as user]
+   [bashketball-editor-api.services.auth :as auth-svc]
+   [bashketball-editor-api.services.card :as card-svc]
+   [bashketball-editor-api.services.set :as set-svc]
+   [db.connection-pool :as pool]
+   [db.core :as db]
+   [db.migrate :as migrate]
+   [integrant.core :as ig]
+   [oidc-github.provider :as oidc-gh]
+   [ring.adapter.jetty :as jetty]))
+
+(defmethod ig/init-key ::config [_ {:keys [profile]}]
+  (config/load-config (or profile :dev)))
+
+(defmethod ig/init-key ::db-pool [_ {:keys [config]}]
+  (pool/create-pool
+   (get-in config [:database :database-url])
+   (get-in config [:database :c3p0-opts])))
+
+(defmethod ig/halt-key! ::db-pool [_ datasource]
+  (pool/close-pool! datasource))
+
+(defmethod ig/init-key ::migrate [_ {:keys [db-pool]}]
+  (binding [db/*datasource* db-pool]
+    (migrate/migrate! "migrations")))
+
+(defmethod ig/init-key ::user-repo [_ _]
+  (user/create-user-repository))
+
+(defmethod ig/init-key ::session-repo [_ {:keys [config]}]
+  (session/create-session-repository
+   (get-in config [:session :ttl-ms])))
+
+(defmethod ig/init-key ::github-credential-validator [_ {:keys [config]}]
+  (oidc-gh/->GitHubCredentialValidator
+   (get-in config [:github :oauth :client-id])
+   (get-in config [:github :oauth :client-secret])
+   (get-in config [:auth :required-org])
+   (get-in config [:auth :validate-org?])
+   nil
+   (get-in config [:auth :cache-ttl-ms])))
+
+(defmethod ig/init-key ::github-claims-provider [_ {:keys [config]}]
+  (oidc-gh/->GitHubClaimsProvider
+   nil
+   (get-in config [:auth :cache-ttl-ms])))
+
+(defmethod ig/init-key ::auth-service [_ {:keys [user-repo
+                                                 github-credential-validator
+                                                 github-claims-provider]}]
+  (auth-svc/create-auth-service
+   user-repo
+   github-credential-validator
+   github-claims-provider))
+
+(defmethod ig/init-key ::authenticator [_ {:keys [auth-service session-repo config]}]
+  (authn/create-authenticator
+   {:credential-validator (:credential-validator auth-service)
+    :claims-provider (:claims-provider auth-service)
+    :session-store session-repo
+    :session-ttl-ms (get-in config [:session :ttl-ms])
+    :session-cookie-name (get-in config [:session :cookie-name])
+    :session-cookie-secure? (get-in config [:session :cookie-secure?])
+    :session-cookie-http-only? (get-in config [:session :cookie-http-only?])
+    :session-cookie-same-site (get-in config [:session :cookie-same-site])}))
+
+(defmethod ig/init-key ::github-client [_ {:keys [config]}]
+  ;; TODO: Get access token from authenticated user context
+  (gh-client/create-github-client
+   nil
+   (get-in config [:github :repo :owner])
+   (get-in config [:github :repo :name])
+   (get-in config [:github :repo :branch])))
+
+(defmethod ig/init-key ::card-repo [_ {:keys [github-client]}]
+  (cards/create-card-repository github-client))
+
+(defmethod ig/init-key ::set-repo [_ {:keys [github-client]}]
+  (sets/create-set-repository github-client))
+
+(defmethod ig/init-key ::card-service [_ {:keys [card-repo]}]
+  (card-svc/create-card-service card-repo))
+
+(defmethod ig/init-key ::set-service [_ {:keys [set-repo card-repo]}]
+  (set-svc/create-set-service set-repo card-repo))
+
+(defmethod ig/init-key ::graphql-schema [_ _]
+  (gql-schema/create-schema))
+
+(defmethod ig/init-key ::handler [_ {:keys [graphql-schema
+                                             authenticator
+                                             db-pool
+                                             user-repo
+                                             config]}]
+  (handler/create-handler
+   graphql-schema
+   authenticator
+   db-pool
+   user-repo
+   (:session config)))
+
+(defmethod ig/init-key ::server [_ {:keys [handler config]}]
+  (let [port (get-in config [:server :port])
+        host (get-in config [:server :host])]
+    (jetty/run-jetty handler
+                     {:port port
+                      :host host
+                      :join? false})))
+
+(defmethod ig/halt-key! ::server [_ server]
+  (.stop server))
+
+(defn system-config
+  "Returns the Integrant system configuration map.
+
+  Defines all components and their dependencies."
+  [profile]
+  {::config {:profile profile}
+   ::db-pool {:config (ig/ref ::config)}
+   ::migrate {:db-pool (ig/ref ::db-pool)}
+   ::user-repo {}
+   ::session-repo {:config (ig/ref ::config)}
+   ::github-credential-validator {:config (ig/ref ::config)}
+   ::github-claims-provider {:config (ig/ref ::config)}
+   ::auth-service {:user-repo (ig/ref ::user-repo)
+                   :github-credential-validator (ig/ref ::github-credential-validator)
+                   :github-claims-provider (ig/ref ::github-claims-provider)}
+   ::authenticator {:auth-service (ig/ref ::auth-service)
+                    :session-repo (ig/ref ::session-repo)
+                    :config (ig/ref ::config)}
+   ::github-client {:config (ig/ref ::config)}
+   ::card-repo {:github-client (ig/ref ::github-client)}
+   ::set-repo {:github-client (ig/ref ::github-client)}
+   ::card-service {:card-repo (ig/ref ::card-repo)}
+   ::set-service {:set-repo (ig/ref ::set-repo)
+                  :card-repo (ig/ref ::card-repo)}
+   ::graphql-schema {}
+   ::handler {:graphql-schema (ig/ref ::graphql-schema)
+              :authenticator (ig/ref ::authenticator)
+              :db-pool (ig/ref ::db-pool)
+              :user-repo (ig/ref ::user-repo)
+              :config (ig/ref ::config)}
+   ::server {:handler (ig/ref ::handler)
+             :config (ig/ref ::config)}})
+
+(defn start-system
+  "Starts the application system."
+  ([]
+   (start-system :dev))
+  ([profile]
+   (ig/init (system-config profile))))
+
+(defn stop-system
+  "Stops the application system."
+  [system]
+  (ig/halt! system))

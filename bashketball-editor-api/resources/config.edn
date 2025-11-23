@@ -1,0 +1,35 @@
+{:server
+ {:port #or [#env PORT 3000]
+  :host "0.0.0.0"}
+
+ :database
+ {:database-url #profile {:dev #or [#env DATABASE_URL "jdbc:postgresql://localhost:5432/bashketball_editor_dev"]
+                          :test "jdbc:postgresql://localhost:5432/bashketball_editor_test"
+                          :prod #env DATABASE_URL}
+  :c3p0-opts {:min-pool-size 1
+              :max-pool-size 10
+              :acquire-increment 1
+              :idle-connection-test-period 300}}
+
+ :github
+ {:oauth
+  {:client-id #env GITHUB_CLIENT_ID
+   :client-secret #env GITHUB_SECRET
+   :redirect-uri #or [#env GITHUB_REDIRECT_URI "http://localhost:3000/auth/github/callback"]}
+  :repo
+  {:owner #env GITHUB_REPO_OWNER
+   :name #env GITHUB_REPO_NAME
+   :branch #or [#env GITHUB_REPO_BRANCH "main"]}}
+
+ :session
+ {:ttl-ms #long #or [#env SESSION_TTL_MS 86400000]
+  :cookie-name "bashketball-session"
+  :cookie-secure? #profile {:dev false
+                            :prod true}
+  :cookie-http-only? true
+  :cookie-same-site :lax}
+
+ :auth
+ {:required-org nil
+  :validate-org? false
+  :cache-ttl-ms 300000}}
