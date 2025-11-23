@@ -17,16 +17,14 @@
 (defn create-client
   "Creates an OIDC client configuration.
 
-  Args:
-    config: Map containing OIDC configuration
-      - :issuer - The OIDC issuer URL (e.g., https://accounts.google.com)
-      - :client-id - OAuth2 client ID
-      - :client-secret - OAuth2 client secret (optional for public clients)
-      - :redirect-uri - Redirect URI registered with the provider
-      - :scopes - Vector of OAuth2 scopes (defaults to [\"openid\"])
+   Takes a configuration map containing `:issuer` (the OIDC issuer URL like
+   `https://accounts.google.com`), `:client-id` (OAuth2 client ID), `:redirect-uri`
+   (the redirect URI registered with the provider), and optionally `:client-secret`
+   (for confidential clients) and `:scopes` (vector of OAuth2 scopes).
 
-  Returns:
-    Validated client configuration map"
+   When scopes are not provided, defaults to `[\"openid\"]`. Validates the
+   configuration against the Config schema and returns the validated client
+   configuration map."
   [{:keys [scopes] :as config}]
   {:pre [(m/validate Config config)]}
   (assoc config :scopes (or scopes ["openid"])))

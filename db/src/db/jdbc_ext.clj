@@ -16,16 +16,13 @@
 (def ^:private <-json #(json/read-value % mapper))
 
 (defn ->pgobject
-  "Transforms Clojure data to a PGobject that contains the data as
-  JSON. PGObject type defaults to `jsonb` but can be changed via
-  metadata key `:pgtype`.
+  "Transforms Clojure data to a PGobject containing the data as JSON.
 
-  Args:
-    x: Clojure data structure to convert to PostgreSQL JSON/JSONB
-    pgtype: Optional PostgreSQL type (defaults to jsonb for non-string values)
-
-  Returns:
-    PGobject with JSON representation of x"
+   Takes a Clojure data structure and converts it to a PostgreSQL PGobject. When
+   called with just a value, creates a `jsonb` PGobject. When called with both a
+   value and a pgtype string, uses the specified PostgreSQL type. String values
+   are stored directly; other values are serialized to JSON. Returns the configured
+   PGobject."
   ([x]
    (->pgobject x "jsonb"))
   ([x pgtype]
@@ -34,13 +31,12 @@
      (.setValue (if (string? x) x (->json x))))))
 
 (defn- <-pgobject
-  "Transform PGobject containing `json` or `jsonb` value to Clojure data.
+  "Transforms a PGobject containing JSON or JSONB data to Clojure data.
 
-  Args:
-    v: PGobject containing JSON/JSONB data
-
-  Returns:
-    Clojure data structure parsed from JSON, or original value if not JSON type"
+   Takes a PGobject and checks its type. When the type is `json` or `jsonb`,
+   parses the value as JSON and attaches type metadata. For other types, returns
+   the value unchanged. Returns the parsed Clojure data structure or the original
+   value."
   [^PGobject v]
   (let [type  (.getType v)
         value (.getValue v)]
@@ -49,13 +45,11 @@
       value)))
 
 (defn- fetch-pg-enums
-  "Queries PostgreSQL database to retrieve all enum type names.
+  "Queries the PostgreSQL database to retrieve all enum type names.
 
-  Args:
-    connection: JDBC connection or datasource
-
-  Returns:
-    Set of enum type names as strings"
+   Takes a JDBC connection or datasource and executes a query against `pg_type`
+   to find all types where `typtype = 'e'` (enum types). Returns a set of enum
+   type names as strings."
   [connection]
   (let [query   "SELECT typname FROM pg_type WHERE typtype = 'e'"
         results (jdbc/execute! connection [query])]
@@ -66,23 +60,17 @@
 (defn refresh-enum-cache!
   "Refreshes the cache of PostgreSQL enum types.
 
-  Args:
-    connection: JDBC connection or datasource
-
-  Returns:
-    Set of enum type names"
+   Takes a JDBC connection or datasource, fetches all enum type names from the
+   database, and updates the internal cache. Returns the set of enum type names."
   [connection]
   (reset! enum-cache (fetch-pg-enums connection)))
 
 (defn- enum-type?
   "Checks if a column type is a PostgreSQL enum.
 
-  Args:
-    type-name: SQL type name from ResultSetMetaData
-    connection: Optional JDBC connection for cache refresh
-
-  Returns:
-    True if type-name is a known enum type"
+   Takes a SQL type name (from ResultSetMetaData) and checks if it exists in the
+   cached set of enum types. Returns true if the type name is a known enum type,
+   false otherwise. Returns nil if the cache has not been initialized."
   [type-name]
   (when-let [enums @enum-cache]
     (contains? enums type-name)))
@@ -90,11 +78,10 @@
 (defn- keyword->enum-type
   "Extracts the PostgreSQL enum type name from a namespaced keyword.
 
-  Args:
-    kw: Namespaced keyword (e.g., :status-enum/active)
-
-  Returns:
-    String enum type name (e.g., \"status_enum\") or nil if not an enum keyword"
+   Takes a namespaced keyword (like `:status-enum/active`) and converts the
+   namespace to snake_case (like `\"status_enum\"`). Checks if this snake_case
+   name is a known enum type. Returns the string enum type name if found, or nil
+   if the keyword is not namespaced or doesn't correspond to a known enum type."
   [kw]
   (when (and (keyword? kw) (namespace kw))
     (let [ns-part    (namespace kw)

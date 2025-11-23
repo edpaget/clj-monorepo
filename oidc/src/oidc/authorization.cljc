@@ -49,39 +49,32 @@
 (defn generate-state
   "Generates a random state parameter for CSRF protection.
 
-  Returns:
-    Random state string"
+   Returns a cryptographically random string suitable for use as an OAuth2 state
+   parameter to prevent cross-site request forgery attacks."
   []
   (generate-random-string 32))
 
 (defn generate-nonce
   "Generates a random nonce parameter for replay protection.
 
-  Returns:
-    Random nonce string"
+   Returns a cryptographically random string suitable for use as an OIDC nonce
+   parameter to prevent token replay attacks."
   []
   (generate-random-string 32))
 
 (defn authorization-url
   "Constructs the authorization URL for initiating the OIDC flow.
 
-  Args:
-    authorization-endpoint: The authorization endpoint URL from discovery
-    client-id: OAuth2 client ID
-    redirect-uri: Registered redirect URI
-    opts: Optional parameters
-      - :scope - Space-separated scope string (default \"openid\")
-      - :state - State parameter for CSRF protection
-      - :nonce - Nonce parameter for replay protection
-      - :response-type - Response type (default \"code\")
-      - :response-mode - Response mode (e.g., \"query\", \"fragment\")
-      - :prompt - Prompt parameter (e.g., \"none\", \"login\", \"consent\")
-      - :max-age - Maximum authentication age in seconds
-      - :ui-locales - Preferred locales for UI
-      - :additional-params - Map of additional query parameters
+   Takes an authorization endpoint URL (from discovery), a client ID, a redirect URI,
+   and an options map. The options support `:scope` (defaults to \"openid\"), `:state`
+   (for CSRF protection), `:nonce` (for replay protection), `:response-type` (defaults
+   to \"code\"), `:response-mode` (e.g., \"query\" or \"fragment\"), `:prompt` (e.g.,
+   \"none\", \"login\", \"consent\"), `:max-age` (maximum authentication age in seconds),
+   `:ui-locales` (preferred locales for UI), and `:additional-params` (map of additional
+   query parameters).
 
-  Returns:
-    Authorization URL string"
+   Constructs the full authorization URL with all parameters properly URL-encoded.
+   Returns the authorization URL string."
   [authorization-endpoint client-id redirect-uri {:keys [scope state nonce response-type
                                                          response-mode prompt max-age
                                                          ui-locales additional-params]
@@ -106,20 +99,15 @@
 (defn exchange-code
   "Exchanges an authorization code for tokens.
 
-  Args:
-    token-endpoint: The token endpoint URL from discovery
-    code: Authorization code received from callback
-    client-id: OAuth2 client ID
-    client-secret: OAuth2 client secret (if using confidential client)
-    redirect-uri: The same redirect URI used in the authorization request
-    opts: Optional parameters
-      - :code-verifier - PKCE code verifier (if using PKCE)
+   Takes a token endpoint URL (from discovery), the authorization code received from
+   the callback, a client ID, an optional client secret (for confidential clients),
+   the same redirect URI used in the authorization request, and an options map that
+   can include `:code-verifier` for PKCE flows.
 
-  Returns:
-    Token response map containing access_token, id_token, etc. (ClojureScript returns a promise)
-
-  Throws:
-    clojure.lang.ExceptionInfo on HTTP or validation errors"
+   Makes an HTTP POST request to the token endpoint with grant_type=authorization_code.
+   Validates the response against the TokenResponse schema. In Clojure, returns the
+   token response map containing access_token, id_token, etc. In ClojureScript, returns
+   a promise. Throws ExceptionInfo on HTTP or validation errors."
   [token-endpoint code client-id client-secret redirect-uri {:keys [code-verifier]}]
   (let [params (cond-> {"grant_type" "authorization_code"
                         "code" code
@@ -152,19 +140,14 @@
 (defn refresh-token
   "Refreshes an access token using a refresh token.
 
-  Args:
-    token-endpoint: The token endpoint URL from discovery
-    refresh-token: The refresh token
-    client-id: OAuth2 client ID
-    client-secret: OAuth2 client secret (if using confidential client)
-    opts: Optional parameters
-      - :scope - Space-separated scope string to request
+   Takes a token endpoint URL (from discovery), the refresh token, a client ID, an
+   optional client secret (for confidential clients), and an options map that can
+   include `:scope` to request specific scopes.
 
-  Returns:
-    Token response map with new access_token (ClojureScript returns a promise)
-
-  Throws:
-    clojure.lang.ExceptionInfo on HTTP or validation errors"
+   Makes an HTTP POST request to the token endpoint with grant_type=refresh_token.
+   Validates the response against the TokenResponse schema. In Clojure, returns the
+   token response map with the new access_token. In ClojureScript, returns a promise.
+   Throws ExceptionInfo on HTTP or validation errors."
   [token-endpoint refresh-token-val client-id client-secret {:keys [scope]}]
   (let [params (cond-> {"grant_type" "refresh_token"
                         "refresh_token" refresh-token-val

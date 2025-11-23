@@ -8,11 +8,9 @@
 (defn fetch-jwks
   "Fetches JWKS (JSON Web Key Set) from the given URI.
 
-  Args:
-    jwks-uri: URL to the JWKS endpoint
-
-  Returns:
-    Platform-specific JWKS representation"
+   Takes a URL to the JWKS endpoint, creates a platform-specific validator, and
+   fetches the JSON Web Key Set. Returns a platform-specific JWKS representation
+   that can be used for token validation."
   [jwks-uri]
   (let [validator #?(:clj (jvm/create-validator)
                      :cljs (cljs-impl/create-validator))]
@@ -21,21 +19,16 @@
 (defn validate-id-token
   "Validates an OIDC ID token.
 
-  Args:
-    token: The JWT ID token string
-    jwks: JWKS data (from fetch-jwks)
-    expected-issuer: Expected issuer claim value
-    expected-audience: Expected audience claim value (client ID)
-    opts: Optional validation options
-      - :now - Current time in seconds since epoch (for testing)
-      - :leeway - Clock skew leeway in seconds (default 0)
-      - :nonce - Expected nonce value (if using nonce)
+   Takes a JWT ID token string, JWKS data (from [[fetch-jwks]]), the expected issuer
+   claim value, the expected audience claim value (client ID), and an options map.
+   The options can include `:now` (current time in seconds since epoch for testing),
+   `:leeway` (clock skew leeway in seconds, defaults to 0), and `:nonce` (expected
+   nonce value if using nonce parameter).
 
-  Returns:
-    Validated and decoded token claims (may be a promise in ClojureScript)
-
-  Throws:
-    Platform-specific exception on validation failure"
+   Creates a platform-specific validator and validates the token signature, expiration,
+   and claims. In Clojure, returns the validated and decoded token claims map. In
+   ClojureScript, returns a promise that resolves to the claims. Throws a
+   platform-specific exception on validation failure."
   [token jwks expected-issuer expected-audience opts]
   (let [validator #?(:clj (jvm/create-validator)
                      :cljs (cljs-impl/create-validator))]
@@ -44,11 +37,10 @@
 (defn decode-header
   "Decodes the JWT header without validation.
 
-  Args:
-    token: The JWT token string
-
-  Returns:
-    Map containing header claims (alg, kid, etc.)"
+   Takes a JWT token string, creates a platform-specific validator, and decodes just
+   the header portion without validating the signature or claims. Returns a map
+   containing header claims like `alg`, `kid`, etc. Useful for inspecting token
+   metadata before full validation."
   [token]
   (let [validator #?(:clj (jvm/create-validator)
                      :cljs (cljs-impl/create-validator))]

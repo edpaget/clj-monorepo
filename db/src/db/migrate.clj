@@ -9,13 +9,12 @@
 (def ^:private ^:dynamic *ragtime-config* nil)
 
 (defn do-with-config
-  "Execute function with Ragtime configuration bound to *ragtime-config*.
+  "Executes a function with Ragtime configuration bound to `*ragtime-config*`.
 
-  Args:
-    thunk: Function of zero arguments to execute with config
-
-  Returns:
-    Return value of thunk, or nil if error occurs"
+   Takes a thunk (function of zero arguments) and executes it with a Ragtime
+   configuration that uses `db/*datasource*` and loads migrations from the
+   `migrations` resource directory. Returns the return value of the thunk, or nil
+   if an error occurs (errors are logged)."
   [thunk]
   (try
     (binding [*ragtime-config* {:datastore  (next-jdbc/sql-database db/*datasource*)
@@ -34,11 +33,9 @@
 (defn migrate
   "Applies all pending migrations.
 
-  Args:
-    config: the ragtime configuration to use (optional)
-
-  Returns:
-    nil"
+   When called with no arguments, uses the default configuration from
+   `*datasource*` and the `migrations` resource directory. When called with
+   a Ragtime config map, uses that configuration instead. Returns nil."
   ([]
    (with-config
      (repl/migrate *ragtime-config*)))
@@ -48,11 +45,9 @@
 (defn rollback
   "Rolls back the last applied migration.
 
-  Args:
-    config: the ragtime configuration to use (optional)
-
-  Returns:
-    nil"
+   When called with no arguments, uses the default configuration from
+   `*datasource*` and the `migrations` resource directory. When called with
+   a Ragtime config map, uses that configuration instead. Returns nil."
   ([]
    (with-config
      (repl/rollback *ragtime-config*)))

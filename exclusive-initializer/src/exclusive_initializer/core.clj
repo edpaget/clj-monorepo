@@ -20,38 +20,39 @@
   (reset! locks {}))
 
 (defmacro initialize!
-  "```Setup something in test fixture that will run once then then not run again
-  until it is deinitialized. Handle multi-threaded test runners.
+  "Sets up something in a test fixture that runs once and won't run again until deinitialized.
 
-  (defn printer-fixture [f]
-    (initialize! ::print-job
-      (prn \"Good Job\"))
-    (f))
-  ```
+   Handles multi-threaded test runners by using locks to ensure exclusive execution.
+   Takes a lock name (typically a namespaced keyword) and a body to execute. The body
+   will only execute once per lock name across all parallel test threads, even if the
+   fixture is called multiple times.
 
-  Args:
-    body: the body to execute"
+   Example:
+
+       (defn printer-fixture [f]
+         (initialize! ::print-job
+           (prn \"Good Job\"))
+         (f))"
   {:style/indent 1}
   [lock-name & body]
   `(do-handler! ~lock-name true (fn [] ~@body)))
 
 (defmacro deinitialize!
-  "```Teardown something previously setup in a test fixture.
+  "Tears down something previously set up in a test fixture.
 
-  (defn printer-fixture [f]
-    (initialize! ::print-job
-      (prn \"Good Job\"))
-    (f)
-    (deintialize! ::print-job
-      (prn \"We deinitialized\")))
-  ```
+   Takes a lock name (matching the one used in [[initialize!]]) and a body to execute.
+   The body will execute once to clean up resources. Locks the initializer block from
+   running while deinitializing, ensuring thread-safe cleanup in multi-threaded test
+   runners.
 
-  This also locks the block in the initializer from running while it is
-  deinitializing.
+   Example:
 
-  Args:
-    binding-form: three element vector that bind the functions provided by the macro
-    body: the body to execute"
+       (defn printer-fixture [f]
+         (initialize! ::print-job
+           (prn \"Good Job\"))
+         (f)
+         (deinitialize! ::print-job
+           (prn \"We deinitialized\")))"
   {:style/indent 1}
   [lock-name & body]
   `(do-handler! ~lock-name false (fn [] ~@body)))

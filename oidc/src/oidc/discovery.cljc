@@ -26,11 +26,9 @@
 (defn well-known-url
   "Constructs the .well-known/openid-configuration URL from an issuer.
 
-  Args:
-    issuer: The OIDC issuer URL
-
-  Returns:
-    Full URL to the discovery document"
+   Takes an OIDC issuer URL and appends `/.well-known/openid-configuration` to it,
+   removing any trailing slash from the issuer if present. Returns the full URL to
+   the discovery document."
   [issuer]
   (str (if (str/ends-with? issuer "/")
          (subs issuer 0 (dec (count issuer)))
@@ -49,13 +47,10 @@
 (defn fetch-discovery-document
   "Fetches and parses the OIDC discovery document from the issuer.
 
-  Args:
-    issuer: The OIDC issuer URL
-
-  Returns:
-    Parsed discovery document as a map (ClojureScript returns a promise)
-
-  Throws:
-    clojure.lang.ExceptionInfo on HTTP errors or invalid document"
+   Takes an OIDC issuer URL, creates a platform-specific discovery client, and
+   fetches the discovery document from the well-known endpoint. In Clojure, returns
+   the parsed discovery document as a map. In ClojureScript, returns a promise that
+   resolves to the document. Throws ExceptionInfo on HTTP errors or when the document
+   is invalid."
   [issuer]
   (proto/fetch-discovery-document (create-client) issuer))

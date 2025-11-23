@@ -35,13 +35,11 @@
 
 (defn- compile-honeysql
   "Compiles a HoneySQL map into a JDBC-compatible vector [sql-string params...].
-   If the input is not a map, returns it unchanged.
 
-   Args:
-     sql-map-or-vec: HoneySQL map to compile or pre-compiled [sql params...] vector
-
-   Returns:
-     Vector of [sql-string param1 param2 ...] for JDBC execution"
+   Takes either a HoneySQL map or a pre-compiled [sql params...] vector. When given
+   a map, formats it into a SQL string with parameters. When given a vector, returns
+   it unchanged. Returns a vector of [sql-string param1 param2 ...] suitable for JDBC
+   execution."
   [sql-map-or-vec]
   (debug
    (if (map? sql-map-or-vec)
@@ -49,20 +47,16 @@
      sql-map-or-vec)))
 
 (defn do-with-connection
-  "Internal helper. Executes function `f` within a connection context.
-   - If *current-connection* is bound and non-nil, executes `f` directly.
-   - Otherwise, if *datasource* is bound and non-nil, obtains a connection,
-     binds it to *current-connection*, executes `f`, and closes connection.
-   - Throws if neither is available.
+  "Internal helper that executes a function within a connection context.
 
-   Args:
-     f: Function of one argument (connection) to execute
+   When `*current-connection*` is already bound and non-nil, executes the function
+   directly using that connection. Otherwise, if `*datasource*` is bound and non-nil,
+   obtains a new connection from the datasource, binds it to `*current-connection*`,
+   executes the function, and closes the connection afterwards.
 
-   Returns:
-     Return value of f
-
-   Raises:
-     IllegalStateException: When no connection or datasource is available"
+   The function `f` receives one argument (the connection) and its return value is
+   returned from this function. Throws IllegalStateException when neither a current
+   connection nor a datasource is available."
   [f]
   (cond
     *current-connection*
@@ -94,16 +88,17 @@
   (connectable? [_] false))
 
 (defn- call-jdbc-fn
-  "Helper to call the appropriate next.jdbc function, managing connections.
+  "Helper that calls a next.jdbc function while managing connections.
 
-   Args:
-     jdbc-fn: next.jdbc function like jdbc/execute! or jdbc/execute-one!
-     connectable-or-sql: Either a connectable (datasource/connection) or SQL
-     sql-or-opts: Either SQL (if first arg is connectable) or options map
-     opts: Optional options map (when sql-or-opts is SQL)
+   Takes a next.jdbc function (like `jdbc/execute!` or `jdbc/execute-one!`) and
+   flexible arguments that allow SQL to be passed with or without an explicit
+   connectable. When `connectable-or-sql` is a connectable (datasource or connection),
+   treats `sql-or-opts` as the SQL and `opts` as options. Otherwise, treats
+   `connectable-or-sql` as SQL and `sql-or-opts` as options, obtaining a connection
+   from dynamic vars.
 
-   Returns:
-     Result of calling jdbc-fn with managed connection and compiled SQL"
+   Compiles HoneySQL maps into SQL vectors and merges in default options. Returns
+   the result of calling the jdbc function with the managed connection and compiled SQL."
   [jdbc-fn connectable-or-sql sql-or-opts & [opts]]
   (if (connectable? connectable-or-sql)
     (let [sql-vec (compile-honeysql sql-or-opts)
@@ -125,19 +120,13 @@
 
 (defn plan
   "Executes a query that returns a reducible collection of rows.
-   If the first argument `connectable-or-sql` is a connectable (datasource or connection),
-   uses it. Otherwise, obtains a connection from the dynamic var *datasource*.
-   The SQL argument (`sql-or-opts` or `connectable-or-sql`) can be a HoneySQL map
-   or a standard [sql params...] vector.
 
-   Args:
-     sql: HoneySQL map or [sql params...] vector (1-arity)
-     connectable-or-sql: Connectable or SQL (2-arity)
-     sql-or-opts: SQL or options map (2-arity)
-     opts: Options map (3-arity)
+   Can be called with just SQL (using `*datasource*` for the connection), with
+   an explicit connectable and SQL, or with a connectable, SQL, and options map.
+   The SQL can be either a HoneySQL map or a standard [sql params...] vector.
 
-   Returns:
-     Reducible collection of row maps"
+   The reducible result allows efficient processing of large result sets without
+   loading all rows into memory at once. Returns a reducible collection of row maps."
   ([sql]
    (call-jdbc-fn jdbc/plan sql nil))
   ([connectable-or-sql sql-or-opts]
@@ -146,20 +135,14 @@
    (call-jdbc-fn jdbc/plan connectable-or-sql sql-or-opts opts)))
 
 (defn execute!
-  "Executes SQL (e.g., DDL, INSERT, UPDATE, DELETE) and returns update counts.
-   If the first argument `connectable-or-sql` is a connectable (datasource or connection),
-   uses it. Otherwise, obtains a connection from the dynamic var *datasource*.
-   The SQL argument (`sql-or-opts` or `connectable-or-sql`) can be a HoneySQL map
-   or a standard [sql params...] vector.
+  "Executes SQL commands like DDL, INSERT, UPDATE, or DELETE.
 
-   Args:
-     sql: HoneySQL map or [sql params...] vector (1-arity)
-     connectable-or-sql: Connectable or SQL (2-arity)
-     sql-or-opts: SQL or options map (2-arity)
-     opts: Options map (3-arity)
+   Can be called with just SQL (using `*datasource*` for the connection), with
+   an explicit connectable and SQL, or with a connectable, SQL, and options map.
+   The SQL can be either a HoneySQL map or a standard [sql params...] vector.
 
-   Returns:
-     Vector of update count integers"
+   Returns a vector of update count integers indicating how many rows were affected
+   by each statement."
   ([sql]
    (call-jdbc-fn jdbc/execute! sql nil))
   ([connectable-or-sql sql-or-opts]
@@ -168,20 +151,13 @@
    (call-jdbc-fn jdbc/execute! connectable-or-sql sql-or-opts opts)))
 
 (defn execute-one!
-  "Executes SQL (typically SELECT) that returns a single row map.
-   If the first argument `connectable-or-sql` is a connectable (datasource or connection),
-   uses it. Otherwise, obtains a connection from the dynamic var *datasource*.
-   The SQL argument (`sql-or-opts` or `connectable-or-sql`) can be a HoneySQL map
-   or a standard [sql params...] vector.
+  "Executes SQL (typically SELECT) that returns a single row.
 
-   Args:
-     sql: HoneySQL map or [sql params...] vector (1-arity)
-     connectable-or-sql: Connectable or SQL (2-arity)
-     sql-or-opts: SQL or options map (2-arity)
-     opts: Options map (3-arity)
+   Can be called with just SQL (using `*datasource*` for the connection), with
+   an explicit connectable and SQL, or with a connectable, SQL, and options map.
+   The SQL can be either a HoneySQL map or a standard [sql params...] vector.
 
-   Returns:
-     Single row map or nil if no results"
+   Returns a single row map, or nil if the query produces no results."
   ([sql]
    (call-jdbc-fn jdbc/execute-one! sql nil))
   ([connectable-or-sql sql-or-opts]
@@ -210,14 +186,12 @@
      ~@body))
 
 (defn do-with-transaction
-  "Implementation for with-transaction macro.
+  "Implementation for the with-transaction macro.
 
-   Args:
-     connectable-or-nil: Optional connectable, uses *current-connection* or *datasource* if nil
-     thunk: Function of one argument (transaction connection) to execute
-
-   Returns:
-     Return value of thunk"
+   Takes an optional connectable and a thunk (function of one argument). When a
+   connectable is provided, opens a transaction on it. When nil, uses the current
+   connection or obtains one from the datasource. The thunk receives the transaction
+   connection as its argument and its return value is returned from this function."
   [connectable-or-nil thunk]
   (if connectable-or-nil
     (next.jdbc/with-transaction [tx connectable-or-nil]

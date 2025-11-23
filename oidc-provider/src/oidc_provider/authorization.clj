@@ -65,15 +65,11 @@
 (defn parse-authorization-request
   "Parses and validates an authorization request.
 
-  Args:
-    query-string: URL query string from authorization request
-    client-store: ClientStore implementation
-
-  Returns:
-    Validated request map
-
-  Throws:
-    ex-info on validation errors"
+   Takes a URL query string from the authorization endpoint and a ClientStore
+   implementation. Parses the query parameters, validates them against the
+   AuthorizationRequest schema, looks up the client, and validates the redirect URI,
+   response type, and scopes. Returns the validated request map. Throws ex-info on
+   validation errors or if the client is unknown."
   [query-string client-store]
   (let [params (parse-query-string query-string)]
     (when-not (m/validate AuthorizationRequest params)
@@ -92,14 +88,13 @@
 (defn handle-authorization-approval
   "Handles user approval of authorization request.
 
-  Args:
-    request: Parsed authorization request from parse-authorization-request
-    user-id: User identifier who approved the request
-    provider-config: Provider configuration map
-    code-store: AuthorizationCodeStore implementation
-
-  Returns:
-    Authorization response map with :redirect-uri and :params"
+   Takes a parsed authorization request (from [[parse-authorization-request]]), the
+   user ID of the approving user, provider configuration, and an AuthorizationCodeStore.
+   Generates an authorization code, calculates its expiry time, parses the requested
+   scopes, and saves the authorization code to the store. Returns an authorization
+   response map containing the redirect URI and response parameters (including the code
+   and optional state). Currently supports response_type \"code\"; throws ex-info for
+   unsupported response types."
   [{:keys [response_type client_id redirect_uri scope state nonce]}
    user-id
    provider-config
@@ -123,13 +118,11 @@
 (defn handle-authorization-denial
   "Handles user denial of authorization request.
 
-  Args:
-    request: Parsed authorization request
-    error-code: OAuth2 error code (default \"access_denied\")
-    error-description: Human-readable error description
-
-  Returns:
-    Authorization response map with error parameters"
+   Takes a parsed authorization request, an OAuth2 error code (defaults to
+   \"access_denied\" if not provided), and a human-readable error description.
+   Builds an authorization response map containing the redirect URI and error
+   parameters. Returns the response map with the error, optional error description,
+   and optional state parameter."
   [{:keys [redirect_uri state]} error-code error-description]
   {:redirect-uri redirect_uri
    :params (cond-> {:error (or error-code "access_denied")}
@@ -139,11 +132,11 @@
 (defn build-redirect-url
   "Builds the redirect URL with query parameters.
 
-  Args:
-    response: Authorization response from handle-authorization-approval or handle-authorization-denial
-
-  Returns:
-    Complete redirect URL string"
+   Takes an authorization response map (from [[handle-authorization-approval]] or
+   [[handle-authorization-denial]]) containing a redirect URI and parameters. URL-encodes
+   the parameters and appends them to the redirect URI as query parameters, properly
+   handling whether the URI already contains a query string. Returns the complete
+   redirect URL string."
   [{:keys [redirect-uri params]}]
   (let [query-string (->> params
                           (map (fn [[k v]] (str (name k) "=" (java.net.URLEncoder/encode (str v) "UTF-8"))))

@@ -36,130 +36,92 @@
   (validate-credentials [this credential-hash client-id]
     "Validates credentials for the given client.
 
-    Args:
-      credential-hash: Map containing authentication credentials
-      client-id: OAuth2 client identifier
-
-    Returns:
-      User identifier (string) if valid, nil otherwise"))
+    Takes a map containing authentication credentials and an OAuth2 client identifier.
+    Validates the credentials using the implementation's authentication mechanism.
+    Returns the user identifier (string) if valid, or nil otherwise."))
 
 (defprotocol ClaimsProvider
   "Protocol for providing user claims based on scope."
   (get-claims [this user-id scope]
     "Retrieves claims for a user based on requested scope.
 
-    Args:
-      user-id: User identifier from credential validation
-      scope: Vector of scope strings (e.g., [\"openid\" \"profile\" \"email\"])
-
-    Returns:
-      Map of claims (e.g., {:sub \"user-id\" :email \"user@example.com\" :name \"User Name\"})"))
+    Takes a user identifier (from credential validation) and a vector of scope strings
+    (like `[\"openid\" \"profile\" \"email\"]`). Returns a map of claims appropriate for
+    the requested scopes, such as `{:sub \"user-id\" :email \"user@example.com\" :name
+    \"User Name\"}`."))
 
 (defprotocol ClientStore
   "Protocol for managing OAuth2/OIDC client registrations."
   (get-client [this client-id]
     "Retrieves client configuration by client-id.
 
-    Args:
-      client-id: OAuth2 client identifier
-
-    Returns:
-      Client configuration map matching ClientConfig schema, or nil if not found")
+    Takes an OAuth2 client identifier and looks up the client configuration. Returns
+    the client configuration map matching the ClientConfig schema if found, or nil if
+    the client doesn't exist.")
 
   (register-client [this client-config]
     "Registers a new client.
 
-    Args:
-      client-config: Client configuration map matching ClientConfig schema
-
-    Returns:
-      Registered client configuration with generated client-id if not provided"))
+    Takes a client configuration map matching the ClientConfig schema. Stores the client
+    and generates a client-id if one isn't provided. Returns the registered client
+    configuration including the client-id."))
 
 (defprotocol AuthorizationCodeStore
   "Protocol for storing and retrieving authorization codes."
   (save-authorization-code [this code user-id client-id redirect-uri scope nonce expiry]
     "Saves an authorization code with associated metadata.
 
-    Args:
-      code: Authorization code string
-      user-id: User identifier
-      client-id: OAuth2 client identifier
-      redirect-uri: Redirect URI used in authorization request
-      scope: Vector of scope strings
-      nonce: Optional nonce for replay protection
-      expiry: Expiration timestamp (milliseconds since epoch)
-
-    Returns:
-      true if saved successfully")
+    Takes an authorization code string, user identifier, OAuth2 client identifier,
+    the redirect URI from the authorization request, a vector of scope strings, an
+    optional nonce for replay protection, and an expiration timestamp (milliseconds
+    since epoch). Stores the code and metadata. Returns true if saved successfully.")
 
   (get-authorization-code [this code]
     "Retrieves authorization code metadata.
 
-    Args:
-      code: Authorization code string
-
-    Returns:
-      Map with keys [:user-id :client-id :redirect-uri :scope :nonce :expiry], or nil if not found")
+    Takes an authorization code string and looks up its associated metadata. Returns
+    a map with keys `[:user-id :client-id :redirect-uri :scope :nonce :expiry]` if
+    found, or nil if the code doesn't exist or has been deleted.")
 
   (delete-authorization-code [this code]
-    "Deletes an authorization code (codes are single-use).
+    "Deletes an authorization code.
 
-    Args:
-      code: Authorization code string
-
-    Returns:
-      true if deleted successfully"))
+    Takes an authorization code string and removes it from storage. Authorization codes
+    are single-use, so they should be deleted after being exchanged for tokens. Returns
+    true if deleted successfully."))
 
 (defprotocol TokenStore
   "Protocol for managing access and refresh tokens."
   (save-access-token [this token user-id client-id scope expiry]
     "Saves an access token.
 
-    Args:
-      token: Access token string
-      user-id: User identifier
-      client-id: OAuth2 client identifier
-      scope: Vector of scope strings
-      expiry: Expiration timestamp (milliseconds since epoch)
-
-    Returns:
-      true if saved successfully")
+    Takes an access token string, user identifier, OAuth2 client identifier, a vector
+    of scope strings, and an expiration timestamp (milliseconds since epoch). Stores
+    the token and its metadata. Returns true if saved successfully.")
 
   (get-access-token [this token]
     "Retrieves access token metadata.
 
-    Args:
-      token: Access token string
-
-    Returns:
-      Map with keys [:user-id :client-id :scope :expiry], or nil if not found")
+    Takes an access token string and looks up its associated metadata. Returns a map
+    with keys `[:user-id :client-id :scope :expiry]` if found, or nil if the token
+    doesn't exist or has been revoked.")
 
   (save-refresh-token [this token user-id client-id scope]
     "Saves a refresh token.
 
-    Args:
-      token: Refresh token string
-      user-id: User identifier
-      client-id: OAuth2 client identifier
-      scope: Vector of scope strings
-
-    Returns:
-      true if saved successfully")
+    Takes a refresh token string, user identifier, OAuth2 client identifier, and a
+    vector of scope strings. Stores the token and its metadata. Refresh tokens don't
+    expire automatically. Returns true if saved successfully.")
 
   (get-refresh-token [this token]
     "Retrieves refresh token metadata.
 
-    Args:
-      token: Refresh token string
-
-    Returns:
-      Map with keys [:user-id :client-id :scope], or nil if not found")
+    Takes a refresh token string and looks up its associated metadata. Returns a map
+    with keys `[:user-id :client-id :scope]` if found, or nil if the token doesn't
+    exist or has been revoked.")
 
   (revoke-token [this token]
-    "Revokes a token (access or refresh).
+    "Revokes a token.
 
-    Args:
-      token: Token string to revoke
-
-    Returns:
-      true if revoked successfully"))
+    Takes a token string (either access or refresh token) and revokes it, preventing
+    it from being used in future requests. Returns true if revoked successfully."))

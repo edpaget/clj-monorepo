@@ -25,11 +25,11 @@
 (defn openid-configuration
   "Generates OpenID Connect Discovery metadata.
 
-  Args:
-    config: Discovery configuration map matching DiscoveryConfig schema
-
-  Returns:
-    Map containing OpenID Connect Discovery metadata per RFC 8414"
+   Takes a discovery configuration map matching the DiscoveryConfig schema containing
+   issuer, endpoints, and supported features. Validates the configuration and builds
+   the OpenID Connect Discovery metadata document per RFC 8414. Provides sensible
+   defaults for optional fields like supported scopes, response types, and grant types.
+   Returns a map containing the complete discovery metadata."
   [{:keys [issuer
            authorization-endpoint
            token-endpoint
@@ -60,10 +60,8 @@
 (defn jwks-endpoint
   "Generates JWKS endpoint response.
 
-  Args:
-    provider-config: Provider configuration map with :signing-key
-
-  Returns:
-    Map containing JSON Web Key Set"
+   Takes a provider configuration map containing the signing key and generates the
+   JSON Web Key Set for the JWKS endpoint. Returns a map containing the public keys
+   in JWKS format that clients can use to validate signed tokens."
   [provider-config]
   (token/jwks provider-config))

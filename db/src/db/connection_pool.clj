@@ -8,20 +8,16 @@
 
 (defn create-pool
   "Creates and returns a C3P0 ComboPooledDataSource connection pool.
-   Accepts the full JDBC database URL as the first argument.
-   The URL should contain necessary credentials if required by the database.
-   Optionally accepts a map `opts` as the second argument to override
-   default C3P0 settings.
 
-   Args:
-     db-url: JDBC database URL string with credentials
-     opts: Optional map of C3P0 configuration overrides
+   Takes a JDBC database URL string (which should contain necessary credentials)
+   and an optional map of C3P0 configuration overrides. Automatically configures
+   the pool to use virtual threads via the c3p0-loom library's
+   VirtualThreadPerTaskExecutorTaskRunnerFactory.
 
-   Returns:
-     ComboPooledDataSource connection pool
-
-   Raises:
-     Exception: If pool creation fails"
+   When called with just a URL, uses default C3P0 settings. When called with both
+   URL and options, merges the provided options with the defaults. Returns the
+   created ComboPooledDataSource connection pool, or throws an Exception if pool
+   creation fails."
   ([db-url] (create-pool db-url {}))
   ([db-url opts]
    (try
@@ -43,11 +39,9 @@
 (defn close-pool!
   "Closes the provided C3P0 datasource pool.
 
-  Args:
-    datasource: ComboPooledDataSource to close
-
-  Returns:
-    nil"
+   Takes a ComboPooledDataSource and shuts it down gracefully. Logs the closure
+   and any errors that occur. Returns nil. If the datasource is not a
+   ComboPooledDataSource instance, does nothing."
   [datasource]
   (when (instance? ComboPooledDataSource datasource)
     (log/info "Closing database connection pool...")

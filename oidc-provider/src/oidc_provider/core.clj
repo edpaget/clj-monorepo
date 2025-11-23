@@ -39,26 +39,17 @@
 (defn create-provider
   "Creates an OIDC provider instance.
 
-  Args:
-    config: Provider configuration map
-      Required:
-        - :issuer - Provider issuer URL
-        - :authorization-endpoint - Authorization endpoint URL
-        - :token-endpoint - Token endpoint URL
-        - :jwks-uri - JWKS endpoint URL
-      Optional:
-        - :signing-key - RSAKey for signing tokens (generated if not provided)
-        - :access-token-ttl-seconds - Access token TTL (default 3600)
-        - :id-token-ttl-seconds - ID token TTL (default 3600)
-        - :authorization-code-ttl-seconds - Auth code TTL (default 600)
-        - :client-store - ClientStore implementation (in-memory created if not provided)
-        - :code-store - AuthorizationCodeStore implementation (in-memory created if not provided)
-        - :token-store - TokenStore implementation (in-memory created if not provided)
-        - :credential-validator - CredentialValidator implementation (required for auth)
-        - :claims-provider - ClaimsProvider implementation (required for claims)
+   Takes a configuration map containing required keys `:issuer` (provider issuer URL),
+   `:authorization-endpoint`, `:token-endpoint`, and `:jwks-uri`. Optional keys include
+   `:signing-key` (RSAKey for signing tokens, generated if not provided),
+   `:access-token-ttl-seconds` (defaults to 3600), `:id-token-ttl-seconds` (defaults to
+   3600), `:authorization-code-ttl-seconds` (defaults to 600), `:client-store`,
+   `:code-store`, `:token-store` (all three store implementations created in-memory if
+   not provided), `:credential-validator` (required for authentication), and
+   `:claims-provider` (required for ID token claims).
 
-  Returns:
-    Provider instance"
+   Validates the configuration and returns a Provider instance with all stores and
+   settings initialized."
   [{:keys [issuer
            signing-key
            access-token-ttl-seconds
@@ -87,11 +78,9 @@
 (defn discovery-metadata
   "Returns OpenID Connect Discovery metadata for the provider.
 
-  Args:
-    provider: Provider instance
-
-  Returns:
-    Discovery metadata map"
+   Takes a Provider instance and extracts the relevant configuration keys to build
+   the OpenID Connect Discovery metadata document. Returns the discovery metadata map
+   containing issuer, endpoints, supported features, and other OIDC configuration."
   [provider]
   (disco/openid-configuration
    (select-keys (:config provider)
@@ -111,39 +100,29 @@
 (defn jwks
   "Returns JWKS for the provider.
 
-  Args:
-    provider: Provider instance
-
-  Returns:
-    JWKS map"
+   Takes a Provider instance and generates the JSON Web Key Set containing the
+   provider's public signing keys. Returns the JWKS map suitable for serving at
+   the JWKS endpoint."
   [provider]
   (disco/jwks-endpoint (:provider-config provider)))
 
 (defn parse-authorization-request
   "Parses and validates an authorization request.
 
-  Args:
-    provider: Provider instance
-    query-string: Query string from authorization request
-
-  Returns:
-    Validated authorization request map
-
-  Throws:
-    ex-info on validation errors"
+   Takes a Provider instance and the query string from the authorization endpoint
+   request. Validates the request parameters against the registered client
+   configuration. Returns the validated authorization request map. Throws ex-info
+   on validation errors."
   [provider query-string]
   (authz/parse-authorization-request query-string (:client-store provider)))
 
 (defn authorize
   "Handles authorization approval after user authentication.
 
-  Args:
-    provider: Provider instance
-    request: Parsed authorization request
-    user-id: User identifier who approved the request
-
-  Returns:
-    Redirect URL string"
+   Takes a Provider instance, a parsed authorization request, and the user ID of
+   the user who approved the request. Generates an authorization code, stores it,
+   and builds the redirect URL to send the user back to the client. Returns the
+   redirect URL string."
   [provider request user-id]
   (let [response (authz/handle-authorization-approval
                   request
@@ -155,14 +134,10 @@
 (defn deny-authorization
   "Handles authorization denial.
 
-  Args:
-    provider: Provider instance
-    request: Parsed authorization request
-    error-code: OAuth2 error code
-    error-description: Error description
-
-  Returns:
-    Redirect URL string"
+   Takes a Provider instance, a parsed authorization request, an OAuth2 error code,
+   and an error description. Builds an error response and constructs the redirect URL
+   to send the user back to the client with the error information. Returns the redirect
+   URL string."
   [_provider request error-code error-description]
   (let [response (authz/handle-authorization-denial request error-code error-description)]
     (authz/build-redirect-url response)))
@@ -170,16 +145,11 @@
 (defn token-request
   "Handles token endpoint request.
 
-  Args:
-    provider: Provider instance
-    params: Token request parameters (from form body)
-    authorization-header: Authorization header value (optional, for client auth)
-
-  Returns:
-    Token response map
-
-  Throws:
-    ex-info on validation or processing errors"
+   Takes a Provider instance, token request parameters from the form body, and an
+   optional Authorization header value for client authentication. Validates the
+   request, exchanges the authorization code for tokens, and generates access tokens
+   and ID tokens. Returns the token response map containing tokens and metadata.
+   Throws ex-info on validation or processing errors."
   [provider params authorization-header]
   (token-ep/handle-token-request
    params
@@ -193,23 +163,17 @@
 (defn register-client
   "Registers a new OAuth2/OIDC client.
 
-  Args:
-    provider: Provider instance
-    client-config: Client configuration map
-
-  Returns:
-    Registered client configuration with client-id"
+   Takes a Provider instance and a client configuration map. Stores the client
+   configuration in the client store and returns the registered client configuration
+   including the generated client-id."
   [provider client-config]
   (proto/register-client (:client-store provider) client-config))
 
 (defn get-client
   "Retrieves a client configuration.
 
-  Args:
-    provider: Provider instance
-    client-id: Client identifier
-
-  Returns:
-    Client configuration map or nil"
+   Takes a Provider instance and a client identifier. Looks up the client
+   configuration in the client store. Returns the client configuration map if found,
+   or nil if the client doesn't exist."
   [provider client-id]
   (proto/get-client (:client-store provider) client-id))
