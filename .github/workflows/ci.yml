@@ -53,6 +53,7 @@ jobs:
         project:
           - exclusive-initializer
           - polix
+          - graphql-server
 
     steps:
       - name: Checkout code

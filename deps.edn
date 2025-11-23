@@ -18,6 +18,9 @@
   :oidc-provider
   {:extra-deps {local/oidc-provider {:local/root "oidc-provider"}}}
 
+  :graphql-server
+  {:extra-deps {local/graphql-server {:local/root "graphql-server"}}}
+
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project
   :exclusive-initializer-test
@@ -60,6 +63,14 @@
    :extra-deps  {local/oidc-provider {:local/root "oidc-provider"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
+  :graphql-server-test
+  {:extra-paths ["graphql-server/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :exec-fn     cognitect.test-runner.api/test
+   :exec-args   {:dirs ["graphql-server/test"]}
+   :extra-deps  {local/graphql-server {:local/root "graphql-server"}
+                 io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+
   ;; === Aggregated Aliases ===
   ;; Work with all projects at once
   :dev-all
@@ -67,18 +78,20 @@
                 local/db                    {:local/root "db"}
                 local/polix                 {:local/root "polix"}
                 local/oidc                  {:local/root "oidc"}
-                local/oidc-provider         {:local/root "oidc-provider"}}}
+                local/oidc-provider         {:local/root "oidc-provider"}
+                local/graphql-server        {:local/root "graphql-server"}}}
 
   :test-all
-  {:extra-paths ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test" "oidc-provider/test"]
+  {:extra-paths ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test" "oidc-provider/test" "graphql-server/test"]
    :jvm-opts    ["-Duser.timezone=UTC"]
    :exec-fn     cognitect.test-runner.api/test
-   :exec-args   {:dirs ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test" "oidc-provider/test"]}
+   :exec-args   {:dirs ["exclusive-initializer/test" "db/test" "polix/test" "oidc/test" "oidc-provider/test" "graphql-server/test"]}
    :extra-deps  {local/exclusive-initializer {:local/root "exclusive-initializer"}
                  local/db                    {:local/root "db"}
                  local/polix                 {:local/root "polix"}
                  local/oidc                  {:local/root "oidc"}
                  local/oidc-provider         {:local/root "oidc-provider"}
+                 local/graphql-server        {:local/root "graphql-server"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
   ;; === Development Tools ===

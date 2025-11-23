@@ -89,6 +89,17 @@ jobs:
             :output-path '"../docs-output/oidc"' \
             :metadata '{:doc/format :markdown}'
 
+      - name: Generate documentation for graphql-server
+        working-directory: graphql-server
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -X codox.main/generate-docs \
+            :name '"graphql-server"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/graphql-server"' \
+            :metadata '{:doc/format :markdown}'
+
       - name: Create .nojekyll file
         run: touch docs-output/.nojekyll
 
@@ -175,6 +186,11 @@ jobs:
               <li class="package-item">
                 <h2><a href="oidc/">oidc</a></h2>
                 <p class="package-description">OpenID Connect (OIDC) client library for Clojure and ClojureScript.</p>
+              </li>
+
+              <li class="package-item">
+                <h2><a href="graphql-server/">graphql-server</a></h2>
+                <p class="package-description">GraphQL server library wrapping Lacinia with Malli schema validation.</p>
               </li>
             </ul>
 
