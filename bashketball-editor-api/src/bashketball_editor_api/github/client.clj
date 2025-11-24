@@ -2,10 +2,7 @@
   "GitHub API client for repository operations.
 
   Provides low-level API access to GitHub for reading and writing files
-  in a repository. Used by card and set repositories."
-  (:require
-   [cheshire.core :as json]
-   [clj-http.client :as http]))
+  in a repository. Used by card and set repositories.")
 
 (defrecord GitHubClient [access-token owner repo branch])
 
@@ -21,7 +18,7 @@
   "Retrieves a file from the GitHub repository.
 
   Returns the decoded file content if found, nil otherwise."
-  [client path]
+  [_client _path]
   ;; TODO: Implement GitHub API call to get file content
   nil)
 
@@ -30,7 +27,7 @@
 
   Commits the file with the provided content and commit message.
   Returns the commit SHA."
-  [client path content message]
+  [_client _path _content _message]
   ;; TODO: Implement GitHub API call to create/update file
   nil)
 
@@ -39,7 +36,7 @@
 
   Commits the deletion with the provided commit message.
   Returns the commit SHA."
-  [client path message]
+  [_client _path _message]
   ;; TODO: Implement GitHub API call to delete file
   nil)
 
@@ -47,6 +44,6 @@
   "Lists files in a directory in the GitHub repository.
 
   Returns a vector of file paths."
-  [client path]
+  [_client _path]
   ;; TODO: Implement GitHub API call to list directory contents
   [])

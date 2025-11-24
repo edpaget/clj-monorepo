@@ -1,11 +1,7 @@
 (ns bashketball-editor-api.github.cards
   "Card repository backed by GitHub.
 
-  Stores cards as EDN files in a GitHub repository under `cards/<set-id>/<card-id>.edn`."
-  (:require
-   [bashketball-editor-api.github.client :as client]
-   [bashketball-editor-api.models.protocol :as proto]
-   [malli.core :as m]))
+  Stores cards as EDN files in a GitHub repository under `cards/<set-id>/<card-id>.edn`.")
 
 (def Card
   "Malli schema for card entity."

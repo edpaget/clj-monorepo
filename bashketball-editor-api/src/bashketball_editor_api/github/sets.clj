@@ -1,11 +1,7 @@
 (ns bashketball-editor-api.github.sets
   "Card set repository backed by GitHub.
 
-  Stores card sets as EDN files in a GitHub repository under `sets/<set-id>/metadata.edn`."
-  (:require
-   [bashketball-editor-api.github.client :as client]
-   [bashketball-editor-api.models.protocol :as proto]
-   [malli.core :as m]))
+  Stores card sets as EDN files in a GitHub repository under `sets/<set-id>/metadata.edn`.")
 
 (def CardSet
   "Malli schema for card set entity."

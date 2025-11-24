@@ -5,4 +5,5 @@
 
 ;; TODO: Add mutation resolvers
 
-(gql/def-resolver-map)
+(gql/def-resolver-map
+  "Resolver map containing all Mutation resolvers.")

@@ -1,9 +1,7 @@
 (ns bashketball-editor-api.services.set
   "Card set business logic service.
 
-  Implements business rules and validation for card set operations."
-  (:require
-   [bashketball-editor-api.models.protocol :as proto]))
+  Implements business rules and validation for card set operations.")
 
 (defrecord SetService [set-repo card-repo])
 

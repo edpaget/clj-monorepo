@@ -22,7 +22,8 @@
              [:oauth [:map
                       [:client-id :string]
                       [:client-secret :string]
-                      [:redirect-uri :string]]]
+                      [:redirect-uri :string]
+                      [:success-redirect-uri :string]]]
              [:repo [:map
                      [:owner :string]
                      [:name :string]
@@ -36,7 +37,12 @@
    [:auth [:map
            [:required-org [:maybe :string]]
            [:validate-org? :boolean]
-           [:cache-ttl-ms pos-int?]]]])
+           [:cache-ttl-ms pos-int?]]]
+   [:git [:map
+          [:repo-path :string]
+          [:remote-url :string]
+          [:branch :string]
+          [:writer? :any]]]])
 
 (defn load-config
   "Loads and validates application configuration.

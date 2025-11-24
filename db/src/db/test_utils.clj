@@ -53,29 +53,39 @@
                        (str (subs db-url (+ (count db-name) (str/index-of db-url db-name)))))]
       [base-url db-name])))
 
+(defn ensure-database-exists!
+  "Ensures the database specified in the JDBC URL exists.
+
+  Creates the database if it doesn't exist. Safe to call multiple times
+  as it gracefully handles the 'database already exists' error.
+
+  Returns nil."
+  [db-url]
+  (ei/initialize! ::db
+                  (let [[base-url db-name] (split-db-name-from-uri db-url)
+                        datasource         (pool/create-pool base-url)
+                        sql                (format "CREATE DATABASE \"%s\"" db-name)]
+                    (log/info "Ensuring database exists for URL:" db-url)
+                    (try
+                      (log/debug "Executing:" sql)
+                      (db/execute! datasource [sql])
+                      (log/info "Database" db-name "created successfully.")
+                      (catch java.sql.SQLException e
+                        ;; Check if the error is "database already exists" (PostgreSQL specific SQLState 42P04)
+                        (if (= "42P04" (.getSQLState e))
+                          (log/info "Database" db-name "already exists.")
+                          (do
+                            (log/error e "Failed to ensure database existence for" db-url)
+                            (throw (ex-info (str "Failed to ensure database exists. Check URL, permissions, server status. Original error: " (ex-message e))
+                                            {:url db-url} e)))))
+                      (finally
+                        (pool/close-pool! datasource)))
+                    (log/info "Database" db-name "is ready."))))
+
 (defn- create-db-fixture
   [db-url]
   (fn [f]
-    (ei/initialize! ::db
-                    (let [[base-url db-name] (split-db-name-from-uri db-url)
-                          datasource         (pool/create-pool base-url)
-                          sql                (format "CREATE DATABASE \"%s\"" db-name)]
-                      (log/info "Ensuring test database exists for URL:" db-url)
-                      (try
-                        (log/debug "Executing:" sql)
-                        (db/execute! datasource [sql])
-                        (log/info "Database" db-name "created successfully.")
-                        (catch java.sql.SQLException e
-            ;; Check if the error is "database already exists" (PostgreSQL specific SQLState 42P04)
-                          (if (= "42P04" (.getSQLState e))
-                            (log/info "Database" db-name "already exists.")
-                            (do
-                              (log/error e "Failed to ensure database existence for" db-url)
-                              (throw (ex-info (str "Failed to ensure test database exists. Check URL, permissions, server status. Original error: " (ex-message e))
-                                              {:url db-url} e)))))
-                        (finally
-                          (pool/close-pool! datasource)))
-                      (log/info "Database" db-name "is ready.")))
+    (ensure-database-exists! db-url)
     (f)))
 
 (defn- migrate-db-fixture

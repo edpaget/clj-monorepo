@@ -1,13 +1,14 @@
 {:up
  ["CREATE TABLE users (
-     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-     github_login VARCHAR(255) NOT NULL UNIQUE,
-     email VARCHAR(255),
-     avatar_url TEXT,
-     name VARCHAR(255),
-     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-   )"
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    github_login VARCHAR(255) NOT NULL UNIQUE,
+    github_token TEXT,
+    email VARCHAR(255),
+    avatar_url TEXT,
+    name VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )"
   "CREATE INDEX idx_users_github_login ON users(github_login)"]
 
  :down

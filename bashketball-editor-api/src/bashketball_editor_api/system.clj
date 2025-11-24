@@ -19,12 +19,18 @@
    [db.connection-pool :as pool]
    [db.core :as db]
    [db.migrate :as migrate]
+   [db.test-utils :as db.test]
    [integrant.core :as ig]
    [oidc-github.provider :as oidc-gh]
    [ring.adapter.jetty :as jetty]))
 
 (defmethod ig/init-key ::config [_ {:keys [profile]}]
   (config/load-config (or profile :dev)))
+
+(defmethod ig/init-key ::ensure-test-db [_ {:keys [config profile]}]
+  (when (= profile :test)
+    (db.test/ensure-database-exists!
+     (get-in config [:database :database-url]))))
 
 (defmethod ig/init-key ::db-pool [_ {:keys [config]}]
   (pool/create-pool
@@ -36,7 +42,7 @@
 
 (defmethod ig/init-key ::migrate [_ {:keys [db-pool]}]
   (binding [db/*datasource* db-pool]
-    (migrate/migrate! "migrations")))
+    (migrate/migrate)))
 
 (defmethod ig/init-key ::user-repo [_ _]
   (user/create-user-repository))
@@ -45,26 +51,17 @@
   (session/create-session-repository
    (get-in config [:session :ttl-ms])))
 
-(defmethod ig/init-key ::github-credential-validator [_ {:keys [config]}]
-  (oidc-gh/->GitHubCredentialValidator
-   (get-in config [:github :oauth :client-id])
-   (get-in config [:github :oauth :client-secret])
-   (get-in config [:auth :required-org])
-   (get-in config [:auth :validate-org?])
-   nil
-   (get-in config [:auth :cache-ttl-ms])))
 
 (defmethod ig/init-key ::github-claims-provider [_ {:keys [config]}]
   (oidc-gh/->GitHubClaimsProvider
    nil
    (get-in config [:auth :cache-ttl-ms])))
 
-(defmethod ig/init-key ::auth-service [_ {:keys [user-repo
-                                                 github-credential-validator
-                                                 github-claims-provider]}]
+(defmethod ig/init-key ::auth-service [_ {:keys [user-repo config github-claims-provider]}]
   (auth-svc/create-auth-service
    user-repo
-   github-credential-validator
+   (get-in config [:github :oauth :client-id])
+   (get-in config [:github :oauth :client-secret])
    github-claims-provider))
 
 (defmethod ig/init-key ::authenticator [_ {:keys [auth-service session-repo config]}]
@@ -111,7 +108,8 @@
    authenticator
    db-pool
    user-repo
-   (:session config)))
+   (:session config)
+   config))
 
 (defmethod ig/init-key ::server [_ {:keys [handler config]}]
   (let [port (get-in config [:server :port])
@@ -130,14 +128,16 @@
   Defines all components and their dependencies."
   [profile]
   {::config {:profile profile}
-   ::db-pool {:config (ig/ref ::config)}
+   ::ensure-test-db {:config (ig/ref ::config)
+                     :profile profile}
+   ::db-pool {:config (ig/ref ::config)
+              :ensure-test-db (ig/ref ::ensure-test-db)}
    ::migrate {:db-pool (ig/ref ::db-pool)}
    ::user-repo {}
    ::session-repo {:config (ig/ref ::config)}
-   ::github-credential-validator {:config (ig/ref ::config)}
    ::github-claims-provider {:config (ig/ref ::config)}
    ::auth-service {:user-repo (ig/ref ::user-repo)
-                   :github-credential-validator (ig/ref ::github-credential-validator)
+                   :config (ig/ref ::config)
                    :github-claims-provider (ig/ref ::github-claims-provider)}
    ::authenticator {:auth-service (ig/ref ::auth-service)
                     :session-repo (ig/ref ::session-repo)

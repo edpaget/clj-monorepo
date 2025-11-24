@@ -6,7 +6,6 @@
   (:require
    [bashketball-editor-api.models.protocol :as proto]
    [db.core :as db]
-   [honey.sql :as sql]
    [malli.core :as m]))
 
 (def User
@@ -14,6 +13,7 @@
   [:map
    [:id {:optional true} :uuid]
    [:github-login :string]
+   [:github-token {:optional true} [:maybe :string]]
    [:email {:optional true} [:maybe :string]]
    [:avatar-url {:optional true} [:maybe :string]]
    [:name {:optional true} [:maybe :string]]
@@ -80,8 +80,8 @@
         :returning [:*]})))
 
   (delete! [_this id]
-    (pos? (first
-           (db/execute!
+    (pos? (:next.jdbc/update-count
+           (db/execute-one!
             {:delete-from :users
              :where [:= :id [:cast id :uuid]]})))))
 

@@ -3,8 +3,8 @@
   :host "0.0.0.0"}
 
  :database
- {:database-url #profile {:dev #or [#env DATABASE_URL "jdbc:postgresql://localhost:5432/bashketball_editor_dev"]
-                          :test "jdbc:postgresql://localhost:5432/bashketball_editor_test"
+ {:database-url #profile {:dev #or [#env DATABASE_URL "jdbc:postgresql://localhost:5432/bashketball_editor_dev?user=postgres&password=postgres"]
+                          :test "jdbc:postgresql://localhost:5432/bashketball_editor_test?user=postgres&password=postgres"
                           :prod #env DATABASE_URL}
   :c3p0-opts {:min-pool-size 1
               :max-pool-size 10
@@ -13,18 +13,24 @@
 
  :github
  {:oauth
-  {:client-id #env GITHUB_CLIENT_ID
-   :client-secret #env GITHUB_SECRET
-   :redirect-uri #or [#env GITHUB_REDIRECT_URI "http://localhost:3000/auth/github/callback"]}
+  {:client-id #profile {:test "test-client-id"
+                        :default #env GITHUB_CLIENT_ID}
+   :client-secret #profile {:test "test-client-secret"
+                            :default #env GITHUB_SECRET}
+   :redirect-uri #or [#env GITHUB_REDIRECT_URI "http://localhost:3000/auth/github/callback"]
+   :success-redirect-uri #or [#env GITHUB_SUCCESS_REDIRECT_URI "http://localhost:3001/"]}
   :repo
-  {:owner #env GITHUB_REPO_OWNER
-   :name #env GITHUB_REPO_NAME
+  {:owner #profile {:test "test-owner"
+                    :default #env GITHUB_REPO_OWNER}
+   :name #profile {:test "test-repo"
+                   :default #env GITHUB_REPO_NAME}
    :branch #or [#env GITHUB_REPO_BRANCH "main"]}}
 
  :session
  {:ttl-ms #long #or [#env SESSION_TTL_MS 86400000]
   :cookie-name "bashketball-session"
   :cookie-secure? #profile {:dev false
+                            :test false
                             :prod true}
   :cookie-http-only? true
   :cookie-same-site :lax}
@@ -32,4 +38,13 @@
  :auth
  {:required-org nil
   :validate-org? false
-  :cache-ttl-ms 300000}}
+  :cache-ttl-ms 300000}
+
+ :git
+ {:repo-path #or [#env GIT_REPO_PATH "/data/bashketball-cards"]
+  :remote-url #profile {:test "https://github.com/test/test-repo.git"
+                        :default #env GIT_REMOTE_URL}
+  :branch #or [#env GIT_BRANCH "main"]
+  :writer? #profile {:dev true
+                     :test false
+                     :prod #or [#env GIT_WRITER "false"]}}}

@@ -13,7 +13,11 @@ A GraphQL API server that manages users, sessions, and trading cards for Bashket
 - **API**: GraphQL via Lacinia
 - **Storage**: Hybrid approach
   - User data and sessions in PostgreSQL
-  - Cards and sets in GitHub repository (EDN files)
+  - Cards and sets in Git repository via JGit (EDN files)
+- **Git Integration**: JGit with single writer pattern
+  - Local clone for fast reads (1-10ms)
+  - Background sync with remote (GitHub, GitLab, etc.)
+  - Single writer instance for mutations
 - **Configuration**: Aero for environment-specific config
 - **Component Management**: Integrant for lifecycle management
 - **Validation**: Malli schemas throughout
@@ -31,10 +35,11 @@ bashketball-editor-api/
 │   │   ├── protocol.clj        # Repository protocol
 │   │   ├── user.clj            # User model (PostgreSQL)
 │   │   └── session.clj         # Session model (PostgreSQL)
-│   ├── github/
-│   │   ├── client.clj          # GitHub API client
-│   │   ├── cards.clj           # Card repository (GitHub)
-│   │   └── sets.clj            # Set repository (GitHub)
+│   ├── git/
+│   │   ├── repo.clj            # Git repository operations (JGit)
+│   │   ├── sync.clj            # Background sync job
+│   │   ├── cards.clj           # Card repository (Git-backed)
+│   │   └── sets.clj            # Set repository (Git-backed)
 │   ├── services/
 │   │   ├── auth.clj            # Authentication service
 │   │   ├── card.clj            # Card business logic
@@ -80,13 +85,21 @@ PORT=3000
 GITHUB_CLIENT_ID=your-client-id
 GITHUB_SECRET=your-client-secret
 GITHUB_REDIRECT_URI=http://localhost:3000/auth/github/callback
+GITHUB_SUCCESS_REDIRECT_URI=http://localhost:3001/  # Frontend URL to redirect to after successful login
 
-# GitHub Repository for card storage
-GITHUB_REPO_OWNER=your-username
-GITHUB_REPO_NAME=bashketball-cards
+# Git Repository for card storage
+GIT_REMOTE_URL=git@github.com:your-username/bashketball-cards.git
+GIT_REPO_PATH=/data/bashketball-cards
+GIT_BRANCH=main
+
+# Writer instance designation (dev defaults to true)
+GIT_WRITER=true
+
+# Note: Git commits are authored by the authenticated user making the change,
+# using their name/email from GitHub. The user's GitHub OAuth token is used
+# for push/pull operations, providing proper attribution in Git history.
 
 # Optional
-GITHUB_REPO_BRANCH=main
 SESSION_TTL_MS=86400000  # 24 hours
 ```
 
@@ -136,6 +149,64 @@ clojure -X:bashketball-editor-api-test
 
 # Run all tests
 clojure -X:test-all
+```
+
+## Deployment
+
+### Single Writer Pattern
+
+For production deployments with multiple instances:
+
+#### Writer Instance (handles mutations)
+```bash
+# Set environment variable to designate as writer
+export GIT_WRITER=true
+export GIT_REMOTE_URL=git@github.com:org/bashketball-cards.git
+export GIT_REPO_PATH=/data/bashketball-cards
+
+# Start the application
+clojure -M:bashketball-editor-api -m bashketball-editor-api.server prod
+```
+
+#### Reader Instances (optional, for scaling queries)
+```bash
+# Defaults to read-only when GIT_WRITER is not set or false
+export GIT_WRITER=false
+export GIT_REMOTE_URL=git@github.com:org/bashketball-cards.git
+export GIT_REPO_PATH=/data/bashketball-cards
+
+# Start the application
+clojure -M:bashketball-editor-api -m bashketball-editor-api.server prod
+```
+
+**Key Points**:
+- Only ONE instance should have `GIT_WRITER=true`
+- Writer instance handles all GraphQL mutations
+- Reader instances can handle queries (optional, for load balancing)
+- All instances clone the repository locally for fast reads
+- Background sync job runs only on writer instance (every 30s)
+- Writer instance pushes commits to remote Git repository
+
+### Git Repository Setup
+
+Initialize the card repository:
+
+```bash
+# Create a new repository
+git init bashketball-cards
+cd bashketball-cards
+
+# Create directory structure
+mkdir -p cards sets
+touch cards/.gitkeep sets/.gitkeep
+
+# Initial commit
+git add .
+git commit -m "Initial commit"
+
+# Push to remote
+git remote add origin git@github.com:your-org/bashketball-cards.git
+git push -u origin main
 ```
 
 ## API Endpoints
@@ -248,13 +319,16 @@ type Mutation {
 - [ ] Session management
 - [ ] Authentication middleware for resolvers
 
-### Phase 3: GitHub Repository Integration
+### Phase 3: Git Repository Integration (JGit)
 
-- [ ] GitHub API client implementation
-- [ ] Card repository (GitHub-backed)
-- [ ] Set repository (GitHub-backed)
+- [ ] JGit dependency integration (clj-jgit)
+- [ ] Git repository component (clone, read, write, commit)
+- [ ] Background sync job (fetch, pull, push)
+- [ ] Card repository (Git-backed with local clone)
+- [ ] Set repository (Git-backed with local clone)
+- [ ] Single writer pattern implementation
 - [ ] EDN file format for cards/sets
-- [ ] Conflict detection
+- [ ] Read-only repository enforcement
 
 ### Phase 4: Card & Set GraphQL API
 

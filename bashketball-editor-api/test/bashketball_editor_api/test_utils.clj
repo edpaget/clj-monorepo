@@ -3,20 +3,22 @@
 
   Provides database setup, teardown, and common test helpers."
   (:require
+   [bashketball-editor-api.models.protocol :as proto]
+   [bashketball-editor-api.models.user :as user]
    [bashketball-editor-api.system :as system]
-   [clojure.test :refer [use-fixtures]]
    [db.core :as db]
-   [db.migrate :as migrate]
-   [integrant.core :as ig]))
+   [db.migrate :as migrate]))
 
-(def ^:dynamic *system* nil)
+(def ^:dynamic *system*
+  "Dynamic var holding the current test system."
+  nil)
 
 (defn start-test-system!
   "Starts a test system with test configuration."
   []
   (let [sys (system/start-system :test)]
     (binding [db/*datasource* (::system/db-pool sys)]
-      (migrate/migrate! "migrations"))
+      (migrate/migrate))
     sys))
 
 (defn stop-test-system!
@@ -54,9 +56,9 @@
    (create-test-user "testuser"))
   ([github-login]
    (with-db
-     (let [user-repo (bashketball-editor-api.models.user/create-user-repository)
+     (let [user-repo (user/create-user-repository)
            user-data {:github-login github-login
                       :email (str github-login "@example.com")
                       :avatar-url (str "https://github.com/" github-login ".png")
                       :name (str "Test " github-login)}]
-       (bashketball-editor-api.models.protocol/create! user-repo user-data)))))
+       (proto/create! user-repo user-data)))))

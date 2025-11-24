@@ -5,9 +5,7 @@
   are stored in PostgreSQL with JSON claims and expiration timestamps."
   (:require
    [authn.protocol :as proto]
-   [db.core :as db]
-   [honey.sql :as sql]
-   [malli.core :as m]))
+   [db.core :as db]))
 
 (defrecord SessionRepository [ttl-ms]
   proto/SessionStore
