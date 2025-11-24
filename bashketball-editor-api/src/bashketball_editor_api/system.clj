@@ -51,7 +51,6 @@
   (session/create-session-repository
    (get-in config [:session :ttl-ms])))
 
-
 (defmethod ig/init-key ::github-claims-provider [_ {:keys [config]}]
   (oidc-gh/->GitHubClaimsProvider
    nil
@@ -99,10 +98,10 @@
   (gql-schema/create-schema))
 
 (defmethod ig/init-key ::handler [_ {:keys [graphql-schema
-                                             authenticator
-                                             db-pool
-                                             user-repo
-                                             config]}]
+                                            authenticator
+                                            db-pool
+                                            user-repo
+                                            config]}]
   (handler/create-handler
    graphql-schema
    authenticator

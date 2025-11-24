@@ -72,35 +72,52 @@ bashketball-editor-api/
 
 ### Environment Variables
 
-Create a `.env` file or set the following environment variables:
+#### Using direnv (Recommended)
+
+This project includes a `.envrc` template for use with [direnv](https://direnv.net/):
+
+1. Install direnv: `brew install direnv` (macOS) or see [direnv installation](https://direnv.net/docs/installation.html)
+2. Copy the template: The `.envrc` file is already in the project
+3. Edit `.envrc` and replace placeholder values with your actual credentials
+4. Allow direnv: `direnv allow`
+
+The environment variables will be automatically loaded when you enter the project directory.
+
+#### Required Environment Variables
 
 ```bash
-# Database
-DATABASE_URL=jdbc:postgresql://localhost:5432/bashketball_editor_dev
+# GitHub OAuth (create app at https://github.com/settings/developers)
+export GITHUB_CLIENT_ID="your-github-oauth-client-id"
+export GITHUB_SECRET="your-github-oauth-client-secret"
 
-# Server
-PORT=3000
+# GitHub Repository for Card Storage
+export GITHUB_REPO_OWNER="your-github-username"
+export GITHUB_REPO_NAME="bashketball-cards"
 
-# GitHub OAuth
-GITHUB_CLIENT_ID=your-client-id
-GITHUB_SECRET=your-client-secret
-GITHUB_REDIRECT_URI=http://localhost:3000/auth/github/callback
-GITHUB_SUCCESS_REDIRECT_URI=http://localhost:3001/  # Frontend URL to redirect to after successful login
+# Git Remote URL
+export GIT_REMOTE_URL="https://github.com/your-github-username/bashketball-cards.git"
+```
 
-# Git Repository for card storage
-GIT_REMOTE_URL=git@github.com:your-username/bashketball-cards.git
-GIT_REPO_PATH=/data/bashketball-cards
-GIT_BRANCH=main
+#### Optional Environment Variables (with defaults)
 
-# Writer instance designation (dev defaults to true)
-GIT_WRITER=true
+```bash
+# Server (default: 3000)
+export PORT=3000
 
-# Note: Git commits are authored by the authenticated user making the change,
-# using their name/email from GitHub. The user's GitHub OAuth token is used
-# for push/pull operations, providing proper attribution in Git history.
+# Database (default: jdbc:postgresql://localhost:5432/bashketball_editor_dev?user=postgres&password=postgres)
+export DATABASE_URL="jdbc:postgresql://localhost:5432/bashketball_editor_dev?user=postgres&password=postgres"
 
-# Optional
-SESSION_TTL_MS=86400000  # 24 hours
+# OAuth Redirects
+export GITHUB_REDIRECT_URI="http://localhost:3000/auth/github/callback"
+export GITHUB_SUCCESS_REDIRECT_URI="http://localhost:3001/"
+
+# Repository Configuration
+export GITHUB_REPO_BRANCH="main"
+export GIT_REPO_PATH="/data/bashketball-cards"
+export GIT_BRANCH="main"
+
+# Session Configuration (24 hours in milliseconds)
+export SESSION_TTL_MS=86400000
 ```
 
 ### Database Setup
@@ -118,17 +135,31 @@ Migrations will run automatically on system startup.
 
 #### From REPL
 
+Start a REPL in the project directory:
+
+```bash
+clojure -M:repl/rebel
+```
+
+The `user` namespace is automatically loaded with development utilities:
+
 ```clojure
-(require '[bashketball-editor-api.server :as server])
+;; Start the system with dev profile
+(start)
 
-;; Start with dev profile
-(server/start!)
+;; Stop the system
+(stop)
 
-;; Stop
-(server/stop!)
+;; Restart the system
+(restart)
 
-;; Restart
-(server/restart!)
+;; Access the running system
+(system)
+
+;; Access specific components
+(::system/config (system))
+(::system/db-pool (system))
+(::system/handler (system))
 ```
 
 #### From Command Line
@@ -244,7 +275,7 @@ GraphQL endpoint. Requires authentication for most operations.
 
 ## GraphQL Schema
 
-### Current Implementation (Phase 1)
+### Current Implementation (Phase 2)
 
 ```graphql
 type User {
@@ -256,7 +287,14 @@ type User {
 }
 
 type Query {
-  me: User  # Returns current authenticated user
+  # Returns current authenticated user
+  me: User
+
+  # Find user by ID or GitHub login
+  user(id: ID, githubLogin: String): User
+
+  # List all users with optional limit
+  users(limit: Int): [User!]!
 }
 ```
 
@@ -312,12 +350,13 @@ type Mutation {
 - [x] Minimal GraphQL schema (me query)
 - [x] Testing infrastructure
 
-### Phase 2: Authentication & User Management
+### Phase 2: Authentication & User Management ✅
 
-- [ ] Complete GitHub OAuth flow
-- [ ] User upsert from GitHub data
-- [ ] Session management
-- [ ] Authentication middleware for resolvers
+- [x] Complete GitHub OAuth flow
+- [x] User upsert from GitHub data
+- [x] Session management
+- [x] User GraphQL queries (me, user, users)
+- [x] Authentication middleware for resolvers
 
 ### Phase 3: Git Repository Integration (JGit)
 

@@ -55,11 +55,11 @@
 (defrecord GitHubClaimsProvider [github-claims-provider user-repo]
   proto/ClaimsProvider
   (get-claims [_this user-id scope]
-    (let [access-token user-id
+    (let [access-token  user-id
           github-claims (proto/get-claims github-claims-provider access-token scope)
           ;; Upsert user from GitHub data, storing the access token for Git operations
-          user-data (github-data->user-data github-claims access-token)
-          user (repo-proto/create! user-repo user-data)]
+          user-data     (github-data->user-data github-claims access-token)
+          user          (repo-proto/create! user-repo user-data)]
       (assoc github-claims
              :user-id (str (:id user))
              :sub (str (:id user))))))

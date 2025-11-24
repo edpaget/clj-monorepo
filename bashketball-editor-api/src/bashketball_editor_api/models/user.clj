@@ -56,7 +56,7 @@
 
   (create! [_this data]
     {:pre [(m/validate User data)]}
-    (let [now (java.time.Instant/now)
+    (let [now       (java.time.Instant/now)
           user-data (cond-> data
                       (not (:created-at data))
                       (assoc :created-at now)

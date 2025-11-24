@@ -56,12 +56,12 @@
   "GraphQL endpoint handler."
   [graphql-schema db-pool user-repo]
   (fn [request]
-    (let [query (get-in request [:body :query])
+    (let [query     (get-in request [:body :query])
           variables (get-in request [:body :variables])
-          context {:request request
-                   :db-pool db-pool
-                   :user-repo user-repo}
-          result (lacinia/execute graphql-schema query variables context)]
+          context   {:request request
+                     :db-pool db-pool
+                     :user-repo user-repo}
+          result    (lacinia/execute graphql-schema query variables context)]
       {:status 200
        :headers {"Content-Type" "application/json"}
        :body result})))
@@ -77,7 +77,7 @@
   "Application routes."
   [graphql-schema authenticator db-pool user-repo config]
   (fn [request]
-    (let [uri (:uri request)
+    (let [uri    (:uri request)
           method (:request-method request)]
       (cond
         (and (= method :get) (= uri "/health"))

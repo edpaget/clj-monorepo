@@ -35,8 +35,8 @@
 (gql/defresolver :Query :user
   "Fetches a user by ID or GitHub login."
   [:=> [:cat :any [:map [:id {:optional true} :string]
-                         [:github-login {:optional true} :string]] :any]
-       [:maybe User]]
+                   [:github-login {:optional true} :string]] :any]
+   [:maybe User]]
   [ctx args _value]
   (let [criteria (cond
                    (:id args) {:id (parse-uuid (:id args))}
@@ -49,7 +49,7 @@
 (gql/defresolver :Query :users
   "Lists all users with optional filtering."
   [:=> [:cat :any [:map {:optional true} [:limit {:optional true} :int]] :any]
-       [:vector User]]
+   [:vector User]]
   [ctx args _value]
   (let [users (repo/find-all (:user-repo ctx) args)]
     (mapv transform-user users)))

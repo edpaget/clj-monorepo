@@ -59,7 +59,6 @@ jobs:
           - oidc-provider
           - oidc-github
           - graphql-server
-          - bashketball-editor-api
 
     steps:
       - name: Checkout code
@@ -114,6 +113,7 @@ jobs:
       matrix:
         project:
           - db
+          - bashketball-editor-api
 
     steps:
       - name: Checkout code

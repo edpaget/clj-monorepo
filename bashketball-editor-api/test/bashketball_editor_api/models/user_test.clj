@@ -17,7 +17,7 @@
                        :email "octocat@github.com"
                        :avatar-url "https://github.com/octocat.png"
                        :name "The Octocat"}
-            user (proto/create! user-repo user-data)]
+            user      (proto/create! user-repo user-data)]
         (is (some? user))
         (is (uuid? (:id user)))
         (is (= "octocat" (:github-login user)))
@@ -30,17 +30,17 @@
 (deftest user-repository-upsert-test
   (testing "Upserting an existing user updates the record"
     (with-db
-      (let [user-repo (user/create-user-repository)
+      (let [user-repo   (user/create-user-repository)
             user-data-1 {:github-login "octocat"
                          :email "octocat@github.com"
                          :avatar-url "https://github.com/octocat.png"
                          :name "The Octocat"}
-            user-1 (proto/create! user-repo user-data-1)
+            user-1      (proto/create! user-repo user-data-1)
             user-data-2 {:github-login "octocat"
                          :email "newemail@github.com"
                          :avatar-url "https://github.com/octocat-new.png"
                          :name "Updated Octocat"}
-            user-2 (proto/create! user-repo user-data-2)]
+            user-2      (proto/create! user-repo user-data-2)]
         (is (= (:id user-1) (:id user-2)) "ID should remain the same")
         (is (= "octocat" (:github-login user-2)))
         (is (= "newemail@github.com" (:email user-2)))
@@ -52,11 +52,11 @@
 (deftest user-repository-find-by-id-test
   (testing "Finding a user by ID"
     (with-db
-      (let [user-repo (user/create-user-repository)
-            user-data {:github-login "octocat"
-                       :email "octocat@github.com"}
+      (let [user-repo    (user/create-user-repository)
+            user-data    {:github-login "octocat"
+                          :email "octocat@github.com"}
             created-user (proto/create! user-repo user-data)
-            found-user (proto/find-by user-repo {:id (:id created-user)})]
+            found-user   (proto/find-by user-repo {:id (:id created-user)})]
         (is (some? found-user))
         (is (= (:id created-user) (:id found-user)))
         (is (= "octocat" (:github-login found-user)))))))
@@ -64,11 +64,11 @@
 (deftest user-repository-find-by-github-login-test
   (testing "Finding a user by GitHub login"
     (with-db
-      (let [user-repo (user/create-user-repository)
-            user-data {:github-login "octocat"
-                       :email "octocat@github.com"}
+      (let [user-repo    (user/create-user-repository)
+            user-data    {:github-login "octocat"
+                          :email "octocat@github.com"}
             created-user (proto/create! user-repo user-data)
-            found-user (proto/find-by user-repo {:github-login "octocat"})]
+            found-user   (proto/find-by user-repo {:github-login "octocat"})]
         (is (some? found-user))
         (is (= (:id created-user) (:id found-user)))
         (is (= "octocat" (:github-login found-user)))))))
@@ -76,7 +76,7 @@
 (deftest user-repository-find-by-nonexistent-test
   (testing "Finding a nonexistent user returns nil"
     (with-db
-      (let [user-repo (user/create-user-repository)
+      (let [user-repo  (user/create-user-repository)
             found-user (proto/find-by user-repo {:github-login "nonexistent"})]
         (is (nil? found-user))))))
 
@@ -84,10 +84,10 @@
   (testing "Finding all users"
     (with-db
       (let [user-repo (user/create-user-repository)
-            _ (proto/create! user-repo {:github-login "user1" :email "user1@example.com"})
-            _ (proto/create! user-repo {:github-login "user2" :email "user2@example.com"})
-            _ (proto/create! user-repo {:github-login "user3" :email "user3@example.com"})
-            users (proto/find-all user-repo {})]
+            _         (proto/create! user-repo {:github-login "user1" :email "user1@example.com"})
+            _         (proto/create! user-repo {:github-login "user2" :email "user2@example.com"})
+            _         (proto/create! user-repo {:github-login "user3" :email "user3@example.com"})
+            users     (proto/find-all user-repo {})]
         (is (= 3 (count users)))
         (is (every? #(uuid? (:id %)) users))))))
 
@@ -95,19 +95,19 @@
   (testing "Finding all users with limit"
     (with-db
       (let [user-repo (user/create-user-repository)
-            _ (proto/create! user-repo {:github-login "user1" :email "user1@example.com"})
-            _ (proto/create! user-repo {:github-login "user2" :email "user2@example.com"})
-            _ (proto/create! user-repo {:github-login "user3" :email "user3@example.com"})
-            users (proto/find-all user-repo {:limit 2})]
+            _         (proto/create! user-repo {:github-login "user1" :email "user1@example.com"})
+            _         (proto/create! user-repo {:github-login "user2" :email "user2@example.com"})
+            _         (proto/create! user-repo {:github-login "user3" :email "user3@example.com"})
+            users     (proto/find-all user-repo {:limit 2})]
         (is (= 2 (count users)))))))
 
 (deftest user-repository-update-test
   (testing "Updating a user"
     (with-db
-      (let [user-repo (user/create-user-repository)
-            user-data {:github-login "octocat"
-                       :email "octocat@github.com"
-                       :name "The Octocat"}
+      (let [user-repo    (user/create-user-repository)
+            user-data    {:github-login "octocat"
+                          :email "octocat@github.com"
+                          :name "The Octocat"}
             created-user (proto/create! user-repo user-data)
             updated-user (proto/update! user-repo (:id created-user) {:name "Updated Name"})]
         (is (some? updated-user))
@@ -118,11 +118,11 @@
 (deftest user-repository-delete-test
   (testing "Deleting a user"
     (with-db
-      (let [user-repo (user/create-user-repository)
-            user-data {:github-login "octocat"
-                       :email "octocat@github.com"}
+      (let [user-repo    (user/create-user-repository)
+            user-data    {:github-login "octocat"
+                          :email "octocat@github.com"}
             created-user (proto/create! user-repo user-data)
-            deleted? (proto/delete! user-repo (:id created-user))
-            found-user (proto/find-by user-repo {:id (:id created-user)})]
+            deleted?     (proto/delete! user-repo (:id created-user))
+            found-user   (proto/find-by user-repo {:id (:id created-user)})]
         (is (true? deleted?))
         (is (nil? found-user))))))
