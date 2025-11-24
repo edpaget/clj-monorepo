@@ -1,19 +1,15 @@
 (ns bashketball-editor-api.graphql.schema
   "GraphQL schema definition.
 
-  Combines resolvers from all resolver namespaces and compiles them into
-  a Lacinia schema."
+  Combines resolvers from all resolver namespaces."
   (:require
    [bashketball-editor-api.graphql.resolvers.mutation :as mutation]
-   [bashketball-editor-api.graphql.resolvers.query :as query]
-   [graphql-server.ring :as gql-ring]))
+   [bashketball-editor-api.graphql.resolvers.query :as query]))
 
-(defn create-schema
-  "Creates the compiled GraphQL schema.
+(defn resolver-map
+  "Returns the resolver map for GraphQL.
 
-  Merges resolvers from query and mutation namespaces and compiles them
-  into a Lacinia schema ready for execution."
+  Merges resolvers from query and mutation namespaces."
   []
-  (gql-ring/build-lacinia-schema
-   (merge query/resolvers
-          mutation/resolvers)))
+  (merge query/resolvers
+         mutation/resolvers))

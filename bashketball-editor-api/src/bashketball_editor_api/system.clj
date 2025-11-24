@@ -94,16 +94,16 @@
 (defmethod ig/init-key ::set-service [_ {:keys [set-repo card-repo]}]
   (set-svc/create-set-service set-repo card-repo))
 
-(defmethod ig/init-key ::graphql-schema [_ _]
-  (gql-schema/create-schema))
+(defmethod ig/init-key ::resolver-map [_ _]
+  (gql-schema/resolver-map))
 
-(defmethod ig/init-key ::handler [_ {:keys [graphql-schema
+(defmethod ig/init-key ::handler [_ {:keys [resolver-map
                                             authenticator
                                             db-pool
                                             user-repo
                                             config]}]
   (handler/create-handler
-   graphql-schema
+   resolver-map
    authenticator
    db-pool
    user-repo
@@ -147,8 +147,8 @@
    ::card-service {:card-repo (ig/ref ::card-repo)}
    ::set-service {:set-repo (ig/ref ::set-repo)
                   :card-repo (ig/ref ::card-repo)}
-   ::graphql-schema {}
-   ::handler {:graphql-schema (ig/ref ::graphql-schema)
+   ::resolver-map {}
+   ::handler {:resolver-map (ig/ref ::resolver-map)
               :authenticator (ig/ref ::authenticator)
               :db-pool (ig/ref ::db-pool)
               :user-repo (ig/ref ::user-repo)

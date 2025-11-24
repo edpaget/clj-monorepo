@@ -16,7 +16,7 @@
     (is (some? utils/*system*))
     (is (some? (::system/config utils/*system*)))
     (is (some? (::system/db-pool utils/*system*)))
-    (is (some? (::system/graphql-schema utils/*system*)))))
+    (is (some? (::system/resolver-map utils/*system*)))))
 
 (deftest database-connection
   (testing "Database is accessible"

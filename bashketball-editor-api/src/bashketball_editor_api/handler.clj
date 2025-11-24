@@ -5,8 +5,8 @@
   (:require
    [authn.core :as authn]
    [authn.middleware :as authn-mw]
-   [com.walmartlabs.lacinia :as lacinia]
    [db.core :as db]
+   [graphql-server.ring :as gql-ring]
    [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
    [ring.middleware.params :refer [wrap-params]]
    [ring.middleware.session :refer [wrap-session]]))
@@ -52,20 +52,6 @@
      :body {:success true}
      :session nil}))
 
-(defn graphql-handler
-  "GraphQL endpoint handler."
-  [graphql-schema db-pool user-repo]
-  (fn [request]
-    (let [query     (get-in request [:body :query])
-          variables (get-in request [:body :variables])
-          context   {:request request
-                     :db-pool db-pool
-                     :user-repo user-repo}
-          result    (lacinia/execute graphql-schema query variables context)]
-      {:status 200
-       :headers {"Content-Type" "application/json"}
-       :body result})))
-
 (defn not-found-handler
   "404 handler."
   [_request]
@@ -75,7 +61,7 @@
 
 (defn routes
   "Application routes."
-  [graphql-schema authenticator db-pool user-repo config]
+  [authenticator config]
   (fn [request]
     (let [uri    (:uri request)
           method (:request-method request)]
@@ -88,9 +74,6 @@
 
         (and (= method :post) (= uri "/auth/logout"))
         ((logout-handler authenticator) request)
-
-        (and (#{:get :post} method) (= uri "/graphql"))
-        ((graphql-handler graphql-schema db-pool user-repo) request)
 
         :else
         (not-found-handler request)))))
@@ -115,9 +98,17 @@
 (defn create-handler
   "Creates the Ring handler with all middleware.
 
-  Wraps the routes with authentication, session, JSON, and database middleware."
-  [graphql-schema authenticator db-pool user-repo session-config config]
-  (-> (routes graphql-schema authenticator db-pool user-repo config)
+  Wraps the routes with GraphQL, authentication, session, JSON, and database middleware."
+  [resolver-map authenticator db-pool user-repo session-config config]
+  (-> (routes authenticator config)
+      (gql-ring/graphql-middleware
+       {:path "/graphql"
+        :resolver-map resolver-map
+        :context-fn (fn [request]
+                      {:request request
+                       :db-pool db-pool
+                       :user-repo user-repo})
+        :enable-graphiql? true})
       (wrap-session-refresh authenticator)
       (authn-mw/wrap-authentication authenticator)
       (wrap-session {:cookie-name (:cookie-name session-config)
