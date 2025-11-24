@@ -45,6 +45,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-clojure-
 
+      # Note: bashketball-editor-api is excluded from documentation as it is an
+      # application, not a library. Only reusable libraries are documented here.
+
       - name: Generate documentation for exclusive-initializer
         working-directory: exclusive-initializer
         run: |
@@ -89,6 +92,17 @@ jobs:
             :output-path '"../docs-output/oidc"' \
             :metadata '{:doc/format :markdown}'
 
+      - name: Generate documentation for authn
+        working-directory: authn
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -X codox.main/generate-docs \
+            :name '"authn"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/authn"' \
+            :metadata '{:doc/format :markdown}'
+
       - name: Generate documentation for oidc-provider
         working-directory: oidc-provider
         run: |
@@ -98,6 +112,17 @@ jobs:
             :version '"0.1.0"' \
             :source-paths '["src"]' \
             :output-path '"../docs-output/oidc-provider"' \
+            :metadata '{:doc/format :markdown}'
+
+      - name: Generate documentation for oidc-github
+        working-directory: oidc-github
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -X codox.main/generate-docs \
+            :name '"oidc-github"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/oidc-github"' \
             :metadata '{:doc/format :markdown}'
 
       - name: Generate documentation for graphql-server
@@ -200,8 +225,18 @@ jobs:
               </li>
 
               <li class="package-item">
+                <h2><a href="authn/">authn</a></h2>
+                <p class="package-description">First-party authentication with cookie-based sessions for Clojure web applications.</p>
+              </li>
+
+              <li class="package-item">
                 <h2><a href="oidc-provider/">oidc-provider</a></h2>
                 <p class="package-description">OpenID Connect (OIDC) provider library for Clojure.</p>
+              </li>
+
+              <li class="package-item">
+                <h2><a href="oidc-github/">oidc-github</a></h2>
+                <p class="package-description">GitHub OAuth and OIDC integration providing both provider-side authentication and client-side OAuth helpers.</p>
               </li>
 
               <li class="package-item">

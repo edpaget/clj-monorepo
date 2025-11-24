@@ -42,7 +42,8 @@ jobs:
 
       - name: Run clj-kondo
         # Note: polix is excluded as it's still under active research and refactoring
-        run: clojure -M:lint --lint exclusive-initializer db oidc oidc-provider oidc-github graphql-server build scripts
+        # Note: bashketball-editor-api is excluded as it's an application, not a library
+        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-provider oidc-github graphql-server build scripts
 
   test-no-db:
     name: Test ${{ matrix.project }}
@@ -54,6 +55,7 @@ jobs:
         project:
           - exclusive-initializer
           - polix
+          - authn
           - oidc
           - oidc-provider
           - oidc-github
