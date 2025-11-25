@@ -15,17 +15,17 @@
 
 (t/deftest input-type-into-field-test
   (t/async done
-    (t/testing "user can type into input"
-      (let [user (tlr/setup)]
-        (tlr/render ($ input {:placeholder "Type here"}))
-        (let [input-el (tlr/get-by-placeholder-text "Type here")]
-          (-> (tlr/type-text user input-el "hello world")
-              (.then (fn []
-                       (t/is (= "hello world" (.-value input-el)))
-                       (done)))
-              (.catch (fn [e]
-                        (t/is false (str e))
-                        (done)))))))))
+           (t/testing "user can type into input"
+             (let [user (tlr/setup)]
+               (tlr/render ($ input {:placeholder "Type here"}))
+               (let [input-el (tlr/get-by-placeholder-text "Type here")]
+                 (-> (tlr/type-text user input-el "hello world")
+                     (.then (fn []
+                              (t/is (= "hello world" (.-value input-el)))
+                              (done)))
+                     (.catch (fn [e]
+                               (t/is false (str e))
+                               (done)))))))))
 
 (t/deftest input-disabled-test
   (t/testing "disabled input has disabled attribute"

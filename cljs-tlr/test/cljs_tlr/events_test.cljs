@@ -11,7 +11,7 @@
 
 (t/deftest click-fires-click-handler-test
   (t/testing "click fires onClick handler"
-    (let [clicked (atom false)
+    (let [clicked   (atom false)
           component (fn []
                       (createElement "button"
                                      #js {:onClick #(reset! clicked true)}
@@ -22,7 +22,7 @@
 
 (t/deftest change-updates-input-value-test
   (t/testing "change fires onChange with new value"
-    (let [value (atom "")
+    (let [value     (atom "")
           component (fn []
                       (createElement "input"
                                      #js {:onChange #(reset! value (.. % -target -value))
@@ -33,7 +33,7 @@
 
 (t/deftest focus-and-blur-test
   (t/testing "focus and blur fire correctly"
-    (let [focused (atom false)
+    (let [focused   (atom false)
           component (fn []
                       (createElement "input"
                                      #js {:onFocus #(reset! focused true)
@@ -62,10 +62,10 @@
 (t/deftest key-down-fires-with-key-info-test
   (t/testing "key-down fires with key information"
     (let [key-pressed (atom nil)
-          component (fn []
-                      (createElement "input"
-                                     #js {:onKeyDown #(reset! key-pressed (.-key %))
-                                          :placeholder "Press a key"}))]
+          component   (fn []
+                        (createElement "input"
+                                       #js {:onKeyDown #(reset! key-pressed (.-key %))
+                                            :placeholder "Press a key"}))]
       (render/render (createElement component))
       (events/key-down (screen/get-by-placeholder-text "Press a key")
                        {:key "Enter"})

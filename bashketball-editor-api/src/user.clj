@@ -87,11 +87,11 @@
    (when @system-state
      (println "Stopping system before dropping database...")
      (stop))
-   (let [conf     (config/load-config profile)
-         db-url   (get-in conf [:database :database-url])
+   (let [conf               (config/load-config profile)
+         db-url             (get-in conf [:database :database-url])
          [base-url db-name] (split-db-name-from-uri db-url)
-         datasource (pool/create-pool base-url)
-         sql      (format "DROP DATABASE IF EXISTS \"%s\"" db-name)]
+         datasource         (pool/create-pool base-url)
+         sql                (format "DROP DATABASE IF EXISTS \"%s\"" db-name)]
      (try
        (println "Dropping database:" db-name)
        (db/execute! datasource [sql])

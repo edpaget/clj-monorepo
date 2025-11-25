@@ -15,31 +15,31 @@
 
 (t/deftest button-click-calls-handler-test
   (t/async done
-    (t/testing "click triggers on-click handler"
-      (let [clicked (atom false)
-            user (tlr/setup)]
-        (tlr/render ($ button {:on-click #(reset! clicked true)} "Click"))
-        (-> (tlr/click user (tlr/get-by-role "button"))
-            (.then (fn []
-                     (t/is @clicked)
-                     (done)))
-            (.catch (fn [e]
-                      (t/is false (str e))
-                      (done))))))))
+           (t/testing "click triggers on-click handler"
+             (let [clicked (atom false)
+                   user    (tlr/setup)]
+               (tlr/render ($ button {:on-click #(reset! clicked true)} "Click"))
+               (-> (tlr/click user (tlr/get-by-role "button"))
+                   (.then (fn []
+                            (t/is @clicked)
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))))))
 
 (t/deftest button-disabled-prevents-click-test
   (t/async done
-    (t/testing "disabled button does not trigger handler"
-      (let [clicked (atom false)
-            user (tlr/setup)]
-        (tlr/render ($ button {:on-click #(reset! clicked true) :disabled true} "Disabled"))
-        (-> (tlr/click user (tlr/get-by-role "button"))
-            (.then (fn []
-                     (t/is (not @clicked))
-                     (done)))
-            (.catch (fn [_e]
-                      (t/is (not @clicked))
-                      (done))))))))
+           (t/testing "disabled button does not trigger handler"
+             (let [clicked (atom false)
+                   user    (tlr/setup)]
+               (tlr/render ($ button {:on-click #(reset! clicked true) :disabled true} "Disabled"))
+               (-> (tlr/click user (tlr/get-by-role "button"))
+                   (.then (fn []
+                            (t/is (not @clicked))
+                            (done)))
+                   (.catch (fn [_e]
+                             (t/is (not @clicked))
+                             (done))))))))
 
 (t/deftest button-outline-variant-test
   (t/testing "outline variant has border class"

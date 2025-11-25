@@ -58,10 +58,10 @@
                   :size :size-enum/SM
                   :deck-size 5
                   :abilities []}
-          play {:card-type :card-type-enum/PLAY_CARD
-                :name "Play"
-                :fate 2
-                :play "Do something"}]
+          play   {:card-type :card-type-enum/PLAY_CARD
+                  :name "Play"
+                  :fate 2
+                  :play "Do something"}]
       (t/is (m/validate card/GameCard player))
       (t/is (m/validate card/GameCard play)))))
 

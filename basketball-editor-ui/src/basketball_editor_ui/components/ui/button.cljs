@@ -51,7 +51,7 @@
   ($ :button
      {:type type
       :class (cn (button-variants #js {:variant (name variant)
-                                        :size (name size)})
+                                       :size (name size)})
                  class)
       :on-click on-click
       :disabled disabled}

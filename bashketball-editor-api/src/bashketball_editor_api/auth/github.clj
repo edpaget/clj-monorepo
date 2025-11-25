@@ -52,22 +52,22 @@
   (fn [_request token-response]
     (let [access-token (:access_token token-response)
           ;; Fetch GitHub user data
-          user-data (gh-claims/fetch-all-user-data access-token nil)
+          user-data    (gh-claims/fetch-all-user-data access-token nil)
           ;; Convert to OIDC claims
-          claims (gh-claims/github->oidc-claims user-data)
+          claims       (gh-claims/github->oidc-claims user-data)
           github-login (:preferred_username claims)
           ;; Upsert user in database
-          user (repo/create! user-repo
-                             {:github-login github-login
-                              :email (:email claims)
-                              :avatar-url (:picture claims)
-                              :name (:name claims)})
-          user-id (str (:id user))
+          user         (repo/create! user-repo
+                                     {:github-login github-login
+                                      :email (:email claims)
+                                      :avatar-url (:picture claims)
+                                      :name (:name claims)})
+          user-id      (str (:id user))
           ;; Create authn session
-          session-id (authn-proto/create-session
-                      (:session-store authenticator)
-                      user-id
-                      claims)]
+          session-id   (authn-proto/create-session
+                        (:session-store authenticator)
+                        user-id
+                        claims)]
       (-> (response/redirect success-redirect-uri)
           (assoc :session {:authn/session-id session-id})))))
 

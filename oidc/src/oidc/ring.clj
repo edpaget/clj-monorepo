@@ -73,9 +73,9 @@
            :or {success-fn (fn [_req _tokens]
                              (-> (response/redirect "/")
                                  (response/status 302)))
-            error-fn (fn [_req error]
-                       (json-response {:error error} 401))
-            verify-id-token? true}}]
+                error-fn (fn [_req error]
+                           (json-response {:error error} 401))
+                verify-id-token? true}}]
   (fn [request]
     (let [params        (or (:params request) (:query-params request))
           code          (get params "code")
@@ -98,7 +98,7 @@
         ;; Exchange code for tokens
         :else
         (try
-          (let [discovery-doc (fetch-discovery-cached request (:issuer client))
+          (let [discovery-doc  (fetch-discovery-cached request (:issuer client))
                 token-response (auth/exchange-code
                                 (:token_endpoint discovery-doc)
                                 code
@@ -106,7 +106,7 @@
                                 (:client-secret client)
                                 (:redirect-uri client)
                                 {})
-                session-nonce (get-in request [:session ::nonce])]
+                session-nonce  (get-in request [:session ::nonce])]
             ;; Optionally verify ID token
             (when (and verify-id-token? (:id_token token-response))
               (let [jwks-uri (:jwks_uri discovery-doc)
@@ -140,9 +140,9 @@
   (fn [request]
     (if (and end-session-redirect? post-logout-redirect-uri)
       ;; OIDC RP-Initiated Logout
-      (let [discovery-doc (fetch-discovery-cached request (:issuer client))
+      (let [discovery-doc        (fetch-discovery-cached request (:issuer client))
             end-session-endpoint (:end_session_endpoint discovery-doc)
-            id-token (get-in request [:session ::tokens :id_token])]
+            id-token             (get-in request [:session ::tokens :id_token])]
         (if end-session-endpoint
           (let [logout-url (str end-session-endpoint
                                 "?post_logout_redirect_uri="
@@ -205,7 +205,7 @@
                  callback-opts {}
                  logout-opts {}}}]
   (fn [request]
-    (let [uri (:uri request)
+    (let [uri    (:uri request)
           method (:request-method request)]
       (cond
         ;; Login initiation

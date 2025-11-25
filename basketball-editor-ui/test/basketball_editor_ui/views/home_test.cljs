@@ -26,14 +26,14 @@
 
 (t/deftest home-view-search-input-works-test
   (t/async done
-    (t/testing "user can type in search input"
-      (let [user (tlr/setup)]
-        (tlr/render ($ home-view))
-        (let [search-input (tlr/get-by-placeholder-text "Search cards...")]
-          (-> (tlr/type-text user search-input "fire")
-              (.then (fn []
-                       (t/is (= "fire" (.-value search-input)))
-                       (done)))
-              (.catch (fn [e]
-                        (t/is false (str e))
-                        (done)))))))))
+           (t/testing "user can type in search input"
+             (let [user (tlr/setup)]
+               (tlr/render ($ home-view))
+               (let [search-input (tlr/get-by-placeholder-text "Search cards...")]
+                 (-> (tlr/type-text user search-input "fire")
+                     (.then (fn []
+                              (t/is (= "fire" (.-value search-input)))
+                              (done)))
+                     (.catch (fn [e]
+                               (t/is false (str e))
+                               (done)))))))))

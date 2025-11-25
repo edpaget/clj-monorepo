@@ -92,9 +92,9 @@
           :login-path "/auth/github/login"
           :callback-path "/auth/github/callback"
           :callback-opts {:success-fn (gh-auth/create-success-handler
-                                        user-repo
-                                        authenticator
-                                        success-redirect-uri)
+                                       user-repo
+                                       authenticator
+                                       success-redirect-uri)
                           :verify-id-token? false}})
         (gh-auth/mock-discovery)
         (wrap-session-refresh authenticator)
