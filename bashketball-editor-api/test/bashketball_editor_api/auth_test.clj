@@ -7,7 +7,7 @@
    [bashketball-editor-api.models.protocol :as proto]
    [bashketball-editor-api.models.user :as user]
    [bashketball-editor-api.services.auth :as auth-svc]
-   [bashketball-editor-api.test-utils :refer [with-system with-clean-db with-db]]
+   [bashketball-editor-api.test-utils :refer [with-clean-db with-db with-system]]
    [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :once with-system)
@@ -148,29 +148,6 @@
         (is (= "Updated Test User" (:name user-2)))
         (is (= (:created-at user-1) (:created-at user-2)) "Created-at should not change")
         (is (.after (:updated-at user-2) (:updated-at user-1)) "Updated-at should be newer")))))
-
-(deftest login-handler-success-test
-  (testing "Login handler redirects to success URI on successful authentication"
-    (with-db
-      (let [authenticator (create-test-authenticator)
-            config        {:github {:oauth {:success-redirect-uri "http://localhost:3001/"}}}
-            handler       (handler/login-handler authenticator config)
-            request       {:params {"code" "test-code"}}
-            response      (handler request)]
-        (is (= 302 (:status response)))
-        (is (= "http://localhost:3001/" (get-in response [:headers "Location"])))
-        (is (some? (get-in response [:session :authn/session-id])))))))
-
-(deftest login-handler-missing-code-test
-  (testing "Login handler returns 400 when code is missing"
-    (with-db
-      (let [authenticator (create-test-authenticator)
-            config        {:github {:oauth {:success-redirect-uri "http://localhost:3001/"}}}
-            handler       (handler/login-handler authenticator config)
-            request       {:params {}}
-            response      (handler request)]
-        (is (= 400 (:status response)))
-        (is (= "Missing authorization code" (get-in response [:body :error])))))))
 
 (deftest logout-handler-test
   (testing "Logout handler destroys session and returns success"

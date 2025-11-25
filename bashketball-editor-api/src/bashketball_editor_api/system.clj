@@ -5,6 +5,7 @@
   configuration, database, authentication, GraphQL, and HTTP server."
   (:require
    [authn.core :as authn]
+   [bashketball-editor-api.auth.github :as gh-auth]
    [bashketball-editor-api.config :as config]
    [bashketball-editor-api.github.cards :as cards]
    [bashketball-editor-api.github.client :as gh-client]
@@ -97,13 +98,22 @@
 (defmethod ig/init-key ::resolver-map [_ _]
   (gql-schema/resolver-map))
 
+(defmethod ig/init-key ::github-oidc-client [_ {:keys [config]}]
+  (gh-auth/create-github-oidc-client
+   {:client-id (get-in config [:github :oauth :client-id])
+    :client-secret (get-in config [:github :oauth :client-secret])
+    :redirect-uri (get-in config [:github :oauth :redirect-uri])
+    :scopes ["user:email" "read:user"]}))
+
 (defmethod ig/init-key ::handler [_ {:keys [resolver-map
+                                            github-oidc-client
                                             authenticator
                                             db-pool
                                             user-repo
                                             config]}]
   (handler/create-handler
    resolver-map
+   github-oidc-client
    authenticator
    db-pool
    user-repo
@@ -148,7 +158,9 @@
    ::set-service {:set-repo (ig/ref ::set-repo)
                   :card-repo (ig/ref ::card-repo)}
    ::resolver-map {}
+   ::github-oidc-client {:config (ig/ref ::config)}
    ::handler {:resolver-map (ig/ref ::resolver-map)
+              :github-oidc-client (ig/ref ::github-oidc-client)
               :authenticator (ig/ref ::authenticator)
               :db-pool (ig/ref ::db-pool)
               :user-repo (ig/ref ::user-repo)
