@@ -8,3 +8,10 @@
 /.clj-kondo/imports/
 /docs-output/
 .envrc
+
+# ClojureScript / shadow-cljs
+**/node_modules/
+**/.shadow-cljs/
+**/out/
+**/target/
+package-lock.json

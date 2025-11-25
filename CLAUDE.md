@@ -1,3 +1,80 @@
+# Monorepo Projects
+
+This monorepo contains the following projects:
+
+## Libraries
+
+| Project | Description |
+|---------|-------------|
+| **exclusive-initializer** | Test fixture coordination ensuring initialization runs once across parallel tests |
+| **db** | Database utilities with next.jdbc wrappers, HoneySQL, connection pooling, migrations, and PostgreSQL extensions |
+| **polix** | Declarative policy DSL for constraint-based policies evaluated against documents |
+| **graphql-server** | GraphQL schema definition using Malli with Lacinia/Ring, macro-based resolvers |
+| **authn** | Session-based cookie authentication with pluggable validators and Ring middleware |
+| **oidc** | Cross-platform (Clj/ClojureScript) OIDC client with discovery, JWT validation, and Ring middleware |
+| **oidc-provider** | OpenID Connect Provider supporting authorization code, refresh token, and client credentials grants |
+| **oidc-github** | GitHub OAuth/OIDC integration for both provider and client-side authentication |
+| **cljs-tlr** | ClojureScript wrapper for @testing-library/react with JSDom support |
+
+## Applications
+
+| Project | Description |
+|---------|-------------|
+| **bashketball-editor-api** | GraphQL API for trading card game editor with GitHub OAuth, Git-based card storage |
+
+## Project Details
+
+### exclusive-initializer
+Test fixture library using thread-safe locking to ensure initialization code runs only once.
+- **Namespaces**: `exclusive-initializer.core`
+
+### db
+Database abstraction layer for Integrant-driven projects.
+- **Namespaces**: `db.core`, `db.connection-pool`, `db.jdbc-ext`, `db.migrate`, `db.test-utils`
+- **Features**: HoneySQL query building, Ragtime migrations, C3P0 pooling, PostgreSQL enums/JSON
+
+### polix
+Policy evaluation engine using a unified constraint model.
+- **Namespaces**: `polix.core`, `polix.parser`, `polix.document`, `polix.evaluator`, `polix.policy`, `polix.ast`
+- **Features**: Either monad error handling, Malli schemas
+
+### graphql-server
+Lacinia wrapper with Malli schema support.
+- **Namespaces**: `graphql-server.core`, `graphql-server.schema`, `graphql-server.ring`
+- **Features**: `defresolver` macro, automatic argument coercion
+
+### authn
+First-party authentication for web applications.
+- **Namespaces**: `authn.core`, `authn.middleware`, `authn.store`, `authn.protocol`, `authn.handler`
+- **Features**: Pluggable credential validators, claims providers
+
+### oidc
+OpenID Connect client (works in both Clojure and ClojureScript).
+- **Namespaces**: `oidc.core`, `oidc.authorization`, `oidc.discovery`, `oidc.jwt`, `oidc.ring`
+- **Features**: Discovery document fetching, JWT validation (buddy-sign on JVM, panva/jose on JS)
+
+### oidc-provider
+Full OIDC identity provider implementation.
+- **Namespaces**: `oidc-provider.core`, `oidc-provider.authorization`, `oidc-provider.token-endpoint`, `oidc-provider.discovery`
+- **Features**: Authorization code flow, refresh tokens, client credentials, pluggable storage
+
+### oidc-github
+GitHub-specific OIDC/OAuth integration.
+- **Namespaces**: `oidc-github.provider`, `oidc-github.client`, `oidc-github.claims`
+- **Features**: GitHub Enterprise support, organization validation with caching
+
+### bashketball-editor-api
+Trading card game editor backend.
+- **Namespaces**: `bashketball-editor-api.system`, `bashketball-editor-api.handler`, `bashketball-editor-api.graphql.schema`
+- **Features**: GitHub OAuth, Git-based card/set storage (JGit), PostgreSQL for users/sessions
+
+### cljs-tlr
+React Testing Library wrapper for ClojureScript.
+- **Namespaces**: `cljs-tlr.core`, `cljs-tlr.render`, `cljs-tlr.screen`, `cljs-tlr.user-event`, `cljs-tlr.async`, `cljs-tlr.fixtures`
+- **Features**: JSDom setup via shadow-cljs `:prepend-js`, UIx support
+
+---
+
 # General Guidelines
 
 Be concise, straightforward, and avoid hyperbole. 
