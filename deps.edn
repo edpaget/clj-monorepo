@@ -30,6 +30,12 @@
   :bashketball-editor-api
   {:extra-deps {local/bashketball-editor-api {:local/root "bashketball-editor-api"}}}
 
+  :cljs-tlr
+  {:extra-deps {local/cljs-tlr {:local/root "cljs-tlr"}}}
+
+  :basketball-editor-ui
+  {:extra-deps {local/basketball-editor-ui {:local/root "basketball-editor-ui"}}}
+
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project
   :exclusive-initializer-test

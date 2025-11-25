@@ -1,0 +1,9 @@
+{:deps true
+
+ :builds
+ {:test
+  {:target :node-test
+   :output-to "out/node-tests.js"
+   :prepend-js "require('global-jsdom/register');"
+   :autorun true
+   :ns-regexp "cljs-tlr\\..*-test$"}}}
