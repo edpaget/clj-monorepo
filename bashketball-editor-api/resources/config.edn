@@ -49,4 +49,9 @@
   :branch #or [#env GIT_BRANCH "main"]
   :writer? #profile {:dev true
                      :test true
-                     :prod false}}}
+                     :prod false}}
+
+ :cors
+ {:allowed-origins #profile {:dev ["http://localhost:3001" "http://localhost:5173"]
+                             :test ["http://localhost:3001"]
+                             :prod #env CORS_ALLOWED_ORIGINS}}}

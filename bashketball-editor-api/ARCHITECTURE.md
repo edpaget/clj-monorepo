@@ -117,26 +117,30 @@ The user repository demonstrates database-backed storage:
 - Dynamic where clause building
 - Flexible querying by any field
 
-#### GitHub (Card/Set Repositories)
+#### Git (Card/Set Repositories)
 
-Card and set repositories use GitHub as a file-based storage backend:
+Card and set repositories use a local Git repository (via JGit) as a file-based storage backend:
 
 ```clojure
-(defrecord CardRepository [github-client]
+(defrecord CardRepository [git-repo lock]
   proto/Repository
-  (find-by [this criteria]
-    ;; GitHub requires file path, which depends on set-id
+  (find-by [_this criteria]
+    ;; Read from local working tree (fast)
     (when-let [id (:id criteria)]
       (when-let [set-id (:set-id criteria)]
-        (client/get-file github-client (card-path set-id id)))))
+        (when-let [content (git-repo/read-file git-repo (card-path set-id id))]
+          (edn/read-string content)))))
 
-  (create! [this data]
-    ;; GitHub client handles upsert via create-or-update-file
-    (client/create-or-update-file
-     github-client
-     (card-path set-id id)
-     card-data
-     commit-message))
+  (create! [_this data]
+    (when-not (:writer? git-repo)
+      (throw (ex-info "Repository is read-only" {})))
+    (locking lock
+      (let [user-ctx (:_user data)  ;; Extract user for Git attribution
+            card (-> data (dissoc :_user) ...)]
+        (git-repo/write-file git-repo path (pr-str card))
+        (git-repo/commit git-repo message (:name user-ctx) (:email user-ctx))
+        (git-repo/push git-repo (:github-token user-ctx))
+        card)))
   ;; ... other methods
 )
 ```
@@ -144,8 +148,9 @@ Card and set repositories use GitHub as a file-based storage backend:
 **Constraints**:
 - File paths depend on entity relationships (cards need set-id)
 - No native querying - must list directory and filter
-- Upsert is natural (file create-or-update)
-- Eventual consistency via Git commits
+- Thread-safe writes via locking
+- Single writer pattern for mutations
+- User attribution in Git commits
 
 ## Service Layer
 
@@ -256,11 +261,11 @@ config
   │     └── user-repo
   │           └── auth-service
   │                 └── authenticator
-  ├── github-client
+  ├── git-repo
   │     ├── card-repo
   │     └── set-repo
   └── graphql-schema
-        └── handler
+        └── handler (with git-repo, card-repo, set-repo, user-repo)
               └── server
 ```
 
@@ -532,7 +537,7 @@ The writer instance exposes GraphQL mutations for manual sync:
 
 **Challenge**: File-based storage requires different query patterns than SQL.
 
-**Solution**:
+**Solution** (Implemented):
 - Accept constraints in protocol implementation
 - Use `:where` map for filtering
 - Require compound keys where needed (e.g., `{:id :set-id}` for cards)
@@ -541,12 +546,20 @@ The writer instance exposes GraphQL mutations for manual sync:
 
 **Challenge**: Multi-instance coordination for writes.
 
-**Solution**: Single writer pattern
-- One designated writer instance handles all mutations
+**Solution** (Implemented): Single writer pattern
+- One designated writer instance handles all mutations (`GIT_WRITER=true`)
 - Other instances are read-only (can scale queries independently)
-- Manual sync via UI (explicit pull/push operations)
+- Manual sync via UI (explicit pull/push GraphQL mutations)
 - Simple deployment model, no distributed locking needed
 - Users control when changes are synced with remote
+- Each user's GitHub OAuth token used for push/pull credentials
+
+**Challenge**: Git commit attribution.
+
+**Solution** (Implemented): User context pattern
+- GraphQL resolvers pass `_user` context with name/email/github-token
+- Repository extracts user info for Git commit author
+- Each commit properly attributed to the user who made the change
 
 ### Upsert Semantics
 

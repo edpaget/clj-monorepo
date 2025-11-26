@@ -14,9 +14,11 @@
   (let [[search-term set-search-term] (use-state "")]
     ($ :div {:class "min-h-screen bg-gray-50"}
        ($ :header {:class "bg-white shadow"}
-          ($ :div {:class "max-w-7xl mx-auto py-6 px-4"}
+          ($ :div {:class "max-w-7xl mx-auto py-6 px-4 flex justify-between items-center"}
              ($ :h1 {:class "text-3xl font-bold text-gray-900"}
-                config/app-name)))
+                config/app-name)
+             ($ :a {:href config/github-login-url}
+                ($ button {:variant :outline} "Login with GitHub"))))
        ($ :main {:class "max-w-7xl mx-auto py-6 px-4"}
           ($ :div {:class "mb-6"}
              ($ :p {:class "text-gray-600 mb-4"}

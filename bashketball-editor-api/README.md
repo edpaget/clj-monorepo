@@ -30,26 +30,25 @@ bashketball-editor-api/
 │   ├── config.clj              # Configuration loading
 │   ├── system.clj              # Integrant system definition
 │   ├── server.clj              # Server entry point
-│   ├── handler.clj             # Ring handler and routes
+│   ├── handler.clj             # Ring handler, routes, and CORS middleware
+│   ├── auth/
+│   │   └── github.clj          # GitHub OAuth integration
 │   ├── models/
 │   │   ├── protocol.clj        # Repository protocol
-│   │   ├── user.clj            # User model (PostgreSQL)
-│   │   └── session.clj         # Session model (PostgreSQL)
+│   │   └── user.clj            # User model (PostgreSQL)
 │   ├── git/
 │   │   ├── repo.clj            # Git repository operations (JGit)
-│   │   ├── sync.clj            # Background sync job
+│   │   ├── sync.clj            # Manual sync operations (pull/push)
 │   │   ├── cards.clj           # Card repository (Git-backed)
 │   │   └── sets.clj            # Set repository (Git-backed)
 │   ├── services/
-│   │   ├── auth.clj            # Authentication service
-│   │   ├── card.clj            # Card business logic
-│   │   └── set.clj             # Set business logic
+│   │   └── auth.clj            # Authentication service
 │   └── graphql/
 │       ├── schema.clj          # GraphQL schema
-│       ├── middleware.clj      # GraphQL middleware
+│       ├── middleware.clj      # GraphQL middleware (auth)
 │       └── resolvers/
-│           ├── query.clj       # Query resolvers
-│           └── mutation.clj    # Mutation resolvers
+│           ├── query.clj       # Query resolvers (me, user, users, syncStatus)
+│           └── mutation.clj    # Mutation resolvers (pullFromRemote, pushToRemote)
 ├── resources/
 │   ├── config.edn              # Aero configuration
 │   └── migrations/             # Database migrations
@@ -58,7 +57,14 @@ bashketball-editor-api/
 └── test/
     └── bashketball_editor_api/
         ├── test_utils.clj      # Test fixtures and helpers
-        └── system_test.clj     # Integration tests
+        ├── auth_test.clj       # Authentication tests
+        ├── handler_test.clj    # Handler tests
+        ├── system_test.clj     # Integration tests
+        └── git/
+            ├── repo_test.clj   # Git repository tests
+            ├── cards_test.clj  # Card repository tests
+            ├── sets_test.clj   # Set repository tests
+            └── sync_test.clj   # Sync operations tests
 ```
 
 ## Getting Started
@@ -275,7 +281,7 @@ GraphQL endpoint. Requires authentication for most operations.
 
 ## GraphQL Schema
 
-### Current Implementation (Phase 2)
+### Current Implementation (Phase 3)
 
 ```graphql
 type User {
@@ -284,6 +290,20 @@ type User {
   email: String
   avatarUrl: String
   name: String
+}
+
+type SyncStatus {
+  ahead: Int!
+  behind: Int!
+  uncommittedChanges: Int!
+  isClean: Boolean!
+}
+
+type SyncResult {
+  status: String!
+  message: String!
+  error: String
+  conflicts: [String!]
 }
 
 type Query {
@@ -295,10 +315,21 @@ type Query {
 
   # List all users with optional limit
   users(limit: Int): [User!]!
+
+  # Git sync status
+  syncStatus: SyncStatus!
+}
+
+type Mutation {
+  # Pull changes from remote Git repository
+  pullFromRemote: SyncResult!
+
+  # Push local changes to remote Git repository
+  pushToRemote: SyncResult!
 }
 ```
 
-### Planned Schema (Future Phases)
+### Planned Schema (Phase 4)
 
 ```graphql
 type Card {
@@ -321,17 +352,18 @@ type CardSet {
 }
 
 type Query {
-  me: User
-  card(id: ID!): Card
+  # ... existing queries
+  card(id: ID!, setId: ID!): Card
   cards(setId: ID): [Card!]!
   cardSet(id: ID!): CardSet
   cardSets: [CardSet!]!
 }
 
 type Mutation {
+  # ... existing mutations
   createCard(setId: ID!, input: CardInput!): Card!
-  updateCard(id: ID!, input: CardInput!): Card!
-  deleteCard(id: ID!): Boolean!
+  updateCard(id: ID!, setId: ID!, input: CardInput!): Card!
+  deleteCard(id: ID!, setId: ID!): Boolean!
 
   createCardSet(input: CardSetInput!): CardSet!
   updateCardSet(id: ID!, input: CardSetInput!): CardSet!
@@ -357,17 +389,22 @@ type Mutation {
 - [x] Session management
 - [x] User GraphQL queries (me, user, users)
 - [x] Authentication middleware for resolvers
+- [x] GitHub access token storage for Git operations
 
-### Phase 3: Git Repository Integration (JGit)
+### Phase 3: Git Repository Integration (JGit) ✅
 
-- [ ] JGit dependency integration (clj-jgit)
-- [ ] Git repository component (clone, read, write, commit)
-- [ ] Background sync job (fetch, pull, push)
-- [ ] Card repository (Git-backed with local clone)
-- [ ] Set repository (Git-backed with local clone)
-- [ ] Single writer pattern implementation
-- [ ] EDN file format for cards/sets
-- [ ] Read-only repository enforcement
+- [x] JGit dependency integration (clj-jgit)
+- [x] Git repository component (clone-or-open, read, write, delete, commit, push, pull)
+- [x] Manual sync operations (pull-from-remote, push-to-remote)
+- [x] Card repository (Git-backed with local clone)
+- [x] Set repository (Git-backed with local clone)
+- [x] Single writer pattern implementation
+- [x] EDN file format for cards/sets
+- [x] Read-only repository enforcement
+- [x] User attribution in Git commits
+- [x] Per-user GitHub token for push/pull credentials
+- [x] Sync status query (syncStatus)
+- [x] CORS middleware for cross-origin frontend requests
 
 ### Phase 4: Card & Set GraphQL API
 

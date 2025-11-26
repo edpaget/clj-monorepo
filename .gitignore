@@ -15,3 +15,5 @@
 **/out/
 **/target/
 package-lock.json
+/bashketball-editor-ui/public/css/
+/bashketball-editor-ui/public/js/

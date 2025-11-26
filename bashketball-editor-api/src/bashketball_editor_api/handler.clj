@@ -62,14 +62,36 @@
     (binding [db/*datasource* db-pool]
       (handler request))))
 
+(defn wrap-cors
+  "CORS middleware for cross-origin requests.
+
+  Handles preflight OPTIONS requests and adds CORS headers to responses.
+  Only allows origins specified in `allowed-origins` set."
+  [handler allowed-origins]
+  (fn [request]
+    (let [origin (get-in request [:headers "origin"])
+          allowed? (contains? allowed-origins origin)]
+      (if (= :options (:request-method request))
+        {:status 204
+         :headers (cond-> {"Access-Control-Allow-Methods" "GET, POST, OPTIONS"
+                           "Access-Control-Allow-Headers" "Content-Type"
+                           "Access-Control-Max-Age" "86400"}
+                    allowed? (assoc "Access-Control-Allow-Origin" origin
+                                    "Access-Control-Allow-Credentials" "true"))}
+        (let [response (handler request)]
+          (cond-> response
+            allowed? (-> (assoc-in [:headers "Access-Control-Allow-Origin"] origin)
+                         (assoc-in [:headers "Access-Control-Allow-Credentials"] "true"))))))))
+
 (defn create-handler
   "Creates the Ring handler with all middleware.
 
   Wraps the routes with OIDC OAuth, GraphQL, authentication, session, JSON,
-  and database middleware."
+  CORS, and database middleware."
   [resolver-map github-oidc-client authenticator db-pool user-repo
    git-repo card-repo set-repo session-config config]
-  (let [success-redirect-uri (get-in config [:github :oauth :success-redirect-uri])]
+  (let [success-redirect-uri (get-in config [:github :oauth :success-redirect-uri])
+        allowed-origins (set (get-in config [:cors :allowed-origins]))]
     (-> (routes authenticator)
         (gql-ring/graphql-middleware
          {:path "/graphql"
@@ -102,4 +124,5 @@
         wrap-json-response
         (wrap-json-body {:keywords? true})
         wrap-params
+        (wrap-cors allowed-origins)
         (wrap-db-datasource db-pool))))

@@ -154,476 +154,44 @@ Add:
 
 ---
 
-## Phase 3: Git Repository Integration (JGit) 🚧 IN PROGRESS
+## Phase 3: Git Repository Integration (JGit) ✅ COMPLETE
 
-**Status**: Skeleton files created, JGit implementation not yet started
+**Status**: Complete
 
 **Goal**: Implement Git-backed storage for cards and sets using JGit with single writer pattern
 
-### Current State
-
-Skeleton files created (stub implementations):
-- `src/bashketball_editor_api/github/client.clj` - Will be replaced with JGit repo component
-- `src/bashketball_editor_api/github/cards.clj` - Card repository skeleton
-- `src/bashketball_editor_api/github/sets.clj` - Set repository skeleton
-- `src/bashketball_editor_api/services/card.clj` - Card service skeleton
-- `src/bashketball_editor_api/services/set.clj` - Set service skeleton
-
-Test skeletons:
-- `test/bashketball_editor_api/github/client_test.clj`
-- `test/bashketball_editor_api/github/cards_test.clj`
-- `test/bashketball_editor_api/github/sets_test.clj`
-- `test/bashketball_editor_api/services/card_test.clj`
-- `test/bashketball_editor_api/services/set_test.clj`
-
-See `JGIT_ARCHITECTURE.md` for detailed JGit design.
-
-### Remaining Work
-
-1. Add clj-jgit dependency
-2. Implement GitRepo component (clone, read, write, commit, push)
-3. Implement CardRepository with JGit backend
-4. Implement SetRepository with JGit backend
-5. Wire up repositories in Integrant system
-6. Add manual sync GraphQL mutations (pull/push)
-
-### 3.1 Add JGit Dependency
-
-**File**: `bashketball-editor-api/deps.edn`
-
-Add clj-jgit dependency:
-
-```clojure
-{:deps
- {;; ... existing deps
-  clj-jgit/clj-jgit {:mvn/version "1.0.2"}}}
-```
-
-### 3.2 Git Repository Component Implementation
-
-**File**: `src/bashketball_editor_api/git/repo.clj`
-
-Implement core Git operations using clj-jgit:
-
-```clojure
-(ns bashketball-editor-api.git.repo
-  (:require
-   [clj-jgit.porcelain :as git]
-   [clojure.java.io :as io]))
-
-(defrecord GitRepo [repo-path git-instance writer?])
-
-(defn clone-or-open
-  "Clones repository if it doesn't exist locally, otherwise opens it."
-  [{:keys [repo-path remote-url branch]}]
-  (let [repo-dir (io/file repo-path)]
-    (if (.exists repo-dir)
-      (git/load-repo repo-path)
-      (git/git-clone remote-url
-                     :dir repo-path
-                     :branch branch))))
-
-(defn read-file
-  "Reads a file from the working tree."
-  [git-repo relative-path]
-  (let [file-path (io/file (:repo-path git-repo) relative-path)]
-    (when (.exists file-path)
-      (slurp file-path))))
-
-(defn write-file
-  "Writes a file to the working tree (does not commit)."
-  [git-repo relative-path content]
-  (let [file-path (io/file (:repo-path git-repo) relative-path)]
-    (io/make-parents file-path)
-    (spit file-path content)))
-
-(defn delete-file
-  "Deletes a file from the working tree."
-  [git-repo relative-path]
-  (let [file-path (io/file (:repo-path git-repo) relative-path)]
-    (when (.exists file-path)
-      (.delete file-path))))
-
-(defn commit
-  "Commits all changes in the working tree."
-  [git-repo message author-name author-email]
-  (when (:writer? git-repo)
-    (let [git (git/load-repo (:repo-path git-repo))]
-      (git/git-add git ".")
-      (git/git-commit git message
-                      :name author-name
-                      :email author-email))))
-
-(defn fetch
-  "Fetches from remote repository.
-
-  The github-token is optional for initial clone operations that use SSH keys."
-  ([git-repo]
-   (let [git (git/load-repo (:repo-path git-repo))]
-     (git/git-fetch git)))
-  ([git-repo github-token]
-   (let [git (git/load-repo (:repo-path git-repo))]
-     (git/git-fetch git
-                    :credentials {:username "token"
-                                  :password github-token}))))
-
-(defn pull
-  "Pulls from remote repository.
-
-  The github-token is optional for initial operations that use SSH keys."
-  ([git-repo]
-   (let [git (git/load-repo (:repo-path git-repo))]
-     (git/git-pull git)))
-  ([git-repo github-token]
-   (let [git (git/load-repo (:repo-path git-repo))]
-     (git/git-pull git
-                   :credentials {:username "token"
-                                 :password github-token}))))
-
-(defn push [git-repo github-token]
-  (when (:writer? git-repo)
-    (let [git (git/load-repo (:repo-path git-repo))]
-      (git/git-push git
-                    :credentials {:username "token"
-                                  :password github-token}))))
-
-(defn create-git-repo [config]
-  (map->GitRepo config))
-```
-
-### 3.3 Manual Sync Operations
-
-**File**: `src/bashketball_editor_api/git/sync.clj`
-
-Implement manual sync operations for UI:
-
-```clojure
-(ns bashketball-editor-api.git.sync
-  (:require
-   [bashketball-editor-api.git.repo :as git-repo]
-   [clojure.tools.logging :as log]))
-
-(defn pull-from-remote
-  "Fetches and merges changes from remote repository.
-
-  Returns status with any conflicts detected."
-  [git-repo github-token]
-  (try
-    (log/info "Pulling changes from remote...")
-    (git-repo/fetch git-repo github-token)
-    (git-repo/pull git-repo github-token)
-    (log/info "Successfully pulled changes from remote")
-    {:status :success
-     :message "Successfully pulled changes from remote"}
-
-    (catch org.eclipse.jgit.api.errors.CheckoutConflictException e
-      (log/warn "Merge conflicts detected during pull")
-      {:status :conflict
-       :message "Merge conflicts detected"
-       :conflicts (parse-conflicts e)
-       :error (ex-message e)})
-
-    (catch Exception e
-      (log/error e "Failed to pull from remote")
-      {:status :error
-       :message "Failed to pull from remote"
-       :error (ex-message e)})))
-
-(defn push-to-remote
-  "Pushes local commits to remote repository."
-  [git-repo github-token]
-  (try
-    (log/info "Pushing changes to remote...")
-    (git-repo/push git-repo github-token)
-    (log/info "Successfully pushed changes to remote")
-    {:status :success
-     :message "Successfully pushed changes to remote"}
-
-    (catch Exception e
-      (log/error e "Failed to push to remote")
-      {:status :error
-       :message "Failed to push to remote"
-       :error (ex-message e)})))
-
-(defn get-sync-status
-  "Returns current sync status (ahead/behind remote)."
-  [git-repo]
-  (let [status (git-repo/status git-repo)]
-    {:ahead (:commits-ahead status)
-     :behind (:commits-behind status)
-     :uncommitted-changes (count (:uncommitted-changes status))
-     :clean? (and (zero? (:commits-ahead status))
-                  (zero? (:commits-behind status))
-                  (empty? (:uncommitted-changes status)))}))
-```
-
-### 3.4 Card Repository Implementation
-
-**File**: `src/bashketball_editor_api/git/cards.clj`
-
-Implement Repository protocol for Git-backed cards:
-
-```clojure
-(ns bashketball-editor-api.git.cards
-  (:require
-   [bashketball-editor-api.git.repo :as git-repo]
-   [bashketball-editor-api.models.protocol :as proto]
-   [clojure.edn :as edn]
-   [clojure.java.io :as io]
-   [malli.core :as m]))
-
-(def Card
-  [:map
-   [:id {:optional true} :uuid]
-   [:set-id :uuid]
-   [:name :string]
-   [:description {:optional true} [:maybe :string]]
-   [:attributes {:optional true} :map]
-   [:created-at {:optional true} inst?]
-   [:updated-at {:optional true} inst?]])
-
-(defn- card-path [set-id card-id]
-  (str "cards/" set-id "/" card-id ".edn"))
-
-(defn- list-cards-in-set [git-repo set-id]
-  (let [set-dir (io/file (:repo-path git-repo) "cards" (str set-id))]
-    (when (.exists set-dir)
-      (filterv #(.endsWith (.getName %) ".edn")
-               (.listFiles set-dir)))))
-
-(defrecord CardRepository [git-repo lock]
-  proto/Repository
-  (find-by [_this criteria]
-    ;; Read from local working tree
-    (when-let [id (:id criteria)]
-      (when-let [set-id (:set-id criteria)]
-        (when-let [content (git-repo/read-file git-repo (card-path set-id id))]
-          (edn/read-string content)))))
-
-  (find-all [_this opts]
-    (if-let [set-id (get-in opts [:where :set-id])]
-      (let [card-files (list-cards-in-set git-repo set-id)]
-        (mapv (fn [file]
-                (edn/read-string (slurp file)))
-              card-files))
-      []))
-
-  (create! [_this data]
-    {:pre [(m/validate Card data)]}
-    (when-not (:writer? git-repo)
-      (throw (ex-info "Repository is read-only" {})))
-    (locking lock
-      ;; Extract user context from data (passed by GraphQL resolver)
-      (let [user-ctx (:_user data)
-            _ (when-not user-ctx
-                (throw (ex-info "User context required for Git operations" {})))
-            id (or (:id data) (java.util.UUID/randomUUID))
-            set-id (:set-id data)
-            now (java.time.Instant/now)
-            ;; Remove user context before storing
-            card (-> data
-                     (dissoc :_user)
-                     (assoc :id id
-                            :created-at (or (:created-at data) now)
-                            :updated-at now))
-            path (card-path set-id id)]
-        ;; Write to working tree
-        (git-repo/write-file git-repo path (pr-str card))
-        ;; Commit with user's credentials
-        (git-repo/commit git-repo
-                        (str "Create card: " (:name card) " [" id "]")
-                        (:name user-ctx)
-                        (:email user-ctx))
-        ;; Push with user's GitHub token
-        (git-repo/push git-repo (:github-token user-ctx))
-        card)))
-
-  (update! [this id data]
-    (when-not (:writer? git-repo)
-      (throw (ex-info "Repository is read-only" {})))
-    (locking lock
-      (let [user-ctx (:_user data)
-            _ (when-not user-ctx
-                (throw (ex-info "User context required for Git operations" {})))]
-        (when-let [set-id (:set-id data)]
-          (when-let [existing (proto/find-by this {:id id :set-id set-id})]
-            (let [updated (-> existing
-                              (merge (dissoc data :_user))
-                              (assoc :updated-at (java.time.Instant/now)))
-                  path (card-path set-id id)]
-              (git-repo/write-file git-repo path (pr-str updated))
-              (git-repo/commit git-repo
-                              (str "Update card: " (:name updated) " [" id "]")
-                              (:name user-ctx)
-                              (:email user-ctx))
-              (git-repo/push git-repo (:github-token user-ctx))
-              updated))))))
-
-  (delete! [this id]
-    ;; Require set-id in data or search all sets (expensive)
-    (throw (ex-info "Delete requires set-id in criteria" {:id id}))))
-
-(defn create-card-repository [git-repo]
-  (->CardRepository git-repo (Object.)))
-```
-
-**Note**: Git-backed repositories have different constraints:
-- Cards require `set-id` for lookups since file path depends on it
-- All instances have local clone for fast reads
-- Only writer instance can create/update/delete
-- Commits are synced to remote via background job
-
-### 3.5 Set Repository Implementation
-
-**File**: `src/bashketball_editor_api/git/sets.clj`
-
-Similar implementation for card sets:
-
-```clojure
-(defrecord SetRepository [git-repo lock author-name author-email]
-  proto/Repository
-  (find-by [_this criteria]
-    (when-let [id (:id criteria)]
-      (let [path (str "sets/" id "/metadata.edn")]
-        (when-let [content (git-repo/read-file git-repo path)]
-          (edn/read-string content)))))
-
-  (find-all [_this opts]
-    (let [sets-dir (io/file (:repo-path git-repo) "sets")]
-      (when (.exists sets-dir)
-        (->> (.listFiles sets-dir)
-             (filter #(.isDirectory %))
-             (keep (fn [dir]
-                     (let [metadata-file (io/file dir "metadata.edn")]
-                       (when (.exists metadata-file)
-                         (edn/read-string (slurp metadata-file))))))
-             vec))))
-
-  (create! [_this data]
-    (when-not (:writer? git-repo)
-      (throw (ex-info "Repository is read-only" {})))
-    (locking lock
-      (let [id (or (:id data) (java.util.UUID/randomUUID))
-            now (java.time.Instant/now)
-            card-set (assoc data
-                            :id id
-                            :created-at (or (:created-at data) now)
-                            :updated-at now)
-            path (str "sets/" id "/metadata.edn")]
-        (git-repo/write-file git-repo path (pr-str card-set))
-        (git-repo/commit git-repo
-                        (str "Create set: " (:name card-set) " [" id "]")
-                        author-name
-                        author-email)
-        card-set)))
-  ;; ... implement update!, delete! similarly
-)
-```
-
-### 3.6 Integrant Configuration
-
-**File**: `src/bashketball_editor_api/system.clj`
-
-Add Integrant components for Git repository:
-
-```clojure
-(defmethod ig/init-key ::git-repo [_ {:keys [config]}]
-  (let [git-config {:repo-path (get-in config [:git :repo-path])
-                    :remote-url (get-in config [:git :remote-url])
-                    :branch (get-in config [:git :branch])
-                    :writer? (get-in config [:git :writer?])}
-        git-repo (git-repo/create-git-repo git-config)]
-    ;; Clone or open repository (uses SSH keys or system git config)
-    (git-repo/clone-or-open git-config)
-    (log/info "Git repository initialized at" (:repo-path git-config))
-    git-repo))
-
-(defmethod ig/halt-key! ::git-repo [_ _repo]
-  ;; Cleanup if needed
-  nil)
-
-(defmethod ig/init-key ::card-repo [_ {:keys [git-repo]}]
-  (cards/create-card-repository git-repo))
-
-(defmethod ig/init-key ::set-repo [_ {:keys [git-repo]}]
-  (sets/create-set-repository git-repo))
-```
-
-### 3.7 Configuration Updates
-
-**File**: `resources/config.edn`
-
-Add Git configuration:
-
-```clojure
-{:git
- {:repo-path #or [#env GIT_REPO_PATH "/data/bashketball-cards"]
-  :remote-url #env GIT_REMOTE_URL
-  :branch #or [#env GIT_BRANCH "main"]
-  :writer? #profile {:dev true
-                     :prod #or [#env GIT_WRITER "false"]}}}
-```
-
-**Note**: Author name and email are no longer in configuration. Instead, each Git commit is
-authored by the authenticated user who made the change, using their name/email from the user
-record. This provides proper attribution in Git history.
-
-### 3.8 Sync GraphQL Mutations
-
-**File**: `src/bashketball_editor_api/graphql/resolvers/mutation.clj`
-
-Add sync mutations for UI:
-
-```clojure
-(gql/defresolver :Mutation :pullFromRemote
-  "Pulls changes from remote Git repository."
-  [:=> [:cat :any :any :any] [:map [:status :keyword] [:message :string]]]
-  [ctx _args _value]
-  (when-not (get-in ctx [:request :authn/authenticated?])
-    (throw (ex-info "Authentication required" {})))
-  (let [user-id (get-in ctx [:request :authn/user-id])
-        user (proto/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
-    (git-sync/pull-from-remote (:git-repo ctx) (:github-token user))))
-
-(gql/defresolver :Mutation :pushToRemote
-  "Pushes local changes to remote Git repository."
-  [:=> [:cat :any :any :any] [:map [:status :keyword] [:message :string]]]
-  [ctx _args _value]
-  (when-not (get-in ctx [:request :authn/authenticated?])
-    (throw (ex-info "Authentication required" {})))
-  (when-not (:writer? (:git-repo ctx))
-    (throw (ex-info "Repository is read-only" {})))
-  (let [user-id (get-in ctx [:request :authn/user-id])
-        user (proto/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
-    (git-sync/push-to-remote (:git-repo ctx) (:github-token user))))
-
-(gql/defresolver :Query :syncStatus
-  "Returns current Git sync status."
-  [:=> [:cat :any :any :any] [:map
-                               [:ahead :int]
-                               [:behind :int]
-                               [:uncommitted-changes :int]
-                               [:clean? :boolean]]]
-  [ctx _args _value]
-  (git-sync/get-sync-status (:git-repo ctx)))
-```
-
-### 3.9 Testing
-
-**Files**:
-- `test/bashketball_editor_api/git/repo_test.clj`
-- `test/bashketball_editor_api/git/cards_test.clj`
-- `test/bashketball_editor_api/git/sets_test.clj`
-- `test/bashketball_editor_api/git/sync_test.clj`
-
-Tests to implement:
-- Git repository operations (clone, read, write, commit)
-- Card CRUD operations with Git backend
-- Set CRUD operations with Git backend
-- Read-only repository enforcement
-- Manual pull/push operations
-- Sync status queries
-- Conflict handling during pull/merge
+### Implemented
+
+- `clj-jgit/clj-jgit {:mvn/version "1.0.2"}` dependency added
+- `src/bashketball_editor_api/git/repo.clj` - Core Git operations (clone-or-open, read/write/delete-file, commit, fetch, pull, push, status, ahead-behind)
+- `src/bashketball_editor_api/git/sync.clj` - Manual sync operations (pull-from-remote, push-to-remote, get-sync-status)
+- `src/bashketball_editor_api/git/cards.clj` - Card repository implementing Repository protocol
+- `src/bashketball_editor_api/git/sets.clj` - Set repository implementing Repository protocol
+- Updated `system.clj` with `::git-repo`, `::card-repo`, `::set-repo` Integrant components
+- Updated `handler.clj` to include repositories in GraphQL context
+- GraphQL mutations: `pullFromRemote`, `pushToRemote`
+- GraphQL query: `syncStatus`
+- CORS middleware for cross-origin frontend requests
+
+### Tests
+
+- `test/bashketball_editor_api/git/repo_test.clj` - Git repository operations
+- `test/bashketball_editor_api/git/cards_test.clj` - Card repository CRUD
+- `test/bashketball_editor_api/git/sets_test.clj` - Set repository CRUD
+- `test/bashketball_editor_api/git/sync_test.clj` - Sync operations
+
+All 19 Git tests pass (49 assertions).
+
+### Key Design Decisions
+
+- **Single writer pattern**: One instance designated as writer via `GIT_WRITER=true`
+- **User attribution**: Git commits use authenticated user's name/email
+- **Per-user credentials**: Push/pull use authenticated user's GitHub OAuth token
+- **Thread-safe writes**: Uses locking for file operations
+- **EDN file format**: Cards at `cards/{set-id}/{card-id}.edn`, sets at `sets/{set-id}/metadata.edn`
+- **Manual sync**: UI-initiated pull/push rather than automatic background sync
+
+See `JGIT_ARCHITECTURE.md` for detailed design documentation.
 
 ---
 
@@ -1217,11 +785,16 @@ Recommended implementation sequence:
 - [x] Logout functionality works
 - [x] GitHub access token stored for Git operations
 
-### Phase 3 🚧 IN PROGRESS
-- [ ] Can read files from GitHub repository
-- [ ] Can write files to GitHub repository
-- [ ] Card repository operations work
-- [ ] Set repository operations work
+### Phase 3 ✅ COMPLETE
+- [x] Git repository initialized (clone-or-open)
+- [x] Can read/write/delete files from local Git repo
+- [x] Card repository operations work (find-by, find-all, create!, update!, delete!)
+- [x] Set repository operations work (find-by, find-all, create!, update!, delete!)
+- [x] Manual sync operations (pullFromRemote, pushToRemote mutations)
+- [x] Sync status query (syncStatus)
+- [x] User attribution in Git commits
+- [x] Per-user GitHub token for push/pull
+- [x] CORS support for cross-origin frontend
 
 ### Phase 4 ⏳ PENDING
 - [ ] All GraphQL queries work
