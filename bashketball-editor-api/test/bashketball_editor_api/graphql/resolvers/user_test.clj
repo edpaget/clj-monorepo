@@ -3,6 +3,7 @@
    [clojure.test :refer [deftest is testing]]
    [bashketball-editor-api.graphql.resolvers.user :as user]
    [bashketball-editor-api.models.protocol :as repo]
+   [com.walmartlabs.lacinia.resolve :as resolve]
    [malli.core :as m]))
 
 (def test-user-id (random-uuid))
@@ -48,7 +49,10 @@
                :user-repo (->MockUserRepo)}
           [_schema resolver] (get user/resolvers [:Query :user])
           result (resolver ctx {:id (str test-user-id)} nil)]
-      (is (= {:errors [{:message "Authentication required"}]} result))))
+      (is (resolve/is-resolver-result? result))
+      (let [wrapped-value (:resolved-value result)]
+        (is (= :error (:behavior wrapped-value)))
+        (is (= "Authentication required" (:message (:data wrapped-value)))))))
 
   (testing "returns user when authenticated"
     (let [ctx {:request {:authn/authenticated? true}
@@ -64,7 +68,10 @@
                :user-repo (->MockUserRepo)}
           [_schema resolver] (get user/resolvers [:Query :users])
           result (resolver ctx {} nil)]
-      (is (= {:errors [{:message "Authentication required"}]} result))))
+      (is (resolve/is-resolver-result? result))
+      (let [wrapped-value (:resolved-value result)]
+        (is (= :error (:behavior wrapped-value)))
+        (is (= "Authentication required" (:message (:data wrapped-value)))))))
 
   (testing "returns users when authenticated"
     (let [ctx {:request {:authn/authenticated? true}

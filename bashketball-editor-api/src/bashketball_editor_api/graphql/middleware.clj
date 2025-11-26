@@ -1,7 +1,9 @@
 (ns bashketball-editor-api.graphql.middleware
   "GraphQL middleware for cross-cutting concerns.
 
-  Provides middleware for authentication, error handling, and logging.")
+  Provides middleware for authentication, error handling, and logging."
+  (:require
+   [com.walmartlabs.lacinia.resolve :as resolve]))
 
 (defn wrap-db-context
   "Middleware that adds database datasource to the GraphQL context."
@@ -20,9 +22,9 @@
 (defn require-authentication
   "Middleware that requires authentication to access a resolver.
 
-  Returns an error if the request is not authenticated."
+  Returns a Lacinia error if the request is not authenticated."
   [resolver]
   (fn [ctx args value]
     (if (get-in ctx [:request :authn/authenticated?])
       (resolver ctx args value)
-      {:errors [{:message "Authentication required"}]})))
+      (resolve/resolve-as nil {:message "Authentication required"}))))

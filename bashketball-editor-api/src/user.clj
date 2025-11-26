@@ -8,6 +8,7 @@
    [bashketball-editor-api.system :as system]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
+   [clojure.tools.namespace.repl :as repl]
    [db.connection-pool :as pool]
    [db.core :as db]
    [db.migrate :as migrate]
@@ -53,6 +54,14 @@
   ([profile]
    (stop)
    (start profile)))
+
+(defn reset
+  "Stops the system, reloads all changed namespaces, and restarts.
+
+  Uses clojure.tools.namespace to refresh changed code before restarting."
+  []
+  (stop)
+  (repl/refresh :after 'user/start))
 
 (defn system
   "Returns the currently running system, or nil if not started."
@@ -157,6 +166,9 @@
 
   ;; Restart the system
   (restart)
+
+  ;; Reload namespaces and restart
+  (reset)
 
   ;; Get the running system
   (system)

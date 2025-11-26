@@ -1,7 +1,8 @@
 (ns bashketball-editor-api.graphql.middleware-test
   (:require
    [clojure.test :refer [deftest is testing]]
-   [bashketball-editor-api.graphql.middleware :as mw]))
+   [bashketball-editor-api.graphql.middleware :as mw]
+   [com.walmartlabs.lacinia.resolve :as resolve]))
 
 (deftest wrap-db-context-test
   (testing "adds db-pool to context"
@@ -56,12 +57,16 @@
           wrapped  (mw/require-authentication resolver)
           ctx      {:request {:authn/authenticated? false}}
           result   (wrapped ctx nil nil)]
-      (is (contains? result :errors))
-      (is (= "Authentication required" (get-in result [:errors 0 :message])))))
+      (is (resolve/is-resolver-result? result))
+      (let [wrapped-value (:resolved-value result)]
+        (is (= :error (:behavior wrapped-value)))
+        (is (= "Authentication required" (:message (:data wrapped-value)))))))
 
   (testing "blocks requests without authentication flag"
     (let [resolver (fn [_ctx _args _value] {:data "success"})
           wrapped  (mw/require-authentication resolver)
           ctx      {:request {}}
           result   (wrapped ctx nil nil)]
-      (is (contains? result :errors)))))
+      (is (resolve/is-resolver-result? result))
+      (let [wrapped-value (:resolved-value result)]
+        (is (= :error (:behavior wrapped-value)))))))
