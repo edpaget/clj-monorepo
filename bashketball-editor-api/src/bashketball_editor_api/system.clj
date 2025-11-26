@@ -7,9 +7,9 @@
    [authn.core :as authn]
    [bashketball-editor-api.auth.github :as gh-auth]
    [bashketball-editor-api.config :as config]
-   [bashketball-editor-api.github.cards :as cards]
-   [bashketball-editor-api.github.client :as gh-client]
-   [bashketball-editor-api.github.sets :as sets]
+   [bashketball-editor-api.git.cards :as git-cards]
+   [bashketball-editor-api.git.repo :as git-repo]
+   [bashketball-editor-api.git.sets :as git-sets]
    [bashketball-editor-api.graphql.schema :as gql-schema]
    [bashketball-editor-api.handler :as handler]
    [bashketball-editor-api.models.session :as session]
@@ -17,6 +17,7 @@
    [bashketball-editor-api.services.auth :as auth-svc]
    [bashketball-editor-api.services.card :as card-svc]
    [bashketball-editor-api.services.set :as set-svc]
+   [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
    [db.migrate :as migrate]
@@ -75,19 +76,26 @@
     :session-cookie-http-only? (get-in config [:session :cookie-http-only?])
     :session-cookie-same-site (get-in config [:session :cookie-same-site])}))
 
-(defmethod ig/init-key ::github-client [_ {:keys [config]}]
-  ;; TODO: Get access token from authenticated user context
-  (gh-client/create-github-client
-   nil
-   (get-in config [:github :repo :owner])
-   (get-in config [:github :repo :name])
-   (get-in config [:github :repo :branch])))
+(defmethod ig/init-key ::git-repo [_ {:keys [config]}]
+  (let [git-config {:repo-path (get-in config [:git :repo-path])
+                    :remote-url (get-in config [:git :remote-url])
+                    :branch (get-in config [:git :branch])
+                    :writer? (get-in config [:git :writer?])}
+        repo (git-repo/create-git-repo git-config)]
+    (when (:remote-url git-config)
+      (git-repo/clone-or-open git-config))
+    (log/info "Git repository initialized at" (:repo-path git-config)
+              "(writer:" (:writer? git-config) ")")
+    repo))
 
-(defmethod ig/init-key ::card-repo [_ {:keys [github-client]}]
-  (cards/create-card-repository github-client))
+(defmethod ig/halt-key! ::git-repo [_ repo]
+  (.close repo))
 
-(defmethod ig/init-key ::set-repo [_ {:keys [github-client]}]
-  (sets/create-set-repository github-client))
+(defmethod ig/init-key ::card-repo [_ {:keys [git-repo]}]
+  (git-cards/create-card-repository git-repo))
+
+(defmethod ig/init-key ::set-repo [_ {:keys [git-repo]}]
+  (git-sets/create-set-repository git-repo))
 
 (defmethod ig/init-key ::card-service [_ {:keys [card-repo]}]
   (card-svc/create-card-service card-repo))
@@ -110,6 +118,9 @@
                                             authenticator
                                             db-pool
                                             user-repo
+                                            git-repo
+                                            card-repo
+                                            set-repo
                                             config]}]
   (handler/create-handler
    resolver-map
@@ -117,6 +128,9 @@
    authenticator
    db-pool
    user-repo
+   git-repo
+   card-repo
+   set-repo
    (:session config)
    config))
 
@@ -151,9 +165,9 @@
    ::authenticator {:auth-service (ig/ref ::auth-service)
                     :session-repo (ig/ref ::session-repo)
                     :config (ig/ref ::config)}
-   ::github-client {:config (ig/ref ::config)}
-   ::card-repo {:github-client (ig/ref ::github-client)}
-   ::set-repo {:github-client (ig/ref ::github-client)}
+   ::git-repo {:config (ig/ref ::config)}
+   ::card-repo {:git-repo (ig/ref ::git-repo)}
+   ::set-repo {:git-repo (ig/ref ::git-repo)}
    ::card-service {:card-repo (ig/ref ::card-repo)}
    ::set-service {:set-repo (ig/ref ::set-repo)
                   :card-repo (ig/ref ::card-repo)}
@@ -164,6 +178,9 @@
               :authenticator (ig/ref ::authenticator)
               :db-pool (ig/ref ::db-pool)
               :user-repo (ig/ref ::user-repo)
+              :git-repo (ig/ref ::git-repo)
+              :card-repo (ig/ref ::card-repo)
+              :set-repo (ig/ref ::set-repo)
               :config (ig/ref ::config)}
    ::server {:handler (ig/ref ::handler)
              :config (ig/ref ::config)}})

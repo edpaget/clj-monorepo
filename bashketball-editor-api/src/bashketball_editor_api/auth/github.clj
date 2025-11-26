@@ -56,9 +56,10 @@
           ;; Convert to OIDC claims
           claims       (gh-claims/github->oidc-claims user-data)
           github-login (:preferred_username claims)
-          ;; Upsert user in database
+          ;; Upsert user in database (include token for Git operations)
           user         (repo/create! user-repo
                                      {:github-login github-login
+                                      :github-token access-token
                                       :email (:email claims)
                                       :avatar-url (:picture claims)
                                       :name (:name claims)})

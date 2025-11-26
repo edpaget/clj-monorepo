@@ -44,16 +44,17 @@
                                   (:expires-at session-data)))
 
                           (:claims session-data)
-                          (assoc :claims (:claims session-data)))
+                          (assoc :claims [:lift (:claims session-data)]))
                    :where [:= :session-id session-id]
                    :returning [:id]})]
       (some? result)))
 
   (delete-session [_this session-id]
-    (pos? (first
-           (db/execute!
-            {:delete-from :sessions
-             :where [:= :session-id session-id]}))))
+    (-> (db/execute-one!
+         {:delete-from :sessions
+          :where [:= :session-id session-id]})
+        :next.jdbc/update-count
+        pos?))
 
   (cleanup-expired [_this]
     (first

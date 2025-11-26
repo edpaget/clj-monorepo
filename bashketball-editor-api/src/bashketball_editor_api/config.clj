@@ -41,9 +41,9 @@
            [:cache-ttl-ms pos-int?]]]
    [:git [:map
           [:repo-path :string]
-          [:remote-url :string]
+          [:remote-url [:maybe :string]]
           [:branch :string]
-          [:writer? :any]]]])
+          [:writer? :boolean]]]])
 
 (defn load-config
   "Loads and validates application configuration.

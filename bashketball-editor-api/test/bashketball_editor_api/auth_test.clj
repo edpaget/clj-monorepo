@@ -3,12 +3,14 @@
   (:require
    [authn.core :as authn]
    [authn.protocol :as authn-proto]
+   [bashketball-editor-api.auth.github :as gh-auth]
    [bashketball-editor-api.handler :as handler]
    [bashketball-editor-api.models.protocol :as proto]
    [bashketball-editor-api.models.user :as user]
    [bashketball-editor-api.services.auth :as auth-svc]
    [bashketball-editor-api.test-utils :refer [with-clean-db with-db with-system]]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
+   [clojure.test :refer [deftest is testing use-fixtures]]
+   [oidc-github.claims :as gh-claims]))
 
 (use-fixtures :once with-system)
 (use-fixtures :each with-clean-db)
@@ -59,7 +61,16 @@
           (is (some? user))
           (is (= "testuser" (:github-login user)))
           (is (= "testuser@example.com" (:email user)))
-          (is (= "Test User" (:name user))))))))
+          (is (= "Test User" (:name user)))))))
+
+  (testing "GitHub access token is stored with user for Git operations"
+    (with-db
+      (let [authenticator (create-test-authenticator)
+            _session-id   (authn/authenticate authenticator {:code "test-code"})
+            user-repo     (user/create-user-repository)
+            user          (proto/find-by user-repo {:github-login "testuser"})]
+        (is (= "test-access-token" (:github-token user))
+            "GitHub access token should be stored in user record")))))
 
 (deftest authenticate-with-invalid-code-test
   (testing "Authenticating with invalid code returns nil"
@@ -163,3 +174,37 @@
 
         ;; Verify session was deleted
         (is (nil? (authn/get-session authenticator session-id)))))))
+
+(deftest create-success-handler-saves-github-token-test
+  (testing "OAuth success handler stores GitHub access token in user record"
+    (with-db
+      (let [user-repo     (user/create-user-repository)
+            authenticator (create-test-authenticator)
+            success-handler (gh-auth/create-success-handler
+                             user-repo
+                             authenticator
+                             "http://localhost:3001/")]
+        ;; Simulate OAuth callback with token response
+        ;; fetch-all-user-data returns {:profile ... :emails ... :orgs ...}
+        (with-redefs [gh-claims/fetch-all-user-data
+                      (fn [_token _opts]
+                        {:profile {:login "oauth-test-user"
+                                   :email "oauth@example.com"
+                                   :avatar_url "https://github.com/oauth-test.png"
+                                   :name "OAuth Test User"
+                                   :id 99999}
+                         :emails [{:email "oauth@example.com"
+                                   :primary true
+                                   :verified true}]
+                         :orgs []})]
+          (let [token-response {:access_token "github-oauth-token-12345"}
+                response       (success-handler {} token-response)]
+            ;; Verify redirect response
+            (is (= 302 (:status response)))
+
+            ;; Verify user was created with GitHub token
+            (let [user (proto/find-by user-repo {:github-login "oauth-test-user"})]
+              (is (some? user))
+              (is (= "oauth-test-user" (:github-login user)))
+              (is (= "github-oauth-token-12345" (:github-token user))
+                  "GitHub access token should be stored for Git operations"))))))))

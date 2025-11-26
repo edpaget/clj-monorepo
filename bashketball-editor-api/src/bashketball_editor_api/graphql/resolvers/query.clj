@@ -4,6 +4,7 @@
   Contains general query resolvers. User-specific resolvers that require
   authentication are in [[bashketball-editor-api.graphql.resolvers.user]]."
   (:require
+   [bashketball-editor-api.git.sync :as git-sync]
    [bashketball-editor-api.models.protocol :as repo]
    [graphql-server.core :as gql]))
 
@@ -34,6 +35,22 @@
   (when-let [user-id (get-in ctx [:request :authn/user-id])]
     (when-let [user (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
       (transform-user user))))
+
+(def SyncStatus
+  "Malli schema for Git sync status."
+  [:map {:graphql/type :SyncStatus}
+   [:ahead :int]
+   [:behind :int]
+   [:uncommittedChanges :int]
+   [:isClean :boolean]])
+
+(gql/defresolver :Query :syncStatus
+  "Returns current Git repository sync status.
+
+  Shows commits ahead/behind remote and uncommitted changes count."
+  [:=> [:cat :any :any :any] SyncStatus]
+  [ctx _args _value]
+  (git-sync/get-sync-status (:git-repo ctx)))
 
 (gql/def-resolver-map
   "Resolver map containing all Query resolvers.")

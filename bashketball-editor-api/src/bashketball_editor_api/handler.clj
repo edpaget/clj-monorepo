@@ -67,7 +67,8 @@
 
   Wraps the routes with OIDC OAuth, GraphQL, authentication, session, JSON,
   and database middleware."
-  [resolver-map github-oidc-client authenticator db-pool user-repo session-config config]
+  [resolver-map github-oidc-client authenticator db-pool user-repo
+   git-repo card-repo set-repo session-config config]
   (let [success-redirect-uri (get-in config [:github :oauth :success-redirect-uri])]
     (-> (routes authenticator)
         (gql-ring/graphql-middleware
@@ -76,7 +77,10 @@
           :context-fn (fn [request]
                         {:request request
                          :db-pool db-pool
-                         :user-repo user-repo})
+                         :user-repo user-repo
+                         :git-repo git-repo
+                         :card-repo card-repo
+                         :set-repo set-repo})
           :enable-graphiql? true})
         (oidc-ring/oidc-middleware
          {:client github-oidc-client

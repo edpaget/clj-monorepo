@@ -42,10 +42,11 @@
   :cache-ttl-ms 300000}
 
  :git
- {:repo-path #or [#env GIT_REPO_PATH "/data/bashketball-cards"]
-  :remote-url #profile {:test "https://github.com/test/test-repo.git"
+ {:repo-path #profile {:test "/tmp/bashketball-cards-test"
+                       :default #or [#env GIT_REPO_PATH "/tmp/bashketball-cards"]}
+  :remote-url #profile {:test nil
                         :default #env GIT_REMOTE_URL}
   :branch #or [#env GIT_BRANCH "main"]
   :writer? #profile {:dev true
-                     :test false
-                     :prod #or [#env GIT_WRITER "false"]}}}
+                     :test true
+                     :prod false}}}
