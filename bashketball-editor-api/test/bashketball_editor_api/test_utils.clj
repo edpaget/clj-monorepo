@@ -14,12 +14,20 @@
   nil)
 
 (defn start-test-system!
-  "Starts a test system with test configuration."
-  []
-  (let [sys (system/start-system :test)]
-    (binding [db/*datasource* (::system/db-pool sys)]
-      (migrate/migrate))
-    sys))
+  "Starts a test system with test configuration.
+
+  By default excludes the HTTP server to avoid port conflicts.
+  Pass `{:include-server? true}` to start the server on an auto-selected port."
+  ([]
+   (start-test-system! {}))
+  ([{:keys [include-server?]}]
+   (let [opts (if include-server?
+                {:port 0}
+                {:exclude-keys #{::system/server}})
+         sys  (system/start-system :test opts)]
+     (binding [db/*datasource* (::system/db-pool sys)]
+       (migrate/migrate))
+     sys)))
 
 (defn stop-test-system!
   "Stops the test system."
@@ -27,7 +35,8 @@
   (system/stop-system sys))
 
 (defn with-system
-  "Fixture that starts and stops the test system around tests."
+  "Fixture that starts and stops the test system around tests.
+  Does not start the HTTP server by default."
   [f]
   (let [sys (start-test-system!)]
     (binding [*system* sys]
@@ -35,6 +44,24 @@
         (f)
         (finally
           (stop-test-system! sys))))))
+
+(defn with-server
+  "Fixture that starts and stops the test system with HTTP server.
+  Uses port 0 to auto-select an available port."
+  [f]
+  (let [sys (start-test-system! {:include-server? true})]
+    (binding [*system* sys]
+      (try
+        (f)
+        (finally
+          (stop-test-system! sys))))))
+
+(defn server-port
+  "Returns the port the test server is running on.
+  Only valid when system was started with `{:include-server? true}`."
+  []
+  (when-let [server (::system/server *system*)]
+    (-> server .getConnectors first .getLocalPort)))
 
 (defn with-clean-db
   "Fixture that cleans the database before each test."

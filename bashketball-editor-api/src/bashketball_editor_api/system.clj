@@ -120,8 +120,8 @@
    (:session config)
    config))
 
-(defmethod ig/init-key ::server [_ {:keys [handler config]}]
-  (let [port (get-in config [:server :port])
+(defmethod ig/init-key ::server [_ {:keys [handler config port-override]}]
+  (let [port (or port-override (get-in config [:server :port]))
         host (get-in config [:server :host])]
     (jetty/run-jetty handler
                      {:port port
@@ -169,11 +169,20 @@
              :config (ig/ref ::config)}})
 
 (defn start-system
-  "Starts the application system."
+  "Starts the application system.
+
+  Accepts an optional `opts` map with:
+  - `:exclude-keys` - set of component keys to exclude from initialization
+  - `:port` - override the server port (use 0 for auto-select)"
   ([]
    (start-system :dev))
   ([profile]
-   (ig/init (system-config profile))))
+   (start-system profile {}))
+  ([profile {:keys [exclude-keys port]}]
+   (let [config (cond-> (system-config profile)
+                  exclude-keys (as-> cfg (apply dissoc cfg exclude-keys))
+                  port         (assoc-in [::server :port-override] port))]
+     (ig/init config))))
 
 (defn stop-system
   "Stops the application system."
