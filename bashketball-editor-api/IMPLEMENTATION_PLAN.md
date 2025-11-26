@@ -1,6 +1,6 @@
 # bashketball-editor-api Implementation Plan
 
-This document outlines the complete implementation plan for the bashketball-editor-api GraphQL server. Phase 1 (Implementation Skeleton) is complete. This document details the remaining phases.
+This document outlines the complete implementation plan for the bashketball-editor-api GraphQL server.
 
 ## Phase 1: Implementation Skeleton ✅ COMPLETE
 
@@ -16,7 +16,19 @@ The skeleton implementation provides:
 - Testing infrastructure with fixtures
 - Integration with existing monorepo packages
 
-## Phase 2: Authentication & User Management
+## Phase 2: Authentication & User Management ✅ COMPLETE
+
+**Status**: Complete
+
+Implemented:
+- GitHub OAuth flow via `oidc-github` and `authn` libraries
+- User creation/upsert from GitHub profile data
+- Session management with cookie-based storage
+- GitHub access token storage for Git operations
+- Session refresh middleware
+- User GraphQL queries (`me`, `user`, `users`)
+- Logout handler
+- Comprehensive auth tests
 
 **Goal**: Implement complete GitHub OAuth flow and user management
 
@@ -142,9 +154,38 @@ Add:
 
 ---
 
-## Phase 3: Git Repository Integration (JGit)
+## Phase 3: Git Repository Integration (JGit) 🚧 IN PROGRESS
+
+**Status**: Skeleton files created, JGit implementation not yet started
 
 **Goal**: Implement Git-backed storage for cards and sets using JGit with single writer pattern
+
+### Current State
+
+Skeleton files created (stub implementations):
+- `src/bashketball_editor_api/github/client.clj` - Will be replaced with JGit repo component
+- `src/bashketball_editor_api/github/cards.clj` - Card repository skeleton
+- `src/bashketball_editor_api/github/sets.clj` - Set repository skeleton
+- `src/bashketball_editor_api/services/card.clj` - Card service skeleton
+- `src/bashketball_editor_api/services/set.clj` - Set service skeleton
+
+Test skeletons:
+- `test/bashketball_editor_api/github/client_test.clj`
+- `test/bashketball_editor_api/github/cards_test.clj`
+- `test/bashketball_editor_api/github/sets_test.clj`
+- `test/bashketball_editor_api/services/card_test.clj`
+- `test/bashketball_editor_api/services/set_test.clj`
+
+See `JGIT_ARCHITECTURE.md` for detailed JGit design.
+
+### Remaining Work
+
+1. Add clj-jgit dependency
+2. Implement GitRepo component (clone, read, write, commit, push)
+3. Implement CardRepository with JGit backend
+4. Implement SetRepository with JGit backend
+5. Wire up repositories in Integrant system
+6. Add manual sync GraphQL mutations (pull/push)
 
 ### 3.1 Add JGit Dependency
 
@@ -1167,31 +1208,34 @@ Recommended implementation sequence:
 
 ## Success Criteria
 
-### Phase 2
-- [ ] Users can authenticate via GitHub OAuth
-- [ ] User profiles are created/updated from GitHub data
-- [ ] Sessions persist across requests
-- [ ] `me` query returns authenticated user
+### Phase 2 ✅ COMPLETE
+- [x] Users can authenticate via GitHub OAuth
+- [x] User profiles are created/updated from GitHub data
+- [x] Sessions persist across requests
+- [x] `me` query returns authenticated user
+- [x] `user` and `users` queries work
+- [x] Logout functionality works
+- [x] GitHub access token stored for Git operations
 
-### Phase 3
+### Phase 3 🚧 IN PROGRESS
 - [ ] Can read files from GitHub repository
 - [ ] Can write files to GitHub repository
 - [ ] Card repository operations work
 - [ ] Set repository operations work
 
-### Phase 4
+### Phase 4 ⏳ PENDING
 - [ ] All GraphQL queries work
 - [ ] All GraphQL mutations work
 - [ ] Proper error messages returned
 - [ ] Authentication required for mutations
 
-### Phase 5
+### Phase 5 ⏳ PENDING
 - [ ] Input validation works correctly
 - [ ] Business rules enforced
 - [ ] Error handling is comprehensive
 - [ ] Transactions work properly
 
-### Phase 6
+### Phase 6 ⏳ PENDING
 - [ ] Application runs in production
 - [ ] Monitoring and logging in place
 - [ ] Security headers configured

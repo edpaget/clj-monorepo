@@ -1,5 +1,8 @@
 (ns bashketball-editor-api.graphql.resolvers.query
-  "GraphQL Query resolvers."
+  "GraphQL Query resolvers.
+
+  Contains general query resolvers. User-specific resolvers that require
+  authentication are in [[bashketball-editor-api.graphql.resolvers.user]]."
   (:require
    [bashketball-editor-api.models.protocol :as repo]
    [graphql-server.core :as gql]))
@@ -28,32 +31,9 @@
   "Returns the currently authenticated user."
   [:=> [:cat :any :any :any] [:maybe User]]
   [ctx _args _value]
-  (prn (:request ctx))
   (when-let [user-id (get-in ctx [:request :authn/user-id])]
     (when-let [user (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
       (transform-user user))))
-
-(gql/defresolver :Query :user
-  "Fetches a user by ID or GitHub login."
-  [:=> [:cat :any [:map [:id {:optional true} :string]
-                   [:github-login {:optional true} :string]] :any]
-   [:maybe User]]
-  [ctx args _value]
-  (let [criteria (cond
-                   (:id args) {:id (parse-uuid (:id args))}
-                   (:github-login args) {:github-login (:github-login args)}
-                   :else nil)]
-    (when criteria
-      (when-let [user (repo/find-by (:user-repo ctx) criteria)]
-        (transform-user user)))))
-
-(gql/defresolver :Query :users
-  "Lists all users with optional filtering."
-  [:=> [:cat :any [:map {:optional true} [:limit {:optional true} :int]] :any]
-   [:vector User]]
-  [ctx args _value]
-  (let [users (repo/find-all (:user-repo ctx) args)]
-    (mapv transform-user users)))
 
 (gql/def-resolver-map
   "Resolver map containing all Query resolvers.")
