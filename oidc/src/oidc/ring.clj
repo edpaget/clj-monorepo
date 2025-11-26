@@ -3,7 +3,7 @@
 
   Provides middleware that handles OIDC authentication routes automatically,
   including login initiation, callback handling, and logout. Uses Ring sessions
-  to store state, nonce, and tokens."
+  to store state and nonce during the OAuth flow."
   (:require
    [cheshire.core :as json]
    [clojure.string :as str]
@@ -66,9 +66,10 @@
   "Handles the OAuth callback route.
 
   Validates the state parameter against the session, exchanges the authorization
-  code for tokens, optionally verifies the ID token, and stores the tokens in
-  the session. On success, calls the success-fn with the request and token
-  response. On error, calls the error-fn with the request and error information."
+  code for tokens, and optionally verifies the ID token. On success, calls the
+  success-fn with the request and token response, returning its response directly.
+  The success-fn is responsible for handling the tokens (e.g., storing session info).
+  On error, calls the error-fn with the request and error information."
   [client {:keys [success-fn error-fn verify-id-token?]
            :or {success-fn (fn [_req _tokens]
                              (-> (response/redirect "/")
@@ -121,11 +122,10 @@
                 (when (and session-nonce (not= (:nonce claims) session-nonce))
                   (throw (ex-info "Nonce mismatch" {:type :nonce-mismatch})))))
 
-            ;; Store tokens in session and call success-fn
+            ;; Call success-fn and clean up OIDC state from session
             (let [response (success-fn request token-response)]
-              (assoc response :session (-> (:session request)
-                                           (dissoc ::state ::nonce)
-                                           (assoc ::tokens token-response)))))
+              (update response :session #(-> (or % (:session request))
+                                             (dissoc ::state ::nonce)))))
           (catch Exception e
             (error-fn request (or (ex-message e) "Token exchange failed"))))))))
 
@@ -228,11 +228,17 @@
   "Middleware that adds OIDC tokens from session to the request.
 
   Adds `:oidc/tokens` key to the request containing the token response from
-  the session if present. This allows downstream handlers to access tokens
-  without directly accessing the session.
+  the session if present. This only works if your success-fn stores tokens
+  in the session under `::oidc.ring/tokens`.
 
   Example:
 
+      ;; In your success-fn, store tokens:
+      (fn [request token-response]
+        (-> (response/redirect \"/dashboard\")
+            (assoc :session {:oidc.ring/tokens token-response})))
+
+      ;; Then use wrap-oidc-tokens to access them:
       (defn my-handler [request]
         (if-let [access-token (get-in request [:oidc/tokens :access_token])]
           {:status 200 :body (str \"Authenticated with token: \" access-token)}

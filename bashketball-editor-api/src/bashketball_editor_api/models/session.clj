@@ -17,7 +17,7 @@
        {:insert-into :sessions
         :values [{:user-id [:cast user-id :uuid]
                   :session-id session-id
-                  :claims claims
+                  :claims [:lift claims]
                   :expires-at (java.time.Instant/ofEpochMilli expires-at)
                   :created-at (java.time.Instant/ofEpochMilli now)}]})
       session-id))

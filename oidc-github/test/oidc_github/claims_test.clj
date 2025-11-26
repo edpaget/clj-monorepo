@@ -1,5 +1,6 @@
 (ns oidc-github.claims-test
   (:require
+   [clj-http.client :as http]
    [clojure.test :refer [deftest is testing]]
    [oidc-github.claims :as claims]))
 
@@ -81,7 +82,15 @@
                      :orgs []}
           claims    (claims/github->oidc-claims user-data)]
       (is (nil? (:email claims)))
-      (is (nil? (:email_verified claims))))))
+      (is (nil? (:email_verified claims)))))
+
+  (testing "handles nil emails and orgs (when scopes not granted)"
+    (let [user-data {:profile sample-profile}
+          claims    (claims/github->oidc-claims user-data)]
+      (is (= "12345" (:sub claims)))
+      (is (= "octocat" (:preferred_username claims)))
+      (is (nil? (:email claims)))
+      (is (nil? (:github_orgs claims))))))
 
 (deftest filter-by-scope-test
   (let [all-claims {:sub "123"
@@ -146,3 +155,110 @@
   (testing "creates cache with TTL"
     (let [cache (claims/create-cache 1000)]
       (is (some? cache)))))
+
+(deftest parse-oauth-scopes-test
+  (testing "parses comma-separated scopes"
+    (is (= #{"user:email" "read:org"}
+           (claims/parse-oauth-scopes {"X-OAuth-Scopes" "user:email, read:org"}))))
+
+  (testing "handles scopes without spaces"
+    (is (= #{"user" "repo"}
+           (claims/parse-oauth-scopes {"X-OAuth-Scopes" "user,repo"}))))
+
+  (testing "handles single scope"
+    (is (= #{"read:user"}
+           (claims/parse-oauth-scopes {"X-OAuth-Scopes" "read:user"}))))
+
+  (testing "returns nil when header is missing"
+    (is (nil? (claims/parse-oauth-scopes {}))))
+
+  (testing "handles empty string"
+    (is (= #{} (claims/parse-oauth-scopes {"X-OAuth-Scopes" ""})))))
+
+(deftest has-email-scope-test
+  (testing "returns true for user scope"
+    (is (true? (claims/has-email-scope? #{"user"}))))
+
+  (testing "returns true for user:email scope"
+    (is (true? (claims/has-email-scope? #{"user:email"}))))
+
+  (testing "returns false when no email scope"
+    (is (false? (claims/has-email-scope? #{"read:org"}))))
+
+  (testing "returns false for nil scopes"
+    (is (false? (claims/has-email-scope? nil))))
+
+  (testing "returns false for empty scopes"
+    (is (false? (claims/has-email-scope? #{})))))
+
+(deftest has-org-scope-test
+  (testing "returns true for read:org scope"
+    (is (true? (claims/has-org-scope? #{"read:org"}))))
+
+  (testing "returns true for admin:org scope"
+    (is (true? (claims/has-org-scope? #{"admin:org"}))))
+
+  (testing "returns false when no org scope"
+    (is (false? (claims/has-org-scope? #{"user:email"}))))
+
+  (testing "returns false for nil scopes"
+    (is (false? (claims/has-org-scope? nil))))
+
+  (testing "returns false for empty scopes"
+    (is (false? (claims/has-org-scope? #{})))))
+
+(deftest fetch-all-user-data-test
+  (testing "fetches only profile when no email or org scopes"
+    (let [calls (atom [])]
+      (with-redefs [http/get (fn [url _opts]
+                               (swap! calls conj url)
+                               {:headers {"X-OAuth-Scopes" "read:user"}
+                                :body sample-profile})]
+        (let [result (claims/fetch-all-user-data "token" nil)]
+          (is (= 1 (count @calls)))
+          (is (= sample-profile (:profile result)))
+          (is (nil? (:emails result)))
+          (is (nil? (:orgs result)))))))
+
+  (testing "fetches profile and emails with user:email scope"
+    (let [calls (atom [])]
+      (with-redefs [http/get (fn [url _opts]
+                               (swap! calls conj url)
+                               (if (re-find #"/user/emails" url)
+                                 {:body sample-emails}
+                                 {:headers {"X-OAuth-Scopes" "read:user, user:email"}
+                                  :body sample-profile}))]
+        (let [result (claims/fetch-all-user-data "token" nil)]
+          (is (= 2 (count @calls)))
+          (is (= sample-profile (:profile result)))
+          (is (= sample-emails (:emails result)))
+          (is (nil? (:orgs result)))))))
+
+  (testing "fetches profile and orgs with read:org scope"
+    (let [calls (atom [])]
+      (with-redefs [http/get (fn [url _opts]
+                               (swap! calls conj url)
+                               (if (re-find #"/user/orgs" url)
+                                 {:body sample-orgs}
+                                 {:headers {"X-OAuth-Scopes" "read:user, read:org"}
+                                  :body sample-profile}))]
+        (let [result (claims/fetch-all-user-data "token" nil)]
+          (is (= 2 (count @calls)))
+          (is (= sample-profile (:profile result)))
+          (is (nil? (:emails result)))
+          (is (= sample-orgs (:orgs result)))))))
+
+  (testing "fetches all data with full scopes"
+    (let [calls (atom [])]
+      (with-redefs [http/get (fn [url _opts]
+                               (swap! calls conj url)
+                               (cond
+                                 (re-find #"/user/emails" url) {:body sample-emails}
+                                 (re-find #"/user/orgs" url)   {:body sample-orgs}
+                                 :else {:headers {"X-OAuth-Scopes" "user, read:org"}
+                                        :body sample-profile}))]
+        (let [result (claims/fetch-all-user-data "token" nil)]
+          (is (= 3 (count @calls)))
+          (is (= sample-profile (:profile result)))
+          (is (= sample-emails (:emails result)))
+          (is (= sample-orgs (:orgs result))))))))

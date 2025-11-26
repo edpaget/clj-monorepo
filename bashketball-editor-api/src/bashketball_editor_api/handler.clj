@@ -11,7 +11,8 @@
    [oidc.ring :as oidc-ring]
    [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
    [ring.middleware.params :refer [wrap-params]]
-   [ring.middleware.session :refer [wrap-session]]))
+   [ring.middleware.session :refer [wrap-session]]
+   [ring.middleware.session.cookie :refer [cookie-store]]))
 
 (defn health-handler
   "Health check endpoint."
@@ -61,16 +62,6 @@
     (binding [db/*datasource* db-pool]
       (handler request))))
 
-(defn wrap-session-refresh
-  "Middleware that refreshes the session on each request.
-
-  Extends the session expiration time to keep active users logged in."
-  [handler authenticator]
-  (fn [request]
-    (when-let [session-id (get-in request [:session :authn/session-id])]
-      (authn/refresh-session authenticator session-id))
-    (handler request)))
-
 (defn create-handler
   "Creates the Ring handler with all middleware.
 
@@ -97,9 +88,10 @@
                                        success-redirect-uri)
                           :verify-id-token? false}})
         (gh-auth/mock-discovery)
-        (wrap-session-refresh authenticator)
+        (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)
-        (wrap-session {:cookie-name (:cookie-name session-config)
+        (wrap-session {:store (cookie-store {:key (:cookie-secret session-config)})
+                       :cookie-name (:cookie-name session-config)
                        :cookie-attrs {:http-only (:cookie-http-only? session-config)
                                       :secure (:cookie-secure? session-config)
                                       :same-site (:cookie-same-site session-config)}})

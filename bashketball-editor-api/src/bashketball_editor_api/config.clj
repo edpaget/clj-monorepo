@@ -31,6 +31,7 @@
    [:session [:map
               [:ttl-ms pos-int?]
               [:cookie-name :string]
+              [:cookie-secret :string]
               [:cookie-secure? :boolean]
               [:cookie-http-only? :boolean]
               [:cookie-same-site [:enum :strict :lax :none]]]]

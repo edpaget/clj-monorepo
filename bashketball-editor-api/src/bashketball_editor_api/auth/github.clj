@@ -79,4 +79,4 @@
   [handler]
   (fn [request]
     ;; Store mock discovery in request for oidc.ring to use
-    (handler (assoc request ::discovery github-discovery-doc))))
+    (handler (assoc request :oidc.ring/discovery github-discovery-doc))))

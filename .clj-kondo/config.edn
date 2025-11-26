@@ -1,1 +1,5 @@
-{:lint-as {uix.core/defui clj-kondo.lint-as/def-catch-all}}
+{:lint-as {uix.core/defui clj-kondo.lint-as/def-catch-all
+            graphql-server.core/defresolver clj-kondo.lint-as/def-catch-all
+            graphql-server.core/def-resolver-map clj-kondo.lint-as/def-catch-all}
+ :linters {:unresolved-var {:exclude [bashketball-editor-api.graphql.resolvers.query/resolvers
+                                       bashketball-editor-api.graphql.resolvers.mutation/resolvers]}}}

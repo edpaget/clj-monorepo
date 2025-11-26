@@ -94,7 +94,7 @@
       (is (= 401 (:status response))))))
 
 (deftest callback-handler-success-test
-  (testing "Callback handler exchanges code and stores tokens"
+  (testing "Callback handler exchanges code and calls success-fn"
     (with-redefs [discovery/fetch-discovery-document (constantly test-discovery-doc)
                   auth/exchange-code                 (fn [_endpoint _code _client-id _secret _redirect _opts]
                                                        {:access_token "test-access-token"
@@ -120,9 +120,34 @@
         (is (= "/dashboard" (get-in response [:headers "Location"])))
         (is @success-called)
         (is (= "test-access-token" (get-in @success-called [:tokens :access_token])))
-        ;; Verify tokens stored in session
-        (is (= "test-access-token" (get-in response [:session ::oidc-ring/tokens :access_token])))
-        ;; Verify state and nonce cleared
+        ;; Verify state and nonce cleared from session
+        (is (nil? (get-in response [:session ::oidc-ring/state])))
+        (is (nil? (get-in response [:session ::oidc-ring/nonce]))))))
+
+  (testing "Callback handler preserves session set by success-fn"
+    (with-redefs [discovery/fetch-discovery-document (constantly test-discovery-doc)
+                  auth/exchange-code                 (fn [_endpoint _code _client-id _secret _redirect _opts]
+                                                       {:access_token "test-access-token"
+                                                        :token_type "Bearer"})]
+      (let [handler  (oidc-ring/callback-handler
+                      test-client
+                      {:success-fn (fn [_req _tokens]
+                                     {:status 302
+                                      :headers {"Location" "/dashboard"}
+                                      :session {:user-id "123"
+                                                :custom-key "custom-value"}})
+                       :verify-id-token? false})
+            request  {:request-method :get
+                      :uri "/auth/callback"
+                      :params {"code" "test-code"
+                               "state" "test-state"}
+                      :session {::oidc-ring/state "test-state"
+                                ::oidc-ring/nonce "test-nonce"}}
+            response (handler request)]
+        ;; Verify success-fn's session is preserved
+        (is (= "123" (get-in response [:session :user-id])))
+        (is (= "custom-value" (get-in response [:session :custom-key])))
+        ;; Verify state and nonce still cleared
         (is (nil? (get-in response [:session ::oidc-ring/state])))
         (is (nil? (get-in response [:session ::oidc-ring/nonce])))))))
 

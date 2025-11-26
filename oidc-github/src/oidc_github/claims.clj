@@ -6,7 +6,8 @@
   (:require
    [clj-http.client :as http]
    [clojure.core.cache.wrapped :as cache]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.tools.logging :as log]))
 
 (def ^:private default-base-url "https://api.github.com")
 
@@ -22,24 +23,59 @@
          path (if (str/starts-with? path "/") path (str "/" path))]
      (str base path))))
 
+(defn- http-get*
+  "Makes an authenticated GET request to GitHub API.
+
+  Returns the full response map including `:body` and `:headers`."
+  [url access-token]
+  (try
+    (http/get url
+              {:headers {"Authorization" (str "Bearer " access-token)
+                         "Accept" "application/vnd.github+json"
+                         "X-GitHub-Api-Version" "2022-11-28"}
+               :as :json
+               :throw-exceptions true})
+    (catch Exception e
+      (log/error e "GitHub API request failed" {:url url})
+      (throw (ex-info "GitHub API request failed"
+                      {:url url
+                       :error (.getMessage e)}
+                      e)))))
+
 (defn- http-get
   "Makes an authenticated GET request to GitHub API.
 
   Returns the parsed JSON response body or throws on error."
   [url access-token]
-  (try
-    (let [response (http/get url
-                             {:headers {"Authorization" (str "Bearer " access-token)
-                                        "Accept" "application/vnd.github+json"
-                                        "X-GitHub-Api-Version" "2022-11-28"}
-                              :as :json
-                              :throw-exceptions true})]
-      (:body response))
-    (catch Exception e
-      (throw (ex-info "GitHub API request failed"
-                      {:url url
-                       :error (.getMessage e)}
-                      e)))))
+  (:body (http-get* url access-token)))
+
+(defn parse-oauth-scopes
+  "Parses the X-OAuth-Scopes header into a set of scope strings.
+
+  GitHub returns granted scopes as a comma-separated string in the
+  `X-OAuth-Scopes` response header. Returns nil if header is not present."
+  [headers]
+  (when-let [scopes-header (get headers "X-OAuth-Scopes")]
+    (->> (str/split scopes-header #",")
+         (map str/trim)
+         (remove str/blank?)
+         set)))
+
+(defn has-email-scope?
+  "Returns true if the scopes include access to user emails.
+
+  Email access is granted by either `user` (full user scope) or
+  `user:email` (email-only scope)."
+  [scopes]
+  (boolean (and scopes (some scopes ["user" "user:email"]))))
+
+(defn has-org-scope?
+  "Returns true if the scopes include access to user organizations.
+
+  Org access is granted by either `read:org` (read-only) or
+  `admin:org` (full admin access)."
+  [scopes]
+  (boolean (and scopes (some scopes ["read:org" "admin:org"]))))
 
 (defn fetch-user-profile
   "Fetches user profile data from GitHub API.
@@ -70,16 +106,23 @@
    (http-get (github-api-url enterprise-url "/user/orgs") access-token)))
 
 (defn fetch-all-user-data
-  "Fetches all user data from GitHub API in a single call.
+  "Fetches user data from GitHub API based on granted token scopes.
 
-  Returns a map with `:profile`, `:emails`, and `:orgs` keys. This makes three
-  API calls to GitHub, so it's recommended to cache the results."
+  Returns a map with `:profile` (always fetched), `:emails` (if `user` or `user:email`
+  scope), and `:orgs` (if `read:org` or `admin:org` scope) keys. Checks the
+  `X-OAuth-Scopes` header from the initial profile request to determine which
+  additional endpoints to call."
   ([access-token]
    (fetch-all-user-data access-token nil))
   ([access-token enterprise-url]
-   {:profile (fetch-user-profile access-token enterprise-url)
-    :emails (fetch-user-emails access-token enterprise-url)
-    :orgs (fetch-user-orgs access-token enterprise-url)}))
+   (let [profile-response (http-get* (github-api-url enterprise-url "/user") access-token)
+         scopes           (parse-oauth-scopes (:headers profile-response))]
+     (cond-> {:profile (:body profile-response)}
+       (has-email-scope? scopes)
+       (assoc :emails (fetch-user-emails access-token enterprise-url))
+
+       (has-org-scope? scopes)
+       (assoc :orgs (fetch-user-orgs access-token enterprise-url))))))
 
 (defn primary-verified-email
   "Extracts the primary verified email from a list of email maps.

@@ -29,6 +29,7 @@
  :session
  {:ttl-ms #long #or [#env SESSION_TTL_MS 86400000]
   :cookie-name "bashketball-session"
+  :cookie-secret #or [#env SESSION_COOKIE_SECRET "dev-secret-16byt"]
   :cookie-secure? #profile {:dev false
                             :test false
                             :prod true}

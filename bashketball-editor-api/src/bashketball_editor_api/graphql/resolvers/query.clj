@@ -28,6 +28,7 @@
   "Returns the currently authenticated user."
   [:=> [:cat :any :any :any] [:maybe User]]
   [ctx _args _value]
+  (prn (:request ctx))
   (when-let [user-id (get-in ctx [:request :authn/user-id])]
     (when-let [user (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
       (transform-user user))))
