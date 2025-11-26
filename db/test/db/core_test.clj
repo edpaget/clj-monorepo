@@ -17,7 +17,7 @@
 ;; Use fixtures from the test-utils namespace
 (def ^:private db-url "jdbc:postgresql://localhost:5432/test_db?user=postgres&password=postgres")
 (use-fixtures :once (db.tu/db-fixture {:db-url db-url
-                                       :migrations (r.next-jdbc/load-resources "migrations")}))
+                                       :migrations (r.next-jdbc/load-resources "db-migrations")}))
 (use-fixtures :each db.tu/rollback-fixture)
 
 ;; --- Helper ---

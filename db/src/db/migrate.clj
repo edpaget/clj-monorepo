@@ -8,17 +8,22 @@
 
 (def ^:private ^:dynamic *ragtime-config* nil)
 
+(def ^:dynamic *migrations-path*
+  "Resource path for migrations. Defaults to `\"migrations\"`. Bind this to use
+   a different path, e.g., `\"bashketball-editor-api/migrations\"`."
+  "migrations")
+
 (defn do-with-config
   "Executes a function with Ragtime configuration bound to `*ragtime-config*`.
 
    Takes a thunk (function of zero arguments) and executes it with a Ragtime
    configuration that uses `db/*datasource*` and loads migrations from the
-   `migrations` resource directory. Returns the return value of the thunk, or nil
-   if an error occurs (errors are logged)."
+   path specified by [[*migrations-path*]]. Returns the return value of the
+   thunk, or nil if an error occurs (errors are logged)."
   [thunk]
   (try
     (binding [*ragtime-config* {:datastore  (next-jdbc/sql-database db/*datasource*)
-                                :migrations (next-jdbc/load-resources "migrations")}]
+                                :migrations (next-jdbc/load-resources *migrations-path*)}]
       (thunk))
     (catch Throwable e
       (log/error e "Migration failed with error"))))
