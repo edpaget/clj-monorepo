@@ -5,8 +5,14 @@
   configuration values.")
 
 (def api-base-url
-  "Base URL for the bashketball-editor-api."
-  (or js/goog.global.API_BASE_URL "http://localhost:3000"))
+  "Base URL for the bashketball-editor-api.
+
+  When UI and API are served from the same origin (production), this should be
+  empty to use relative URLs. For local development, set API_BASE_URL or use
+  the default localhost:3000."
+  (if (exists? js/goog.global.API_BASE_URL)
+    js/goog.global.API_BASE_URL
+    "http://localhost:3000"))
 
 (def api-url
   "Base URL for the bashketball-editor-api GraphQL endpoint."

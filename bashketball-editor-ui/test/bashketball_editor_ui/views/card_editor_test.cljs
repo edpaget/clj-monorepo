@@ -27,7 +27,7 @@
       ($ MockedProvider {:mocks #js [mock-card-sets-response]}
          ($ rr/Routes
             ($ rr/Route {:path "cards/new" :element component})
-            ($ rr/Route {:path "cards/:slug/edit" :element component}))))))
+            ($ rr/Route {:path "cards/:setSlug/:slug/edit" :element component}))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Create new card tests

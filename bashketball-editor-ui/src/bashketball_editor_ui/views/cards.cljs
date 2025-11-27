@@ -63,4 +63,4 @@
               ($ card-list-item
                  {:key (:slug card)
                   :card card
-                  :on-click #(navigate (str "/cards/" (:slug %)))})))))))
+                  :on-click #(navigate (str "/cards/" (:set-slug %) "/" (:slug %)))})))))))

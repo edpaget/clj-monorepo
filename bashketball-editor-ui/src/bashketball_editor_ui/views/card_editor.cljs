@@ -328,7 +328,7 @@
         navigate                  (router/use-navigate)
         client                    (useApolloClient)
         slug                      (.-slug params)
-        set-slug-param            (.get search-params "set")
+        set-slug-param            (or (.-setSlug params) (.get search-params "set"))
         is-new?                   (nil? slug)
 
         ;; Form state

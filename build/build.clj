@@ -2,7 +2,8 @@
   "Build utilities for the Clojure monorepo"
   (:require
    [clojure.java.shell :as shell]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.tools.build.api :as b]))
 
 (defn find-projects
   "Find all project directories containing deps.edn files"
@@ -107,3 +108,46 @@
       (doseq [project projects]
         (println (format "Checking outdated deps for %s..." project))
         (run-in-project project "clojure" "-M:outdated")))))
+
+(def projects
+  "Configuration for building uberjars."
+  {:bashketball-editor-api
+   {:basis-aliases [:bashketball-editor-api]
+    :main          'bashketball-editor-api.server
+    :src-dirs      ["bashketball-editor-api/src"
+                    "bashketball-editor-api/resources"
+                    "db/src"
+                    "graphql-server/src"
+                    "authn/src"
+                    "oidc/src"
+                    "oidc-github/src"
+                    "exclusive-initializer/src"]
+    :target-dir    "bashketball-editor-api/target"
+    :jar-file      "bashketball-editor-api/target/bashketball-editor-api.jar"}})
+
+(defn uberjar
+  "Build an uberjar for a project.
+
+  Usage: clojure -T:build uberjar :project :bashketball-editor-api"
+  [{:keys [project]}]
+  (let [{:keys [basis-aliases main src-dirs target-dir jar-file]} (get projects project)]
+    (when-not jar-file
+      (throw (ex-info (str "Unknown project: " project) {:project project
+                                                          :available (keys projects)})))
+    (println (str "Building uberjar for " (name project) "..."))
+    (let [basis     (b/create-basis {:aliases basis-aliases})
+          class-dir (str target-dir "/classes")]
+      (b/delete {:path target-dir})
+      (println "Copying sources...")
+      (b/copy-dir {:src-dirs   src-dirs
+                   :target-dir class-dir})
+      (println "Compiling...")
+      (b/compile-clj {:basis     basis
+                      :ns-compile [main]
+                      :class-dir class-dir})
+      (println "Packaging uberjar...")
+      (b/uber {:class-dir class-dir
+               :uber-file jar-file
+               :basis     basis
+               :main      main})
+      (println (str "Built: " jar-file)))))
