@@ -14,6 +14,8 @@
 **/.shadow-cljs/
 **/out/
 **/target/
+# Ignore package-lock.json except for bashketball-editor-ui (needed for Docker builds)
 package-lock.json
+!bashketball-editor-ui/package-lock.json
 /bashketball-editor-ui/public/css/
 /bashketball-editor-ui/public/js/
