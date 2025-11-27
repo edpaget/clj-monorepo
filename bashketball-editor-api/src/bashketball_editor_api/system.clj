@@ -7,6 +7,7 @@
    [authn.core :as authn]
    [bashketball-editor-api.auth.github :as gh-auth]
    [bashketball-editor-api.config :as config]
+   [bashketball-editor-api.context :as ctx]
    [bashketball-editor-api.git.cards :as git-cards]
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sets :as git-sets]
@@ -92,10 +93,10 @@
   (.close repo))
 
 (defmethod ig/init-key ::card-repo [_ {:keys [git-repo]}]
-  (git-cards/create-card-repository git-repo))
+  (git-cards/create-card-repository git-repo ctx/current-user-context))
 
 (defmethod ig/init-key ::set-repo [_ {:keys [git-repo]}]
-  (git-sets/create-set-repository git-repo))
+  (git-sets/create-set-repository git-repo ctx/current-user-context))
 
 (defmethod ig/init-key ::card-service [_ {:keys [card-repo]}]
   (card-svc/create-card-service card-repo))

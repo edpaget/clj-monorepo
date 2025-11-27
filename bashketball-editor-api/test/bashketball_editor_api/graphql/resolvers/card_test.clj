@@ -51,19 +51,18 @@
         true vec)))
   (create! [_ data]
     (let [card (-> data
-                   (dissoc :_user)
                    (assoc :created-at (java.time.Instant/now)
                           :updated-at (java.time.Instant/now)))]
       (swap! cards conj card)
       card))
   (update! [_ criteria data]
     (let [slug   (:slug criteria)
-          set-id (:set-id data)]
+          set-id (:set-id criteria)]
       (if-let [existing (first (filter #(and (= (:slug %) slug)
                                              (= (:set-id %) set-id))
                                        @cards))]
         (let [updated (-> existing
-                          (merge (dissoc data :_user :set-id :slug))
+                          (merge (dissoc data :set-id :slug))
                           (assoc :updated-at (java.time.Instant/now)))]
           (swap! cards (fn [cs] (mapv #(if (and (= (:slug %) slug)
                                                 (= (:set-id %) set-id))

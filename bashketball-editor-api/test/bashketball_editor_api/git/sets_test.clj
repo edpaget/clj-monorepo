@@ -1,5 +1,6 @@
 (ns bashketball-editor-api.git.sets-test
   (:require
+   [bashketball-editor-api.context :as ctx]
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sets :as git-sets]
    [bashketball-editor-api.models.protocol :as proto]
@@ -25,6 +26,11 @@
 
 (use-fixtures :each with-temp-repo)
 
+(def test-user-ctx
+  {:name "Test User"
+   :email "test@example.com"
+   :github-token "test-token"})
+
 (deftest card-set-schema-test
   (testing "validates a complete card set"
     (let [card-set {:id (random-uuid)
@@ -44,52 +50,52 @@
 
 (deftest create-set-repository-test
   (testing "creates a SetRepository record"
-    (let [repo (git-sets/create-set-repository *test-repo*)]
+    (let [repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
       (is (instance? bashketball_editor_api.git.sets.SetRepository repo))
       (is (= *test-repo* (:git-repo repo))))))
 
 (deftest find-by-test
   (testing "returns nil when set not found"
-    (let [set-repo (git-sets/create-set-repository *test-repo*)]
+    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
       (is (nil? (proto/find-by set-repo {:id (random-uuid)})))))
 
   (testing "requires id"
-    (let [set-repo (git-sets/create-set-repository *test-repo*)]
+    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
       (is (nil? (proto/find-by set-repo {}))))))
 
 (deftest find-all-test
   (testing "returns empty vector when no sets"
-    (let [set-repo (git-sets/create-set-repository *test-repo*)]
+    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
       (is (= [] (proto/find-all set-repo {}))))))
 
 (deftest read-only-test
   (testing "throws on create when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          set-repo       (git-sets/create-set-repository read-only-repo)
-          set-data       {:name "Test Set"
-                          :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
-                            (proto/create! set-repo set-data)))))
+          set-repo       (git-sets/create-set-repository read-only-repo ctx/current-user-context)
+          set-data       {:name "Test Set"}]
+      (binding [ctx/*user-context* test-user-ctx]
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
+                              (proto/create! set-repo set-data))))))
 
   (testing "throws on update when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          set-repo       (git-sets/create-set-repository read-only-repo)
-          set-data       {:name "Test Set"
-                          :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
-                            (proto/update! set-repo (random-uuid) set-data))))))
+          set-repo       (git-sets/create-set-repository read-only-repo ctx/current-user-context)
+          set-data       {:name "Test Set"}]
+      (binding [ctx/*user-context* test-user-ctx]
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
+                              (proto/update! set-repo (random-uuid) set-data)))))))
 
 (deftest user-context-required-test
   (testing "throws when user context missing on create"
-    (let [set-repo (git-sets/create-set-repository *test-repo*)
+    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)
           set-data {:name "Test Set"}]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"User context required"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"No user context available"
                             (proto/create! set-repo set-data)))))
 
   (testing "throws when user context missing on update"
-    (let [set-repo (git-sets/create-set-repository *test-repo*)
+    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)
           set-data {:name "Test Set"}]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"User context required"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"No user context available"
                             (proto/update! set-repo (random-uuid) set-data))))))

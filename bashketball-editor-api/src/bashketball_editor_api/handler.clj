@@ -6,6 +6,8 @@
    [authn.core :as authn]
    [authn.middleware :as authn-mw]
    [bashketball-editor-api.auth.github :as gh-auth]
+   [bashketball-editor-api.context :as ctx]
+   [bashketball-editor-api.models.protocol :as repo]
    [db.core :as db]
    [graphql-server.ring :as gql-ring]
    [oidc.ring :as oidc-ring]
@@ -62,6 +64,23 @@
     (binding [db/*datasource* db-pool]
       (handler request))))
 
+(defn wrap-user-context
+  "Middleware that binds user context for Git operations.
+
+  Looks up the authenticated user and binds their info to [[ctx/*user-context*]]
+  for the duration of the request. Git repositories use this context for
+  commits and pushes."
+  [handler user-repo]
+  (fn [request]
+    (let [user-id  (get-in request [:session :authn/user-id])
+          user-ctx (when user-id
+                     (when-let [user (repo/find-by user-repo {:id (parse-uuid user-id)})]
+                       {:name (:name user)
+                        :email (:email user)
+                        :github-token (:github-token user)}))]
+      (binding [ctx/*user-context* user-ctx]
+        (handler request)))))
+
 (defn wrap-cors
   "CORS middleware for cross-origin requests.
 
@@ -87,7 +106,7 @@
   "Creates the Ring handler with all middleware.
 
   Wraps the routes with OIDC OAuth, GraphQL, authentication, session, JSON,
-  CORS, and database middleware."
+  CORS, database, and user context middleware."
   [resolver-map github-oidc-client authenticator db-pool user-repo
    git-repo card-repo set-repo session-config config]
   (let [success-redirect-uri (get-in config [:github :oauth :success-redirect-uri])
@@ -114,6 +133,7 @@
                                        success-redirect-uri)
                           :verify-id-token? false}})
         (gh-auth/mock-discovery)
+        (wrap-user-context user-repo)
         (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)
         (wrap-session {:store (cookie-store {:key (:cookie-secret session-config)})

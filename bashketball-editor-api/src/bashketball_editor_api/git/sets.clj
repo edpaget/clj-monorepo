@@ -24,7 +24,7 @@
   [set-id]
   (str "sets/" set-id "/metadata.edn"))
 
-(defrecord SetRepository [git-repo lock]
+(defrecord SetRepository [git-repo lock user-ctx-fn]
   proto/Repository
   (find-by [_this criteria]
     (when-let [id (:id criteria)]
@@ -48,13 +48,10 @@
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
-      (let [user-ctx (:_user data)
-            _        (when-not user-ctx
-                       (throw (ex-info "User context required for Git operations" {})))
+      (let [user-ctx (user-ctx-fn)
             id       (or (:id data) (java.util.UUID/randomUUID))
             now      (java.time.Instant/now)
             card-set (-> data
-                         (dissoc :_user)
                          (assoc :id id
                                 :created-at (or (:created-at data) now)
                                 :updated-at now))
@@ -71,12 +68,10 @@
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
-      (let [user-ctx (:_user data)
-            _        (when-not user-ctx
-                       (throw (ex-info "User context required for Git operations" {})))]
+      (let [user-ctx (user-ctx-fn)]
         (if-let [existing (proto/find-by this {:id id})]
           (let [updated (-> existing
-                            (merge (dissoc data :_user))
+                            (merge data)
                             (assoc :updated-at (java.time.Instant/now)))
                 path    (set-path id)]
             (git-repo/write-file git-repo path (pr-str updated))
@@ -91,32 +86,25 @@
   (delete! [_this id]
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
-    (throw (ex-info "Delete requires user context. Use delete-set! function instead." {:id id}))))
-
-(defn delete-set!
-  "Deletes a card set with proper context.
-
-  Requires `user-ctx` (map with `:name`, `:email`, `:github-token`). Deletes
-  only the set metadata; cards within the set are not automatically deleted."
-  [set-repo id user-ctx]
-  (when-not (:writer? (:git-repo set-repo))
-    (throw (ex-info "Repository is read-only" {})))
-  (locking (:lock set-repo)
-    (let [path     (set-path id)
-          git-repo (:git-repo set-repo)]
-      (if (git-repo/delete-file git-repo path)
-        (do
-          (git-repo/commit git-repo
-                           (str "Delete set: " id)
-                           (:name user-ctx)
-                           (:email user-ctx))
-          (git-repo/push git-repo (:github-token user-ctx))
-          true)
-        false))))
+    (locking lock
+      (let [user-ctx (user-ctx-fn)
+            path     (set-path id)]
+        (if (git-repo/delete-file git-repo path)
+          (do
+            (git-repo/commit git-repo
+                             (str "Delete set: " id)
+                             (:name user-ctx)
+                             (:email user-ctx))
+            (git-repo/push git-repo (:github-token user-ctx))
+            true)
+          false)))))
 
 (defn create-set-repository
   "Creates a Git-backed card set repository.
 
-  Takes a [[git-repo/GitRepo]] instance."
-  [git-repo]
-  (->SetRepository git-repo (Object.)))
+  Takes a [[git-repo/GitRepo]] instance and a `user-ctx-fn` - a zero-argument
+  function that returns the current user context map with `:name`, `:email`,
+  and `:github-token` keys. Use [[bashketball-editor-api.context/current-user-context]]
+  as the accessor for request-scoped context."
+  [git-repo user-ctx-fn]
+  (->SetRepository git-repo (Object.) user-ctx-fn))

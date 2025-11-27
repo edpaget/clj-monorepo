@@ -4,7 +4,6 @@
   Provides query and mutation resolvers for card sets, including a nested
   resolver for fetching cards within a set."
   (:require
-   [bashketball-editor-api.git.sets :as git-sets]
    [bashketball-editor-api.graphql.middleware :as middleware]
    [bashketball-editor-api.graphql.schemas.card :as schemas]
    [bashketball-editor-api.models.protocol :as repo]
@@ -28,15 +27,6 @@
       (update :created-at #(when % (str %)))
       (update :updated-at #(when % (str %)))))
 
-(defn- get-user-context
-  "Extracts user context from GraphQL context for Git operations."
-  [ctx]
-  (let [user-id (get-in ctx [:request :authn/user-id])
-        user    (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
-    {:name (:name user)
-     :email (:email user)
-     :github-token (:github-token user)}))
-
 (gql/defresolver :Query :cardSet
   "Fetches a single card set by ID."
   [:=> [:cat :any [:map [:id :string]] :any]
@@ -57,18 +47,16 @@
   [:=> [:cat :any [:map [:input schemas/CardSetInput]] :any]
    schemas/CardSet]
   [ctx {:keys [input]} _value]
-  (let [set-data (assoc input :_user (get-user-context ctx))]
-    (transform-card-set (repo/create! (:set-repo ctx) set-data))))
+  (transform-card-set (repo/create! (:set-repo ctx) input)))
 
 (gql/defresolver :Mutation :updateCardSet
   "Updates an existing card set."
   [:=> [:cat :any [:map [:id :string] [:input schemas/CardSetInput]] :any]
    schemas/CardSet]
   [ctx {:keys [id input]} _value]
-  (let [set-data (assoc input :_user (get-user-context ctx))]
-    (transform-card-set (repo/update! (:set-repo ctx)
-                                      (parse-uuid id)
-                                      set-data))))
+  (transform-card-set (repo/update! (:set-repo ctx)
+                                    (parse-uuid id)
+                                    input)))
 
 (gql/defresolver :Mutation :deleteCardSet
   "Deletes a card set.
@@ -78,9 +66,7 @@
   [:=> [:cat :any [:map [:id :string]] :any]
    :boolean]
   [ctx {:keys [id]} _value]
-  (git-sets/delete-set! (:set-repo ctx)
-                        (parse-uuid id)
-                        (get-user-context ctx)))
+  (repo/delete! (:set-repo ctx) (parse-uuid id)))
 
 (defn cards-resolver
   "Nested resolver for fetching cards in a card set.

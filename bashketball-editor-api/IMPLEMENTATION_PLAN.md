@@ -195,9 +195,56 @@ See `JGIT_ARCHITECTURE.md` for detailed design documentation.
 
 ---
 
-## Phase 4: Card & Set GraphQL API
+## Phase 4: Card & Set GraphQL API ✅ COMPLETE
+
+**Status**: Complete
 
 **Goal**: Implement complete GraphQL schema for Bashketball game cards and sets
+
+### Implemented
+
+- Malli schemas for all 7 card types in `src/bashketball_editor_api/graphql/schemas/card.clj`
+  - PlayerCard, AbilityCard, SplitPlayCard, PlayCard, CoachingCard, StandardActionCard, TeamAssetCard
+  - CardType and PlayerSize enums
+  - GameCard multi-schema for polymorphic dispatch by `:card-type`
+  - Input schemas for all card types and CardSet
+  - CardUpdateInput for generic updates
+- Card resolvers in `src/bashketball_editor_api/graphql/resolvers/card.clj`
+  - Query: `card` (by slug + setId), `cards` (with optional setId/cardType filters)
+  - Mutations: `createPlayerCard`, `createAbilityCard`, `createSplitPlayCard`, `createPlayCard`, `createCoachingCard`, `createStandardActionCard`, `createTeamAssetCard`
+  - Mutations: `updateCard`, `deleteCard` (by slug + setId)
+  - Authentication middleware on all mutations
+- CardSet resolvers in `src/bashketball_editor_api/graphql/resolvers/cardset.clj`
+  - Query: `cardSet` (by id), `cardSets` (list all)
+  - Mutations: `createCardSet`, `updateCardSet`, `deleteCardSet`
+  - Nested resolver: `CardSet.cards`
+  - Authentication middleware on all mutations
+- Card repository updated in `src/bashketball_editor_api/git/cards.clj`
+  - Uses `slug` as primary key (URL-safe identifier derived from name)
+  - Public `slugify` function for name-to-slug conversion
+  - Cards stored at `cards/{set-id}/{slug}.edn`
+- GraphQL output transforms kebab-case to camelCase (e.g., `:set-id` → `:setId`)
+
+### Tests
+
+- `test/bashketball_editor_api/graphql/schemas/card_test.clj` - Schema validation tests
+- `test/bashketball_editor_api/graphql/resolvers/card_test.clj` - Card resolver tests
+- `test/bashketball_editor_api/graphql/resolvers/cardset_test.clj` - CardSet resolver tests
+- `test/bashketball_editor_api/git/cards_test.clj` - Card repository tests (updated for slug)
+
+All 80 tests pass with 249 assertions.
+
+### Key Design Decisions
+
+- **Slug as primary key**: Cards use `slug` (URL-safe) as identifier, `name` for display
+- **Type-specific create mutations**: Each card type has its own create mutation for type safety
+- **Generic update/delete**: Single `updateCard`/`deleteCard` mutations work for any card type
+- **Malli multi-schema**: Uses `:card-type` discriminator for polymorphic validation
+- **camelCase output**: GraphQL-server automatically converts keys for GraphQL compatibility
+
+---
+
+### Reference: Card Type System (Implemented)
 
 ### 4.1 Card Type System
 
@@ -1025,29 +1072,27 @@ GitHub Actions workflow for:
 
 ## Implementation Order
 
-Recommended implementation sequence:
+Implementation sequence:
 
-1. **Phase 2** (1-2 days)
-   - Essential for any functionality
-   - Unblocks user testing
+1. **Phase 2** ✅ COMPLETE
+   - GitHub OAuth authentication
+   - User management
 
-2. **Phase 3** (2-3 days)
-   - Core feature implementation
-   - Enables card/set management
+2. **Phase 3** ✅ COMPLETE
+   - Git repository integration (JGit)
+   - Card/set storage
 
-3. **Phase 4** (2-3 days)
-   - API completeness
-   - User-facing functionality
+3. **Phase 4** ✅ COMPLETE
+   - Card & Set GraphQL API
+   - All 7 card types with schemas and resolvers
 
-4. **Phase 5** (1-2 days)
-   - Code quality and robustness
-   - Better error messages
+4. **Phase 5** ⏳ NEXT
+   - Business logic & services
+   - Input validation and error handling
 
-5. **Phase 6** (2-4 days)
+5. **Phase 6** ⏳ PENDING
    - Production deployment
-   - Can be done incrementally
-
-**Total Estimated Time**: 8-14 days for full implementation
+   - Monitoring, logging, security
 
 ---
 
@@ -1073,18 +1118,18 @@ Recommended implementation sequence:
 - [x] Per-user GitHub token for push/pull
 - [x] CORS support for cross-origin frontend
 
-### Phase 4 ⏳ PENDING
-- [ ] Card type schemas implemented (PlayerCard, PlayCard, AbilityCard, etc.)
-- [ ] Card queries work (card, cards with filtering by setId and cardType)
-- [ ] CardSet queries work (cardSet, cardSets)
-- [ ] Type-specific create mutations work (createPlayerCard, createPlayCard, etc.)
-- [ ] Generic updateCard mutation works with name+setId lookup
-- [ ] deleteCard mutation works with name+setId lookup
-- [ ] CardSet CRUD mutations work
-- [ ] Nested resolver works (CardSet.cards)
-- [ ] Card repository updated for name-based lookup
-- [ ] Authentication required for all mutations
-- [ ] Proper error messages for invalid card types
+### Phase 4 ✅ COMPLETE
+- [x] Card type schemas implemented (PlayerCard, PlayCard, AbilityCard, SplitPlayCard, CoachingCard, StandardActionCard, TeamAssetCard)
+- [x] Card queries work (card by slug+setId, cards with filtering by setId and cardType)
+- [x] CardSet queries work (cardSet, cardSets)
+- [x] Type-specific create mutations work (createPlayerCard, createPlayCard, createAbilityCard, etc.)
+- [x] Generic updateCard mutation works with slug+setId lookup
+- [x] deleteCard mutation works with slug+setId lookup
+- [x] CardSet CRUD mutations work (createCardSet, updateCardSet, deleteCardSet)
+- [x] Nested resolver works (CardSet.cards)
+- [x] Card repository updated for slug-based lookup
+- [x] Authentication required for all mutations
+- [x] Comprehensive resolver tests for cards and cardsets
 
 ### Phase 5 ⏳ PENDING
 - [ ] Input validation works correctly

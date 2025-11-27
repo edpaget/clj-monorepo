@@ -4,7 +4,6 @@
   Provides query and mutation resolvers for game cards with type-specific
   create operations and generic update/delete mutations."
   (:require
-   [bashketball-editor-api.git.cards :as git-cards]
    [bashketball-editor-api.graphql.middleware :as middleware]
    [bashketball-editor-api.graphql.schemas.card :as schemas]
    [bashketball-editor-api.models.protocol :as repo]
@@ -23,15 +22,6 @@
       (update :set-id str)
       (update :created-at #(when % (str %)))
       (update :updated-at #(when % (str %)))))
-
-(defn- get-user-context
-  "Extracts user context from GraphQL context for Git operations."
-  [ctx]
-  (let [user-id (get-in ctx [:request :authn/user-id])
-        user    (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
-    {:name (:name user)
-     :email (:email user)
-     :github-token (:github-token user)}))
 
 (gql/defresolver :Query :card
   "Fetches a single card by slug and set ID."
@@ -64,8 +54,7 @@
   [ctx {:keys [setId input]} _value]
   (let [card-data (-> input
                       (assoc :set-id (parse-uuid setId))
-                      (assoc :card-type :card-type/PLAYER_CARD)
-                      (assoc :_user (get-user-context ctx)))]
+                      (assoc :card-type :card-type/PLAYER_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createAbilityCard
@@ -75,8 +64,7 @@
   [ctx {:keys [setId input]} _value]
   (let [card-data (-> input
                       (assoc :set-id (parse-uuid setId))
-                      (assoc :card-type :card-type/ABILITY_CARD)
-                      (assoc :_user (get-user-context ctx)))]
+                      (assoc :card-type :card-type/ABILITY_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createSplitPlayCard
@@ -86,8 +74,7 @@
   [ctx {:keys [setId input]} _value]
   (let [card-data (-> input
                       (assoc :set-id (parse-uuid setId))
-                      (assoc :card-type :card-type/SPLIT_PLAY_CARD)
-                      (assoc :_user (get-user-context ctx)))]
+                      (assoc :card-type :card-type/SPLIT_PLAY_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createPlayCard
@@ -97,8 +84,7 @@
   [ctx {:keys [setId input]} _value]
   (let [card-data (-> input
                       (assoc :set-id (parse-uuid setId))
-                      (assoc :card-type :card-type/PLAY_CARD)
-                      (assoc :_user (get-user-context ctx)))]
+                      (assoc :card-type :card-type/PLAY_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createCoachingCard
@@ -108,8 +94,7 @@
   [ctx {:keys [setId input]} _value]
   (let [card-data (-> input
                       (assoc :set-id (parse-uuid setId))
-                      (assoc :card-type :card-type/COACHING_CARD)
-                      (assoc :_user (get-user-context ctx)))]
+                      (assoc :card-type :card-type/COACHING_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createStandardActionCard
@@ -119,8 +104,7 @@
   [ctx {:keys [setId input]} _value]
   (let [card-data (-> input
                       (assoc :set-id (parse-uuid setId))
-                      (assoc :card-type :card-type/STANDARD_ACTION_CARD)
-                      (assoc :_user (get-user-context ctx)))]
+                      (assoc :card-type :card-type/STANDARD_ACTION_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createTeamAssetCard
@@ -130,8 +114,7 @@
   [ctx {:keys [setId input]} _value]
   (let [card-data (-> input
                       (assoc :set-id (parse-uuid setId))
-                      (assoc :card-type :card-type/TEAM_ASSET_CARD)
-                      (assoc :_user (get-user-context ctx)))]
+                      (assoc :card-type :card-type/TEAM_ASSET_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :updateCard
@@ -144,22 +127,17 @@
                    [:input schemas/CardUpdateInput]] :any]
    GameCard]
   [ctx {:keys [slug setId input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
-                      (assoc :_user (get-user-context ctx)))]
-    (transform-card (repo/update! (:card-repo ctx)
-                                  {:slug slug}
-                                  card-data))))
+  (transform-card (repo/update! (:card-repo ctx)
+                                {:slug slug :set-id (parse-uuid setId)}
+                                input)))
 
 (gql/defresolver :Mutation :deleteCard
   "Deletes a card by slug and set ID."
   [:=> [:cat :any [:map [:slug :string] [:setId :string]] :any]
    :boolean]
   [ctx {:keys [slug setId]} _value]
-  (git-cards/delete-card! (:card-repo ctx)
-                          slug
-                          (parse-uuid setId)
-                          (get-user-context ctx)))
+  (repo/delete! (:card-repo ctx)
+                {:slug slug :set-id (parse-uuid setId)}))
 
 (def query-resolvers
   "Query resolvers for cards (no auth required for queries)."

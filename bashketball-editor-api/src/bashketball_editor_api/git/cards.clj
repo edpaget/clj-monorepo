@@ -28,7 +28,7 @@
   [set-id slug]
   (str "cards/" set-id "/" slug ".edn"))
 
-(defrecord CardRepository [git-repo lock]
+(defrecord CardRepository [git-repo lock user-ctx-fn]
   proto/Repository
   (find-by [_this criteria]
     (when-let [slug (:slug criteria)]
@@ -53,16 +53,13 @@
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
-      (let [user-ctx (:_user data)
-            _        (when-not user-ctx
-                       (throw (ex-info "User context required for Git operations" {})))
+      (let [user-ctx (user-ctx-fn)
             set-id   (:set-id data)
             slug     (:slug data)
             _        (when-not slug
                        (throw (ex-info "slug is required" {:data data})))
             now      (java.time.Instant/now)
             card     (-> data
-                         (dissoc :_user)
                          (assoc :created-at (or (:created-at data) now)
                                 :updated-at now))
             path     (card-path set-id slug)]
@@ -80,17 +77,15 @@
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
-      (let [user-ctx (:_user data)
-            _        (when-not user-ctx
-                       (throw (ex-info "User context required for Git operations" {})))
+      (let [user-ctx (user-ctx-fn)
             slug     (:slug criteria)
-            set-id   (:set-id data)
+            set-id   (:set-id criteria)
             _        (when-not (and slug set-id)
                        (throw (ex-info "slug and set-id required for card update"
-                                       {:criteria criteria :set-id set-id})))]
+                                       {:criteria criteria})))]
         (if-let [existing (proto/find-by this {:slug slug :set-id set-id})]
           (let [updated (-> existing
-                            (merge (dissoc data :_user :set-id :slug))
+                            (merge (dissoc data :set-id :slug))
                             (assoc :updated-at (java.time.Instant/now)))
                 path    (card-path set-id slug)]
             (git-repo/write-file git-repo path (pr-str updated))
@@ -105,33 +100,29 @@
   (delete! [_this id]
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
-    (throw (ex-info "Delete requires slug, set-id, and user context. Use delete-card! function instead."
-                    {:id id}))))
-
-(defn delete-card!
-  "Deletes a card with proper context.
-
-  Requires card `slug`, `set-id`, and `user-ctx` (map with `:name`, `:email`,
-  `:github-token`) since Git operations need author info."
-  [card-repo slug set-id user-ctx]
-  (when-not (:writer? (:git-repo card-repo))
-    (throw (ex-info "Repository is read-only" {})))
-  (locking (:lock card-repo)
-    (let [path     (card-path set-id slug)
-          git-repo (:git-repo card-repo)]
-      (if (git-repo/delete-file git-repo path)
-        (do
-          (git-repo/commit git-repo
-                           (str "Delete card: " slug)
-                           (:name user-ctx)
-                           (:email user-ctx))
-          (git-repo/push git-repo (:github-token user-ctx))
-          true)
-        false))))
+    (locking lock
+      (let [user-ctx (user-ctx-fn)
+            slug     (:slug id)
+            set-id   (:set-id id)
+            _        (when-not (and slug set-id)
+                       (throw (ex-info "slug and set-id required for card delete" {:id id})))
+            path     (card-path set-id slug)]
+        (if (git-repo/delete-file git-repo path)
+          (do
+            (git-repo/commit git-repo
+                             (str "Delete card: " slug)
+                             (:name user-ctx)
+                             (:email user-ctx))
+            (git-repo/push git-repo (:github-token user-ctx))
+            true)
+          false)))))
 
 (defn create-card-repository
   "Creates a Git-backed card repository.
 
-  Takes a [[git-repo/GitRepo]] instance."
-  [git-repo]
-  (->CardRepository git-repo (Object.)))
+  Takes a [[git-repo/GitRepo]] instance and a `user-ctx-fn` - a zero-argument
+  function that returns the current user context map with `:name`, `:email`,
+  and `:github-token` keys. Use [[bashketball-editor-api.context/current-user-context]]
+  as the accessor for request-scoped context."
+  [git-repo user-ctx-fn]
+  (->CardRepository git-repo (Object.) user-ctx-fn))

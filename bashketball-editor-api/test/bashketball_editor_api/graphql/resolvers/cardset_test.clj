@@ -40,7 +40,6 @@
   (find-all [_ _] @sets)
   (create! [_ data]
     (let [card-set (-> data
-                       (dissoc :_user)
                        (assoc :id (random-uuid)
                               :created-at (java.time.Instant/now)
                               :updated-at (java.time.Instant/now)))]
@@ -49,7 +48,7 @@
   (update! [_ id data]
     (if-let [existing (first (filter #(= (:id %) id) @sets))]
       (let [updated (-> existing
-                        (merge (dissoc data :_user))
+                        (merge data)
                         (assoc :updated-at (java.time.Instant/now)))]
         (swap! sets (fn [ss] (mapv #(if (= (:id %) id) updated %) ss)))
         updated)
