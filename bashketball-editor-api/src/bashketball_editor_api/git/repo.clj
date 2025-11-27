@@ -153,19 +153,20 @@
   "Returns the number of commits ahead and behind the remote tracking branch.
 
   Returns a map with `:ahead` and `:behind` counts, or nil if unable to
-  determine (e.g., no tracking branch configured)."
+  determine (e.g., no tracking branch configured).
+
+  TODO(edpaget): this needs to fetch the remote first"
   [repo]
   (try
     (let [^Git git-repo   (git/load-repo (:repo-path repo))
-          branch-tracking (.getBranchTrackingStatus
-                           (org.eclipse.jgit.lib.BranchTrackingStatus/of
-                            (.getRepository git-repo)
-                            (:branch repo)))]
+          branch-tracking (org.eclipse.jgit.lib.BranchTrackingStatus/of
+                           (.getRepository git-repo)
+                           (:branch repo))]
       (when branch-tracking
         {:ahead (.getAheadCount branch-tracking)
          :behind (.getBehindCount branch-tracking)}))
     (catch Exception e
-      (log/warn "Unable to get ahead/behind status:" (ex-message e))
+      (log/error e "Unable to get ahead/behind status")
       nil)))
 
 (defn create-git-repo

@@ -28,7 +28,7 @@
   (testing "validates complete player card"
     (let [card {:slug "jordan"
                 :name "Jordan"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/PLAYER_CARD
                 :deck-size 5
                 :sht 5
@@ -42,7 +42,7 @@
   (testing "validates player card with optional fields"
     (let [card {:slug "rookie"
                 :name "Rookie"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/PLAYER_CARD
                 :deck-size 3
                 :sht 1
@@ -58,7 +58,7 @@
   (testing "validates ability card"
     (let [card {:slug "double-jump"
                 :name "Double Jump"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/ABILITY_CARD
                 :abilities ["Jump twice in one turn"]}]
       (is (m/validate schemas/AbilityCard card)))))
@@ -67,7 +67,7 @@
   (testing "validates play card"
     (let [card {:slug "fast-break"
                 :name "Fast Break"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/PLAY_CARD
                 :fate 2
                 :play "Score on a fast break"}]
@@ -77,7 +77,7 @@
   (testing "validates split play card"
     (let [card {:slug "versatile-play"
                 :name "Versatile Play"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/SPLIT_PLAY_CARD
                 :fate 3
                 :offense "Drive to the basket"
@@ -88,7 +88,7 @@
   (testing "validates coaching card"
     (let [card {:slug "time-out"
                 :name "Time Out"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/COACHING_CARD
                 :fate 1
                 :coaching "Reset your team's positions"}]
@@ -98,7 +98,7 @@
   (testing "validates standard action card"
     (let [card {:slug "basic-move"
                 :name "Basic Move"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/STANDARD_ACTION_CARD
                 :fate 0
                 :offense "Move one space"
@@ -109,7 +109,7 @@
   (testing "validates team asset card"
     (let [card {:slug "home-court"
                 :name "Home Court"
-                :set-id (random-uuid)
+                :set-slug "base-set"
                 :card-type :card-type/TEAM_ASSET_CARD
                 :fate 5
                 :asset-power "+1 to all shots at home"}]
@@ -119,7 +119,7 @@
   (testing "validates different card types via multi"
     (let [player {:slug "jordan"
                   :name "Jordan"
-                  :set-id (random-uuid)
+                  :set-slug "base-set"
                   :card-type :card-type/PLAYER_CARD
                   :deck-size 5
                   :sht 5 :pss 3 :def 4 :speed 4
@@ -127,7 +127,7 @@
                   :abilities []}
           play   {:slug "fast-break"
                   :name "Fast Break"
-                  :set-id (random-uuid)
+                  :set-slug "base-set"
                   :card-type :card-type/PLAY_CARD
                   :fate 2
                   :play "Score quickly"}]
@@ -135,14 +135,14 @@
       (is (m/validate schemas/GameCard play)))))
 
 (deftest card-set-schema-test
-  (testing "validates card set with string id"
-    (let [card-set {:id "abc-123"
+  (testing "validates card set with string slug"
+    (let [card-set {:slug "abc-123"
                     :name "Base Set"
                     :description "The base game cards"}]
       (is (m/validate schemas/CardSet card-set))))
 
   (testing "validates card set without description"
-    (let [card-set {:id "def-456"
+    (let [card-set {:slug "def-456"
                     :name "Expansion 1"}]
       (is (m/validate schemas/CardSet card-set)))))
 

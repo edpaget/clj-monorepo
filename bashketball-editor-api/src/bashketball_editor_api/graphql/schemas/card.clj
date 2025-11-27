@@ -38,11 +38,12 @@
   "Base card schema shared by all card types.
 
   Cards use `slug` as the primary key within a set. The slug is a URL-safe
-  version of the name (lowercase, alphanumeric with hyphens)."
+  version of the name (lowercase, alphanumeric with hyphens). The `set-slug`
+  is also a slug referencing the parent CardSet."
   [:map {:graphql/interface :Card}
    [:slug :string]
    [:name :string]
-   [:set-id {:graphql/hidden true} :uuid]
+   [:set-slug {:graphql/hidden true} :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:card-type CardType]
    [:created-at {:optional true} [:maybe :string]]
@@ -142,9 +143,12 @@
    :card-type/TEAM_ASSET_CARD TeamAssetCard})
 
 (def CardSet
-  "Schema for card set metadata."
+  "Schema for card set metadata.
+
+  Sets use `slug` (URL-safe string derived from the name) for identification
+  and file storage paths."
   [:map {:graphql/type :CardSet}
-   [:id :string]
+   [:slug :string]
    [:name :string]
    [:description {:optional true} [:maybe :string]]
    [:created-at {:optional true} [:maybe :string]]
@@ -246,12 +250,22 @@
    [:coaching {:optional true} :string]
    [:asset-power {:optional true} :string]])
 
+(def CardsResponse
+  "Response wrapper for card list queries."
+  [:map {:graphql/type :CardsResponse}
+   [:data [:vector GameCard]]])
+
+(def CardSetsResponse
+  "Response wrapper for card set list queries."
+  [:map {:graphql/type :CardSetsResponse}
+   [:data [:vector CardSet]]])
+
 (def InternalCard
-  "Internal schema for card storage (with UUID set-id and inst timestamps)."
+  "Internal schema for card storage (with slug set-slug and inst timestamps)."
   [:map
    [:slug :string]
    [:name :string]
-   [:set-id :uuid]
+   [:set-slug :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:card-type CardType]
    [:created-at {:optional true} inst?]

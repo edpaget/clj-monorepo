@@ -33,7 +33,7 @@
 
 (deftest card-set-schema-test
   (testing "validates a complete card set"
-    (let [card-set {:id (random-uuid)
+    (let [card-set {:slug "test-set"
                     :name "Test Set"
                     :description "A test card set"
                     :created-at (java.time.Instant/now)
@@ -45,7 +45,7 @@
       (is (m/validate git-sets/CardSet card-set))))
 
   (testing "rejects card set without name"
-    (let [card-set {:id (random-uuid)}]
+    (let [card-set {:slug "test-set"}]
       (is (not (m/validate git-sets/CardSet card-set))))))
 
 (deftest create-set-repository-test
@@ -57,9 +57,9 @@
 (deftest find-by-test
   (testing "returns nil when set not found"
     (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
-      (is (nil? (proto/find-by set-repo {:id (random-uuid)})))))
+      (is (nil? (proto/find-by set-repo {:slug "nonexistent-set"})))))
 
-  (testing "requires id"
+  (testing "requires slug"
     (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
       (is (nil? (proto/find-by set-repo {}))))))
 
@@ -85,7 +85,7 @@
           set-data       {:name "Test Set"}]
       (binding [ctx/*user-context* test-user-ctx]
         (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
-                              (proto/update! set-repo (random-uuid) set-data)))))))
+                              (proto/update! set-repo "test-set" set-data)))))))
 
 (deftest user-context-required-test
   (testing "throws when user context missing on create"
@@ -98,4 +98,4 @@
     (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)
           set-data {:name "Test Set"}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"No user context available"
-                            (proto/update! set-repo (random-uuid) set-data))))))
+                            (proto/update! set-repo "test-set" set-data))))))

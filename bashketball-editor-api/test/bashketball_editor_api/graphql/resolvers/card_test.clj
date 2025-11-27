@@ -5,13 +5,13 @@
    [clojure.test :refer [deftest is testing]]
    [com.walmartlabs.lacinia.resolve :as resolve]))
 
-(def test-set-id (random-uuid))
+(def test-set-slug "base-set")
 (def test-user-id (random-uuid))
 
 (def mock-player-card
   {:slug "jordan"
    :name "Jordan"
-   :set-id test-set-id
+   :set-slug test-set-slug
    :card-type :card-type/PLAYER_CARD
    :deck-size 5
    :sht 5 :pss 3 :def 4 :speed 4
@@ -23,7 +23,7 @@
 (def mock-play-card
   {:slug "fast-break"
    :name "Fast Break"
-   :set-id test-set-id
+   :set-slug test-set-slug
    :card-type :card-type/PLAY_CARD
    :fate 2
    :play "Score on a fast break"
@@ -40,13 +40,13 @@
   repo/Repository
   (find-by [_ criteria]
     (first (filter #(and (= (:slug %) (:slug criteria))
-                         (= (:set-id %) (:set-id criteria)))
+                         (= (:set-slug %) (:set-slug criteria)))
                    @cards)))
   (find-all [_ opts]
-    (let [set-id    (get-in opts [:where :set-id])
+    (let [set-slug  (get-in opts [:where :set-slug])
           card-type (get-in opts [:where :card-type])]
       (cond->> @cards
-        set-id (filter #(= (:set-id %) set-id))
+        set-slug (filter #(= (:set-slug %) set-slug))
         card-type (filter #(= (:card-type %) card-type))
         true vec)))
   (create! [_ data]
@@ -56,19 +56,19 @@
       (swap! cards conj card)
       card))
   (update! [_ criteria data]
-    (let [slug   (:slug criteria)
-          set-id (:set-id criteria)]
+    (let [slug     (:slug criteria)
+          set-slug (:set-slug criteria)]
       (if-let [existing (first (filter #(and (= (:slug %) slug)
-                                             (= (:set-id %) set-id))
+                                             (= (:set-slug %) set-slug))
                                        @cards))]
         (let [updated (-> existing
-                          (merge (dissoc data :set-id :slug))
+                          (merge (dissoc data :set-slug :slug))
                           (assoc :updated-at (java.time.Instant/now)))]
           (swap! cards (fn [cs] (mapv #(if (and (= (:slug %) slug)
-                                                (= (:set-id %) set-id))
+                                                (= (:set-slug %) set-slug))
                                          updated %) cs)))
           updated)
-        (throw (ex-info "Card not found" {:slug slug :set-id set-id})))))
+        (throw (ex-info "Card not found" {:slug slug :set-slug set-slug})))))
   (delete! [_ _] true))
 
 (defrecord MockUserRepo []
@@ -91,42 +91,42 @@
   (testing "returns card when found"
     (let [ctx                (make-ctx [mock-player-card])
           [_schema resolver] (get card/resolvers [:Query :card])
-          result             (resolver ctx {:slug "jordan" :setId (str test-set-id)} nil)]
+          result             (resolver ctx {:slug "jordan" :setSlug test-set-slug} nil)]
       (is (= "jordan" (:slug result)))
-      (is (= "Jordan" (:name result)))
-      (is (= (str test-set-id) (:setId result)))))
+      (is (= "Jordan" (:name result)))))
 
   (testing "returns nil when card not found"
     (let [ctx                (make-ctx [])
           [_schema resolver] (get card/resolvers [:Query :card])
-          result             (resolver ctx {:slug "nonexistent" :setId (str test-set-id)} nil)]
+          result             (resolver ctx {:slug "nonexistent" :setSlug test-set-slug} nil)]
       (is (nil? result)))))
 
 (deftest cards-query-test
-  (testing "returns all cards for a set"
+  (testing "returns all cards for a set wrapped in :data"
     (let [ctx                (make-ctx [mock-player-card mock-play-card])
           [_schema resolver] (get card/resolvers [:Query :cards])
-          result             (resolver ctx {:setId (str test-set-id)} nil)]
-      (is (= 2 (count result)))))
+          result             (resolver ctx {:setSlug test-set-slug} nil)]
+      (is (map? result))
+      (is (= 2 (count (:data result))))))
 
   (testing "filters by card type"
     (let [ctx                (make-ctx [mock-player-card mock-play-card])
           [_schema resolver] (get card/resolvers [:Query :cards])
-          result             (resolver ctx {:setId (str test-set-id) :cardType "PLAYER_CARD"} nil)]
-      (is (= 1 (count result)))
-      (is (= "jordan" (:slug (first result))))))
+          result             (resolver ctx {:setSlug test-set-slug :cardType "PLAYER_CARD"} nil)]
+      (is (= 1 (count (:data result))))
+      (is (= "jordan" (:slug (first (:data result)))))))
 
   (testing "returns empty vector for unknown set"
     (let [ctx                (make-ctx [mock-player-card])
           [_schema resolver] (get card/resolvers [:Query :cards])
-          result             (resolver ctx {:setId (str (random-uuid))} nil)]
-      (is (= [] result)))))
+          result             (resolver ctx {:setSlug "nonexistent-set"} nil)]
+      (is (= [] (:data result))))))
 
 (deftest create-player-card-mutation-test
   (testing "requires authentication"
     (let [ctx                (make-ctx [] false)
           [_schema resolver] (get card/resolvers [:Mutation :createPlayerCard])
-          result             (resolver ctx {:setId (str test-set-id)
+          result             (resolver ctx {:setSlug test-set-slug
                                             :input {:slug "new-player" :name "New Player"}} nil)]
       (is (resolve/is-resolver-result? result))
       (let [wrapped-value (:resolved-value result)]
@@ -135,18 +135,18 @@
   (testing "creates player card when authenticated"
     (let [ctx                (make-ctx [] true)
           [_schema resolver] (get card/resolvers [:Mutation :createPlayerCard])
-          result             (resolver ctx {:setId (str test-set-id)
+          result             (resolver ctx {:setSlug test-set-slug
                                             :input {:slug "new-player" :name "New Player"}} nil)]
       (is (= "new-player" (:slug result)))
       (is (= "New Player" (:name result)))
-      (is (= (str test-set-id) (:setId result))))))
+      (is (= :card-type/PLAYER_CARD (:cardType result))))))
 
 (deftest update-card-mutation-test
   (testing "requires authentication"
     (let [ctx                (make-ctx [mock-player-card] false)
           [_schema resolver] (get card/resolvers [:Mutation :updateCard])
           result             (resolver ctx {:slug "jordan"
-                                            :setId (str test-set-id)
+                                            :setSlug test-set-slug
                                             :input {:name "Updated Jordan"}} nil)]
       (is (resolve/is-resolver-result? result))
       (let [wrapped-value (:resolved-value result)]
@@ -156,7 +156,7 @@
     (let [ctx                (make-ctx [mock-player-card] true)
           [_schema resolver] (get card/resolvers [:Mutation :updateCard])
           result             (resolver ctx {:slug "jordan"
-                                            :setId (str test-set-id)
+                                            :setSlug test-set-slug
                                             :input {:name "Updated Jordan"}} nil)]
       (is (= "jordan" (:slug result)))
       (is (= "Updated Jordan" (:name result))))))
@@ -165,7 +165,7 @@
   (testing "requires authentication"
     (let [ctx                (make-ctx [mock-player-card] false)
           [_schema resolver] (get card/resolvers [:Mutation :deleteCard])
-          result             (resolver ctx {:slug "jordan" :setId (str test-set-id)} nil)]
+          result             (resolver ctx {:slug "jordan" :setSlug test-set-slug} nil)]
       (is (resolve/is-resolver-result? result))
       (let [wrapped-value (:resolved-value result)]
         (is (= :error (:behavior wrapped-value)))))))

@@ -6,6 +6,7 @@
   (:require
    [authn.protocol :as authn-proto]
    [bashketball-editor-api.models.protocol :as repo]
+   [clojure.tools.logging :as log]
    [oidc-github.claims :as gh-claims]
    [oidc.core :as oidc]
    [ring.util.response :as response]))
@@ -44,33 +45,44 @@
 
   When OAuth succeeds:
   1. Fetches GitHub user data using the access token
-  2. Converts to OIDC claims
-  3. Upserts user in database
-  4. Creates authn session
-  5. Redirects to success URI"
-  [user-repo authenticator success-redirect-uri]
+  2. Validates organization membership (if `required-org` is configured)
+  3. Converts to OIDC claims
+  4. Upserts user in database
+  5. Creates authn session
+  6. Redirects to success URI
+
+  Takes a config map with:
+  - `:user-repo` - User repository for upserting users
+  - `:authenticator` - Authn authenticator for session management
+  - `:success-redirect-uri` - URI to redirect after successful auth
+  - `:required-org` - (optional) GitHub org login that users must belong to
+  - `:failure-redirect-uri` - (optional) URI to redirect on org validation failure"
+  [{:keys [user-repo authenticator success-redirect-uri required-org failure-redirect-uri]}]
   (fn [_request token-response]
     (let [access-token (:access_token token-response)
-          ;; Fetch GitHub user data
           user-data    (gh-claims/fetch-all-user-data access-token nil)
-          ;; Convert to OIDC claims
-          claims       (gh-claims/github->oidc-claims user-data)
-          github-login (:preferred_username claims)
-          ;; Upsert user in database (include token for Git operations)
-          user         (repo/create! user-repo
-                                     {:github-login github-login
-                                      :github-token access-token
-                                      :email (:email claims)
-                                      :avatar-url (:picture claims)
-                                      :name (:name claims)})
-          user-id      (str (:id user))
-          ;; Create authn session
-          session-id   (authn-proto/create-session
-                        (:session-store authenticator)
-                        user-id
-                        claims)]
-      (-> (response/redirect success-redirect-uri)
-          (assoc :session {:authn/session-id session-id})))))
+          github-login (get-in user-data [:profile :login])]
+      (if (and required-org (not (gh-claims/user-in-org? user-data required-org)))
+        (do
+          (log/warn "User" github-login "denied access: not a member of org" required-org)
+          (-> (response/redirect (or failure-redirect-uri
+                                     (str success-redirect-uri "?error=org_required")))
+              (assoc :session nil)))
+        (let [claims     (gh-claims/github->oidc-claims user-data)
+              user       (repo/create! user-repo
+                                       {:github-login github-login
+                                        :github-token access-token
+                                        :email (:email claims)
+                                        :avatar-url (:picture claims)
+                                        :name (:name claims)})
+              user-id    (str (:id user))
+              session-id (authn-proto/create-session
+                          (:session-store authenticator)
+                          user-id
+                          claims)]
+          (log/info "User" github-login "authenticated successfully")
+          (-> (response/redirect success-redirect-uri)
+              (assoc :session {:authn/session-id session-id})))))))
 
 (defn mock-discovery
   "Middleware that mocks GitHub OIDC discovery responses.

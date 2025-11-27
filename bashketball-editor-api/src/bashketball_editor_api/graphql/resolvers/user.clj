@@ -17,6 +17,11 @@
    [:avatar-url [:maybe :string]]
    [:name [:maybe :string]]])
 
+(def UsersResponse
+  "Response wrapper for user list queries."
+  [:map {:graphql/type :UsersResponse}
+   [:data [:vector User]]])
+
 (defn- transform-user
   "Transforms a user entity to GraphQL User type.
 
@@ -45,10 +50,9 @@
 (gql/defresolver :Query :users
   "Lists all users with optional filtering. Requires authentication."
   [:=> [:cat :any [:map {:optional true} [:limit {:optional true} :int]] :any]
-   [:vector User]]
+   UsersResponse]
   [ctx args _value]
-  (let [users (repo/find-all (:user-repo ctx) args)]
-    (mapv transform-user users)))
+  {:data (mapv transform-user (repo/find-all (:user-repo ctx) args))})
 
 (gql/def-resolver-map
   "Resolver map containing all User Query resolvers with authentication middleware."

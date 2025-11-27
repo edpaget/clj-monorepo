@@ -6,7 +6,7 @@
   (:require
    [authn.core :as core]
    [cheshire.core :as json]
-   [clojure.string :as str]
+   [clojure.java.io :as io]
    [ring.util.response :as response]))
 
 (set! *warn-on-reflection* true)
@@ -15,7 +15,7 @@
   "Parses JSON request body."
   [request]
   (when-let [body (:body request)]
-    (json/parse-stream (clojure.java.io/reader body) true)))
+    (json/parse-stream (io/reader body) true)))
 
 (defn- json-response
   "Creates a JSON response."

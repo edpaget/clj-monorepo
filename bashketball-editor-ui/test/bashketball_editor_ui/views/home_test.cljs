@@ -8,10 +8,10 @@
 
 (t/use-fixtures :each fixtures/cleanup-fixture)
 
-(t/deftest home-view-renders-header-test
-  (t/testing "renders application header"
+(t/deftest home-view-renders-description-test
+  (t/testing "renders description text"
     (tlr/render ($ home-view))
-    (t/is (some? (tlr/get-by-text "Bashketball Card Editor")))))
+    (t/is (some? (tlr/get-by-text "Create and edit trading cards for the Bashketball card game.")))))
 
 (t/deftest home-view-renders-search-test
   (t/testing "renders search input"

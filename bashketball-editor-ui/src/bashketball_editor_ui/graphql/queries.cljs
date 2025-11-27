@@ -23,28 +23,59 @@
 (def CARDS_QUERY
   "Query for listing cards, optionally filtered by set."
   (apollo/gql "
-    query Cards($setId: ID) {
-      cards(setId: $setId) {
-        id
-        name
-        cardType
-        updatedAt
+    query Cards($setId: ID, $cardType: String) {
+      cards(setId: $setId, cardType: $cardType) {
+        data {
+          slug
+          name
+          cardType
+          setId
+          updatedAt
+        }
       }
     }
   "))
 
 (def CARD_QUERY
-  "Query for a single card by ID."
+  "Query for a single card by slug and setId."
   (apollo/gql "
-    query Card($id: ID!) {
-      card(id: $id) {
-        id
+    query Card($slug: String!, $setSlug: String!) {
+      card(slug: $slug, setSlug: $setSlug) {
+        slug
         name
         cardType
-        attributes
+        setId
         imagePrompt
         createdAt
         updatedAt
       }
     }
   "))
+
+(def CARD_SETS_QUERY
+  "Query for list sets."
+  (apollo/gql "
+    query CardSets {
+      cardSets {
+        data {
+          slug
+          name
+          createdAt
+          updatedAt
+        }
+      }
+    }
+"))
+
+(def CARD_SET_QUERY
+  "Query for getting a single set by its slug"
+  (apollo/gql "
+    query CardSets {
+      cardSets {
+        slug
+        name
+        createdAt
+        updatedAt
+      }
+    }
+"))

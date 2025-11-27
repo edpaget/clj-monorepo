@@ -37,7 +37,6 @@
               [:cookie-same-site [:enum :strict :lax :none]]]]
    [:auth [:map
            [:required-org [:maybe :string]]
-           [:validate-org? :boolean]
            [:cache-ttl-ms pos-int?]]]
    [:git [:map
           [:repo-path :string]

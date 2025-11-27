@@ -12,10 +12,9 @@
 (defn- transform-card-set
   "Transforms a card set entity for GraphQL output.
 
-  Converts timestamps to ISO strings and id to string."
+  Converts timestamps to ISO strings."
   [card-set]
   (-> card-set
-      (update :id str)
       (update :created-at #(when % (str %)))
       (update :updated-at #(when % (str %)))))
 
@@ -23,24 +22,23 @@
   "Transforms a card entity for GraphQL output."
   [card]
   (-> card
-      (update :set-id str)
       (update :created-at #(when % (str %)))
       (update :updated-at #(when % (str %)))))
 
 (gql/defresolver :Query :cardSet
-  "Fetches a single card set by ID."
-  [:=> [:cat :any [:map [:id :string]] :any]
+  "Fetches a single card set by slug."
+  [:=> [:cat :any [:map [:slug :string]] :any]
    [:maybe schemas/CardSet]]
-  [ctx {:keys [id]} _value]
-  (when-let [card-set (repo/find-by (:set-repo ctx) {:id (parse-uuid id)})]
+  [ctx {:keys [slug]} _value]
+  (when-let [card-set (repo/find-by (:set-repo ctx) {:slug slug})]
     (transform-card-set card-set)))
 
 (gql/defresolver :Query :cardSets
   "Lists all card sets."
   [:=> [:cat :any :any :any]
-   [:vector schemas/CardSet]]
+   schemas/CardSetsResponse]
   [ctx _args _value]
-  (mapv transform-card-set (repo/find-all (:set-repo ctx) {})))
+  {:data (mapv transform-card-set (repo/find-all (:set-repo ctx) {}))})
 
 (gql/defresolver :Mutation :createCardSet
   "Creates a new card set."
@@ -51,22 +49,20 @@
 
 (gql/defresolver :Mutation :updateCardSet
   "Updates an existing card set."
-  [:=> [:cat :any [:map [:id :string] [:input schemas/CardSetInput]] :any]
+  [:=> [:cat :any [:map [:slug :string] [:input schemas/CardSetInput]] :any]
    schemas/CardSet]
-  [ctx {:keys [id input]} _value]
-  (transform-card-set (repo/update! (:set-repo ctx)
-                                    (parse-uuid id)
-                                    input)))
+  [ctx {:keys [slug input]} _value]
+  (transform-card-set (repo/update! (:set-repo ctx) slug input)))
 
 (gql/defresolver :Mutation :deleteCardSet
   "Deletes a card set.
 
   Note: This only deletes the set metadata. Cards within the set are
   not automatically deleted."
-  [:=> [:cat :any [:map [:id :string]] :any]
+  [:=> [:cat :any [:map [:slug :string]] :any]
    :boolean]
-  [ctx {:keys [id]} _value]
-  (repo/delete! (:set-repo ctx) (parse-uuid id)))
+  [ctx {:keys [slug]} _value]
+  (repo/delete! (:set-repo ctx) slug))
 
 (defn cards-resolver
   "Nested resolver for fetching cards in a card set.
@@ -74,12 +70,9 @@
   This is manually defined since graphql-server doesn't support
   nested field resolvers through defresolver."
   [ctx _args card-set]
-  (let [set-id (if (string? (:id card-set))
-                 (parse-uuid (:id card-set))
-                 (:id card-set))]
-    (mapv transform-card
-          (repo/find-all (:card-repo ctx)
-                         {:where {:set-id set-id}}))))
+  {:data (mapv transform-card
+               (repo/find-all (:card-repo ctx)
+                              {:where {:set-slug (:slug card-set)}}))})
 
 (def query-resolvers
   "Query resolvers for card sets."

@@ -1,7 +1,7 @@
 (ns bashketball-editor-api.git.cards
   "Card repository backed by Git via JGit.
 
-  Stores cards as EDN files in a Git repository under `cards/<set-id>/<slug>.edn`.
+  Stores cards as EDN files in a Git repository under `cards/<set-slug>/<slug>.edn`.
   Cards use `:slug` as the primary key within a set (version history is handled by Git).
   Implements the [[bashketball-editor-api.models.protocol/Repository]] protocol."
   (:require
@@ -24,27 +24,29 @@
 (defn- card-path
   "Returns the file path for a card within the repository.
 
-  Cards are stored at `cards/<set-id>/<slug>.edn`."
-  [set-id slug]
-  (str "cards/" set-id "/" slug ".edn"))
+  Cards are stored at `<set-slug>/<slug>.edn`."
+  [set-slug slug]
+  (str set-slug "/" slug ".edn"))
 
 (defrecord CardRepository [git-repo lock user-ctx-fn]
   proto/Repository
   (find-by [_this criteria]
     (when-let [slug (:slug criteria)]
-      (when-let [set-id (:set-id criteria)]
-        (let [path (card-path set-id slug)]
+      (when-let [set-slug (:set-slug criteria)]
+        (let [path (card-path set-slug slug)]
           (when-let [content (git-repo/read-file git-repo path)]
             (edn/read-string content))))))
 
   (find-all [_this opts]
-    (let [set-id           (get-in opts [:where :set-id])
+    (let [set-slug         (get-in opts [:where :set-slug])
           card-type-filter (get-in opts [:where :card-type])]
-      (if set-id
-        (let [card-files (git-repo/list-files git-repo (str "cards/" set-id) ".edn")
+      (if set-slug
+        (let [card-files (git-repo/list-files git-repo set-slug ".edn")
+              ;; Filter out metadata.edn which is the set metadata file
+              card-files (remove #(str/ends-with? (.getName %) "metadata.edn") (or card-files []))
               cards      (mapv (fn [file]
                                  (edn/read-string (slurp file)))
-                               (or card-files []))]
+                               card-files)]
           (cond->> cards
             card-type-filter (filterv #(= card-type-filter (:card-type %)))))
         [])))
@@ -54,7 +56,7 @@
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (user-ctx-fn)
-            set-id   (:set-id data)
+            set-slug (:set-slug data)
             slug     (:slug data)
             _        (when-not slug
                        (throw (ex-info "slug is required" {:data data})))
@@ -62,9 +64,9 @@
             card     (-> data
                          (assoc :created-at (or (:created-at data) now)
                                 :updated-at now))
-            path     (card-path set-id slug)]
+            path     (card-path set-slug slug)]
         (when (git-repo/read-file git-repo path)
-          (throw (ex-info "Card already exists" {:slug slug :set-id set-id})))
+          (throw (ex-info "Card already exists" {:slug slug :set-slug set-slug})))
         (git-repo/write-file git-repo path (pr-str card))
         (git-repo/commit git-repo
                          (str "Create card: " slug)
@@ -79,15 +81,15 @@
     (locking lock
       (let [user-ctx (user-ctx-fn)
             slug     (:slug criteria)
-            set-id   (:set-id criteria)
-            _        (when-not (and slug set-id)
-                       (throw (ex-info "slug and set-id required for card update"
+            set-slug (:set-slug criteria)
+            _        (when-not (and slug set-slug)
+                       (throw (ex-info "slug and set-slug required for card update"
                                        {:criteria criteria})))]
-        (if-let [existing (proto/find-by this {:slug slug :set-id set-id})]
+        (if-let [existing (proto/find-by this {:slug slug :set-slug set-slug})]
           (let [updated (-> existing
-                            (merge (dissoc data :set-id :slug))
+                            (merge (dissoc data :set-slug :slug))
                             (assoc :updated-at (java.time.Instant/now)))
-                path    (card-path set-id slug)]
+                path    (card-path set-slug slug)]
             (git-repo/write-file git-repo path (pr-str updated))
             (git-repo/commit git-repo
                              (str "Update card: " slug)
@@ -95,7 +97,7 @@
                              (:email user-ctx))
             (git-repo/push git-repo (:github-token user-ctx))
             updated)
-          (throw (ex-info "Card not found" {:slug slug :set-id set-id}))))))
+          (throw (ex-info "Card not found" {:slug slug :set-slug set-slug}))))))
 
   (delete! [_this id]
     (when-not (:writer? git-repo)
@@ -103,10 +105,10 @@
     (locking lock
       (let [user-ctx (user-ctx-fn)
             slug     (:slug id)
-            set-id   (:set-id id)
-            _        (when-not (and slug set-id)
-                       (throw (ex-info "slug and set-id required for card delete" {:id id})))
-            path     (card-path set-id slug)]
+            set-slug (:set-slug id)
+            _        (when-not (and slug set-slug)
+                       (throw (ex-info "slug and set-slug required for card delete" {:id id})))
+            path     (card-path set-slug slug)]
         (if (git-repo/delete-file git-repo path)
           (do
             (git-repo/commit git-repo

@@ -37,8 +37,7 @@
   :cookie-same-site :lax}
 
  :auth
- {:required-org nil
-  :validate-org? false
+ {:required-org #or [#env GITHUB_REQUIRED_ORG "bashketball"]
   :cache-ttl-ms 300000}
 
  :git

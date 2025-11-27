@@ -110,6 +110,7 @@
   [resolver-map github-oidc-client authenticator db-pool user-repo
    git-repo card-repo set-repo session-config config]
   (let [success-redirect-uri (get-in config [:github :oauth :success-redirect-uri])
+        required-org         (get-in config [:auth :required-org])
         allowed-origins      (set (get-in config [:cors :allowed-origins]))]
     (-> (routes authenticator)
         (gql-ring/graphql-middleware
@@ -128,9 +129,10 @@
           :login-path "/auth/github/login"
           :callback-path "/auth/github/callback"
           :callback-opts {:success-fn (gh-auth/create-success-handler
-                                       user-repo
-                                       authenticator
-                                       success-redirect-uri)
+                                       {:user-repo user-repo
+                                        :authenticator authenticator
+                                        :success-redirect-uri success-redirect-uri
+                                        :required-org required-org})
                           :verify-id-token? false}})
         (gh-auth/mock-discovery)
         (wrap-user-context user-repo)

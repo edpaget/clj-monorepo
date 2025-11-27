@@ -73,14 +73,15 @@
         (is (= :error (:behavior wrapped-value)))
         (is (= "Authentication required" (:message (:data wrapped-value)))))))
 
-  (testing "returns users when authenticated"
+  (testing "returns users wrapped in :data when authenticated"
     (let [ctx                {:request {:authn/authenticated? true}
                               :user-repo (->MockUserRepo)}
           [_schema resolver] (get user/resolvers [:Query :users])
           result             (resolver ctx {} nil)]
-      (is (vector? result))
-      (is (= 1 (count result)))
-      (is (= "testuser" (:githubLogin (first result)))))))
+      (is (map? result))
+      (is (vector? (:data result)))
+      (is (= 1 (count (:data result))))
+      (is (= "testuser" (:githubLogin (first (:data result))))))))
 
 (deftest user-resolver-criteria-test
   (testing "finds user by id"

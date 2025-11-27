@@ -181,9 +181,9 @@
       (let [user-repo       (user/create-user-repository)
             authenticator   (create-test-authenticator)
             success-handler (gh-auth/create-success-handler
-                             user-repo
-                             authenticator
-                             "http://localhost:3001/")]
+                             {:user-repo user-repo
+                              :authenticator authenticator
+                              :success-redirect-uri "http://localhost:3001/"})]
         ;; Simulate OAuth callback with token response
         ;; fetch-all-user-data returns {:profile ... :emails ... :orgs ...}
         (with-redefs [gh-claims/fetch-all-user-data
@@ -208,3 +208,134 @@
               (is (= "oauth-test-user" (:github-login user)))
               (is (= "github-oauth-token-12345" (:github-token user))
                   "GitHub access token should be stored for Git operations"))))))))
+
+(deftest create-success-handler-org-validation-test
+  (testing "OAuth success handler allows users in required org"
+    (with-db
+      (let [user-repo       (user/create-user-repository)
+            authenticator   (create-test-authenticator)
+            success-handler (gh-auth/create-success-handler
+                             {:user-repo user-repo
+                              :authenticator authenticator
+                              :success-redirect-uri "http://localhost:3001/"
+                              :required-org "bashketball"})]
+        (with-redefs [gh-claims/fetch-all-user-data
+                      (fn [_token _opts]
+                        {:profile {:login "org-member"
+                                   :email "member@example.com"
+                                   :avatar_url "https://github.com/member.png"
+                                   :name "Org Member"
+                                   :id 11111}
+                         :emails [{:email "member@example.com"
+                                   :primary true
+                                   :verified true}]
+                         :orgs [{:login "bashketball"}
+                                {:login "other-org"}]})]
+          (let [token-response {:access_token "member-token"}
+                response       (success-handler {} token-response)]
+            (is (= 302 (:status response)))
+            (is (= "http://localhost:3001/" (get-in response [:headers "Location"])))
+            (is (some? (get-in response [:session :authn/session-id]))))))))
+
+  (testing "OAuth success handler denies users not in required org"
+    (with-db
+      (let [user-repo       (user/create-user-repository)
+            authenticator   (create-test-authenticator)
+            success-handler (gh-auth/create-success-handler
+                             {:user-repo user-repo
+                              :authenticator authenticator
+                              :success-redirect-uri "http://localhost:3001/"
+                              :required-org "bashketball"})]
+        (with-redefs [gh-claims/fetch-all-user-data
+                      (fn [_token _opts]
+                        {:profile {:login "non-member"
+                                   :email "nonmember@example.com"
+                                   :avatar_url "https://github.com/nonmember.png"
+                                   :name "Non Member"
+                                   :id 22222}
+                         :emails [{:email "nonmember@example.com"
+                                   :primary true
+                                   :verified true}]
+                         :orgs [{:login "other-org"}]})]
+          (let [token-response {:access_token "non-member-token"}
+                response       (success-handler {} token-response)]
+            (is (= 302 (:status response)))
+            (is (= "http://localhost:3001/?error=org_required"
+                   (get-in response [:headers "Location"])))
+            (is (nil? (:session response))))))))
+
+  (testing "OAuth success handler allows all users when no org required"
+    (with-db
+      (let [user-repo       (user/create-user-repository)
+            authenticator   (create-test-authenticator)
+            success-handler (gh-auth/create-success-handler
+                             {:user-repo user-repo
+                              :authenticator authenticator
+                              :success-redirect-uri "http://localhost:3001/"
+                              :required-org nil})]
+        (with-redefs [gh-claims/fetch-all-user-data
+                      (fn [_token _opts]
+                        {:profile {:login "anyone"
+                                   :email "anyone@example.com"
+                                   :avatar_url "https://github.com/anyone.png"
+                                   :name "Anyone"
+                                   :id 33333}
+                         :emails [{:email "anyone@example.com"
+                                   :primary true
+                                   :verified true}]
+                         :orgs []})]
+          (let [token-response {:access_token "anyone-token"}
+                response       (success-handler {} token-response)]
+            (is (= 302 (:status response)))
+            (is (= "http://localhost:3001/" (get-in response [:headers "Location"])))
+            (is (some? (get-in response [:session :authn/session-id])))))))
+
+    (with-db
+      (let [user-repo       (user/create-user-repository)
+            authenticator   (create-test-authenticator)
+            success-handler (gh-auth/create-success-handler
+                             {:user-repo user-repo
+                              :authenticator authenticator
+                              :success-redirect-uri "http://localhost:3001/"})]
+        (with-redefs [gh-claims/fetch-all-user-data
+                      (fn [_token _opts]
+                        {:profile {:login "anyone2"
+                                   :email "anyone2@example.com"
+                                   :avatar_url "https://github.com/anyone2.png"
+                                   :name "Anyone2"
+                                   :id 44444}
+                         :emails [{:email "anyone2@example.com"
+                                   :primary true
+                                   :verified true}]
+                         :orgs []})]
+          (let [token-response {:access_token "anyone2-token"}
+                response       (success-handler {} token-response)]
+            (is (= 302 (:status response)))
+            (is (some? (get-in response [:session :authn/session-id]))))))))
+
+  (testing "OAuth success handler uses custom failure redirect when provided"
+    (with-db
+      (let [user-repo       (user/create-user-repository)
+            authenticator   (create-test-authenticator)
+            success-handler (gh-auth/create-success-handler
+                             {:user-repo user-repo
+                              :authenticator authenticator
+                              :success-redirect-uri "http://localhost:3001/"
+                              :required-org "bashketball"
+                              :failure-redirect-uri "http://localhost:3001/access-denied"})]
+        (with-redefs [gh-claims/fetch-all-user-data
+                      (fn [_token _opts]
+                        {:profile {:login "denied-user"
+                                   :email "denied@example.com"
+                                   :avatar_url "https://github.com/denied.png"
+                                   :name "Denied User"
+                                   :id 55555}
+                         :emails [{:email "denied@example.com"
+                                   :primary true
+                                   :verified true}]
+                         :orgs []})]
+          (let [token-response {:access_token "denied-token"}
+                response       (success-handler {} token-response)]
+            (is (= 302 (:status response)))
+            (is (= "http://localhost:3001/access-denied"
+                   (get-in response [:headers "Location"])))))))))

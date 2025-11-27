@@ -1,4 +1,5 @@
-{:deps true
+{:deps {:aliases [:test]}
+ :source-paths ["src" "test"]
 
  :builds
  {:app
@@ -15,5 +16,4 @@
    :output-to "out/node-tests.js"
    :prepend-js "require('global-jsdom/register');"
    :autorun true
-   :deps {:aliases [:test]}
    :ns-regexp "bashketball-editor-ui\\..*-test$"}}}

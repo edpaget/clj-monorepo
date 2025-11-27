@@ -14,11 +14,11 @@
   - `:logged-in?` - Whether the user is logged in
   - `:refetch` - Function to refetch the query"
   []
-  (let [result (useQuery queries/ME_QUERY #js {:fetchPolicy "network-only"})
+  (let [result  (useQuery queries/ME_QUERY #js {:fetchPolicy "network-only"})
         loading (.-loading result)
-        error (.-error result)
-        data (.-data result)
-        user (when data (.-me data))
+        error   (.-error result)
+        data    (.-data result)
+        user    (when data (.-me data))
         refetch (.-refetch result)]
     {:user (when user
              {:id (.-id user)

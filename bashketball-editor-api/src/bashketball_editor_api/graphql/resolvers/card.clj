@@ -16,128 +16,127 @@
 (defn- transform-card
   "Transforms a card entity for GraphQL output.
 
-  Converts timestamps to ISO strings and set-id to string."
+  Converts timestamps to ISO strings."
   [card]
   (-> card
-      (update :set-id str)
       (update :created-at #(when % (str %)))
       (update :updated-at #(when % (str %)))))
 
 (gql/defresolver :Query :card
-  "Fetches a single card by slug and set ID."
-  [:=> [:cat :any [:map [:slug :string] [:setId :string]] :any]
+  "Fetches a single card by slug and set slug."
+  [:=> [:cat :any [:map [:slug :string] [:setSlug :string]] :any]
    [:maybe GameCard]]
-  [ctx {:keys [slug setId]} _value]
+  [ctx {:keys [slug setSlug]} _value]
   (when-let [card (repo/find-by (:card-repo ctx)
                                 {:slug slug
-                                 :set-id (parse-uuid setId)})]
+                                 :set-slug setSlug})]
     (transform-card card)))
 
 (gql/defresolver :Query :cards
-  "Lists cards, optionally filtered by set ID and/or card type."
+  "Lists cards, optionally filtered by set slug and/or card type."
   [:=> [:cat :any [:map {:optional true}
-                   [:setId {:optional true} :string]
+                   [:setSlug {:optional true} :string]
                    [:cardType {:optional true} :string]] :any]
-   [:vector GameCard]]
+   schemas/CardsResponse]
   [ctx args _value]
   (let [card-type-kw (when-let [ct (:cardType args)]
                        (keyword "card-type" ct))
         opts         (cond-> {}
-                       (:setId args) (assoc-in [:where :set-id] (parse-uuid (:setId args)))
+                       (:setSlug args) (assoc-in [:where :set-slug] (:setSlug args))
                        card-type-kw (assoc-in [:where :card-type] card-type-kw))]
-    (mapv transform-card (repo/find-all (:card-repo ctx) opts))))
+    {:data (mapv transform-card (repo/find-all (:card-repo ctx) opts))}))
 
 (gql/defresolver :Mutation :createPlayerCard
   "Creates a new player card."
-  [:=> [:cat :any [:map [:setId :string] [:input schemas/PlayerCardInput]] :any]
+  [:=> [:cat :any [:map [:setSlug :string] [:input schemas/PlayerCardInput]] :any]
    schemas/PlayerCard]
-  [ctx {:keys [setId input]} _value]
+  [ctx {:keys [setSlug input]} _value]
   (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
+                      (assoc :set-slug setSlug)
                       (assoc :card-type :card-type/PLAYER_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createAbilityCard
   "Creates a new ability card."
-  [:=> [:cat :any [:map [:setId :string] [:input schemas/AbilityCardInput]] :any]
+  [:=> [:cat :any [:map [:setSlug :string] [:input schemas/AbilityCardInput]] :any]
    schemas/AbilityCard]
-  [ctx {:keys [setId input]} _value]
+  [ctx {:keys [setSlug input]} _value]
   (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
+                      (assoc :set-slug setSlug)
                       (assoc :card-type :card-type/ABILITY_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createSplitPlayCard
   "Creates a new split play card."
-  [:=> [:cat :any [:map [:setId :string] [:input schemas/SplitPlayCardInput]] :any]
+  [:=> [:cat :any [:map [:setSlug :string] [:input schemas/SplitPlayCardInput]] :any]
    schemas/SplitPlayCard]
-  [ctx {:keys [setId input]} _value]
+  [ctx {:keys [setSlug input]} _value]
   (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
+                      (assoc :set-slug setSlug)
                       (assoc :card-type :card-type/SPLIT_PLAY_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createPlayCard
   "Creates a new play card."
-  [:=> [:cat :any [:map [:setId :string] [:input schemas/PlayCardInput]] :any]
+  [:=> [:cat :any [:map [:setSlug :string] [:input schemas/PlayCardInput]] :any]
    schemas/PlayCard]
-  [ctx {:keys [setId input]} _value]
+  [ctx {:keys [setSlug input]} _value]
   (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
+                      (assoc :set-slug setSlug)
                       (assoc :card-type :card-type/PLAY_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createCoachingCard
   "Creates a new coaching card."
-  [:=> [:cat :any [:map [:setId :string] [:input schemas/CoachingCardInput]] :any]
+  [:=> [:cat :any [:map [:setSlug :string] [:input schemas/CoachingCardInput]] :any]
    schemas/CoachingCard]
-  [ctx {:keys [setId input]} _value]
+  [ctx {:keys [setSlug input]} _value]
   (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
+                      (assoc :set-slug setSlug)
                       (assoc :card-type :card-type/COACHING_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createStandardActionCard
   "Creates a new standard action card."
-  [:=> [:cat :any [:map [:setId :string] [:input schemas/StandardActionCardInput]] :any]
+  [:=> [:cat :any [:map [:setSlug :string] [:input schemas/StandardActionCardInput]] :any]
    schemas/StandardActionCard]
-  [ctx {:keys [setId input]} _value]
+  [ctx {:keys [setSlug input]} _value]
   (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
+                      (assoc :set-slug setSlug)
                       (assoc :card-type :card-type/STANDARD_ACTION_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :createTeamAssetCard
   "Creates a new team asset card."
-  [:=> [:cat :any [:map [:setId :string] [:input schemas/TeamAssetCardInput]] :any]
+  [:=> [:cat :any [:map [:setSlug :string] [:input schemas/TeamAssetCardInput]] :any]
    schemas/TeamAssetCard]
-  [ctx {:keys [setId input]} _value]
+  [ctx {:keys [setSlug input]} _value]
   (let [card-data (-> input
-                      (assoc :set-id (parse-uuid setId))
+                      (assoc :set-slug setSlug)
                       (assoc :card-type :card-type/TEAM_ASSET_CARD))]
     (transform-card (repo/create! (:card-repo ctx) card-data))))
 
 (gql/defresolver :Mutation :updateCard
   "Updates an existing card.
 
-  Looks up the card by slug and setId, then applies the update fields.
+  Looks up the card by slug and setSlug, then applies the update fields.
   Server validates the updated card against its type-specific schema."
   [:=> [:cat :any [:map [:slug :string]
-                   [:setId :string]
+                   [:setSlug :string]
                    [:input schemas/CardUpdateInput]] :any]
    GameCard]
-  [ctx {:keys [slug setId input]} _value]
+  [ctx {:keys [slug setSlug input]} _value]
   (transform-card (repo/update! (:card-repo ctx)
-                                {:slug slug :set-id (parse-uuid setId)}
+                                {:slug slug :set-slug setSlug}
                                 input)))
 
 (gql/defresolver :Mutation :deleteCard
-  "Deletes a card by slug and set ID."
-  [:=> [:cat :any [:map [:slug :string] [:setId :string]] :any]
+  "Deletes a card by slug and set slug."
+  [:=> [:cat :any [:map [:slug :string] [:setSlug :string]] :any]
    :boolean]
-  [ctx {:keys [slug setId]} _value]
+  [ctx {:keys [slug setSlug]} _value]
   (repo/delete! (:card-repo ctx)
-                {:slug slug :set-id (parse-uuid setId)}))
+                {:slug slug :set-slug setSlug}))
 
 (def query-resolvers
   "Query resolvers for cards (no auth required for queries)."

@@ -112,7 +112,7 @@
    {:client-id (get-in config [:github :oauth :client-id])
     :client-secret (get-in config [:github :oauth :client-secret])
     :redirect-uri (get-in config [:github :oauth :redirect-uri])
-    :scopes ["user:email" "read:user"]}))
+    :scopes ["user:email" "read:user" "read:org"]}))
 
 (defmethod ig/init-key ::handler [_ {:keys [resolver-map
                                             github-oidc-client

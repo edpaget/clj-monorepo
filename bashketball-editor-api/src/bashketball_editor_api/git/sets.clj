@@ -1,41 +1,59 @@
 (ns bashketball-editor-api.git.sets
   "Card set repository backed by Git via JGit.
 
-  Stores card sets as EDN files in a Git repository under `sets/<set-id>/metadata.edn`.
+  Stores card sets as EDN files in a Git repository under `sets/<slug>/metadata.edn`.
+  Set slugs are derived from the set name.
   Implements the [[bashketball-editor-api.models.protocol/Repository]] protocol."
   (:require
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.models.protocol :as proto]
    [clojure.edn :as edn]
    [clojure.java.io :as io]
+   [clojure.string :as str]
    [malli.core :as m]))
 
 (def CardSet
-  "Malli schema for card set entity."
+  "Malli schema for card set entity.
+
+  The `:slug` is derived from the set name."
   [:map
-   [:id {:optional true} :uuid]
+   [:slug {:optional true} :string]
    [:name :string]
    [:description {:optional true} [:maybe :string]]
    [:created-at {:optional true} inst?]
    [:updated-at {:optional true} inst?]])
 
+(defn slugify
+  "Converts a string to a URL-safe slug.
+
+  Converts to lowercase and replaces non-alphanumeric characters with hyphens.
+  Removes leading/trailing hyphens and collapses multiple hyphens."
+  [s]
+  (-> s
+      str/lower-case
+      (str/replace #"[^a-z0-9]+" "-")
+      (str/replace #"^-|-$" "")))
+
 (defn- set-path
-  "Returns the file path for a card set's metadata within the repository."
-  [set-id]
-  (str "sets/" set-id "/metadata.edn"))
+  "Returns the file path for a card set's metadata within the repository.
+
+  Set metadata is stored at `<slug>/metadata.edn`."
+  [slug]
+  (str slug "/metadata.edn"))
 
 (defrecord SetRepository [git-repo lock user-ctx-fn]
   proto/Repository
   (find-by [_this criteria]
-    (when-let [id (:id criteria)]
-      (when-let [content (git-repo/read-file git-repo (set-path id))]
+    (when-let [slug (:slug criteria)]
+      (when-let [content (git-repo/read-file git-repo (set-path slug))]
         (edn/read-string content))))
 
   (find-all [_this _opts]
-    (let [sets-dir (io/file (:repo-path git-repo) "sets")]
-      (if (.exists sets-dir)
-        (->> (.listFiles sets-dir)
+    (let [repo-dir (io/file (:repo-path git-repo))]
+      (if (.exists repo-dir)
+        (->> (.listFiles repo-dir)
              (filter #(.isDirectory %))
+             (remove #(str/starts-with? (.getName %) "."))
              (keep (fn [dir]
                      (let [metadata-file (io/file dir "metadata.edn")]
                        (when (.exists metadata-file)
@@ -49,50 +67,52 @@
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (user-ctx-fn)
-            id       (or (:id data) (java.util.UUID/randomUUID))
+            slug     (or (:slug data) (slugify (:name data)))
             now      (java.time.Instant/now)
             card-set (-> data
-                         (assoc :id id
+                         (assoc :slug slug
                                 :created-at (or (:created-at data) now)
                                 :updated-at now))
-            path     (set-path id)]
+            path     (set-path slug)]
+        (when (git-repo/read-file git-repo path)
+          (throw (ex-info "Set already exists" {:slug slug :name (:name data)})))
         (git-repo/write-file git-repo path (pr-str card-set))
         (git-repo/commit git-repo
-                         (str "Create set: " (:name card-set) " [" id "]")
+                         (str "Create set: " (:name card-set) " [" slug "]")
                          (:name user-ctx)
                          (:email user-ctx))
         (git-repo/push git-repo (:github-token user-ctx))
         card-set)))
 
-  (update! [this id data]
+  (update! [this slug data]
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (user-ctx-fn)]
-        (if-let [existing (proto/find-by this {:id id})]
+        (if-let [existing (proto/find-by this {:slug slug})]
           (let [updated (-> existing
                             (merge data)
                             (assoc :updated-at (java.time.Instant/now)))
-                path    (set-path id)]
+                path    (set-path slug)]
             (git-repo/write-file git-repo path (pr-str updated))
             (git-repo/commit git-repo
-                             (str "Update set: " (:name updated) " [" id "]")
+                             (str "Update set: " (:name updated) " [" slug "]")
                              (:name user-ctx)
                              (:email user-ctx))
             (git-repo/push git-repo (:github-token user-ctx))
             updated)
-          (throw (ex-info "Set not found" {:id id}))))))
+          (throw (ex-info "Set not found" {:slug slug}))))))
 
-  (delete! [_this id]
+  (delete! [_this slug]
     (when-not (:writer? git-repo)
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (user-ctx-fn)
-            path     (set-path id)]
+            path     (set-path slug)]
         (if (git-repo/delete-file git-repo path)
           (do
             (git-repo/commit git-repo
-                             (str "Delete set: " id)
+                             (str "Delete set: " slug)
                              (:name user-ctx)
                              (:email user-ctx))
             (git-repo/push git-repo (:github-token user-ctx))
