@@ -1,7 +1,7 @@
 (ns bashketball-editor-api.config-test
   (:require
-   [clojure.test :refer [deftest is testing]]
    [bashketball-editor-api.config :as config]
+   [clojure.test :refer [deftest is testing]]
    [malli.core :as m]))
 
 (deftest config-schema-test

@@ -69,13 +69,13 @@
   - `:uncommittedChanges` - count of uncommitted changes
   - `:isClean` - true if no uncommitted changes and in sync with remote"
   [git-repo]
-  (let [status (git-repo/status git-repo)
+  (let [status       (git-repo/status git-repo)
         ahead-behind (git-repo/ahead-behind git-repo)
-        uncommitted (+ (count (:added status))
-                       (count (:changed status))
-                       (count (:removed status))
-                       (count (:modified status))
-                       (count (:untracked status)))]
+        uncommitted  (+ (count (:added status))
+                        (count (:changed status))
+                        (count (:removed status))
+                        (count (:modified status))
+                        (count (:untracked status)))]
     {:ahead (or (:ahead ahead-behind) 0)
      :behind (or (:behind ahead-behind) 0)
      :uncommittedChanges uncommitted

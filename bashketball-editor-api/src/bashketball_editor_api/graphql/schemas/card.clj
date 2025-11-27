@@ -285,7 +285,7 @@
   "Validates a card against its type-specific schema."
   [card]
   (let [card-type (:card-type card)
-        schema (get card-type->schema card-type)]
+        schema    (get card-type->schema card-type)]
     (if schema
       (m/validate schema card)
       false)))
@@ -294,6 +294,6 @@
   "Returns validation errors for a card."
   [card]
   (let [card-type (:card-type card)
-        schema (get card-type->schema card-type)]
+        schema    (get card-type->schema card-type)]
     (when schema
       (m/explain schema card))))

@@ -1,7 +1,7 @@
 (ns bashketball-editor-api.services.card-test
   (:require
-   [clojure.test :refer [deftest is testing]]
-   [bashketball-editor-api.services.card :as card-svc]))
+   [bashketball-editor-api.services.card :as card-svc]
+   [clojure.test :refer [deftest is testing]]))
 
 (deftest create-card-service-test
   (testing "creates a CardService record"

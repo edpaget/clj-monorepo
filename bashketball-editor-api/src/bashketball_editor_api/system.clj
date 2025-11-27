@@ -81,7 +81,7 @@
                     :remote-url (get-in config [:git :remote-url])
                     :branch (get-in config [:git :branch])
                     :writer? (get-in config [:git :writer?])}
-        repo (git-repo/create-git-repo git-config)]
+        repo       (git-repo/create-git-repo git-config)]
     (when (:remote-url git-config)
       (git-repo/clone-or-open git-config))
     (log/info "Git repository initialized at" (:repo-path git-config)

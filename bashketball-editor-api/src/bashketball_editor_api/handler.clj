@@ -69,7 +69,7 @@
   Only allows origins specified in `allowed-origins` set."
   [handler allowed-origins]
   (fn [request]
-    (let [origin (get-in request [:headers "origin"])
+    (let [origin   (get-in request [:headers "origin"])
           allowed? (contains? allowed-origins origin)]
       (if (= :options (:request-method request))
         {:status 204
@@ -91,7 +91,7 @@
   [resolver-map github-oidc-client authenticator db-pool user-repo
    git-repo card-repo set-repo session-config config]
   (let [success-redirect-uri (get-in config [:github :oauth :success-redirect-uri])
-        allowed-origins (set (get-in config [:cors :allowed-origins]))]
+        allowed-origins      (set (get-in config [:cors :allowed-origins]))]
     (-> (routes authenticator)
         (gql-ring/graphql-middleware
          {:path "/graphql"

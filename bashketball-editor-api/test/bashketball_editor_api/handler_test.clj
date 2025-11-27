@@ -1,7 +1,7 @@
 (ns bashketball-editor-api.handler-test
   (:require
-   [clojure.test :refer [deftest is testing]]
-   [bashketball-editor-api.handler :as handler]))
+   [bashketball-editor-api.handler :as handler]
+   [clojure.test :refer [deftest is testing]]))
 
 (deftest health-handler-test
   (testing "returns 200 with ok status"
@@ -20,13 +20,13 @@
 (deftest routes-test
   (testing "GET /health returns health response"
     (let [mock-authenticator {}
-          routes-handler (handler/routes mock-authenticator)
-          response (routes-handler {:request-method :get :uri "/health"})]
+          routes-handler     (handler/routes mock-authenticator)
+          response           (routes-handler {:request-method :get :uri "/health"})]
       (is (= 200 (:status response)))
       (is (= {:status "ok"} (:body response)))))
 
   (testing "unknown route returns 404"
     (let [mock-authenticator {}
-          routes-handler (handler/routes mock-authenticator)
-          response (routes-handler {:request-method :get :uri "/unknown"})]
+          routes-handler     (handler/routes mock-authenticator)
+          response           (routes-handler {:request-method :get :uri "/unknown"})]
       (is (= 404 (:status response))))))

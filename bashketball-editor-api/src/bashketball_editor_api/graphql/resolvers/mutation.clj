@@ -4,8 +4,8 @@
   Contains mutations for Git sync operations and card/set management."
   (:require
    [bashketball-editor-api.git.sync :as git-sync]
-   [bashketball-editor-api.models.protocol :as repo]
    [bashketball-editor-api.graphql.middleware :as middleware]
+   [bashketball-editor-api.models.protocol :as repo]
    [graphql-server.core :as gql]))
 
 (def SyncResult

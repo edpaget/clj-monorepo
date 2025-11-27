@@ -38,13 +38,13 @@
             (edn/read-string content))))))
 
   (find-all [_this opts]
-    (let [set-id (get-in opts [:where :set-id])
+    (let [set-id           (get-in opts [:where :set-id])
           card-type-filter (get-in opts [:where :card-type])]
       (if set-id
         (let [card-files (git-repo/list-files git-repo (str "cards/" set-id) ".edn")
-              cards (mapv (fn [file]
-                            (edn/read-string (slurp file)))
-                          (or card-files []))]
+              cards      (mapv (fn [file]
+                                 (edn/read-string (slurp file)))
+                               (or card-files []))]
           (cond->> cards
             card-type-filter (filterv #(= card-type-filter (:card-type %)))))
         [])))
@@ -54,18 +54,18 @@
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (:_user data)
-            _ (when-not user-ctx
-                (throw (ex-info "User context required for Git operations" {})))
-            set-id (:set-id data)
-            slug (:slug data)
-            _ (when-not slug
-                (throw (ex-info "slug is required" {:data data})))
-            now (java.time.Instant/now)
-            card (-> data
-                     (dissoc :_user)
-                     (assoc :created-at (or (:created-at data) now)
-                            :updated-at now))
-            path (card-path set-id slug)]
+            _        (when-not user-ctx
+                       (throw (ex-info "User context required for Git operations" {})))
+            set-id   (:set-id data)
+            slug     (:slug data)
+            _        (when-not slug
+                       (throw (ex-info "slug is required" {:data data})))
+            now      (java.time.Instant/now)
+            card     (-> data
+                         (dissoc :_user)
+                         (assoc :created-at (or (:created-at data) now)
+                                :updated-at now))
+            path     (card-path set-id slug)]
         (when (git-repo/read-file git-repo path)
           (throw (ex-info "Card already exists" {:slug slug :set-id set-id})))
         (git-repo/write-file git-repo path (pr-str card))
@@ -81,18 +81,18 @@
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (:_user data)
-            _ (when-not user-ctx
-                (throw (ex-info "User context required for Git operations" {})))
-            slug (:slug criteria)
-            set-id (:set-id data)
-            _ (when-not (and slug set-id)
-                (throw (ex-info "slug and set-id required for card update"
-                                {:criteria criteria :set-id set-id})))]
+            _        (when-not user-ctx
+                       (throw (ex-info "User context required for Git operations" {})))
+            slug     (:slug criteria)
+            set-id   (:set-id data)
+            _        (when-not (and slug set-id)
+                       (throw (ex-info "slug and set-id required for card update"
+                                       {:criteria criteria :set-id set-id})))]
         (if-let [existing (proto/find-by this {:slug slug :set-id set-id})]
           (let [updated (-> existing
                             (merge (dissoc data :_user :set-id :slug))
                             (assoc :updated-at (java.time.Instant/now)))
-                path (card-path set-id slug)]
+                path    (card-path set-id slug)]
             (git-repo/write-file git-repo path (pr-str updated))
             (git-repo/commit git-repo
                              (str "Update card: " slug)
@@ -117,7 +117,7 @@
   (when-not (:writer? (:git-repo card-repo))
     (throw (ex-info "Repository is read-only" {})))
   (locking (:lock card-repo)
-    (let [path (card-path set-id slug)
+    (let [path     (card-path set-id slug)
           git-repo (:git-repo card-repo)]
       (if (git-repo/delete-file git-repo path)
         (do

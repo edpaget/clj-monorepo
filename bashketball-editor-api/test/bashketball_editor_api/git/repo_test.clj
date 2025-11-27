@@ -25,7 +25,7 @@
                   :remote-url "https://github.com/test/repo.git"
                   :branch "main"
                   :writer? true}
-          repo (git-repo/create-git-repo config)]
+          repo   (git-repo/create-git-repo config)]
       (is (= *test-repo-path* (:repo-path repo)))
       (is (= "https://github.com/test/repo.git" (:remote-url repo)))
       (is (= "main" (:branch repo)))
@@ -33,8 +33,8 @@
 
 (deftest read-write-file-test
   (testing "writes and reads a file"
-    (let [repo (git-repo/create-git-repo {:repo-path *test-repo-path*
-                                          :writer? true})
+    (let [repo    (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                             :writer? true})
           content "Hello, World!"]
       (git-repo/write-file repo "test.txt" content)
       (is (= content (git-repo/read-file repo "test.txt")))))
@@ -45,8 +45,8 @@
       (is (nil? (git-repo/read-file repo "nonexistent.txt")))))
 
   (testing "creates parent directories"
-    (let [repo (git-repo/create-git-repo {:repo-path *test-repo-path*
-                                          :writer? true})
+    (let [repo    (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                             :writer? true})
           content "Nested content"]
       (git-repo/write-file repo "deep/nested/file.txt" content)
       (is (= content (git-repo/read-file repo "deep/nested/file.txt"))))))

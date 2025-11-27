@@ -156,7 +156,7 @@
   determine (e.g., no tracking branch configured)."
   [repo]
   (try
-    (let [^Git git-repo (git/load-repo (:repo-path repo))
+    (let [^Git git-repo   (git/load-repo (:repo-path repo))
           branch-tracking (.getBranchTrackingStatus
                            (org.eclipse.jgit.lib.BranchTrackingStatus/of
                             (.getRepository git-repo)

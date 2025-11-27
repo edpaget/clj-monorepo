@@ -1,7 +1,7 @@
 (ns bashketball-editor-api.graphql.middleware-test
   (:require
-   [clojure.test :refer [deftest is testing]]
    [bashketball-editor-api.graphql.middleware :as mw]
+   [clojure.test :refer [deftest is testing]]
    [com.walmartlabs.lacinia.resolve :as resolve]))
 
 (deftest wrap-db-context-test

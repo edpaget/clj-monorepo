@@ -178,8 +178,8 @@
 (deftest create-success-handler-saves-github-token-test
   (testing "OAuth success handler stores GitHub access token in user record"
     (with-db
-      (let [user-repo     (user/create-user-repository)
-            authenticator (create-test-authenticator)
+      (let [user-repo       (user/create-user-repository)
+            authenticator   (create-test-authenticator)
             success-handler (gh-auth/create-success-handler
                              user-repo
                              authenticator

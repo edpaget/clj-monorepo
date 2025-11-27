@@ -15,8 +15,8 @@
                           (str "test-sets-repo-" (System/currentTimeMillis)))]
     (.mkdirs temp-dir)
     (binding [*test-repo-path* (.getAbsolutePath temp-dir)
-              *test-repo* (git-repo/create-git-repo {:repo-path (.getAbsolutePath temp-dir)
-                                                     :writer? true})]
+              *test-repo*      (git-repo/create-git-repo {:repo-path (.getAbsolutePath temp-dir)
+                                                          :writer? true})]
       (try
         (f)
         (finally
@@ -66,18 +66,18 @@
   (testing "throws on create when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          set-repo (git-sets/create-set-repository read-only-repo)
-          set-data {:name "Test Set"
-                    :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
+          set-repo       (git-sets/create-set-repository read-only-repo)
+          set-data       {:name "Test Set"
+                          :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
                             (proto/create! set-repo set-data)))))
 
   (testing "throws on update when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          set-repo (git-sets/create-set-repository read-only-repo)
-          set-data {:name "Test Set"
-                    :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
+          set-repo       (git-sets/create-set-repository read-only-repo)
+          set-data       {:name "Test Set"
+                          :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
                             (proto/update! set-repo (random-uuid) set-data))))))
 

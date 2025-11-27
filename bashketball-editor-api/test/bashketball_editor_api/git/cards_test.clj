@@ -14,8 +14,8 @@
                           (str "test-cards-repo-" (System/currentTimeMillis)))]
     (.mkdirs temp-dir)
     (binding [*test-repo-path* (.getAbsolutePath temp-dir)
-              *test-repo* (git-repo/create-git-repo {:repo-path (.getAbsolutePath temp-dir)
-                                                     :writer? true})]
+              *test-repo*      (git-repo/create-git-repo {:repo-path (.getAbsolutePath temp-dir)
+                                                          :writer? true})]
       (try
         (f)
         (finally
@@ -54,26 +54,26 @@
   (testing "throws on create when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          card-repo (git-cards/create-card-repository read-only-repo)
-          card-data {:slug "test-card"
-                     :name "Test Card"
-                     :set-id (random-uuid)
-                     :card-type :card-type/PLAYER_CARD
-                     :deck-size 5
-                     :sht 1 :pss 1 :def 1 :speed 1
-                     :size :size/SM
-                     :abilities []
-                     :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
+          card-repo      (git-cards/create-card-repository read-only-repo)
+          card-data      {:slug "test-card"
+                          :name "Test Card"
+                          :set-id (random-uuid)
+                          :card-type :card-type/PLAYER_CARD
+                          :deck-size 5
+                          :sht 1 :pss 1 :def 1 :speed 1
+                          :size :size/SM
+                          :abilities []
+                          :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
                             (proto/create! card-repo card-data)))))
 
   (testing "throws on update when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          card-repo (git-cards/create-card-repository read-only-repo)
-          card-data {:set-id (random-uuid)
-                     :name "Test Card"
-                     :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
+          card-repo      (git-cards/create-card-repository read-only-repo)
+          card-data      {:set-id (random-uuid)
+                          :name "Test Card"
+                          :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
                             (proto/update! card-repo {:slug "test-card"} card-data))))))
 

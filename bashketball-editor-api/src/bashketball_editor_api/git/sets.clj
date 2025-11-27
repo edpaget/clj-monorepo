@@ -49,16 +49,16 @@
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (:_user data)
-            _ (when-not user-ctx
-                (throw (ex-info "User context required for Git operations" {})))
-            id (or (:id data) (java.util.UUID/randomUUID))
-            now (java.time.Instant/now)
+            _        (when-not user-ctx
+                       (throw (ex-info "User context required for Git operations" {})))
+            id       (or (:id data) (java.util.UUID/randomUUID))
+            now      (java.time.Instant/now)
             card-set (-> data
                          (dissoc :_user)
                          (assoc :id id
                                 :created-at (or (:created-at data) now)
                                 :updated-at now))
-            path (set-path id)]
+            path     (set-path id)]
         (git-repo/write-file git-repo path (pr-str card-set))
         (git-repo/commit git-repo
                          (str "Create set: " (:name card-set) " [" id "]")
@@ -72,13 +72,13 @@
       (throw (ex-info "Repository is read-only" {})))
     (locking lock
       (let [user-ctx (:_user data)
-            _ (when-not user-ctx
-                (throw (ex-info "User context required for Git operations" {})))]
+            _        (when-not user-ctx
+                       (throw (ex-info "User context required for Git operations" {})))]
         (if-let [existing (proto/find-by this {:id id})]
           (let [updated (-> existing
                             (merge (dissoc data :_user))
                             (assoc :updated-at (java.time.Instant/now)))
-                path (set-path id)]
+                path    (set-path id)]
             (git-repo/write-file git-repo path (pr-str updated))
             (git-repo/commit git-repo
                              (str "Update set: " (:name updated) " [" id "]")
@@ -102,7 +102,7 @@
   (when-not (:writer? (:git-repo set-repo))
     (throw (ex-info "Repository is read-only" {})))
   (locking (:lock set-repo)
-    (let [path (set-path id)
+    (let [path     (set-path id)
           git-repo (:git-repo set-repo)]
       (if (git-repo/delete-file git-repo path)
         (do

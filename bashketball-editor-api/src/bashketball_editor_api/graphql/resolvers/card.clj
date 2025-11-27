@@ -28,7 +28,7 @@
   "Extracts user context from GraphQL context for Git operations."
   [ctx]
   (let [user-id (get-in ctx [:request :authn/user-id])
-        user (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
+        user    (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
     {:name (:name user)
      :email (:email user)
      :github-token (:github-token user)}))
@@ -52,9 +52,9 @@
   [ctx args _value]
   (let [card-type-kw (when-let [ct (:cardType args)]
                        (keyword "card-type" ct))
-        opts (cond-> {}
-               (:setId args) (assoc-in [:where :set-id] (parse-uuid (:setId args)))
-               card-type-kw (assoc-in [:where :card-type] card-type-kw))]
+        opts         (cond-> {}
+                       (:setId args) (assoc-in [:where :set-id] (parse-uuid (:setId args)))
+                       card-type-kw (assoc-in [:where :card-type] card-type-kw))]
     (mapv transform-card (repo/find-all (:card-repo ctx) opts))))
 
 (gql/defresolver :Mutation :createPlayerCard

@@ -125,12 +125,12 @@
                   :sht 5 :pss 3 :def 4 :speed 4
                   :size :size/MD
                   :abilities []}
-          play {:slug "fast-break"
-                :name "Fast Break"
-                :set-id (random-uuid)
-                :card-type :card-type/PLAY_CARD
-                :fate 2
-                :play "Score quickly"}]
+          play   {:slug "fast-break"
+                  :name "Fast Break"
+                  :set-id (random-uuid)
+                  :card-type :card-type/PLAY_CARD
+                  :fate 2
+                  :play "Score quickly"}]
       (is (m/validate schemas/GameCard player))
       (is (m/validate schemas/GameCard play)))))
 

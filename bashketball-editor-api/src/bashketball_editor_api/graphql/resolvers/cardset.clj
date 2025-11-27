@@ -32,7 +32,7 @@
   "Extracts user context from GraphQL context for Git operations."
   [ctx]
   (let [user-id (get-in ctx [:request :authn/user-id])
-        user (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
+        user    (repo/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
     {:name (:name user)
      :email (:email user)
      :github-token (:github-token user)}))

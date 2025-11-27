@@ -1,7 +1,7 @@
 (ns bashketball-editor-api.services.set-test
   (:require
-   [clojure.test :refer [deftest is testing]]
-   [bashketball-editor-api.services.set :as set-svc]))
+   [bashketball-editor-api.services.set :as set-svc]
+   [clojure.test :refer [deftest is testing]]))
 
 (deftest create-set-service-test
   (testing "creates a SetService record"

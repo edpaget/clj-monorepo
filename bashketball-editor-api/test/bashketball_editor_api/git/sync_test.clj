@@ -13,8 +13,8 @@
                           (str "test-sync-repo-" (System/currentTimeMillis)))]
     (.mkdirs temp-dir)
     (binding [*test-repo-path* (.getAbsolutePath temp-dir)
-              *test-repo* (git-repo/create-git-repo {:repo-path (.getAbsolutePath temp-dir)
-                                                     :writer? true})]
+              *test-repo*      (git-repo/create-git-repo {:repo-path (.getAbsolutePath temp-dir)
+                                                          :writer? true})]
       (try
         (f)
         (finally
@@ -38,6 +38,6 @@
   (testing "push returns error for read-only repo"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          result (git-sync/push-to-remote read-only-repo "token")]
+          result         (git-sync/push-to-remote read-only-repo "token")]
       (is (= "error" (:status result)))
       (is (= "Repository is read-only" (:message result))))))
