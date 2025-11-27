@@ -37,7 +37,7 @@
   (m/return either/context (:value node)))
 
 (defmethod default-eval ::ast/doc-accessor
-  [node document context]
+  [node document _context]
   (let [key (:value node)]
     (if (doc/doc-contains? document key)
       (m/return either/context (doc/doc-get document key))

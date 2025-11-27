@@ -30,7 +30,6 @@
                      :actual (:nonce claims)})))
   claims)
 
-#_{:clj-kondo/ignore [:missing-docstring]}
 (defrecord JSValidator []
   proto/IJWTValidator
   (fetch-jwks [_ jwks-uri]

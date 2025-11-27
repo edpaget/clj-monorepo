@@ -143,7 +143,7 @@
   Takes an Authenticator instance and session ID string. Updates the session's
   expiration time. Returns true if successful, false if session doesn't exist."
   [authenticator session-id]
-  (when-let [session (get-session authenticator session-id)]
+  (when-let [_session (get-session authenticator session-id)]
     (let [now        (System/currentTimeMillis)
           ttl        (get-in authenticator [:config :session-ttl-ms])
           expires-at (+ now ttl)]

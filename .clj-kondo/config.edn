@@ -1,6 +1,13 @@
 {:lint-as {uix.core/defui clj-kondo.lint-as/def-catch-all
             graphql-server.core/defresolver clj-kondo.lint-as/def-catch-all
-            graphql-server.core/def-resolver-map clj-kondo.lint-as/def-catch-all}
- :linters {:unresolved-var {:exclude [bashketball-editor-api.graphql.resolvers.query/resolvers
+            graphql-server.core/def-resolver-map clj-kondo.lint-as/def-catch-all
+            db.core/with-connection clj-kondo.lint-as/def-catch-all
+            polix.core/defpolicy clj-kondo.lint-as/def-catch-all}
+ :linters {:unresolved-symbol {:exclude [resolvers]}
+           :unresolved-var {:exclude [bashketball-editor-api.graphql.resolvers.query/resolvers
                                        bashketball-editor-api.graphql.resolvers.mutation/resolvers
-                                       bashketball-editor-api.graphql.resolvers.user/resolvers]}}}
+                                       bashketball-editor-api.graphql.resolvers.user/resolvers
+                                       graphql-server.ring-test/resolvers
+                                       graphql-server.test-resolvers/resolvers
+                                       graphql-server.test-resolvers/Query-greet
+                                       graphql-server.test-resolvers-with-middleware/resolvers]}}}

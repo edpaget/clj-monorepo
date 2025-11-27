@@ -33,8 +33,8 @@
   :cljs-tlr
   {:extra-deps {local/cljs-tlr {:local/root "cljs-tlr"}}}
 
-  :basketball-editor-ui
-  {:extra-deps {local/basketball-editor-ui {:local/root "basketball-editor-ui"}}}
+  :bashketball-editor-ui
+  {:extra-deps {local/bashketball-editor-ui {:local/root "bashketball-editor-ui"}}}
 
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project

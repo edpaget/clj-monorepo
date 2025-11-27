@@ -136,6 +136,18 @@ jobs:
             :output-path '"../docs-output/graphql-server"' \
             :metadata '{:doc/format :markdown}'
 
+      - name: Generate documentation for cljs-tlr
+        working-directory: cljs-tlr
+        run: |
+          clojure -Sdeps '{:deps {codox/codox {:mvn/version "0.10.8"}}}' \
+            -X codox.main/generate-docs \
+            :name '"cljs-tlr"' \
+            :version '"0.1.0"' \
+            :source-paths '["src"]' \
+            :output-path '"../docs-output/cljs-tlr"' \
+            :metadata '{:doc/format :markdown}' \
+            :language ':clojurescript'
+
       - name: Create .nojekyll file
         run: touch docs-output/.nojekyll
 
@@ -242,6 +254,11 @@ jobs:
               <li class="package-item">
                 <h2><a href="graphql-server/">graphql-server</a></h2>
                 <p class="package-description">GraphQL server library wrapping Lacinia with Malli schema validation.</p>
+              </li>
+
+              <li class="package-item">
+                <h2><a href="cljs-tlr/">cljs-tlr</a></h2>
+                <p class="package-description">ClojureScript wrapper for @testing-library/react with JSDom support.</p>
               </li>
             </ul>
 

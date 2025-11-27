@@ -43,12 +43,7 @@
    [polix.document :as document]
    [polix.evaluator :as evaluator]
    [polix.parser :as parser]
-   [polix.policy :as policy])
-  (:import
-   (polix.ast ASTNode)
-   (polix.document MapDocument)
-   (polix.evaluator DefaultEvaluator)
-   (polix.policy Policy)))
+   [polix.policy :as policy]))
 
 ;; Re-export Document protocol
 (def Document document/Document)

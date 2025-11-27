@@ -31,7 +31,6 @@
          issuer)
        "/.well-known/openid-configuration"))
 
-#_{:clj-kondo/ignore [:missing-docstring]}
 (defrecord JSDiscoveryClient []
   proto/IDiscoveryClient
   (fetch-discovery-document [_ issuer]

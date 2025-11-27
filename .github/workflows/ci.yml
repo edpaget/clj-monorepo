@@ -41,8 +41,7 @@ jobs:
         run: clojure -X:format check '{:paths ["."]}'
 
       - name: Run clj-kondo
-        # Note: polix is excluded as it's still under active research and refactoring
-        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-provider oidc-github graphql-server bashketball-editor-api build scripts
+        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-provider oidc-github graphql-server polix bashketball-editor-api cljs-tlr bashketball-editor-ui build scripts
 
   test-no-db:
     name: Test ${{ matrix.project }}
@@ -143,3 +142,54 @@ jobs:
 
       - name: Test ${{ matrix.project }}
         run: clojure -X:${{ matrix.project }}-test
+
+  test-cljs:
+    name: Test ${{ matrix.project }} (ClojureScript)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - cljs-tlr
+          - bashketball-editor-ui
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@12.5
+        with:
+          cli: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+            ${{ matrix.project }}/node_modules
+          key: ${{ runner.os }}-cljs-${{ matrix.project }}-${{ hashFiles(format('{0}/package.json', matrix.project), '**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-cljs-${{ matrix.project }}-
+
+      - name: Install npm dependencies
+        working-directory: ${{ matrix.project }}
+        run: npm install
+
+      - name: Test ${{ matrix.project }}
+        working-directory: ${{ matrix.project }}
+        run: npm test

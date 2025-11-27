@@ -21,6 +21,7 @@ This monorepo contains the following projects:
 | Project | Description |
 |---------|-------------|
 | **bashketball-editor-api** | GraphQL API for trading card game editor with GitHub OAuth, Git-based card storage |
+| **bashketball-editor-ui** | React/ClojureScript frontend for trading card game editor with Apollo GraphQL client |
 
 ## Project Details
 
@@ -67,6 +68,11 @@ GitHub-specific OIDC/OAuth integration.
 Trading card game editor backend.
 - **Namespaces**: `bashketball-editor-api.system`, `bashketball-editor-api.handler`, `bashketball-editor-api.graphql.schema`
 - **Features**: GitHub OAuth, Git-based card/set storage (JGit), PostgreSQL for users/sessions
+
+### bashketball-editor-ui
+Trading card game editor frontend built with ClojureScript and React.
+- **Namespaces**: `bashketball-editor-ui.core`, `bashketball-editor-ui.views`, `bashketball-editor-ui.graphql`
+- **Features**: UIx (React wrapper), Apollo GraphQL client, Tailwind CSS, Radix UI components
 
 ### cljs-tlr
 React Testing Library wrapper for ClojureScript.
