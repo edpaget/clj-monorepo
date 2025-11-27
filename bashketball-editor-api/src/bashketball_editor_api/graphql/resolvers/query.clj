@@ -41,8 +41,8 @@
   [:map {:graphql/type :SyncStatus}
    [:ahead :int]
    [:behind :int]
-   [:uncommittedChanges :int]
-   [:isClean :boolean]])
+   [:uncommitted-changes :int]
+   [:is-clean :boolean]])
 
 (gql/defresolver :Query :syncStatus
   "Returns current Git repository sync status.

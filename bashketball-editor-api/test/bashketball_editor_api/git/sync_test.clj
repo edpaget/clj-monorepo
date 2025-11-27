@@ -29,8 +29,8 @@
       (is (map? status))
       (is (contains? status :ahead))
       (is (contains? status :behind))
-      (is (contains? status :uncommittedChanges))
-      (is (contains? status :isClean))
+      (is (contains? status :uncommitted-changes))
+      (is (contains? status :is-clean))
       (is (= 0 (:ahead status)))
       (is (= 0 (:behind status))))))
 

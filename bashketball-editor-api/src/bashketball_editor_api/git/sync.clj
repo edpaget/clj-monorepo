@@ -66,8 +66,8 @@
   Takes a [[git-repo/GitRepo]] and returns a map with:
   - `:ahead` - number of local commits not pushed
   - `:behind` - number of remote commits not pulled
-  - `:uncommittedChanges` - count of uncommitted changes
-  - `:isClean` - true if no uncommitted changes and in sync with remote"
+  - `:uncommitted-changes` - count of uncommitted changes
+  - `:is-clean` - true if no uncommitted changes and in sync with remote"
   [git-repo]
   (let [status       (git-repo/status git-repo)
         ahead-behind (git-repo/ahead-behind git-repo)
@@ -78,7 +78,7 @@
                         (count (:untracked status)))]
     {:ahead (or (:ahead ahead-behind) 0)
      :behind (or (:behind ahead-behind) 0)
-     :uncommittedChanges uncommitted
-     :isClean (and (zero? (or (:ahead ahead-behind) 0))
-                   (zero? (or (:behind ahead-behind) 0))
-                   (zero? uncommitted))}))
+     :uncommitted-changes uncommitted
+     :is-clean (and (zero? (or (:ahead ahead-behind) 0))
+                    (zero? (or (:behind ahead-behind) 0))
+                    (zero? uncommitted))}))

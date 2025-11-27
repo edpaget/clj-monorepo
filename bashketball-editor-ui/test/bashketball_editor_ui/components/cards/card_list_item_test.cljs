@@ -1,9 +1,9 @@
 (ns bashketball-editor-ui.components.cards.card-list-item-test
   (:require
    [bashketball-editor-ui.components.cards.card-list-item :refer [card-list-item
-                                                                   card-list-item-skeleton
-                                                                   format-card-type
-                                                                   format-relative-time]]
+                                                                  card-list-item-skeleton
+                                                                  format-card-type
+                                                                  format-relative-time]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]
@@ -67,18 +67,18 @@
 
 (t/deftest card-list-item-calls-on-click-test
   (t/async done
-    (t/testing "calls on-click handler when clicked"
-      (let [clicked (atom nil)
-            user (tlr/setup)]
-        (tlr/render ($ card-list-item {:card sample-card
-                                        :on-click #(reset! clicked %)}))
-        (-> (tlr/click user (tlr/get-by-role "button"))
-            (.then (fn []
-                     (t/is (= sample-card @clicked))
-                     (done)))
-            (.catch (fn [e]
-                      (t/is false (str e))
-                      (done))))))))
+           (t/testing "calls on-click handler when clicked"
+             (let [clicked (atom nil)
+                   user    (tlr/setup)]
+               (tlr/render ($ card-list-item {:card sample-card
+                                              :on-click #(reset! clicked %)}))
+               (-> (tlr/click user (tlr/get-by-role "button"))
+                   (.then (fn []
+                            (t/is (= sample-card @clicked))
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))))))
 
 (t/deftest card-list-item-shows-selected-state-test
   (t/testing "applies selected styling when selected"

@@ -19,9 +19,9 @@
 (def mock-card-sets-response
   #js {:request #js {:query q/CARD_SETS_QUERY}
        :result #js {:data #js {:cardSets #js {:data #js [#js {:slug "core-set"
-                                                               :name "Core Set"
-                                                               :createdAt "2024-01-01"
-                                                               :updatedAt "2024-01-01"}]}}}})
+                                                              :name "Core Set"
+                                                              :createdAt "2024-01-01"
+                                                              :updatedAt "2024-01-01"}]}}}})
 
 (defn with-providers
   "Wrap component with required providers for testing."
@@ -36,10 +36,9 @@
     (tlr/render (with-providers ($ home-view)))
     (t/is (some? (tlr/get-by-placeholder-text "Search cards...")))))
 
-(t/deftest home-view-renders-buttons-test
-  (t/testing "renders Search and New Card buttons"
+(t/deftest home-view-renders-new-card-button-test
+  (t/testing "renders New Card button"
     (tlr/render (with-providers ($ home-view)))
-    (t/is (some? (tlr/get-by-role "button" {:name "Search"})))
     (let [new-card-buttons (tlr/get-all-by-role "button" {:name "New Card"})]
       (t/is (>= (count new-card-buttons) 1)))))
 

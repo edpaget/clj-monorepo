@@ -28,12 +28,11 @@
 
 (defui select-trigger
   "The trigger button that opens the select dropdown."
-  [{:keys [class placeholder children id]}]
+  [{:keys [class placeholder id]}]
   ($ SelectPrimitive/Trigger
      {:class (cn select-trigger-classes class)
       :id id}
-     ($ SelectPrimitive/Value {:placeholder placeholder}
-        children)
+     ($ SelectPrimitive/Value {:placeholder placeholder})
      ($ SelectPrimitive/Icon {:asChild true}
         ($ ChevronDown {:className "h-4 w-4 opacity-50"}))))
 

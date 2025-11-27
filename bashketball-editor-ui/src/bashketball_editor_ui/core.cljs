@@ -6,6 +6,7 @@
    [bashketball-editor-ui.context.auth :as auth]
    [bashketball-editor-ui.graphql.client :as gql-client]
    [bashketball-editor-ui.router :as router]
+   [bashketball-editor-ui.views.card-editor :as card-editor]
    [bashketball-editor-ui.views.home :as home]
    [bashketball-editor-ui.views.layout :as layout]
    [goog.object :as obj]
@@ -28,7 +29,8 @@
            ($ router/routes
               ($ router/route {:path "/" :element ($ layout/layout)}
                  ($ router/route {:index true :element ($ home/home-view)})
-                 ($ router/route {:path "sets/:set-slug" :element ($ home/home-view)})))))))
+                 ($ router/route {:path "cards/new" :element ($ card-editor/card-editor-view)})
+                 ($ router/route {:path "cards/:slug/edit" :element ($ card-editor/card-editor-view)})))))))
 
 (defn render!
   "Renders the application to the root."

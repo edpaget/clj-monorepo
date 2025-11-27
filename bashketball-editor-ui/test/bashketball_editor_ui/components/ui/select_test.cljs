@@ -1,10 +1,9 @@
 (ns bashketball-editor-ui.components.ui.select-test
   (:require
+   ["@radix-ui/react-select" :as SelectPrimitive]
    [bashketball-editor-ui.components.ui.select :refer [select
-                                                       select-content
                                                        select-item
                                                        select-trigger]]
-   ["@radix-ui/react-select" :as SelectPrimitive]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]

@@ -23,7 +23,7 @@
 (def CARDS_QUERY
   "Query for listing cards, optionally filtered by set."
   (apollo/gql "
-    query Cards($setSlug: String, $cardType: String) {
+    query Cards($setSlug: String, $cardType: CardType) {
       cards(setSlug: $setSlug, cardType: $cardType) {
         data {
           ... on PlayerCard {
@@ -74,17 +74,72 @@
   "))
 
 (def CARD_QUERY
-  "Query for a single card by slug and setSlug."
+  "Query for a single card by slug and setSlug with all type-specific fields."
   (apollo/gql "
     query Card($slug: String!, $setSlug: String!) {
       card(slug: $slug, setSlug: $setSlug) {
-        slug
-        name
-        cardType
-        setSlug
-        imagePrompt
-        createdAt
-        updatedAt
+        ... on PlayerCard {
+          slug
+          name
+          setSlug
+          imagePrompt
+          sht
+          pss
+          def
+          speed
+          size
+          deckSize
+          abilities
+        }
+        ... on PlayCard {
+          slug
+          name
+          setSlug
+          imagePrompt
+          fate
+          play
+        }
+        ... on AbilityCard {
+          slug
+          name
+          setSlug
+          imagePrompt
+          abilities
+        }
+        ... on SplitPlayCard {
+          slug
+          name
+          setSlug
+          imagePrompt
+          fate
+          offense
+          defense
+        }
+        ... on CoachingCard {
+          slug
+          name
+          setSlug
+          imagePrompt
+          fate
+          coaching
+        }
+        ... on TeamAssetCard {
+          slug
+          name
+          setSlug
+          imagePrompt
+          fate
+          assetPower
+        }
+        ... on StandardActionCard {
+          slug
+          name
+          setSlug
+          imagePrompt
+          fate
+          offense
+          defense
+        }
       }
     }
   "))
@@ -146,3 +201,148 @@
       }
     }
 "))
+
+;; -----------------------------------------------------------------------------
+;; Card Create Mutations
+;; -----------------------------------------------------------------------------
+
+(def CREATE_PLAYER_CARD_MUTATION
+  (apollo/gql "
+    mutation CreatePlayerCard($setSlug: String!, $input: PlayerCardInput!) {
+      createPlayerCard(setSlug: $setSlug, input: $input) {
+        slug
+        name
+        setSlug
+      }
+    }
+"))
+
+(def CREATE_PLAY_CARD_MUTATION
+  (apollo/gql "
+    mutation CreatePlayCard($setSlug: String!, $input: PlayCardInput!) {
+      createPlayCard(setSlug: $setSlug, input: $input) {
+        slug
+        name
+        setSlug
+      }
+    }
+"))
+
+(def CREATE_ABILITY_CARD_MUTATION
+  (apollo/gql "
+    mutation CreateAbilityCard($setSlug: String!, $input: AbilityCardInput!) {
+      createAbilityCard(setSlug: $setSlug, input: $input) {
+        slug
+        name
+        setSlug
+      }
+    }
+"))
+
+(def CREATE_SPLIT_PLAY_CARD_MUTATION
+  (apollo/gql "
+    mutation CreateSplitPlayCard($setSlug: String!, $input: SplitPlayCardInput!) {
+      createSplitPlayCard(setSlug: $setSlug, input: $input) {
+        slug
+        name
+        setSlug
+      }
+    }
+"))
+
+(def CREATE_COACHING_CARD_MUTATION
+  (apollo/gql "
+    mutation CreateCoachingCard($setSlug: String!, $input: CoachingCardInput!) {
+      createCoachingCard(setSlug: $setSlug, input: $input) {
+        slug
+        name
+        setSlug
+      }
+    }
+"))
+
+(def CREATE_TEAM_ASSET_CARD_MUTATION
+  (apollo/gql "
+    mutation CreateTeamAssetCard($setSlug: String!, $input: TeamAssetCardInput!) {
+      createTeamAssetCard(setSlug: $setSlug, input: $input) {
+        slug
+        name
+        setSlug
+      }
+    }
+"))
+
+(def CREATE_STANDARD_ACTION_CARD_MUTATION
+  (apollo/gql "
+    mutation CreateStandardActionCard($setSlug: String!, $input: StandardActionCardInput!) {
+      createStandardActionCard(setSlug: $setSlug, input: $input) {
+        slug
+        name
+        setSlug
+      }
+    }
+"))
+
+;; -----------------------------------------------------------------------------
+;; Card Update/Delete Mutations
+;; -----------------------------------------------------------------------------
+
+(def UPDATE_CARD_MUTATION
+  (apollo/gql "
+    mutation UpdateCard($slug: String!, $setSlug: String!, $input: CardUpdateInput!) {
+      updateCard(slug: $slug, setSlug: $setSlug, input: $input) {
+        ... on PlayerCard {
+          slug
+          name
+          setSlug
+        }
+        ... on PlayCard {
+          slug
+          name
+          setSlug
+        }
+        ... on AbilityCard {
+          slug
+          name
+          setSlug
+        }
+        ... on SplitPlayCard {
+          slug
+          name
+          setSlug
+        }
+        ... on CoachingCard {
+          slug
+          name
+          setSlug
+        }
+        ... on TeamAssetCard {
+          slug
+          name
+          setSlug
+        }
+        ... on StandardActionCard {
+          slug
+          name
+          setSlug
+        }
+      }
+    }
+"))
+
+(def DELETE_CARD_MUTATION
+  (apollo/gql "
+    mutation DeleteCard($slug: String!, $setSlug: String!) {
+      deleteCard(slug: $slug, setSlug: $setSlug)
+    }
+"))
+
+(def create-mutation-for-type
+  "Map of card type to create mutation."
+  {"PLAYER_CARD" CREATE_PLAYER_CARD_MUTATION
+   "PLAY_CARD" CREATE_PLAY_CARD_MUTATION
+   "ABILITY_CARD" CREATE_ABILITY_CARD_MUTATION
+   "SPLIT_PLAY_CARD" CREATE_SPLIT_PLAY_CARD_MUTATION
+   "COACHING_CARD" CREATE_COACHING_CARD_MUTATION
+   "TEAM_ASSET_CARD" CREATE_TEAM_ASSET_CARD_MUTATION
+   "STANDARD_ACTION_CARD" CREATE_STANDARD_ACTION_CARD_MUTATION})

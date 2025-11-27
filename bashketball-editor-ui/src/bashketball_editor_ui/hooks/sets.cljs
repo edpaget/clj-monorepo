@@ -15,7 +15,7 @@
   []
   (let [{:keys [loading error data refetch]} (useQuery queries/CARD_SETS_QUERY
                                                        #js {:fetchPolicy "network-only"})
-        sets (when data (:data (:cardSets data)))]
+        sets                                 (when data (:data (:cardSets data)))]
     {:sets (when (seq sets)
              (mapv (fn [s]
                      {:slug (:slug s)

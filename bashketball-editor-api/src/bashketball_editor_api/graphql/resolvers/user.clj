@@ -38,10 +38,10 @@
   [:=> [:cat :any [:map [:id {:optional true} :string]
                    [:github-login {:optional true} :string]] :any]
    [:maybe User]]
-  [ctx args _value]
+  [ctx {:keys [id github-login]} _value]
   (let [criteria (cond
-                   (:id args) {:id (parse-uuid (:id args))}
-                   (:github-login args) {:github-login (:github-login args)}
+                   id {:id (parse-uuid id)}
+                   github-login {:github-login github-login}
                    :else nil)]
     (when criteria
       (when-let [user (repo/find-by (:user-repo ctx) criteria)]
@@ -51,8 +51,8 @@
   "Lists all users with optional filtering. Requires authentication."
   [:=> [:cat :any [:map {:optional true} [:limit {:optional true} :int]] :any]
    UsersResponse]
-  [ctx args _value]
-  {:data (mapv transform-user (repo/find-all (:user-repo ctx) args))})
+  [ctx {:keys [limit] :as args} _value]
+  {:data (mapv transform-user (repo/find-all (:user-repo ctx) (when limit {:limit limit})))})
 
 (gql/def-resolver-map
   "Resolver map containing all User Query resolvers with authentication middleware."

@@ -256,13 +256,13 @@
    [:total :int]
    [:offset :int]
    [:limit :int]
-   [:hasMore :boolean]])
+   [:has-more :boolean]])
 
 (def CardsResponse
   "Response wrapper for card list queries with pagination."
   [:map {:graphql/type :CardsResponse}
    [:data [:vector GameCard]]
-   [:pageInfo PageInfo]])
+   [:page-info PageInfo]])
 
 (def CardSetsResponse
   "Response wrapper for card set list queries."

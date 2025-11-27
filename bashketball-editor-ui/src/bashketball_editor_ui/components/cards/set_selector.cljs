@@ -17,13 +17,12 @@
   - `:current-set-slug` - Currently selected set slug (optional)
   - `:class` - Additional CSS classes"
   [{:keys [current-set-slug class]}]
-  (prn "CURRENT_SET" current-set-slug)
-  (let [{:keys [sets loading?]} (use-sets)
-        navigate (router/use-navigate)
-        options (into [{:value all-sets-value :label "All Sets"}]
-                      (map (fn [{:keys [slug name]}]
-                             {:value slug :label name})
-                           sets))]
+  (let [{:keys [sets loading?]}           (use-sets)
+        [search-params set-search-params] (router/use-search-params)
+        options                           (into [{:value all-sets-value :label "All Sets"}]
+                                                (map (fn [{:keys [slug name]}]
+                                                       {:value slug :label name})
+                                                     sets))]
     ($ select
        {:placeholder (if loading? "Loading sets..." "Select a set...")
         :value (or current-set-slug all-sets-value)
@@ -31,6 +30,8 @@
         :disabled loading?
         :class class
         :on-value-change (fn [value]
-                           (if (= value all-sets-value)
-                             (navigate "/")
-                             (navigate (str "/sets/" value))))})))
+                           (let [current-type (.get search-params "type")
+                                 new-params   (cond-> {}
+                                                (not= value all-sets-value) (assoc :set value)
+                                                current-type (assoc :type current-type))]
+                             (set-search-params (clj->js new-params))))})))

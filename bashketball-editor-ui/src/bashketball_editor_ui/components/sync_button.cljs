@@ -18,11 +18,11 @@
 
   On success, invalidates Apollo cache and refetches all active queries."
   []
-  (let [[status set-status] (use-state :idle) ; :idle, :loading, :success, :error
-        [error-msg set-error-msg] (use-state nil)
+  (let [[status set-status]               (use-state :idle) ; :idle, :loading, :success, :error
+        [error-msg set-error-msg]         (use-state nil)
         [pull-mutation {:keys [loading]}] (useMutation q/PULL_FROM_REMOTE_MUTATION)
-        client (useApolloClient)
-        reset-needed? (or (= status :success) (= status :error))]
+        client                            (useApolloClient)
+        reset-needed?                     (or (= status :success) (= status :error))]
 
     ;; Reset success/error state after delay
     (use-effect
@@ -44,7 +44,7 @@
                     (set-status :loading)
                     (-> (pull-mutation)
                         (.then (fn [^js result]
-                                 (let [data (.. result -data -pullFromRemote)
+                                 (let [data       (.. result -data -pullFromRemote)
                                        res-status (.-status data)]
                                    (if (= res-status "success")
                                      (-> (.refetchQueries client #js {:include "active"})

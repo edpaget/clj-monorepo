@@ -3,8 +3,8 @@
   (:require
    ["clsx" :refer [clsx]]
    ["lucide-react" :refer [ChevronRight]]
-    ["tailwind-merge" :refer [twMerge]]
-    [clojure.string :as str]
+   ["tailwind-merge" :refer [twMerge]]
+   [clojure.string :as str]
    [uix.core :refer [$ defui]]))
 
 (defn cn
@@ -36,12 +36,12 @@
   "Formats a timestamp as relative time."
   [timestamp]
   (when timestamp
-    (let [now (js/Date.)
-          then (js/Date. timestamp)
-          diff-ms (- (.getTime now) (.getTime then))
-          diff-mins (js/Math.floor (/ diff-ms 60000))
+    (let [now        (js/Date.)
+          then       (js/Date. timestamp)
+          diff-ms    (- (.getTime now) (.getTime then))
+          diff-mins  (js/Math.floor (/ diff-ms 60000))
           diff-hours (js/Math.floor (/ diff-mins 60))
-          diff-days (js/Math.floor (/ diff-hours 24))]
+          diff-days  (js/Math.floor (/ diff-hours 24))]
       (cond
         (< diff-mins 1) "just now"
         (< diff-mins 60) (str diff-mins "m ago")
@@ -59,8 +59,7 @@
   - `:class` - Additional CSS classes"
   [{:keys [card on-click selected? class]}]
   (let [{:keys [slug name card-type updated-at]} card
-        colors (get card-type-colors card-type default-colors)]
-    (prn updated-at)
+        colors                                   (get card-type-colors card-type default-colors)]
     ($ :div
        {:class (cn "flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors"
                    (if selected?
