@@ -32,19 +32,40 @@
                                  :set-slug setSlug})]
     (transform-card card)))
 
+(def ^:private default-limit 50)
+(def ^:private max-limit 100)
+
 (gql/defresolver :Query :cards
-  "Lists cards, optionally filtered by set slug and/or card type."
+  "Lists cards with pagination, optionally filtered by set slug and/or card type.
+
+  Pagination args:
+  - `offset`: Number of cards to skip (default 0)
+  - `limit`: Maximum cards to return (default 50, max 100)"
   [:=> [:cat :any [:map {:optional true}
                    [:setSlug {:optional true} :string]
-                   [:cardType {:optional true} :string]] :any]
+                   [:cardType {:optional true} :string]
+                   [:offset {:optional true} :int]
+                   [:limit {:optional true} :int]] :any]
    schemas/CardsResponse]
   [ctx args _value]
   (let [card-type-kw (when-let [ct (:cardType args)]
                        (keyword "card-type" ct))
         opts         (cond-> {}
                        (:setSlug args) (assoc-in [:where :set-slug] (:setSlug args))
-                       card-type-kw (assoc-in [:where :card-type] card-type-kw))]
-    {:data (mapv transform-card (repo/find-all (:card-repo ctx) opts))}))
+                       card-type-kw (assoc-in [:where :card-type] card-type-kw))
+        all-cards    (repo/find-all (:card-repo ctx) opts)
+        total        (count all-cards)
+        offset       (or (:offset args) 0)
+        limit        (min (or (:limit args) default-limit) max-limit)
+        paginated    (->> all-cards
+                          (drop offset)
+                          (take limit)
+                          (mapv transform-card))]
+    {:data     paginated
+     :pageInfo {:total   total
+                :offset  offset
+                :limit   limit
+                :hasMore (< (+ offset (count paginated)) total)}}))
 
 (gql/defresolver :Mutation :createPlayerCard
   "Creates a new player card."

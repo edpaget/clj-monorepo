@@ -3,19 +3,23 @@
 
   Displays the main landing page with navigation to card editing features."
   (:require
+   [bashketball-editor-ui.components.cards.set-selector :refer [set-selector]]
    [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.components.ui.input :refer [input]]
+   [bashketball-editor-ui.router :as router]
+   [bashketball-editor-ui.views.cards :refer [cards-view]]
    [uix.core :refer [$ defui use-state]]))
 
 (defui home-view
   "Main home view displaying the application landing page."
   []
-  (let [[search-term set-search-term] (use-state "")]
+  (let [{:keys [set-slug]} (router/use-params)
+        [search-term set-search-term] (use-state "")]
     ($ :div
        ($ :div {:class "mb-6"}
-          ($ :p {:class "text-gray-600 mb-4"}
-             "Create and edit trading cards for the Bashketball card game.")
-          ($ :div {:class "flex gap-4 items-center"}
+          ($ :div {:class "flex gap-4 items-center flex-wrap"}
+             ($ set-selector {:current-set-slug set-slug
+                              :class "w-48"})
              ($ input
                 {:placeholder "Search cards..."
                  :value search-term
@@ -23,5 +27,5 @@
                  :class "max-w-xs"})
              ($ button {:variant :default} "Search")
              ($ button {:variant :outline} "New Card")))
-       ($ :div {:class "mt-8 p-8 bg-white rounded-lg shadow text-center text-gray-500"}
-          "Card list will appear here once the API is connected."))))
+       ($ :div {:class "mt-8"}
+          ($ cards-view {:set-slug set-slug})))))

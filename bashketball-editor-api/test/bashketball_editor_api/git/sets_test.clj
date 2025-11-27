@@ -4,9 +4,12 @@
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sets :as git-sets]
    [bashketball-editor-api.models.protocol :as proto]
+   [clj-jgit.porcelain :as git]
    [clojure.java.io :as io]
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [malli.core :as m]))
+   [malli.core :as m])
+  (:import
+   [java.time Instant]))
 
 (def ^:dynamic *test-repo* nil)
 (def ^:dynamic *test-repo-path* nil)
@@ -99,3 +102,39 @@
           set-data {:name "Test Set"}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"No user context available"
                             (proto/update! set-repo "test-set" set-data))))))
+
+(deftest git-timestamps-find-by-test
+  (testing "find-by returns git timestamps for sets without timestamps in EDN"
+    (let [jgit-repo (git/git-init :dir *test-repo-path*)
+          set-repo  (git-sets/create-set-repository *test-repo* ctx/current-user-context)
+          ;; Write set metadata without timestamps
+          set-edn   "{:slug \"test-set\" :name \"Test Set\"}"]
+      ;; Create set directory and metadata file
+      (git-repo/write-file *test-repo* "test-set/metadata.edn" set-edn)
+      (git/git-add jgit-repo ".")
+      (git/git-commit jgit-repo "Add test set" :name "Test" :email "test@test.com")
+
+      (let [card-set (proto/find-by set-repo {:slug "test-set"})]
+        (is (some? card-set))
+        (is (= "test-set" (:slug card-set)))
+        (is (instance? Instant (:created-at card-set)))
+        (is (instance? Instant (:updated-at card-set)))))))
+
+(deftest git-timestamps-find-all-test
+  (testing "find-all returns git timestamps for sets without timestamps in EDN"
+    (let [jgit-repo (git/git-init :dir *test-repo-path*)
+          set-repo  (git-sets/create-set-repository *test-repo* ctx/current-user-context)
+          ;; Write sets without timestamps
+          set1-edn  "{:slug \"set-1\" :name \"Set 1\"}"
+          set2-edn  "{:slug \"set-2\" :name \"Set 2\"}"]
+      ;; Create set directories and metadata files
+      (git-repo/write-file *test-repo* "set-1/metadata.edn" set1-edn)
+      (git-repo/write-file *test-repo* "set-2/metadata.edn" set2-edn)
+      (git/git-add jgit-repo ".")
+      (git/git-commit jgit-repo "Add sets" :name "Test" :email "test@test.com")
+
+      (let [sets (proto/find-all set-repo {})]
+        (is (= 2 (count sets)))
+        (doseq [card-set sets]
+          (is (instance? Instant (:created-at card-set)))
+          (is (instance? Instant (:updated-at card-set))))))))

@@ -44,9 +44,10 @@
   - `:on-click` - Click handler
   - `:disabled` - Disable the button
   - `:type` - Button type (button, submit, reset)
+  - `:title` - Tooltip text
 
   Children are rendered as button content."
-  [{:keys [variant size class on-click disabled type children]
+  [{:keys [variant size class on-click disabled type title children]
     :or {variant :default size :default type "button"}}]
   ($ :button
      {:type type
@@ -54,5 +55,6 @@
                                        :size (name size)})
                  class)
       :on-click on-click
-      :disabled disabled}
+      :disabled disabled
+      :title title}
      children))

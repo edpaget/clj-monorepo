@@ -43,7 +43,7 @@
   [:map {:graphql/interface :Card}
    [:slug :string]
    [:name :string]
-   [:set-slug {:graphql/hidden true} :string]
+   [:set-slug :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:card-type CardType]
    [:created-at {:optional true} [:maybe :string]]
@@ -250,10 +250,19 @@
    [:coaching {:optional true} :string]
    [:asset-power {:optional true} :string]])
 
+(def PageInfo
+  "Pagination metadata."
+  [:map {:graphql/type :PageInfo}
+   [:total :int]
+   [:offset :int]
+   [:limit :int]
+   [:hasMore :boolean]])
+
 (def CardsResponse
-  "Response wrapper for card list queries."
+  "Response wrapper for card list queries with pagination."
   [:map {:graphql/type :CardsResponse}
-   [:data [:vector GameCard]]])
+   [:data [:vector GameCard]]
+   [:pageInfo PageInfo]])
 
 (def CardSetsResponse
   "Response wrapper for card set list queries."

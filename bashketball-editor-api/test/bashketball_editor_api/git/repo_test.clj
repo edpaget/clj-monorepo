@@ -1,8 +1,11 @@
 (ns bashketball-editor-api.git.repo-test
   (:require
    [bashketball-editor-api.git.repo :as git-repo]
+   [clj-jgit.porcelain :as git]
    [clojure.java.io :as io]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
+   [clojure.test :refer [deftest is testing use-fixtures]])
+  (:import
+   [java.time Instant]))
 
 (def ^:dynamic *test-repo-path* nil)
 
@@ -88,3 +91,51 @@
                                           :writer? true})]
       (is (instance? java.io.Closeable repo))
       (.close repo))))
+
+(deftest file-timestamps-no-git-history-test
+  (testing "returns nil for file with no git history"
+    (let [repo (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                          :writer? true})]
+      ;; Write a file but don't commit it (no git repo initialized)
+      (git-repo/write-file repo "untracked.txt" "content")
+      (is (nil? (git-repo/file-timestamps repo "untracked.txt"))))))
+
+(deftest file-timestamps-single-commit-test
+  (testing "returns timestamps from git history"
+    (let [repo      (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                               :writer? true})
+          jgit-repo (git/git-init :dir *test-repo-path*)]
+      ;; Create and commit a file
+      (git-repo/write-file repo "tracked.txt" "initial content")
+      (git/git-add jgit-repo ".")
+      (git/git-commit jgit-repo "Initial commit" :name "Test" :email "test@test.com")
+
+      (let [timestamps (git-repo/file-timestamps repo "tracked.txt")]
+        (is (some? timestamps))
+        (is (instance? Instant (:created-at timestamps)))
+        (is (instance? Instant (:updated-at timestamps)))
+        ;; Both should be the same for a single commit
+        (is (= (:created-at timestamps) (:updated-at timestamps)))))))
+
+(deftest file-timestamps-multiple-commits-test
+  (testing "returns different timestamps after update"
+    (let [repo      (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                               :writer? true})
+          jgit-repo (git/git-init :dir *test-repo-path*)]
+      ;; Create and commit a file
+      (git-repo/write-file repo "multi-commit.txt" "initial")
+      (git/git-add jgit-repo ".")
+      (git/git-commit jgit-repo "First commit" :name "Test" :email "test@test.com")
+
+      ;; Wait a moment to ensure different timestamps
+      (Thread/sleep 1100)
+
+      ;; Update and commit again
+      (git-repo/write-file repo "multi-commit.txt" "updated")
+      (git/git-add jgit-repo ".")
+      (git/git-commit jgit-repo "Second commit" :name "Test" :email "test@test.com")
+
+      (let [timestamps (git-repo/file-timestamps repo "multi-commit.txt")]
+        (is (some? timestamps))
+        ;; created-at should be before updated-at
+        (is (.isBefore (:created-at timestamps) (:updated-at timestamps)))))))

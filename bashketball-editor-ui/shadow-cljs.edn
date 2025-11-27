@@ -6,6 +6,8 @@
   {:target :browser
    :output-dir "public/js"
    :asset-path "/js"
+   :js-options {:js-provider :external
+                :external-index "target/index.js"}
    :modules {:main {:init-fn bashketball-editor-ui.core/init!}}
    :devtools {:http-root "public"
               :http-port 3001

@@ -8,6 +8,7 @@
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.models.protocol :as proto]
    [clojure.edn :as edn]
+   [clojure.java.io :as io]
    [clojure.string :as str]))
 
 (defn slugify
@@ -28,6 +29,20 @@
   [set-slug slug]
   (str set-slug "/" slug ".edn"))
 
+(defn- with-git-timestamps
+  "Merges Git commit timestamps into a card if not already present.
+
+  Looks up the file's first and last commit times from Git history and uses them
+  as `:created-at` and `:updated-at` if the card doesn't already have those fields."
+  [git-repo path card]
+  (if (and (:created-at card) (:updated-at card))
+    card
+    (if-let [timestamps (git-repo/file-timestamps git-repo path)]
+      (-> card
+          (update :created-at #(or % (:created-at timestamps)))
+          (update :updated-at #(or % (:updated-at timestamps))))
+      card)))
+
 (defrecord CardRepository [git-repo lock user-ctx-fn]
   proto/Repository
   (find-by [_this criteria]
@@ -35,21 +50,33 @@
       (when-let [set-slug (:set-slug criteria)]
         (let [path (card-path set-slug slug)]
           (when-let [content (git-repo/read-file git-repo path)]
-            (edn/read-string content))))))
+            (with-git-timestamps git-repo path (edn/read-string content)))))))
 
   (find-all [_this opts]
     (let [set-slug         (get-in opts [:where :set-slug])
-          card-type-filter (get-in opts [:where :card-type])]
-      (if set-slug
-        (let [card-files (git-repo/list-files git-repo set-slug ".edn")
-              ;; Filter out metadata.edn which is the set metadata file
-              card-files (remove #(str/ends-with? (.getName %) "metadata.edn") (or card-files []))
-              cards      (mapv (fn [file]
-                                 (edn/read-string (slurp file)))
-                               card-files)]
-          (cond->> cards
-            card-type-filter (filterv #(= card-type-filter (:card-type %)))))
-        [])))
+          card-type-filter (get-in opts [:where :card-type])
+          repo-dir         (io/file (:repo-path git-repo))
+          set-dirs         (if set-slug
+                             [(io/file repo-dir set-slug)]
+                             (when (.exists repo-dir)
+                               (->> (.listFiles repo-dir)
+                                    (filter #(.isDirectory %))
+                                    (remove #(str/starts-with? (.getName %) ".")))))]
+      (->> set-dirs
+           (mapcat (fn [dir]
+                     (let [dir-name   (.getName dir)
+                           card-files (git-repo/list-files git-repo dir-name ".edn")
+                           card-files (remove #(str/ends-with? (.getName %) "metadata.edn")
+                                              (or card-files []))]
+                       (map (fn [file]
+                              (let [card (edn/read-string (slurp file))
+                                    path (str dir-name "/" (.getName file))]
+                                (with-git-timestamps git-repo path card)))
+                            card-files))))
+           (filter #(if card-type-filter
+                      (= card-type-filter (:card-type %))
+                      true))
+           vec)))
 
   (create! [_this data]
     (when-not (:writer? git-repo)

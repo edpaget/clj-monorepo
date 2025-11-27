@@ -1,6 +1,7 @@
 (ns bashketball-editor-ui.views.layout
   "Application layout with header and navigation."
   (:require
+   [bashketball-editor-ui.components.sync-button :refer [sync-button]]
    [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.config :as config]
    [bashketball-editor-ui.context.auth :as auth]
@@ -11,6 +12,7 @@
   "User menu shown when logged in."
   [{:keys [user on-logout]}]
   ($ :div {:class "flex items-center gap-4"}
+     ($ sync-button)
      (when-let [avatar-url (:avatar-url user)]
        ($ :img {:src avatar-url
                 :alt (:name user)

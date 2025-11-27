@@ -41,12 +41,27 @@
   [slug]
   (str slug "/metadata.edn"))
 
+(defn- with-git-timestamps
+  "Merges Git commit timestamps into a card set if not already present.
+
+  Looks up the file's first and last commit times from Git history and uses them
+  as `:created-at` and `:updated-at` if the set doesn't already have those fields."
+  [git-repo path card-set]
+  (if (and (:created-at card-set) (:updated-at card-set))
+    card-set
+    (if-let [timestamps (git-repo/file-timestamps git-repo path)]
+      (-> card-set
+          (update :created-at #(or % (:created-at timestamps)))
+          (update :updated-at #(or % (:updated-at timestamps))))
+      card-set)))
+
 (defrecord SetRepository [git-repo lock user-ctx-fn]
   proto/Repository
   (find-by [_this criteria]
     (when-let [slug (:slug criteria)]
-      (when-let [content (git-repo/read-file git-repo (set-path slug))]
-        (edn/read-string content))))
+      (let [path (set-path slug)]
+        (when-let [content (git-repo/read-file git-repo path)]
+          (with-git-timestamps git-repo path (edn/read-string content))))))
 
   (find-all [_this _opts]
     (let [repo-dir (io/file (:repo-path git-repo))]
@@ -55,9 +70,11 @@
              (filter #(.isDirectory %))
              (remove #(str/starts-with? (.getName %) "."))
              (keep (fn [dir]
-                     (let [metadata-file (io/file dir "metadata.edn")]
+                     (let [metadata-file (io/file dir "metadata.edn")
+                           path          (str (.getName dir) "/metadata.edn")]
                        (when (.exists metadata-file)
-                         (edn/read-string (slurp metadata-file))))))
+                         (with-git-timestamps git-repo path
+                           (edn/read-string (slurp metadata-file)))))))
              vec)
         [])))
 

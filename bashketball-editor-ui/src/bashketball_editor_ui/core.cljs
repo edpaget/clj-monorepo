@@ -8,8 +8,14 @@
    [bashketball-editor-ui.router :as router]
    [bashketball-editor-ui.views.home :as home]
    [bashketball-editor-ui.views.layout :as layout]
+   [goog.object :as obj]
    [uix.core :refer [$ defui]]
    [uix.dom]))
+
+(extend-type object
+  ILookup
+  (-lookup ([o k] (obj/get o (name k)))
+    ([o k not-found] (obj/get o (name k) not-found))))
 
 (defonce root (atom nil))
 
@@ -21,7 +27,8 @@
         ($ router/browser-router
            ($ router/routes
               ($ router/route {:path "/" :element ($ layout/layout)}
-                 ($ router/route {:index true :element ($ home/home-view)})))))))
+                 ($ router/route {:index true :element ($ home/home-view)})
+                 ($ router/route {:path "sets/:set-slug" :element ($ home/home-view)})))))))
 
 (defn render!
   "Renders the application to the root."

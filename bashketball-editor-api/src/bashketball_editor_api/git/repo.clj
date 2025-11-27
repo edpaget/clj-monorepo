@@ -8,6 +8,7 @@
    [clojure.java.io :as io]
    [clojure.tools.logging :as log])
   (:import
+   [java.time Instant]
    [org.eclipse.jgit.api Git]
    [org.eclipse.jgit.transport UsernamePasswordCredentialsProvider]))
 
@@ -167,6 +168,33 @@
          :behind (.getBehindCount branch-tracking)}))
     (catch Exception e
       (log/error e "Unable to get ahead/behind status")
+      nil)))
+
+(defn file-timestamps
+  "Returns the creation and last modification timestamps for a file from Git history.
+
+  Takes a [[GitRepo]] and a relative path within the repository. Queries the Git
+  log for all commits that touched this file and returns a map with:
+  - `:created-at` - Instant of the first commit that added the file
+  - `:updated-at` - Instant of the most recent commit that modified the file
+
+  Returns nil if the file has no Git history (e.g., untracked file)."
+  [repo relative-path]
+  (try
+    (let [^Git git-repo (git/load-repo (:repo-path repo))
+          commits       (-> (.log git-repo)
+                            (.addPath relative-path)
+                            (.call)
+                            (.iterator)
+                            iterator-seq)]
+      (when (seq commits)
+        (let [sorted    (sort-by #(.getCommitTime %) commits)
+              first-commit (first sorted)
+              last-commit  (last sorted)]
+          {:created-at (Instant/ofEpochSecond (.getCommitTime first-commit))
+           :updated-at (Instant/ofEpochSecond (.getCommitTime last-commit))})))
+    (catch Exception e
+      (log/warn e "Unable to get file timestamps for" relative-path)
       nil)))
 
 (defn create-git-repo

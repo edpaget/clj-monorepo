@@ -23,28 +23,65 @@
 (def CARDS_QUERY
   "Query for listing cards, optionally filtered by set."
   (apollo/gql "
-    query Cards($setId: ID, $cardType: String) {
-      cards(setId: $setId, cardType: $cardType) {
+    query Cards($setSlug: String, $cardType: String) {
+      cards(setSlug: $setSlug, cardType: $cardType) {
         data {
-          slug
-          name
-          cardType
-          setId
-          updatedAt
+          ... on PlayerCard {
+            slug
+            setSlug
+            name
+            updatedAt
+          }
+          ... on PlayCard {
+            slug
+            setSlug
+            name
+            updatedAt
+          }
+          ... on AbilityCard {
+            slug
+            setSlug
+            name
+            updatedAt
+          }
+          ... on SplitPlayCard {
+            slug
+            setSlug
+            name
+            updatedAt
+          }
+          ... on CoachingCard {
+            slug
+            setSlug
+            name
+            updatedAt
+          }
+          ... on TeamAssetCard {
+            slug
+            setSlug
+            name
+            updatedAt
+          }
+          ... on StandardActionCard {
+            slug
+            setSlug
+            name
+            updatedAt
+          }
         }
       }
     }
   "))
 
 (def CARD_QUERY
-  "Query for a single card by slug and setId."
+  "Query for a single card by slug and setSlug."
   (apollo/gql "
     query Card($slug: String!, $setSlug: String!) {
       card(slug: $slug, setSlug: $setSlug) {
         slug
         name
         cardType
-        setId
+        setSlug
         imagePrompt
         createdAt
         updatedAt
@@ -70,12 +107,42 @@
 (def CARD_SET_QUERY
   "Query for getting a single set by its slug"
   (apollo/gql "
-    query CardSets {
-      cardSets {
+    query CardSet($slug: String!) {
+      cardSet(slug: $slug) {
         slug
         name
         createdAt
         updatedAt
+      }
+    }
+"))
+
+;; -----------------------------------------------------------------------------
+;; Mutations
+;; -----------------------------------------------------------------------------
+
+(def PULL_FROM_REMOTE_MUTATION
+  "Mutation to pull changes from the remote Git repository."
+  (apollo/gql "
+    mutation PullFromRemote {
+      pullFromRemote {
+        status
+        message
+        error
+        conflicts
+      }
+    }
+"))
+
+(def PUSH_TO_REMOTE_MUTATION
+  "Mutation to push changes to the remote Git repository."
+  (apollo/gql "
+    mutation PushToRemote {
+      pushToRemote {
+        status
+        message
+        error
+        conflicts
       }
     }
 "))

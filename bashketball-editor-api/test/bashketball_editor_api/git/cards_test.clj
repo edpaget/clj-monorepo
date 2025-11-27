@@ -4,8 +4,11 @@
    [bashketball-editor-api.git.cards :as git-cards]
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.models.protocol :as proto]
+   [clj-jgit.porcelain :as git]
    [clojure.java.io :as io]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
+   [clojure.test :refer [deftest is testing use-fixtures]])
+  (:import
+   [java.time Instant]))
 
 (def ^:dynamic *test-repo* nil)
 (def ^:dynamic *test-repo-path* nil)
@@ -108,3 +111,40 @@
     (is (= "jordan-23" (git-cards/slugify "Jordan #23")))
     (is (= "test" (git-cards/slugify "  Test  ")))
     (is (= "fast-break" (git-cards/slugify "Fast Break!")))))
+
+(deftest git-timestamps-find-by-test
+  (testing "find-by returns git timestamps for cards without timestamps in EDN"
+    (let [jgit-repo  (git/git-init :dir *test-repo-path*)
+          card-repo  (git-cards/create-card-repository *test-repo* ctx/current-user-context)
+          ;; Write card EDN without timestamps
+          card-edn   "{:slug \"test-card\" :name \"Test\" :set-slug \"test-set\" :card-type :card-type/PLAYER_CARD}"]
+      ;; Create set directory and card file
+      (git-repo/write-file *test-repo* "test-set/test-card.edn" card-edn)
+      (git/git-add jgit-repo ".")
+      (git/git-commit jgit-repo "Add test card" :name "Test" :email "test@test.com")
+
+      (let [card (proto/find-by card-repo {:slug "test-card" :set-slug "test-set"})]
+        (is (some? card))
+        (is (= "test-card" (:slug card)))
+        (is (instance? Instant (:created-at card)))
+        (is (instance? Instant (:updated-at card)))))))
+
+(deftest git-timestamps-find-all-test
+  (testing "find-all returns git timestamps for cards without timestamps in EDN"
+    (let [jgit-repo  (git/git-init :dir *test-repo-path*)
+          card-repo  (git-cards/create-card-repository *test-repo* ctx/current-user-context)
+          ;; Write cards without timestamps
+          card1-edn  "{:slug \"card-1\" :name \"Card 1\" :set-slug \"test-set\" :card-type :card-type/PLAYER_CARD}"
+          card2-edn  "{:slug \"card-2\" :name \"Card 2\" :set-slug \"test-set\" :card-type :card-type/ABILITY_CARD}"]
+      ;; Create set directory and card files
+      (git-repo/write-file *test-repo* "test-set/metadata.edn" "{:slug \"test-set\" :name \"Test Set\"}")
+      (git-repo/write-file *test-repo* "test-set/card-1.edn" card1-edn)
+      (git-repo/write-file *test-repo* "test-set/card-2.edn" card2-edn)
+      (git/git-add jgit-repo ".")
+      (git/git-commit jgit-repo "Add cards" :name "Test" :email "test@test.com")
+
+      (let [cards (proto/find-all card-repo {:where {:set-slug "test-set"}})]
+        (is (= 2 (count cards)))
+        (doseq [card cards]
+          (is (instance? Instant (:created-at card)))
+          (is (instance? Instant (:updated-at card))))))))
