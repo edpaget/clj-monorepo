@@ -197,38 +197,220 @@ See `JGIT_ARCHITECTURE.md` for detailed design documentation.
 
 ## Phase 4: Card & Set GraphQL API
 
-**Goal**: Implement complete GraphQL schema for cards and sets
+**Goal**: Implement complete GraphQL schema for Bashketball game cards and sets
 
-### 4.1 GraphQL Type Definitions
+### 4.1 Card Type System
+
+The game has multiple card types, each with specific attributes. The schema uses a discriminated union
+pattern based on `card-type`.
 
 **File**: `src/bashketball_editor_api/graphql/schema.clj`
 
-Define Malli schemas for GraphQL types:
+#### Enums
+
+```clojure
+(def CardType
+  "Discriminator for card types."
+  [:enum {:graphql/type "CardType"}
+   :card-type/PLAYER_CARD
+   :card-type/ABILITY_CARD
+   :card-type/SPLIT_PLAY_CARD
+   :card-type/PLAY_CARD
+   :card-type/COACHING_CARD
+   :card-type/STANDARD_ACTION_CARD
+   :card-type/TEAM_ASSET_CARD])
+
+(def PlayerSize
+  [:enum {:graphql/type "PlayerSize"}
+   :size/SM
+   :size/MD
+   :size/LG])
+
+#### Base Card Schema
+
+All cards share these common fields:
 
 ```clojure
 (def Card
-  [:map
-   [:id :uuid]
-   [:set-id :uuid]
+  "Base card schema - all card types extend this."
+  [:map {:graphql/interface "Card"}
    [:name :string]
-   [:description [:maybe :string]]
-   [:attributes :map]
+   [:image-prompt {:optional true} [:maybe :string]]
+   [:card-type CardType]
    [:created-at inst?]
    [:updated-at inst?]])
+```
 
+**Note**: Cards use `:name` as their primary key within a set. Version history is tracked
+by Git - use `git log` or the Git history API to see previous versions of a card.
+
+#### Card Type Schemas
+
+```clojure
+(def PlayerCard
+  "Player cards represent basketball players with stats."
+  [:merge Card
+   [:map {:graphql/type "PlayerCard"}
+    [:card-type [:= :card-type/PLAYER_CARD]]
+    [:deck-size {:default 5} :int]
+    [:sht {:default 1} :int]           ;; Shot stat
+    [:pss {:default 1} :int]           ;; Pass stat
+    [:def {:default 1} :int]           ;; Defense stat
+    [:speed {:default 1} :int]
+    [:size {:default :size/SM} PlayerSize]
+    [:abilities {:default []} [:vector :string]]]])
+
+(def AbilityCard
+  "Ability cards provide special powers."
+  [:merge Card
+   [:map {:graphql/type "AbilityCard"}
+    [:card-type [:= :card-type/ABILITY_CARD]]
+    [:abilities {:default []} [:vector :string]]]])
+
+(def CardWithFate
+  "Cards that have a fate value."
+  [:merge Card
+   [:map
+    [:fate {:default 0} :int]]])
+
+(def SplitPlayCard
+  "Split play cards have both offense and defense effects."
+  [:merge CardWithFate
+   [:map {:graphql/type "SplitPlayCard"}
+    [:card-type [:= :card-type/SPLIT_PLAY_CARD]]
+    [:offense {:default ""} :string]
+    [:defense {:default ""} :string]]])
+
+(def PlayCard
+  "Play cards describe a single play action."
+  [:merge CardWithFate
+   [:map {:graphql/type "PlayCard"}
+    [:card-type [:= :card-type/PLAY_CARD]]
+    [:play {:default ""} :string]]])
+
+(def CoachingCard
+  "Coaching cards provide team-wide effects."
+  [:merge CardWithFate
+   [:map {:graphql/type "CoachingCard"}
+    [:card-type [:= :card-type/COACHING_CARD]]
+    [:coaching {:default ""} :string]]])
+
+(def StandardActionCard
+  "Standard action cards available to all players."
+  [:merge CardWithFate
+   [:map {:graphql/type "StandardActionCard"}
+    [:card-type [:= :card-type/STANDARD_ACTION_CARD]]
+    [:offense {:default ""} :string]
+    [:defense {:default ""} :string]]])
+
+(def TeamAssetCard
+  "Team asset cards represent persistent team resources."
+  [:merge CardWithFate
+   [:map {:graphql/type "TeamAssetCard"}
+    [:card-type [:= :card-type/TEAM_ASSET_CARD]]
+    [:asset-power :string]]])
+```
+
+#### Multi-Schema for Card Dispatch
+
+```clojure
+(def GameCard
+  "Union type for all card types, dispatched by :card-type."
+  [:multi {:dispatch :card-type
+           :graphql/type "GameCard"}
+   [:card-type/PLAYER_CARD PlayerCard]
+   [:card-type/ABILITY_CARD AbilityCard]
+   [:card-type/SPLIT_PLAY_CARD SplitPlayCard]
+   [:card-type/PLAY_CARD PlayCard]
+   [:card-type/COACHING_CARD CoachingCard]
+   [:card-type/STANDARD_ACTION_CARD StandardActionCard]
+   [:card-type/TEAM_ASSET_CARD TeamAssetCard]])
+```
+
+#### Game Assets
+
+```clojure
+(def GameAsset
+  "Image/media assets for cards."
+  [:map {:graphql/type "GameAsset"}
+   [:id :uuid]
+   [:mime-type :string]
+   [:img-url :string]
+   [:status GameAssetStatus]
+   [:error-message [:maybe :string]]
+   [:created-at inst?]
+   [:updated-at inst?]])
+```
+
+#### Card Sets
+
+```clojure
 (def CardSet
-  [:map
+  "A collection of related cards (e.g., expansion pack)."
+  [:map {:graphql/type "CardSet"}
    [:id :uuid]
    [:name :string]
    [:description [:maybe :string]]
    [:created-at inst?]
    [:updated-at inst?]])
+```
 
-(def CardInput
+### 4.2 Input Types for Mutations
+
+```clojure
+;; Base input shared across card types
+(def CardInputBase
   [:map
    [:name :string]
-   [:description {:optional true} [:maybe :string]]
-   [:attributes {:optional true} :map]])
+   [:image-prompt {:optional true} [:maybe :string]]])
+
+(def PlayerCardInput
+  [:merge CardInputBase
+   [:map
+    [:deck-size {:optional true} :int]
+    [:sht {:optional true} :int]
+    [:pss {:optional true} :int]
+    [:def {:optional true} :int]
+    [:speed {:optional true} :int]
+    [:size {:optional true} PlayerSize]
+    [:abilities {:optional true} [:vector :string]]]])
+
+(def AbilityCardInput
+  [:merge CardInputBase
+   [:map
+    [:abilities {:optional true} [:vector :string]]]])
+
+(def FateCardInput
+  [:merge CardInputBase
+   [:map
+    [:fate {:optional true} :int]]])
+
+(def SplitPlayCardInput
+  [:merge FateCardInput
+   [:map
+    [:offense {:optional true} :string]
+    [:defense {:optional true} :string]]])
+
+(def PlayCardInput
+  [:merge FateCardInput
+   [:map
+    [:play {:optional true} :string]]])
+
+(def CoachingCardInput
+  [:merge FateCardInput
+   [:map
+    [:coaching {:optional true} :string]]])
+
+(def StandardActionCardInput
+  [:merge FateCardInput
+   [:map
+    [:offense {:optional true} :string]
+    [:defense {:optional true} :string]]])
+
+(def TeamAssetCardInput
+  [:merge FateCardInput
+   [:map
+    [:asset-power {:optional true} :string]]])
 
 (def CardSetInput
   [:map
@@ -236,28 +418,65 @@ Define Malli schemas for GraphQL types:
    [:description {:optional true} [:maybe :string]]])
 ```
 
-### 4.2 Query Resolvers
+### 4.3 File Storage Format
+
+Cards are stored as EDN files in the Git repository:
+
+**Path**: `cards/{set-id}/{name}.edn`
+
+```clojure
+;; Example: cards/abc123/lightning-strike.edn
+{:name "Lightning Strike"
+ :card-type :card-type/PLAY_CARD
+ :fate 2
+ :play "Deal 3 damage to any player in your zone."
+ :image-prompt "A dramatic basketball court with lightning bolts striking the hardwood floor"
+ :created-at #inst "2025-01-15T10:30:00.000Z"
+ :updated-at #inst "2025-01-20T14:45:00.000Z"}
+
+;; Example: cards/abc123/jordan.edn
+{:name "Jordan"
+ :card-type :card-type/PLAYER_CARD
+ :deck-size 5
+ :sht 5
+ :pss 3
+ :def 4
+ :speed 4
+ :size :size/MD
+ :abilities ["Clutch" "Fadeaway"]
+ :image-prompt "A silhouette of a basketball player mid-jump with tongue out, dramatic lighting"
+ :created-at #inst "2025-01-15T10:30:00.000Z"
+ :updated-at #inst "2025-01-20T14:45:00.000Z"}
+```
+
+**Version History**: Use Git to view previous versions of a card:
+- `git log -- cards/{set-id}/{name}.edn` - view commit history
+- `git show {commit}:cards/{set-id}/{name}.edn` - view card at specific commit
+
+### 4.4 Query Resolvers
 
 **File**: `src/bashketball_editor_api/graphql/resolvers/query.clj`
 
-Implement card and set query resolvers:
-
 ```clojure
 (gql/defresolver :Query :card
-  "Fetches a single card by ID and set ID."
-  [:=> [:cat :any [:map [:id :string] [:set-id :string]] :any] [:maybe Card]]
-  [ctx {:keys [id set-id]} _value]
+  "Fetches a single card by name and set ID."
+  [:=> [:cat :any [:map [:name :string] [:setId :string]] :any]
+       [:maybe GameCard]]
+  [ctx {:keys [name setId]} _value]
   (proto/find-by (:card-repo ctx)
-                 {:id (parse-uuid id)
-                  :set-id (parse-uuid set-id)}))
+                 {:name name
+                  :set-id (parse-uuid setId)}))
 
 (gql/defresolver :Query :cards
-  "Lists cards, optionally filtered by set ID."
-  [:=> [:cat :any [:map {:optional true} [:set-id :string]] :any] [:vector Card]]
+  "Lists cards, optionally filtered by set ID and/or card type."
+  [:=> [:cat :any [:map {:optional true}
+                        [:setId {:optional true} :string]
+                        [:cardType {:optional true} CardType]] :any]
+       [:vector GameCard]]
   [ctx args _value]
   (let [opts (cond-> {}
-               (:set-id args)
-               (assoc :where {:set-id (parse-uuid (:set-id args))}))]
+               (:setId args) (assoc-in [:where :set-id] (parse-uuid (:setId args)))
+               (:cardType args) (assoc-in [:where :card-type] (:cardType args)))]
     (proto/find-all (:card-repo ctx) opts)))
 
 (gql/defresolver :Query :cardSet
@@ -273,85 +492,99 @@ Implement card and set query resolvers:
   (proto/find-all (:set-repo ctx) {}))
 ```
 
-**Note**: The `find-by` and `find-all` methods now use a consistent pattern with
-criteria maps, making the API more uniform across different entity types.
-
-### 4.3 Mutation Resolvers
+### 4.5 Mutation Resolvers
 
 **File**: `src/bashketball_editor_api/graphql/resolvers/mutation.clj`
 
-Implement card mutations:
+Implement card mutations with type-specific inputs:
 
 ```clojure
-(gql/defresolver :Mutation :createCard
-  "Creates a new card."
-  [:=> [:cat :any [:map [:set-id :string] [:input CardInput]] :any] Card]
-  [ctx {:keys [set-id input]} _value]
-  (when-not (get-in ctx [:request :authn/authenticated?])
-    (throw (ex-info "Authentication required" {})))
+(defn- get-user-context
+  "Extracts user context for Git operations."
+  [ctx]
   (let [user-id (get-in ctx [:request :authn/user-id])
-        user (proto/find-by (:user-repo ctx) {:id (parse-uuid user-id)})
-        card-data (-> input
-                      (assoc :set-id (parse-uuid set-id))
-                      ;; Add user context for Git operations
-                      (assoc :_user {:name (:name user)
-                                     :email (:email user)
-                                     :github-token (:github-token user)}))]
+        user (proto/find-by (:user-repo ctx) {:id (parse-uuid user-id)})]
+    {:name (:name user)
+     :email (:email user)
+     :github-token (:github-token user)}))
+
+(gql/defresolver :Mutation :createPlayerCard
+  "Creates a new player card."
+  [:=> [:cat :any [:map [:setId :string] [:input PlayerCardInput]] :any] PlayerCard]
+  [ctx {:keys [setId input]} _value]
+  (let [card-data (-> input
+                      (assoc :set-id (parse-uuid setId))
+                      (assoc :card-type :card-type/PLAYER_CARD)
+                      (assoc :_user (get-user-context ctx)))]
     (proto/create! (:card-repo ctx) card-data)))
 
+(gql/defresolver :Mutation :createPlayCard
+  "Creates a new play card."
+  [:=> [:cat :any [:map [:setId :string] [:input PlayCardInput]] :any] PlayCard]
+  [ctx {:keys [setId input]} _value]
+  (let [card-data (-> input
+                      (assoc :set-id (parse-uuid setId))
+                      (assoc :card-type :card-type/PLAY_CARD)
+                      (assoc :_user (get-user-context ctx)))]
+    (proto/create! (:card-repo ctx) card-data)))
+
+;; Similar mutations for other card types:
+;; - createAbilityCard
+;; - createSplitPlayCard
+;; - createCoachingCard
+;; - createStandardActionCard
+;; - createTeamAssetCard
+
 (gql/defresolver :Mutation :updateCard
-  "Updates an existing card."
-  [:=> [:cat :any [:map [:id :string] [:input CardInput]] :any] Card]
-  [ctx {:keys [id input]} _value]
-  (when-not (get-in ctx [:request :authn/authenticated?])
-    (throw (ex-info "Authentication required" {})))
-  (let [user-id (get-in ctx [:request :authn/user-id])
-        user (proto/find-by (:user-repo ctx) {:id (parse-uuid user-id)})
-        card-data (-> input
-                      ;; Add user context for Git operations
-                      (assoc :_user {:name (:name user)
-                                     :email (:email user)
-                                     :github-token (:github-token user)}))]
-    (proto/update! (:card-repo ctx) (parse-uuid id) card-data)))
+  "Updates an existing card. Requires name and setId to identify the card."
+  [:=> [:cat :any [:map [:name :string]
+                        [:setId :string]
+                        [:input :map]] :any]
+       GameCard]
+  [ctx {:keys [name setId input]} _value]
+  (let [card-data (-> input
+                      (assoc :set-id (parse-uuid setId))
+                      (assoc :_user (get-user-context ctx)))]
+    (proto/update! (:card-repo ctx)
+                   {:name name}
+                   card-data)))
 
 (gql/defresolver :Mutation :deleteCard
-  "Deletes a card."
+  "Deletes a card by name and set ID."
+  [:=> [:cat :any [:map [:name :string]
+                        [:setId :string]] :any]
+       :boolean]
+  [ctx {:keys [name setId]} _value]
+  (proto/delete! (:card-repo ctx)
+                 {:name name
+                  :set-id (parse-uuid setId)
+                  :_user (get-user-context ctx)}))
+
+(gql/defresolver :Mutation :createCardSet
+  "Creates a new card set."
+  [:=> [:cat :any [:map [:input CardSetInput]] :any] CardSet]
+  [ctx {:keys [input]} _value]
+  (proto/create! (:set-repo ctx)
+                 (assoc input :_user (get-user-context ctx))))
+
+(gql/defresolver :Mutation :updateCardSet
+  "Updates an existing card set."
+  [:=> [:cat :any [:map [:id :string] [:input CardSetInput]] :any] CardSet]
+  [ctx {:keys [id input]} _value]
+  (proto/update! (:set-repo ctx)
+                 (parse-uuid id)
+                 (assoc input :_user (get-user-context ctx))))
+
+(gql/defresolver :Mutation :deleteCardSet
+  "Deletes a card set and all its cards."
   [:=> [:cat :any [:map [:id :string]] :any] :boolean]
   [ctx {:keys [id]} _value]
-  (when-not (get-in ctx [:request :authn/authenticated?])
-    (throw (ex-info "Authentication required" {})))
-  (proto/delete! (:card-repo ctx) (parse-uuid id)))
+  (proto/delete! (:set-repo ctx)
+                 {:id (parse-uuid id)
+                  :_user (get-user-context ctx)}))
 ```
 
-Implement set mutations similarly.
-
-### 4.4 Authentication Middleware
-
-**File**: `src/bashketball_editor_api/graphql/middleware.clj`
-
-Apply authentication middleware to protected resolvers:
-
-```clojure
-(def protected-resolvers
-  #{[:Mutation :createCard]
-    [:Mutation :updateCard]
-    [:Mutation :deleteCard]
-    [:Mutation :createCardSet]
-    [:Mutation :updateCardSet]
-    [:Mutation :deleteCardSet]})
-
-(defn wrap-protected-resolvers
-  [resolver-map]
-  (reduce-kv
-   (fn [m k v]
-     (if (contains? protected-resolvers k)
-       (assoc m k [(first v) (require-authentication (second v))])
-       (assoc m k v)))
-   {}
-   resolver-map))
-```
-
-### 4.5 Nested Resolvers
+### 4.7 Nested Resolvers
 
 **File**: `src/bashketball_editor_api/graphql/resolvers/query.clj`
 
@@ -360,24 +593,68 @@ Add resolver for fetching cards within a set:
 ```clojure
 (gql/defresolver :CardSet :cards
   "Fetches cards for a card set."
-  [:=> [:cat :any :any CardSet] [:vector Card]]
+  [:=> [:cat :any :any CardSet] [:vector GameCard]]
   [ctx _args card-set]
   (proto/find-all (:card-repo ctx) {:where {:set-id (:id card-set)}}))
 ```
 
-### 4.6 Testing
+### 4.8 Card Repository Updates
+
+The card repository needs to be updated to use `:name` as the primary key within a set:
+
+**File**: `src/bashketball_editor_api/git/cards.clj`
+
+```clojure
+(defn- card-path
+  "Returns the path for a card file: cards/{set-id}/{name}.edn"
+  [set-id name]
+  (let [safe-name (-> name
+                      str/lower-case
+                      (str/replace #"[^a-z0-9]" "-"))]
+    (str "cards/" set-id "/" safe-name ".edn")))
+
+(defrecord CardRepository [git-repo lock]
+  proto/Repository
+  (find-by [_this criteria]
+    ;; Uses name as primary key within a set
+    (when-let [name (:name criteria)]
+      (when-let [set-id (:set-id criteria)]
+        (let [path (card-path set-id name)]
+          (when-let [content (git-repo/read-file git-repo path)]
+            (edn/read-string content))))))
+
+  (find-all [_this opts]
+    (if-let [set-id (get-in opts [:where :set-id])]
+      (let [card-files (list-cards-in-set git-repo set-id)
+            cards (mapv #(edn/read-string (slurp %)) card-files)]
+        ;; Filter by card-type if specified
+        (if-let [card-type (get-in opts [:where :card-type])]
+          (filterv #(= card-type (:card-type %)) cards)
+          cards))
+      []))
+
+  ;; ... rest of implementation
+)
+```
+
+### 4.9 Testing
 
 **Files**:
-- `test/bashketball_editor_api/graphql/queries_test.clj`
-- `test/bashketball_editor_api/graphql/mutations_test.clj`
+- `test/bashketball_editor_api/graphql/card_queries_test.clj`
+- `test/bashketball_editor_api/graphql/card_mutations_test.clj`
+- `test/bashketball_editor_api/graphql/set_queries_test.clj`
+- `test/bashketball_editor_api/graphql/set_mutations_test.clj`
 
 Tests to implement:
-- Query resolvers for cards and sets
-- Mutation resolvers for CRUD operations
+- Query resolvers for each card type (PlayerCard, PlayCard, etc.)
+- Card type filtering in queries
+- Mutation resolvers for CRUD operations on each card type
+- Name-based lookup within sets
 - Authentication enforcement on mutations
 - Nested resolver for cards in sets
-- Input validation
-- Error handling
+- Input validation per card type
+- Default value population
+- Error handling for invalid card types
 
 ---
 
@@ -797,10 +1074,17 @@ Recommended implementation sequence:
 - [x] CORS support for cross-origin frontend
 
 ### Phase 4 ⏳ PENDING
-- [ ] All GraphQL queries work
-- [ ] All GraphQL mutations work
-- [ ] Proper error messages returned
-- [ ] Authentication required for mutations
+- [ ] Card type schemas implemented (PlayerCard, PlayCard, AbilityCard, etc.)
+- [ ] Card queries work (card, cards with filtering by setId and cardType)
+- [ ] CardSet queries work (cardSet, cardSets)
+- [ ] Type-specific create mutations work (createPlayerCard, createPlayCard, etc.)
+- [ ] Generic updateCard mutation works with name+setId lookup
+- [ ] deleteCard mutation works with name+setId lookup
+- [ ] CardSet CRUD mutations work
+- [ ] Nested resolver works (CardSet.cards)
+- [ ] Card repository updated for name-based lookup
+- [ ] Authentication required for all mutations
+- [ ] Proper error messages for invalid card types
 
 ### Phase 5 ⏳ PENDING
 - [ ] Input validation works correctly

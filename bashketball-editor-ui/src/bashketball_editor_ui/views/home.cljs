@@ -5,31 +5,23 @@
   (:require
    [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.components.ui.input :refer [input]]
-   [bashketball-editor-ui.config :as config]
    [uix.core :refer [$ defui use-state]]))
 
 (defui home-view
   "Main home view displaying the application landing page."
   []
   (let [[search-term set-search-term] (use-state "")]
-    ($ :div {:class "min-h-screen bg-gray-50"}
-       ($ :header {:class "bg-white shadow"}
-          ($ :div {:class "max-w-7xl mx-auto py-6 px-4 flex justify-between items-center"}
-             ($ :h1 {:class "text-3xl font-bold text-gray-900"}
-                config/app-name)
-             ($ :a {:href config/github-login-url}
-                ($ button {:variant :outline} "Login with GitHub"))))
-       ($ :main {:class "max-w-7xl mx-auto py-6 px-4"}
-          ($ :div {:class "mb-6"}
-             ($ :p {:class "text-gray-600 mb-4"}
-                "Create and edit trading cards for the Bashketball card game.")
-             ($ :div {:class "flex gap-4 items-center"}
-                ($ input
-                   {:placeholder "Search cards..."
-                    :value search-term
-                    :on-change #(set-search-term (.. % -target -value))
-                    :class "max-w-xs"})
-                ($ button {:variant :default} "Search")
-                ($ button {:variant :outline} "New Card")))
-          ($ :div {:class "mt-8 p-8 bg-white rounded-lg shadow text-center text-gray-500"}
-             "Card list will appear here once the API is connected.")))))
+    ($ :div
+       ($ :div {:class "mb-6"}
+          ($ :p {:class "text-gray-600 mb-4"}
+             "Create and edit trading cards for the Bashketball card game.")
+          ($ :div {:class "flex gap-4 items-center"}
+             ($ input
+                {:placeholder "Search cards..."
+                 :value search-term
+                 :on-change #(set-search-term (.. % -target -value))
+                 :class "max-w-xs"})
+             ($ button {:variant :default} "Search")
+             ($ button {:variant :outline} "New Card")))
+       ($ :div {:class "mt-8 p-8 bg-white rounded-lg shadow text-center text-gray-500"}
+          "Card list will appear here once the API is connected."))))

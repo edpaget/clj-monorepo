@@ -4,8 +4,7 @@
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.models.protocol :as proto]
    [clojure.java.io :as io]
-   [clojure.test :refer [deftest is testing use-fixtures]]
-   [malli.core :as m]))
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (def ^:dynamic *test-repo* nil)
 (def ^:dynamic *test-repo-path* nil)
@@ -25,26 +24,6 @@
 
 (use-fixtures :each with-temp-repo)
 
-(deftest card-schema-test
-  (testing "validates a complete card"
-    (let [card {:id (random-uuid)
-                :set-id (random-uuid)
-                :name "Test Card"
-                :description "A test card"
-                :attributes {:power 10 :speed 5}
-                :created-at (java.time.Instant/now)
-                :updated-at (java.time.Instant/now)}]
-      (is (m/validate git-cards/Card card))))
-
-  (testing "validates a minimal card"
-    (let [card {:set-id (random-uuid)
-                :name "Test Card"}]
-      (is (m/validate git-cards/Card card))))
-
-  (testing "rejects card without set-id"
-    (let [card {:name "Test Card"}]
-      (is (not (m/validate git-cards/Card card))))))
-
 (deftest create-card-repository-test
   (testing "creates a CardRepository record"
     (let [repo (git-cards/create-card-repository *test-repo*)]
@@ -54,12 +33,12 @@
 (deftest find-by-test
   (testing "returns nil when card not found"
     (let [card-repo (git-cards/create-card-repository *test-repo*)]
-      (is (nil? (proto/find-by card-repo {:id (random-uuid)
+      (is (nil? (proto/find-by card-repo {:slug "nonexistent"
                                           :set-id (random-uuid)})))))
 
-  (testing "requires both id and set-id"
+  (testing "requires both slug and set-id"
     (let [card-repo (git-cards/create-card-repository *test-repo*)]
-      (is (nil? (proto/find-by card-repo {:id (random-uuid)})))
+      (is (nil? (proto/find-by card-repo {:slug "test"})))
       (is (nil? (proto/find-by card-repo {:set-id (random-uuid)}))))))
 
 (deftest find-all-test
@@ -76,8 +55,14 @@
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
           card-repo (git-cards/create-card-repository read-only-repo)
-          card-data {:set-id (random-uuid)
+          card-data {:slug "test-card"
                      :name "Test Card"
+                     :set-id (random-uuid)
+                     :card-type :card-type/PLAYER_CARD
+                     :deck-size 5
+                     :sht 1 :pss 1 :def 1 :speed 1
+                     :size :size/SM
+                     :abilities []
                      :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
                             (proto/create! card-repo card-data)))))
@@ -90,13 +75,19 @@
                      :name "Test Card"
                      :_user {:name "Test" :email "test@example.com" :github-token "token"}}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
-                            (proto/update! card-repo (random-uuid) card-data))))))
+                            (proto/update! card-repo {:slug "test-card"} card-data))))))
 
 (deftest user-context-required-test
   (testing "throws when user context missing on create"
     (let [card-repo (git-cards/create-card-repository *test-repo*)
-          card-data {:set-id (random-uuid)
-                     :name "Test Card"}]
+          card-data {:slug "test-card"
+                     :name "Test Card"
+                     :set-id (random-uuid)
+                     :card-type :card-type/PLAYER_CARD
+                     :deck-size 5
+                     :sht 1 :pss 1 :def 1 :speed 1
+                     :size :size/SM
+                     :abilities []}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"User context required"
                             (proto/create! card-repo card-data)))))
 
@@ -105,4 +96,11 @@
           card-data {:set-id (random-uuid)
                      :name "Test Card"}]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"User context required"
-                            (proto/update! card-repo (random-uuid) card-data))))))
+                            (proto/update! card-repo {:slug "test-card"} card-data))))))
+
+(deftest slugify-test
+  (testing "converts strings to URL-safe slugs"
+    (is (= "hello-world" (git-cards/slugify "Hello World")))
+    (is (= "jordan-23" (git-cards/slugify "Jordan #23")))
+    (is (= "test" (git-cards/slugify "  Test  ")))
+    (is (= "fast-break" (git-cards/slugify "Fast Break!")))))

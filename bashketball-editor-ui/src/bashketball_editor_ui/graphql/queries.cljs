@@ -12,8 +12,10 @@
     query Me {
       me {
         id
-        githubUsername
-        displayName
+        githubLogin
+        email
+        avatarUrl
+        name
       }
     }
   "))

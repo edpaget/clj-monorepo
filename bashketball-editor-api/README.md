@@ -332,38 +332,88 @@ type Mutation {
 ### Planned Schema (Phase 4)
 
 ```graphql
-type Card {
-  id: ID!
-  setId: ID!
-  name: String!
-  description: String
-  attributes: JSON
-  createdAt: String
-  updatedAt: String
+# Enums
+enum CardType {
+  PLAYER_CARD
+  ABILITY_CARD
+  SPLIT_PLAY_CARD
+  PLAY_CARD
+  COACHING_CARD
+  STANDARD_ACTION_CARD
+  TEAM_ASSET_CARD
 }
+
+enum PlayerSize { SM MD LG }
+
+# Base Card interface (all card types implement this)
+# Note: Version history is tracked by Git, not in the schema
+interface Card {
+  name: String!
+  cardType: CardType!
+  imagePrompt: String       # Description for AI image generation
+  createdAt: String!
+  updatedAt: String!
+}
+
+# Card type implementations
+type PlayerCard implements Card {
+  name: String!
+  cardType: CardType!
+  imagePrompt: String
+  deckSize: Int!
+  sht: Int!      # Shot stat
+  pss: Int!      # Pass stat
+  def: Int!      # Defense stat
+  speed: Int!
+  size: PlayerSize!
+  abilities: [String!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type PlayCard implements Card {
+  name: String!
+  cardType: CardType!
+  imagePrompt: String
+  fate: Int!
+  play: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+# ... similar types for AbilityCard, SplitPlayCard, CoachingCard,
+#     StandardActionCard, TeamAssetCard
 
 type CardSet {
   id: ID!
   name: String!
   description: String
   cards: [Card!]!
-  createdAt: String
-  updatedAt: String
+  createdAt: String!
+  updatedAt: String!
 }
 
 type Query {
   # ... existing queries
-  card(id: ID!, setId: ID!): Card
-  cards(setId: ID): [Card!]!
+  card(name: String!, setId: ID!): Card
+  cards(setId: ID, cardType: CardType): [Card!]!
   cardSet(id: ID!): CardSet
   cardSets: [CardSet!]!
 }
 
 type Mutation {
   # ... existing mutations
-  createCard(setId: ID!, input: CardInput!): Card!
-  updateCard(id: ID!, setId: ID!, input: CardInput!): Card!
-  deleteCard(id: ID!, setId: ID!): Boolean!
+
+  # Type-specific card creation
+  createPlayerCard(setId: ID!, input: PlayerCardInput!): PlayerCard!
+  createPlayCard(setId: ID!, input: PlayCardInput!): PlayCard!
+  createAbilityCard(setId: ID!, input: AbilityCardInput!): AbilityCard!
+  # ... similar for other card types
+
+  # Generic card update/delete (uses name as key within a set)
+  # Version history is tracked by Git
+  updateCard(name: String!, setId: ID!, input: CardInput!): Card!
+  deleteCard(name: String!, setId: ID!): Boolean!
 
   createCardSet(input: CardSetInput!): CardSet!
   updateCardSet(id: ID!, input: CardSetInput!): CardSet!

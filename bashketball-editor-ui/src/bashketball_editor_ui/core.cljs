@@ -3,16 +3,25 @@
 
   Initializes the React application and mounts it to the DOM."
   (:require
+   [bashketball-editor-ui.context.auth :as auth]
+   [bashketball-editor-ui.graphql.client :as gql-client]
+   [bashketball-editor-ui.router :as router]
    [bashketball-editor-ui.views.home :as home]
+   [bashketball-editor-ui.views.layout :as layout]
    [uix.core :refer [$ defui]]
    [uix.dom]))
 
 (defonce root (atom nil))
 
 (defui app
-  "Root application component."
+  "Root application component with routing."
   []
-  ($ home/home-view))
+  ($ gql-client/apollo-provider {:client gql-client/client}
+     ($ auth/auth-provider
+        ($ router/browser-router
+           ($ router/routes
+              ($ router/route {:path "/" :element ($ layout/layout)}
+                 ($ router/route {:index true :element ($ home/home-view)})))))))
 
 (defn render!
   "Renders the application to the root."

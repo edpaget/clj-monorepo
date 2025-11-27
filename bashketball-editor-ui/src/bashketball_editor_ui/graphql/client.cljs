@@ -7,6 +7,8 @@
    ["@apollo/client" :as apollo]
    [bashketball-editor-ui.config :as config]))
 
+(def apollo-provider apollo/ApolloProvider)
+
 (def http-link
   "HTTP link configured to connect to the API endpoint with credentials."
   (apollo/createHttpLink
