@@ -70,11 +70,11 @@
 (defui pull-button
   "Button to pull commits from remote. Shows count and text label."
   [{:keys [count on-success]}]
-  (let [[status set-status]     (use-state :idle) ; :idle, :pulling, :success, :error
-        [error-msg set-error]   (use-state nil)
-        [pull-mutation]         (useMutation q/PULL_FROM_REMOTE_MUTATION)
-        client                  (useApolloClient)
-        reset-needed?           (or (= status :success) (= status :error))]
+  (let [[status set-status]   (use-state :idle) ; :idle, :pulling, :success, :error
+        [error-msg set-error] (use-state nil)
+        [pull-mutation]       (useMutation q/PULL_FROM_REMOTE_MUTATION)
+        client                (useApolloClient)
+        reset-needed?         (or (= status :success) (= status :error))]
 
     (use-effect
      (fn []
@@ -138,19 +138,19 @@
   - Remote sync: Shows Push button (when ahead) and Pull button (when behind)
   - Clean state: Shows green checkmark when fully synced"
   []
-  (let [sync-query    (useQuery q/SYNC_STATUS_QUERY
-                                #js {:pollInterval 30000
-                                     :fetchPolicy "network-only"})
-        sync-status   (some-> sync-query :data :syncStatus)
-        loading?      (:loading sync-query)
+  (let [sync-query   (useQuery q/SYNC_STATUS_QUERY
+                               #js {:pollInterval 30000
+                                    :fetchPolicy "network-only"})
+        sync-status  (some-> sync-query :data :syncStatus)
+        loading?     (:loading sync-query)
 
-        ahead         (:ahead sync-status)
-        behind        (:behind sync-status)
-        uncommitted   (:uncommittedChanges sync-status)
-        has-changes?  (and (some? uncommitted) (pos? uncommitted))
-        has-ahead?    (and ahead (pos? ahead))
-        has-behind?   (and behind (pos? behind))
-        is-clean?     (and (not has-changes?) (not has-ahead?) (not has-behind?))]
+        ahead        (:ahead sync-status)
+        behind       (:behind sync-status)
+        uncommitted  (:uncommittedChanges sync-status)
+        has-changes? (and (some? uncommitted) (pos? uncommitted))
+        has-ahead?   (and ahead (pos? ahead))
+        has-behind?  (and behind (pos? behind))
+        is-clean?    (and (not has-changes?) (not has-ahead?) (not has-behind?))]
 
     (when-not loading?
       ($ :div {:class "flex items-center gap-2"}

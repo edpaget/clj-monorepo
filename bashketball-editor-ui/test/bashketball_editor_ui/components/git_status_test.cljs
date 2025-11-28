@@ -52,16 +52,16 @@
 (def mock-push-success
   #js {:request #js {:query q/PUSH_TO_REMOTE_MUTATION}
        :result #js {:data #js {:pushToRemote #js {:status "success"
-                                                   :message "Pushed successfully"
-                                                   :error nil
-                                                   :conflicts nil}}}})
+                                                  :message "Pushed successfully"
+                                                  :error nil
+                                                  :conflicts nil}}}})
 
 (def mock-push-error
   #js {:request #js {:query q/PUSH_TO_REMOTE_MUTATION}
        :result #js {:data #js {:pushToRemote #js {:status "error"
-                                                   :message "Push failed"
-                                                   :error "Authentication failed"
-                                                   :conflicts nil}}}})
+                                                  :message "Push failed"
+                                                  :error "Authentication failed"
+                                                  :conflicts nil}}}})
 
 ;; -----------------------------------------------------------------------------
 ;; Mock Responses - Pull Mutation
@@ -70,16 +70,16 @@
 (def mock-pull-success
   #js {:request #js {:query q/PULL_FROM_REMOTE_MUTATION}
        :result #js {:data #js {:pullFromRemote #js {:status "success"
-                                                     :message "Pulled successfully"
-                                                     :error nil
-                                                     :conflicts nil}}}})
+                                                    :message "Pulled successfully"
+                                                    :error nil
+                                                    :conflicts nil}}}})
 
 (def mock-pull-error
   #js {:request #js {:query q/PULL_FROM_REMOTE_MUTATION}
        :result #js {:data #js {:pullFromRemote #js {:status "error"
-                                                     :message "Pull failed"
-                                                     :error "Conflict detected"
-                                                     :conflicts #js ["cards/test.edn"]}}}})
+                                                    :message "Pull failed"
+                                                    :error "Conflict detected"
+                                                    :conflicts #js ["cards/test.edn"]}}}})
 
 ;; -----------------------------------------------------------------------------
 ;; Test Providers
@@ -139,38 +139,38 @@
 
 (t/deftest push-button-success-flow-test
   (t/async done
-    (t/testing "shows success state after push"
-      (let [user (tlr/setup)
-            on-success (atom false)]
-        (tlr/render (with-providers
-                      ($ push-button {:count 2 :on-success #(reset! on-success true)})
-                      #js [mock-push-success]))
-        (-> (tlr/click user (tlr/get-by-role "button"))
-            (.then #(tlr/wait-for
-                     (fn [] (some? (tlr/query-by-text "Pushed!")))
-                     #js {:timeout 3000}))
-            (.then (fn []
-                     (t/is (some? (tlr/query-by-text "Pushed!")))
-                     (done)))
-            (.catch (fn [e]
-                      (t/is false (str e))
-                      (done))))))))
+           (t/testing "shows success state after push"
+             (let [user       (tlr/setup)
+                   on-success (atom false)]
+               (tlr/render (with-providers
+                             ($ push-button {:count 2 :on-success #(reset! on-success true)})
+                             #js [mock-push-success]))
+               (-> (tlr/click user (tlr/get-by-role "button"))
+                   (.then #(tlr/wait-for
+                            (fn [] (some? (tlr/query-by-text "Pushed!")))
+                            #js {:timeout 3000}))
+                   (.then (fn []
+                            (t/is (some? (tlr/query-by-text "Pushed!")))
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))))))
 
 (t/deftest push-button-error-flow-test
   (t/async done
-    (t/testing "shows error state after failed push"
-      (let [user (tlr/setup)]
-        (tlr/render (with-providers ($ push-button {:count 2}) #js [mock-push-error]))
-        (-> (tlr/click user (tlr/get-by-role "button"))
-            (.then #(tlr/wait-for
-                     (fn [] (some? (tlr/query-by-text "Failed")))
-                     #js {:timeout 3000}))
-            (.then (fn []
-                     (t/is (some? (tlr/query-by-text "Failed")))
-                     (done)))
-            (.catch (fn [e]
-                      (t/is false (str e))
-                      (done))))))))
+           (t/testing "shows error state after failed push"
+             (let [user (tlr/setup)]
+               (tlr/render (with-providers ($ push-button {:count 2}) #js [mock-push-error]))
+               (-> (tlr/click user (tlr/get-by-role "button"))
+                   (.then #(tlr/wait-for
+                            (fn [] (some? (tlr/query-by-text "Failed")))
+                            #js {:timeout 3000}))
+                   (.then (fn []
+                            (t/is (some? (tlr/query-by-text "Failed")))
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Pull Button Tests
@@ -189,35 +189,35 @@
 
 (t/deftest pull-button-success-flow-test
   (t/async done
-    (t/testing "shows success state after pull"
-      (let [user (tlr/setup)]
-        (tlr/render (with-providers ($ pull-button {:count 1}) #js [mock-pull-success]))
-        (-> (tlr/click user (tlr/get-by-role "button"))
-            (.then #(tlr/wait-for
-                     (fn [] (some? (tlr/query-by-text "Pulled!")))
-                     #js {:timeout 3000}))
-            (.then (fn []
-                     (t/is (some? (tlr/query-by-text "Pulled!")))
-                     (done)))
-            (.catch (fn [e]
-                      (t/is false (str e))
-                      (done))))))))
+           (t/testing "shows success state after pull"
+             (let [user (tlr/setup)]
+               (tlr/render (with-providers ($ pull-button {:count 1}) #js [mock-pull-success]))
+               (-> (tlr/click user (tlr/get-by-role "button"))
+                   (.then #(tlr/wait-for
+                            (fn [] (some? (tlr/query-by-text "Pulled!")))
+                            #js {:timeout 3000}))
+                   (.then (fn []
+                            (t/is (some? (tlr/query-by-text "Pulled!")))
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))))))
 
 (t/deftest pull-button-error-flow-test
   (t/async done
-    (t/testing "shows error state after failed pull"
-      (let [user (tlr/setup)]
-        (tlr/render (with-providers ($ pull-button {:count 1}) #js [mock-pull-error]))
-        (-> (tlr/click user (tlr/get-by-role "button"))
-            (.then #(tlr/wait-for
-                     (fn [] (some? (tlr/query-by-text "Failed")))
-                     #js {:timeout 3000}))
-            (.then (fn []
-                     (t/is (some? (tlr/query-by-text "Failed")))
-                     (done)))
-            (.catch (fn [e]
-                      (t/is false (str e))
-                      (done))))))))
+           (t/testing "shows error state after failed pull"
+             (let [user (tlr/setup)]
+               (tlr/render (with-providers ($ pull-button {:count 1}) #js [mock-pull-error]))
+               (-> (tlr/click user (tlr/get-by-role "button"))
+                   (.then #(tlr/wait-for
+                            (fn [] (some? (tlr/query-by-text "Failed")))
+                            #js {:timeout 3000}))
+                   (.then (fn []
+                            (t/is (some? (tlr/query-by-text "Failed")))
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Git Status Component Tests
@@ -225,73 +225,73 @@
 
 (t/deftest git-status-shows-clean-state-test
   (t/async done
-    (t/testing "shows 'All synced' when clean"
-      (tlr/render (with-providers ($ git-status) #js [mock-clean-status]))
-      (-> (tlr/wait-for
-           (fn [] (some? (tlr/query-by-text "All synced")))
-           #js {:timeout 3000})
-          (.then (fn []
-                   (t/is (some? (tlr/query-by-text "All synced")))
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (t/testing "shows 'All synced' when clean"
+             (tlr/render (with-providers ($ git-status) #js [mock-clean-status]))
+             (-> (tlr/wait-for
+                  (fn [] (some? (tlr/query-by-text "All synced")))
+                  #js {:timeout 3000})
+                 (.then (fn []
+                          (t/is (some? (tlr/query-by-text "All synced")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
 
 (t/deftest git-status-shows-commit-button-when-dirty-test
   (t/async done
-    (t/testing "shows commit button when there are uncommitted changes"
-      (tlr/render (with-providers ($ git-status) #js [mock-dirty-status]))
-      (-> (tlr/wait-for
-           (fn [] (some? (tlr/query-by-text "3 to commit")))
-           #js {:timeout 3000})
-          (.then (fn []
-                   (t/is (some? (tlr/query-by-text "3 to commit")))
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (t/testing "shows commit button when there are uncommitted changes"
+             (tlr/render (with-providers ($ git-status) #js [mock-dirty-status]))
+             (-> (tlr/wait-for
+                  (fn [] (some? (tlr/query-by-text "3 to commit")))
+                  #js {:timeout 3000})
+                 (.then (fn []
+                          (t/is (some? (tlr/query-by-text "3 to commit")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
 
 (t/deftest git-status-shows-push-button-when-ahead-test
   (t/async done
-    (t/testing "shows push button when ahead of remote"
-      (tlr/render (with-providers ($ git-status) #js [mock-ahead-status mock-push-success]))
-      (-> (tlr/wait-for
-           (fn [] (some? (tlr/query-by-text "2 to push")))
-           #js {:timeout 3000})
-          (.then (fn []
-                   (t/is (some? (tlr/query-by-text "2 to push")))
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (t/testing "shows push button when ahead of remote"
+             (tlr/render (with-providers ($ git-status) #js [mock-ahead-status mock-push-success]))
+             (-> (tlr/wait-for
+                  (fn [] (some? (tlr/query-by-text "2 to push")))
+                  #js {:timeout 3000})
+                 (.then (fn []
+                          (t/is (some? (tlr/query-by-text "2 to push")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
 
 (t/deftest git-status-shows-pull-button-when-behind-test
   (t/async done
-    (t/testing "shows pull button when behind remote"
-      (tlr/render (with-providers ($ git-status) #js [mock-behind-status mock-pull-success]))
-      (-> (tlr/wait-for
-           (fn [] (some? (tlr/query-by-text "1 to pull")))
-           #js {:timeout 3000})
-          (.then (fn []
-                   (t/is (some? (tlr/query-by-text "1 to pull")))
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (t/testing "shows pull button when behind remote"
+             (tlr/render (with-providers ($ git-status) #js [mock-behind-status mock-pull-success]))
+             (-> (tlr/wait-for
+                  (fn [] (some? (tlr/query-by-text "1 to pull")))
+                  #js {:timeout 3000})
+                 (.then (fn []
+                          (t/is (some? (tlr/query-by-text "1 to pull")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
 
 (t/deftest git-status-shows-all-buttons-when-mixed-test
   (t/async done
-    (t/testing "shows all buttons when there are mixed states"
-      (tlr/render (with-providers ($ git-status)
-                    #js [mock-mixed-status mock-push-success mock-pull-success]))
-      (-> (tlr/wait-for
-           (fn [] (some? (tlr/query-by-text "3 to commit")))
-           #js {:timeout 3000})
-          (.then (fn []
-                   (t/is (some? (tlr/query-by-text "3 to commit")))
-                   (t/is (some? (tlr/query-by-text "2 to push")))
-                   (t/is (some? (tlr/query-by-text "1 to pull")))
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (t/testing "shows all buttons when there are mixed states"
+             (tlr/render (with-providers ($ git-status)
+                           #js [mock-mixed-status mock-push-success mock-pull-success]))
+             (-> (tlr/wait-for
+                  (fn [] (some? (tlr/query-by-text "3 to commit")))
+                  #js {:timeout 3000})
+                 (.then (fn []
+                          (t/is (some? (tlr/query-by-text "3 to commit")))
+                          (t/is (some? (tlr/query-by-text "2 to push")))
+                          (t/is (some? (tlr/query-by-text "1 to pull")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))

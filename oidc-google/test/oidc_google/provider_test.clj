@@ -32,10 +32,10 @@
         (is (= "123456789" (proto/validate-credentials validator {:access-token "valid-access-token"} nil))))))
 
   (testing "validates with code"
-    (with-redefs [client/exchange-code (fn [_config code]
-                                         (when (= "valid-code" code)
-                                           {:access_token "token"
-                                            :id_token "id-token"}))
+    (with-redefs [client/exchange-code     (fn [_config code]
+                                             (when (= "valid-code" code)
+                                               {:access_token "token"
+                                                :id_token "id-token"}))
                   client/validate-id-token (fn [_token _client-id]
                                              {:sub "123"})]
       (let [config    {:client-id "test-id" :client-secret "test-secret"}
@@ -59,9 +59,9 @@
 
   (testing "filters claims based on scope"
     (with-redefs [claims/fetch-userinfo (constantly sample-userinfo)]
-      (let [provider      (provider/create-claims-provider 300000)
-            profile-only  (proto/get-claims provider "access-token" ["profile"])
-            email-only    (proto/get-claims provider "access-token" ["email"])]
+      (let [provider     (provider/create-claims-provider 300000)
+            profile-only (proto/get-claims provider "access-token" ["profile"])
+            email-only   (proto/get-claims provider "access-token" ["email"])]
         (is (= "John Doe" (:name profile-only)))
         (is (nil? (:email profile-only)))
         (is (= "john@example.com" (:email email-only)))

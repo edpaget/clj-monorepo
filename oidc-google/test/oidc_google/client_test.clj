@@ -52,14 +52,14 @@
   (testing "exchanges code using oidc.authorization"
     (let [exchanged? (atom false)]
       (with-redefs [discovery/fetch-discovery-document (constantly mock-discovery)
-                    auth/exchange-code (fn [endpoint code client-id secret redirect _opts]
-                                         (reset! exchanged? true)
-                                         (is (= "https://oauth2.googleapis.com/token" endpoint))
-                                         (is (= "auth-code" code))
-                                         (is (= "test-id" client-id))
-                                         (is (= "test-secret" secret))
-                                         {:access_token "token"
-                                          :token_type "Bearer"})]
+                    auth/exchange-code                 (fn [endpoint code client-id secret redirect _opts]
+                                                         (reset! exchanged? true)
+                                                         (is (= "https://oauth2.googleapis.com/token" endpoint))
+                                                         (is (= "auth-code" code))
+                                                         (is (= "test-id" client-id))
+                                                         (is (= "test-secret" secret))
+                                                         {:access_token "token"
+                                                          :token_type "Bearer"})]
         (let [config {:client-id "test-id"
                       :client-secret "test-secret"
                       :redirect-uri "https://example.com/callback"}
@@ -71,15 +71,15 @@
   (testing "refreshes token using oidc.authorization"
     (let [refreshed? (atom false)]
       (with-redefs [discovery/fetch-discovery-document (constantly mock-discovery)
-                    auth/refresh-token (fn [endpoint refresh-token client-id secret _opts]
-                                         (reset! refreshed? true)
-                                         (is (= "https://oauth2.googleapis.com/token" endpoint))
-                                         (is (= "refresh-token" refresh-token))
-                                         (is (= "test-id" client-id))
-                                         (is (= "test-secret" secret))
-                                         {:access_token "new-token"
-                                          :token_type "Bearer"
-                                          :expires_in 3600})]
+                    auth/refresh-token                 (fn [endpoint refresh-token client-id secret _opts]
+                                                         (reset! refreshed? true)
+                                                         (is (= "https://oauth2.googleapis.com/token" endpoint))
+                                                         (is (= "refresh-token" refresh-token))
+                                                         (is (= "test-id" client-id))
+                                                         (is (= "test-secret" secret))
+                                                         {:access_token "new-token"
+                                                          :token_type "Bearer"
+                                                          :expires_in 3600})]
         (let [config {:client-id "test-id"
                       :client-secret "test-secret"}
               result (client/refresh-token config "refresh-token")]
@@ -90,15 +90,15 @@
   (testing "validates token using Google's JWKS"
     (let [validated? (atom false)]
       (with-redefs [discovery/fetch-discovery-document (constantly mock-discovery)
-                    jwt/fetch-jwks (fn [uri]
-                                     (is (= "https://www.googleapis.com/oauth2/v3/certs" uri))
-                                     {:keys []})
-                    jwt/validate-id-token (fn [token jwks issuer audience opts]
-                                            (reset! validated? true)
-                                            (is (= "id-token" token))
-                                            (is (= "https://accounts.google.com" issuer))
-                                            (is (= "client-id" audience))
-                                            {:sub "123" :email "test@example.com"})]
+                    jwt/fetch-jwks                     (fn [uri]
+                                                         (is (= "https://www.googleapis.com/oauth2/v3/certs" uri))
+                                                         {:keys []})
+                    jwt/validate-id-token              (fn [token jwks issuer audience opts]
+                                                         (reset! validated? true)
+                                                         (is (= "id-token" token))
+                                                         (is (= "https://accounts.google.com" issuer))
+                                                         (is (= "client-id" audience))
+                                                         {:sub "123" :email "test@example.com"})]
         (let [result (client/validate-id-token "id-token" "client-id")]
           (is @validated?)
           (is (= "123" (:sub result))))))))

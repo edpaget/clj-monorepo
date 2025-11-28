@@ -15,18 +15,18 @@
   "Main card detail view."
   []
   (let [{:keys [logged-in?]} (use-auth)
-        params     (router/use-params)
-        navigate   (router/use-navigate)
-        slug       (:slug params)
-        set-slug   (:setSlug params)
+        params               (router/use-params)
+        navigate             (router/use-navigate)
+        slug                 (:slug params)
+        set-slug             (:setSlug params)
 
-        card-query (useQuery q/CARD_QUERY
-                             (clj->js {:variables {:slug (or slug "")
-                                                   :setSlug (or set-slug "")}
-                                       :skip (or (nil? slug) (nil? set-slug))}))
-        loading?   (:loading card-query)
-        error      (:error card-query)
-        card       (some-> card-query :data :card)]
+        card-query           (useQuery q/CARD_QUERY
+                                       (clj->js {:variables {:slug (or slug "")
+                                                             :setSlug (or set-slug "")}
+                                                 :skip (or (nil? slug) (nil? set-slug))}))
+        loading?             (:loading card-query)
+        error                (:error card-query)
+        card                 (some-> card-query :data :card)]
 
     ($ :div {:class "max-w-4xl mx-auto"}
        ;; Header

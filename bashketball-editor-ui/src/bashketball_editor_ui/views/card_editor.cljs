@@ -3,7 +3,6 @@
   (:require
    ["@apollo/client" :refer [useApolloClient useQuery]]
    ["lucide-react" :refer [ArrowLeft Save]]
-   [clojure.string :as str]
    [bashketball-editor-ui.components.cards.card-preview :refer [card-preview]]
    [bashketball-editor-ui.components.cards.card-type-selector :refer [card-types]]
    [bashketball-editor-ui.components.ui.button :refer [button]]
@@ -16,6 +15,7 @@
    [bashketball-editor-ui.hooks.form :as form]
    [bashketball-editor-ui.hooks.sets :refer [use-sets]]
    [bashketball-editor-ui.router :as router]
+   [clojure.string :as str]
    [uix.core :refer [$ defui use-state use-effect]]))
 
 ;; -----------------------------------------------------------------------------
@@ -84,8 +84,8 @@
   "Renders a single field based on its definition."
   [{:keys [field data update-fn]}]
   (let [{:keys [key label type placeholder rows options default]} field
-        id (name key)
-        value (get data key)]
+        id                                                        (name key)
+        value                                                     (get data key)]
     (case type
       :text
       ($ form-field {:id id :label-text label}
@@ -199,11 +199,11 @@
                                          (map :key (:fields f))
                                          [(:key f)])))
                              set)
-        all-keys (into #{:name :image-prompt} type-field-keys)]
+        all-keys        (into #{:name :image-prompt} type-field-keys)]
     (reduce
      (fn [acc k]
        (let [gql-key (get form->graphql-key k (name k))
-             v (get form-data k)]
+             v       (get form-data k)]
          (if (some? v)
            (assoc acc gql-key v)
            acc)))
@@ -255,63 +255,63 @@
 (defui card-editor-view
   "Main card editor view for creating and editing cards."
   []
-  (let [params                      (router/use-params)
-        [search-params]             (router/use-search-params)
-        navigate                    (router/use-navigate)
-        client                      (useApolloClient)
-        slug                        (:slug params)
-        set-slug-param              (or (:setSlug params) (.get search-params "set"))
-        is-new?                     (nil? slug)
+  (let [params                         (router/use-params)
+        [search-params]                (router/use-search-params)
+        navigate                       (router/use-navigate)
+        client                         (useApolloClient)
+        slug                           (:slug params)
+        set-slug-param                 (or (:setSlug params) (.get search-params "set"))
+        is-new?                        (nil? slug)
 
         ;; Form state
-        [card-type set-card-type]   (use-state nil)
-        [set-slug set-set-slug]     (use-state set-slug-param)
+        [card-type set-card-type]      (use-state nil)
+        [set-slug set-set-slug]        (use-state set-slug-param)
         {:keys [data set-data update]} (form/use-form {})
-        [saving? set-saving?]       (use-state false)
-        [error set-error]           (use-state nil)
+        [saving? set-saving?]          (use-state false)
+        [error set-error]              (use-state nil)
 
         ;; Fetch sets for selector
-        {:keys [sets loading?]}     (use-sets)
-        set-options                 (mapv (fn [s] {:value (:slug s) :label (:name s)}) sets)
+        {:keys [sets loading?]}        (use-sets)
+        set-options                    (mapv (fn [s] {:value (:slug s) :label (:name s)}) sets)
 
         ;; Fetch existing card if editing
-        card-query                  (useQuery q/CARD_QUERY
-                                              (clj->js {:variables {:slug (or slug "")
-                                                                    :setSlug (or set-slug "")}
-                                                        :skip (or is-new? (nil? set-slug))}))
-        card-loading?               (:loading card-query)
-        card-data                   (some-> card-query :data :card)
+        card-query                     (useQuery q/CARD_QUERY
+                                                 (clj->js {:variables {:slug (or slug "")
+                                                                       :setSlug (or set-slug "")}
+                                                           :skip (or is-new? (nil? set-slug))}))
+        card-loading?                  (:loading card-query)
+        card-data                      (some-> card-query :data :card)
 
         ;; Update form when card data loads
-        _                           (use-effect
-                                     (fn []
-                                       (when card-data
-                                         (let [transformed (transform-card-data card-data)]
-                                           (set-data transformed)
-                                           (set-card-type (:card-type transformed)))))
-                                     [card-data set-data])
+        _                              (use-effect
+                                        (fn []
+                                          (when card-data
+                                            (let [transformed (transform-card-data card-data)]
+                                              (set-data transformed)
+                                              (set-card-type (:card-type transformed)))))
+                                        [card-data set-data])
 
         ;; Handle form submission
-        handle-submit               (fn []
-                                      (set-saving? true)
-                                      (set-error nil)
-                                      (let [mutation  (if is-new?
-                                                        (get q/create-mutation-for-type card-type)
-                                                        q/UPDATE_CARD_MUTATION)
-                                            input     (build-mutation-input data card-type)
-                                            variables (if is-new?
-                                                        {:setSlug set-slug :input input}
-                                                        {:slug slug :setSlug set-slug :input input})]
-                                        (-> (.mutate client (clj->js {:mutation mutation
-                                                                      :variables variables
-                                                                      :refetchQueries #js ["Cards" "SyncStatus"]}))
-                                            (.then (fn [_]
-                                                     (navigate (if set-slug
-                                                                 (str "/?set=" set-slug)
-                                                                 "/"))))
-                                            (.catch (fn [e]
-                                                      (set-error (:message e))))
-                                            (.finally #(set-saving? false)))))]
+        handle-submit                  (fn []
+                                         (set-saving? true)
+                                         (set-error nil)
+                                         (let [mutation  (if is-new?
+                                                           (get q/create-mutation-for-type card-type)
+                                                           q/UPDATE_CARD_MUTATION)
+                                               input     (build-mutation-input data card-type)
+                                               variables (if is-new?
+                                                           {:setSlug set-slug :input input}
+                                                           {:slug slug :setSlug set-slug :input input})]
+                                           (-> (.mutate client (clj->js {:mutation mutation
+                                                                         :variables variables
+                                                                         :refetchQueries #js ["Cards" "SyncStatus"]}))
+                                               (.then (fn [_]
+                                                        (navigate (if set-slug
+                                                                    (str "/?set=" set-slug)
+                                                                    "/"))))
+                                               (.catch (fn [e]
+                                                         (set-error (:message e))))
+                                               (.finally #(set-saving? false)))))]
 
     ($ :div {:class "max-w-6xl mx-auto"}
        ;; Header

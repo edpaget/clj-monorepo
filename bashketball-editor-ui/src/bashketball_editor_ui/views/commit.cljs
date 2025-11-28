@@ -26,40 +26,40 @@
 (defui commit-view
   "Page for reviewing and committing changes."
   []
-  (let [navigate                        (router/use-navigate)
-        [message set-message]           (use-state "")
-        [committing? set-committing?]   (use-state false)
-        [error set-error]               (use-state nil)
+  (let [navigate                      (router/use-navigate)
+        [message set-message]         (use-state "")
+        [committing? set-committing?] (use-state false)
+        [error set-error]             (use-state nil)
 
         ;; Query working tree status
-        status-query (useQuery q/WORKING_TREE_STATUS_QUERY
-                               #js {:fetchPolicy "network-only"})
-        status       (some-> status-query :data :workingTreeStatus)
-        loading?     (:loading status-query)
+        status-query                  (useQuery q/WORKING_TREE_STATUS_QUERY
+                                                #js {:fetchPolicy "network-only"})
+        status                        (some-> status-query :data :workingTreeStatus)
+        loading?                      (:loading status-query)
 
-        added        (js->clj (:added status))
-        modified     (js->clj (:modified status))
-        deleted      (js->clj (:deleted status))
-        untracked    (js->clj (:untracked status))
-        is-dirty?    (:isDirty status)
+        added                         (js->clj (:added status))
+        modified                      (js->clj (:modified status))
+        deleted                       (js->clj (:deleted status))
+        untracked                     (js->clj (:untracked status))
+        is-dirty?                     (:isDirty status)
 
-        total-changes (+ (count added) (count modified) (count deleted))
+        total-changes                 (+ (count added) (count modified) (count deleted))
 
-        [commit-mutation] (useMutation q/COMMIT_CHANGES_MUTATION)
+        [commit-mutation]             (useMutation q/COMMIT_CHANGES_MUTATION)
 
-        handle-commit (fn []
-                        (set-committing? true)
-                        (set-error nil)
-                        (-> (commit-mutation #js {:variables #js {:message (when (seq message) message)}
-                                              :refetchQueries #js ["SyncStatus"]})
-                            (.then (fn [^js result]
-                                     (let [data (.. result -data -commitChanges)]
-                                       (if (.-success data)
-                                         (navigate "/")
-                                         (set-error (.-message data))))))
-                            (.catch (fn [^js e]
-                                      (set-error (.-message e))))
-                            (.finally #(set-committing? false))))]
+        handle-commit                 (fn []
+                                        (set-committing? true)
+                                        (set-error nil)
+                                        (-> (commit-mutation #js {:variables #js {:message (when (seq message) message)}
+                                                                  :refetchQueries #js ["SyncStatus"]})
+                                            (.then (fn [^js result]
+                                                     (let [data (.. result -data -commitChanges)]
+                                                       (if (.-success data)
+                                                         (navigate "/")
+                                                         (set-error (.-message data))))))
+                                            (.catch (fn [^js e]
+                                                      (set-error (.-message e))))
+                                            (.finally #(set-committing? false))))]
 
     ($ :div {:class "max-w-3xl mx-auto"}
        ;; Header

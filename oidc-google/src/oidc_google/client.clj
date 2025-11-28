@@ -4,10 +4,10 @@
   Provides convenience wrappers around Google's OIDC flow, leveraging the base
   [[oidc.core]] library for discovery, token exchange, and JWT validation."
   (:require
+   [oidc-google.claims :as claims]
    [oidc.authorization :as auth]
    [oidc.discovery :as discovery]
-   [oidc.jwt :as jwt]
-   [oidc-google.claims :as claims]))
+   [oidc.jwt :as jwt]))
 
 (def google-issuer
   "Google's OIDC issuer URL."
@@ -41,18 +41,18 @@
   ([config state]
    (authorization-url config state {}))
   ([{:keys [client-id redirect-uri scopes]} state opts]
-   (let [discovery        (fetch-discovery-document)
-         auth-endpoint    (:authorization_endpoint discovery)
-         scope-str        (clojure.string/join " " (or scopes ["openid" "email" "profile"]))
-         additional       (cond-> {}
-                            (:access-type opts)
-                            (assoc "access_type" (:access-type opts))
+   (let [discovery     (fetch-discovery-document)
+         auth-endpoint (:authorization_endpoint discovery)
+         scope-str     (clojure.string/join " " (or scopes ["openid" "email" "profile"]))
+         additional    (cond-> {}
+                         (:access-type opts)
+                         (assoc "access_type" (:access-type opts))
 
-                            (:login-hint opts)
-                            (assoc "login_hint" (:login-hint opts))
+                         (:login-hint opts)
+                         (assoc "login_hint" (:login-hint opts))
 
-                            (:additional-params opts)
-                            (merge (:additional-params opts)))]
+                         (:additional-params opts)
+                         (merge (:additional-params opts)))]
      (auth/authorization-url auth-endpoint
                              client-id
                              redirect-uri

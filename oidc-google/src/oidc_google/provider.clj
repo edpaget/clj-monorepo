@@ -69,10 +69,10 @@
 (defrecord GoogleClaimsProvider [cache-ttl-ms]
   proto/ClaimsProvider
   (get-claims [_this user-id scope]
-    (let [user-cache  (claims/create-cache cache-ttl-ms)
+    (let [user-cache   (claims/create-cache cache-ttl-ms)
           access-token user-id
-          userinfo    (claims/cached-fetch-userinfo user-cache access-token)
-          all-claims  (claims/google->oidc-claims userinfo)]
+          userinfo     (claims/cached-fetch-userinfo user-cache access-token)
+          all-claims   (claims/google->oidc-claims userinfo)]
       (claims/filter-by-scope all-claims scope))))
 
 (defn create-credential-validator

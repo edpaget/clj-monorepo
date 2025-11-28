@@ -19,14 +19,14 @@
                   :on-change #(update :name (.. % -target -value))}))"
   [initial-data]
   (let [[data set-data] (use-state initial-data)
-        update-field (use-callback
-                      (fn [field value]
-                        (set-data #(assoc % field value)))
-                      [])
-        reset (use-callback
-               (fn []
-                 (set-data initial-data))
-               [initial-data])]
+        update-field    (use-callback
+                         (fn [field value]
+                           (set-data #(assoc % field value)))
+                         [])
+        reset           (use-callback
+                         (fn []
+                           (set-data initial-data))
+                         [initial-data])]
     {:data data
      :set-data set-data
      :update update-field

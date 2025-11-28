@@ -22,28 +22,28 @@
 (defui set-editor-view
   "View for creating a new card set."
   []
-  (let [navigate                (router/use-navigate)
-        client                  (useApolloClient)
-        {:keys [data update]}   (form/use-form {:name "" :description ""})
-        [saving? set-saving?]   (use-state false)
-        [error set-error]       (use-state nil)
+  (let [navigate              (router/use-navigate)
+        client                (useApolloClient)
+        {:keys [data update]} (form/use-form {:name "" :description ""})
+        [saving? set-saving?] (use-state false)
+        [error set-error]     (use-state nil)
 
-        handle-submit           (fn []
-                                  (when (seq (:name data))
-                                    (set-saving? true)
-                                    (set-error nil)
-                                    (-> (.mutate client
-                                                 (clj->js {:mutation q/CREATE_CARD_SET_MUTATION
-                                                           :variables {:input {:name (:name data)
-                                                                                :description (when (seq (:description data))
-                                                                                               (:description data))}}
-                                                           :refetchQueries #js ["CardSets" "SyncStatus"]}))
-                                        (.then (fn [result]
-                                                 (let [slug (-> result :data :createCardSet :slug)]
-                                                   (navigate (str "/?set=" slug)))))
-                                        (.catch (fn [e]
-                                                  (set-error (:message e))))
-                                        (.finally #(set-saving? false)))))]
+        handle-submit         (fn []
+                                (when (seq (:name data))
+                                  (set-saving? true)
+                                  (set-error nil)
+                                  (-> (.mutate client
+                                               (clj->js {:mutation q/CREATE_CARD_SET_MUTATION
+                                                         :variables {:input {:name (:name data)
+                                                                             :description (when (seq (:description data))
+                                                                                            (:description data))}}
+                                                         :refetchQueries #js ["CardSets" "SyncStatus"]}))
+                                      (.then (fn [result]
+                                               (let [slug (-> result :data :createCardSet :slug)]
+                                                 (navigate (str "/?set=" slug)))))
+                                      (.catch (fn [e]
+                                                (set-error (:message e))))
+                                      (.finally #(set-saving? false)))))]
 
     ($ :div {:class "max-w-2xl mx-auto"}
        ($ :div {:class "flex items-center gap-4 mb-6"}
