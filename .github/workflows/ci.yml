@@ -41,7 +41,7 @@ jobs:
         run: clojure -X:format check '{:paths ["."]}'
 
       - name: Run clj-kondo
-        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-provider oidc-github graphql-server polix bashketball-editor-api cljs-tlr bashketball-editor-ui build scripts
+        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-provider oidc-github graphql-server bashketball-editor-api cljs-tlr bashketball-editor-ui build scripts
 
   test-no-db:
     name: Test ${{ matrix.project }}
