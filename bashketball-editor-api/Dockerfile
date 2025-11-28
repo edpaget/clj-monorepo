@@ -47,5 +47,9 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget -q --spider http://localhost:3000/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# JVM flags for faster startup:
+# -XX:+TieredCompilation -XX:TieredStopAtLevel=1: Use only C1 compiler (faster startup, slower peak perf)
+# -XX:+UseSerialGC: Simpler GC with less overhead for small heaps
+# -Xms256m -Xmx512m: Set heap size to avoid resizing
+ENTRYPOINT ["java", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Xms256m", "-Xmx512m", "-jar", "app.jar"]
 CMD ["prod"]
