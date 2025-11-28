@@ -33,8 +33,9 @@ RUN sed -i 's/:deps {:aliases \[:test\]}/:deps true/' shadow-cljs.edn
 RUN npm run build
 RUN npm run css:build
 
-# Inject production API config (empty string = relative URLs)
-RUN sed -i 's|<div id="app"></div>|<div id="app"></div><script>window.API_BASE_URL="";</script>|' public/index.html
+# Inject production API config in <head> so it runs before any JS loads
+# Empty string = relative URLs (UI and API on same origin)
+RUN sed -i 's|</head>|<script>window.API_BASE_URL="";</script></head>|' public/index.html
 
 FROM nginx:alpine
 
