@@ -71,13 +71,14 @@
       (is (= [] (:deleted status)))
       (is (= [] (:untracked status)))))
 
-  (testing "returns dirty status when there are untracked files"
+  (testing "returns dirty status when there are staged files"
     (git/git-init :dir *test-repo-path*)
     (git-repo/write-file *test-repo* "new-file.txt" "content")
     (let [status (git-sync/get-working-tree-status *test-repo*)]
       (is (nil? (:error status)))
       (is (true? (:is-dirty status)))
-      (is (= ["new-file.txt"] (:untracked status))))))
+      ;; File is staged (added) because write-file auto-stages
+      (is (= ["new-file.txt"] (:added status))))))
 
 (deftest push-read-only-test
   (testing "push returns error for read-only repo"

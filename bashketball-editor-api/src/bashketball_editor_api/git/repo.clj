@@ -50,25 +50,46 @@
     (when (.exists file-path)
       (slurp file-path))))
 
+(defn- stage-path
+  "Stages a file or directory for the next commit.
+
+  Works for new files, modifications, and deletions. Silently skips
+  staging if the directory is not a git repository."
+  [repo relative-path]
+  (let [git-dir (io/file (:repo-path repo) ".git")]
+    (when (.exists git-dir)
+      (let [^Git git-repo (git/load-repo (:repo-path repo))]
+        (-> (.add git-repo)
+            (.addFilepattern relative-path)
+            (.call))))))
+
 (defn write-file
-  "Writes a file to the working tree.
+  "Writes a file to the working tree and stages it.
 
   Takes a [[GitRepo]], relative path, and content string. Creates parent
-  directories if needed. Does not commit the change."
+  directories if needed. Stages the change for commit."
   [repo relative-path content]
   (let [file-path (io/file (:repo-path repo) relative-path)]
     (io/make-parents file-path)
-    (spit file-path content)))
+    (spit file-path content)
+    (stage-path repo relative-path)))
 
 (defn delete-file
-  "Deletes a file from the working tree.
+  "Deletes a file from the working tree and stages the deletion.
 
   Takes a [[GitRepo]] and relative path. Returns true if deleted, false if
-  the file didn't exist. Does not commit the change."
+  the file didn't exist. Stages the deletion for commit if in a git repo."
   [repo relative-path]
   (let [file-path (io/file (:repo-path repo) relative-path)]
     (when (.exists file-path)
-      (.delete file-path))))
+      (.delete file-path)
+      (let [git-dir (io/file (:repo-path repo) ".git")]
+        (when (.exists git-dir)
+          (let [^Git git-repo (git/load-repo (:repo-path repo))]
+            (-> (.rm git-repo)
+                (.addFilepattern relative-path)
+                (.call)))))
+      true)))
 
 (defn list-files
   "Lists files in a directory within the repository.
@@ -86,14 +107,14 @@
            (vec files)))))))
 
 (defn commit
-  "Commits all changes in the working tree.
+  "Commits staged changes.
 
   Takes a [[GitRepo]], commit message, author name, and email. Only commits
-  if the repository is configured as a writer. Returns nil if read-only."
+  if the repository is configured as a writer. Returns the commit object
+  or nil if read-only or nothing to commit."
   [repo message author-name author-email]
   (when (:writer? repo)
     (let [git-repo (git/load-repo (:repo-path repo))]
-      (git/git-add git-repo ".")
       (git/git-commit git-repo message
                       :name author-name
                       :email author-email))))

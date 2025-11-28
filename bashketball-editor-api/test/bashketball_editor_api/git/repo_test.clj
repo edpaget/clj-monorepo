@@ -139,3 +139,51 @@
         (is (some? timestamps))
         ;; created-at should be before updated-at
         (is (.isBefore (:created-at timestamps) (:updated-at timestamps)))))))
+
+;; Auto-staging tests
+
+(deftest write-file-auto-stages-new-file-test
+  (testing "write-file automatically stages new files"
+    (let [repo (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                          :writer? true})
+          _    (git/git-init :dir *test-repo-path*)]
+      (git-repo/write-file repo "new-file.txt" "content")
+      (let [status (git-repo/status repo)]
+        (is (contains? (:added status) "new-file.txt"))
+        (is (not (contains? (:untracked status) "new-file.txt")))))))
+
+(deftest write-file-auto-stages-modified-file-test
+  (testing "write-file automatically stages modifications"
+    (let [repo      (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                               :writer? true})
+          jgit-repo (git/git-init :dir *test-repo-path*)]
+      ;; Create and commit initial file
+      (git-repo/write-file repo "existing.txt" "initial")
+      (git/git-commit jgit-repo "Initial" :name "Test" :email "test@test.com")
+
+      ;; Modify the file
+      (git-repo/write-file repo "existing.txt" "modified")
+      (let [status (git-repo/status repo)]
+        (is (contains? (:changed status) "existing.txt"))))))
+
+(deftest delete-file-auto-stages-removal-test
+  (testing "delete-file automatically stages the deletion"
+    (let [repo      (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                               :writer? true})
+          jgit-repo (git/git-init :dir *test-repo-path*)]
+      ;; Create and commit a file
+      (git-repo/write-file repo "to-remove.txt" "content")
+      (git/git-commit jgit-repo "Add file" :name "Test" :email "test@test.com")
+
+      ;; Delete the file
+      (git-repo/delete-file repo "to-remove.txt")
+      (let [status (git-repo/status repo)]
+        (is (contains? (:removed status) "to-remove.txt"))))))
+
+(deftest write-file-no-git-repo-test
+  (testing "write-file works without git repo (no staging)"
+    (let [repo (git-repo/create-git-repo {:repo-path *test-repo-path*
+                                          :writer? true})]
+      ;; No git init - should still write file without error
+      (git-repo/write-file repo "no-git.txt" "content")
+      (is (= "content" (git-repo/read-file repo "no-git.txt"))))))

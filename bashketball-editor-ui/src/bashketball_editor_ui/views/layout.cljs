@@ -2,7 +2,6 @@
   "Application layout with header and navigation."
   (:require
    [bashketball-editor-ui.components.git-status :refer [git-status]]
-   [bashketball-editor-ui.components.sync-button :refer [sync-button]]
    [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.config :as config]
    [bashketball-editor-ui.context.auth :as auth]
@@ -13,12 +12,10 @@
   "User menu shown when logged in."
   [{:keys [user on-logout]}]
   ($ :div {:class "flex items-center gap-4"}
-     ;; Git status indicators
+     ;; Git status with commit/push/pull workflow
      ($ git-status)
      ;; Separator
      ($ :div {:class "h-6 w-px bg-gray-300"})
-     ;; Sync button (pull from remote)
-     ($ sync-button)
      ;; User avatar and logout
      ($ :div {:class "flex items-center gap-2"}
         (when-let [avatar-url (:avatar-url user)]

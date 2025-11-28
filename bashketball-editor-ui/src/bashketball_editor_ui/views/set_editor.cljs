@@ -37,7 +37,7 @@
                                                            :variables {:input {:name (:name data)
                                                                                 :description (when (seq (:description data))
                                                                                                (:description data))}}
-                                                           :refetchQueries #js ["CardSets"]}))
+                                                           :refetchQueries #js ["CardSets" "SyncStatus"]}))
                                         (.then (fn [result]
                                                  (let [slug (-> result :data :createCardSet :slug)]
                                                    (navigate (str "/?set=" slug)))))

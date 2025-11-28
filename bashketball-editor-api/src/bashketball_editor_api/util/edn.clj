@@ -6,7 +6,8 @@
 
   Require this namespace to enable proper Instant serialization via `pr-str`."
   (:require
-   [clojure.edn :as edn])
+   [clojure.edn :as edn]
+   [clojure.pprint :as pprint])
   (:import
    [java.time Instant]
    [java.time.format DateTimeFormatter]))
@@ -39,3 +40,11 @@
   tagged literals instead of `java.util.Date`."
   [s]
   (edn/read-string {:readers edn-readers} s))
+
+(defn pr-str-pretty
+  "Returns a pretty-printed EDN string representation of the given data.
+
+  Uses `clojure.pprint/pprint` for human-readable formatting with proper
+  indentation. Includes a trailing newline."
+  [data]
+  (with-out-str (pprint/pprint data)))

@@ -50,7 +50,8 @@
         handle-commit (fn []
                         (set-committing? true)
                         (set-error nil)
-                        (-> (commit-mutation #js {:variables #js {:message (when (seq message) message)}})
+                        (-> (commit-mutation #js {:variables #js {:message (when (seq message) message)}
+                                              :refetchQueries #js ["SyncStatus"]})
                             (.then (fn [^js result]
                                      (let [data (.. result -data -commitChanges)]
                                        (if (.-success data)

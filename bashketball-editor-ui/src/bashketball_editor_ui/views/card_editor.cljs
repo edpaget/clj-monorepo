@@ -304,7 +304,7 @@
                                                         {:slug slug :setSlug set-slug :input input})]
                                         (-> (.mutate client (clj->js {:mutation mutation
                                                                       :variables variables
-                                                                      :refetchQueries #js ["Cards"]}))
+                                                                      :refetchQueries #js ["Cards" "SyncStatus"]}))
                                             (.then (fn [_]
                                                      (navigate (if set-slug
                                                                  (str "/?set=" set-slug)

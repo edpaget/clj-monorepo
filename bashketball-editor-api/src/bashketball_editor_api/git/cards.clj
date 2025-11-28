@@ -86,7 +86,7 @@
             path     (card-path set-slug slug)]
         (when (git-repo/read-file git-repo path)
           (throw (ex-info "Card already exists" {:slug slug :set-slug set-slug})))
-        (git-repo/write-file git-repo path (pr-str card))
+        (git-repo/write-file git-repo path (edn-util/pr-str-pretty card))
         card)))
 
   (update! [this criteria data]
@@ -103,7 +103,7 @@
                             (merge (dissoc data :set-slug :slug))
                             (assoc :updated-at (java.time.Instant/now)))
                 path    (card-path set-slug slug)]
-            (git-repo/write-file git-repo path (pr-str updated))
+            (git-repo/write-file git-repo path (edn-util/pr-str-pretty updated))
             updated)
           (throw (ex-info "Card not found" {:slug slug :set-slug set-slug}))))))
 

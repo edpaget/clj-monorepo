@@ -84,7 +84,7 @@
             path     (set-path slug)]
         (when (git-repo/read-file git-repo path)
           (throw (ex-info "Set already exists" {:slug slug :name (:name data)})))
-        (git-repo/write-file git-repo path (pr-str card-set))
+        (git-repo/write-file git-repo path (edn-util/pr-str-pretty card-set))
         card-set)))
 
   (update! [this slug data]
@@ -96,7 +96,7 @@
                           (merge data)
                           (assoc :updated-at (java.time.Instant/now)))
               path    (set-path slug)]
-          (git-repo/write-file git-repo path (pr-str updated))
+          (git-repo/write-file git-repo path (edn-util/pr-str-pretty updated))
           updated)
         (throw (ex-info "Set not found" {:slug slug})))))
 
