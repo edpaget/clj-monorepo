@@ -2,6 +2,7 @@
   (:require
    [bashketball-editor-api.graphql.resolvers.cardset :as cardset]
    [bashketball-editor-api.models.protocol :as repo]
+   [bashketball-editor-api.services.set :as set-svc]
    [clojure.test :refer [deftest is testing]]
    [com.walmartlabs.lacinia.resolve :as resolve]))
 
@@ -81,11 +82,14 @@
 (defn make-ctx
   ([sets cards] (make-ctx sets cards true))
   ([sets cards authenticated?]
-   {:set-repo (->MockSetRepo (atom sets))
-    :card-repo (->MockCardRepo (atom cards))
-    :user-repo (->MockUserRepo)
-    :request {:authn/authenticated? authenticated?
-              :authn/user-id (str test-user-id)}}))
+   (let [set-repo  (->MockSetRepo (atom sets))
+         card-repo (->MockCardRepo (atom cards))]
+     {:set-repo set-repo
+      :card-repo card-repo
+      :set-service (set-svc/create-set-service set-repo card-repo)
+      :user-repo (->MockUserRepo)
+      :request {:authn/authenticated? authenticated?
+                :authn/user-id (str test-user-id)}})))
 
 (deftest card-set-query-test
   (testing "returns card set when found"

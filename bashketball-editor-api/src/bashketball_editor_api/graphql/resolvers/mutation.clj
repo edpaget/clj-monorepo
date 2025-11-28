@@ -3,6 +3,7 @@
 
   Contains mutations for Git sync operations and card/set management."
   (:require
+   [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sync :as git-sync]
    [bashketball-editor-api.graphql.middleware :as middleware]
    [bashketball-editor-api.models.protocol :as repo]
@@ -15,6 +16,13 @@
    [:message :string]
    [:error {:optional true} [:maybe :string]]
    [:conflicts {:optional true} [:maybe [:vector :string]]]])
+
+(def CommitResult
+  "Malli schema for commit operation result."
+  [:map {:graphql/type :CommitResult}
+   [:success :boolean]
+   [:message :string]
+   [:commit-id {:optional true} [:maybe :string]]])
 
 (defn- get-current-user
   "Gets the current authenticated user from context."
@@ -39,6 +47,29 @@
   [ctx _args _value]
   (let [user (get-current-user ctx)]
     (git-sync/push-to-remote (:git-repo ctx) (:github-token user))))
+
+(gql/defresolver :Mutation :commitChanges
+  "Commits all staged changes in the working tree.
+
+  Takes an optional commit message. If not provided, uses a default message.
+  Returns the commit result with success status and commit ID."
+  [:=> [:cat :any [:map {:optional true} [:message {:optional true} :string]] :any]
+   CommitResult]
+  [ctx args _value]
+  (let [user    (get-current-user ctx)
+        message (or (:message args) "Update cards and sets")
+        repo    (:git-repo ctx)]
+    (if-not (:writer? repo)
+      {:success false
+       :message "Repository is read-only"}
+      (try
+        (let [result (git-repo/commit repo message (:name user) (:email user))]
+          {:success true
+           :message (str "Changes committed: " message)
+           :commit-id (when result (.getName result))})
+        (catch Exception e
+          {:success false
+           :message (str "Commit failed: " (.getMessage e))})))))
 
 (gql/def-resolver-map
   "Resolver map containing all Mutation resolvers."

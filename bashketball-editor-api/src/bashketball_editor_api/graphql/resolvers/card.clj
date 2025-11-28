@@ -7,6 +7,7 @@
    [bashketball-editor-api.graphql.middleware :as middleware]
    [bashketball-editor-api.graphql.schemas.card :as schemas]
    [bashketball-editor-api.models.protocol :as repo]
+   [bashketball-editor-api.services.card :as card-svc]
    [graphql-server.core :as gql]))
 
 (def GameCard
@@ -72,70 +73,70 @@
   [:=> [:cat :any [:map [:set-slug :string] [:input schemas/PlayerCardInput]] :any]
    schemas/PlayerCard]
   [ctx {:keys [set-slug input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-slug set-slug)
-                      (assoc :card-type :card-type/PLAYER_CARD))]
-    (transform-card (repo/create! (:card-repo ctx) card-data))))
+  (let [card-data (assoc input :set-slug set-slug)]
+    (transform-card (card-svc/create-card! (:card-service ctx)
+                                           :card-type/PLAYER_CARD
+                                           card-data))))
 
 (gql/defresolver :Mutation :createAbilityCard
   "Creates a new ability card."
   [:=> [:cat :any [:map [:set-slug :string] [:input schemas/AbilityCardInput]] :any]
    schemas/AbilityCard]
   [ctx {:keys [set-slug input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-slug set-slug)
-                      (assoc :card-type :card-type/ABILITY_CARD))]
-    (transform-card (repo/create! (:card-repo ctx) card-data))))
+  (let [card-data (assoc input :set-slug set-slug)]
+    (transform-card (card-svc/create-card! (:card-service ctx)
+                                           :card-type/ABILITY_CARD
+                                           card-data))))
 
 (gql/defresolver :Mutation :createSplitPlayCard
   "Creates a new split play card."
   [:=> [:cat :any [:map [:set-slug :string] [:input schemas/SplitPlayCardInput]] :any]
    schemas/SplitPlayCard]
   [ctx {:keys [set-slug input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-slug set-slug)
-                      (assoc :card-type :card-type/SPLIT_PLAY_CARD))]
-    (transform-card (repo/create! (:card-repo ctx) card-data))))
+  (let [card-data (assoc input :set-slug set-slug)]
+    (transform-card (card-svc/create-card! (:card-service ctx)
+                                           :card-type/SPLIT_PLAY_CARD
+                                           card-data))))
 
 (gql/defresolver :Mutation :createPlayCard
   "Creates a new play card."
   [:=> [:cat :any [:map [:set-slug :string] [:input schemas/PlayCardInput]] :any]
    schemas/PlayCard]
   [ctx {:keys [set-slug input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-slug set-slug)
-                      (assoc :card-type :card-type/PLAY_CARD))]
-    (transform-card (repo/create! (:card-repo ctx) card-data))))
+  (let [card-data (assoc input :set-slug set-slug)]
+    (transform-card (card-svc/create-card! (:card-service ctx)
+                                           :card-type/PLAY_CARD
+                                           card-data))))
 
 (gql/defresolver :Mutation :createCoachingCard
   "Creates a new coaching card."
   [:=> [:cat :any [:map [:set-slug :string] [:input schemas/CoachingCardInput]] :any]
    schemas/CoachingCard]
   [ctx {:keys [set-slug input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-slug set-slug)
-                      (assoc :card-type :card-type/COACHING_CARD))]
-    (transform-card (repo/create! (:card-repo ctx) card-data))))
+  (let [card-data (assoc input :set-slug set-slug)]
+    (transform-card (card-svc/create-card! (:card-service ctx)
+                                           :card-type/COACHING_CARD
+                                           card-data))))
 
 (gql/defresolver :Mutation :createStandardActionCard
   "Creates a new standard action card."
   [:=> [:cat :any [:map [:set-slug :string] [:input schemas/StandardActionCardInput]] :any]
    schemas/StandardActionCard]
   [ctx {:keys [set-slug input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-slug set-slug)
-                      (assoc :card-type :card-type/STANDARD_ACTION_CARD))]
-    (transform-card (repo/create! (:card-repo ctx) card-data))))
+  (let [card-data (assoc input :set-slug set-slug)]
+    (transform-card (card-svc/create-card! (:card-service ctx)
+                                           :card-type/STANDARD_ACTION_CARD
+                                           card-data))))
 
 (gql/defresolver :Mutation :createTeamAssetCard
   "Creates a new team asset card."
   [:=> [:cat :any [:map [:set-slug :string] [:input schemas/TeamAssetCardInput]] :any]
    schemas/TeamAssetCard]
   [ctx {:keys [set-slug input]} _value]
-  (let [card-data (-> input
-                      (assoc :set-slug set-slug)
-                      (assoc :card-type :card-type/TEAM_ASSET_CARD))]
-    (transform-card (repo/create! (:card-repo ctx) card-data))))
+  (let [card-data (assoc input :set-slug set-slug)]
+    (transform-card (card-svc/create-card! (:card-service ctx)
+                                           :card-type/TEAM_ASSET_CARD
+                                           card-data))))
 
 (gql/defresolver :Mutation :updateCard
   "Updates an existing card.
@@ -147,17 +148,17 @@
                    [:input schemas/CardUpdateInput]] :any]
    GameCard]
   [ctx {:keys [slug set-slug input]} _value]
-  (transform-card (repo/update! (:card-repo ctx)
-                                {:slug slug :set-slug set-slug}
-                                input)))
+  (transform-card (card-svc/update-card! (:card-service ctx)
+                                         {:slug slug :set-slug set-slug}
+                                         input)))
 
 (gql/defresolver :Mutation :deleteCard
   "Deletes a card by slug and set slug."
   [:=> [:cat :any [:map [:slug :string] [:set-slug :string]] :any]
    :boolean]
   [ctx {:keys [slug set-slug]} _value]
-  (repo/delete! (:card-repo ctx)
-                {:slug slug :set-slug set-slug}))
+  (card-svc/delete-card! (:card-service ctx)
+                         {:slug slug :set-slug set-slug}))
 
 (def query-resolvers
   "Query resolvers for cards (no auth required for queries)."

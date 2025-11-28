@@ -157,7 +157,7 @@
 (def PlayerCardInput
   "Input schema for creating/updating player cards."
   [:map {:graphql/type :PlayerCardInput}
-   [:slug :string]
+   [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:deck-size {:optional true} :int]
@@ -171,7 +171,7 @@
 (def AbilityCardInput
   "Input schema for creating/updating ability cards."
   [:map {:graphql/type :AbilityCardInput}
-   [:slug :string]
+   [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:abilities {:optional true} [:vector :string]]])
@@ -179,7 +179,7 @@
 (def SplitPlayCardInput
   "Input schema for creating/updating split play cards."
   [:map {:graphql/type :SplitPlayCardInput}
-   [:slug :string]
+   [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:fate {:optional true} :int]
@@ -189,7 +189,7 @@
 (def PlayCardInput
   "Input schema for creating/updating play cards."
   [:map {:graphql/type :PlayCardInput}
-   [:slug :string]
+   [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:fate {:optional true} :int]
@@ -198,7 +198,7 @@
 (def CoachingCardInput
   "Input schema for creating/updating coaching cards."
   [:map {:graphql/type :CoachingCardInput}
-   [:slug :string]
+   [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:fate {:optional true} :int]
@@ -207,7 +207,7 @@
 (def StandardActionCardInput
   "Input schema for creating/updating standard action cards."
   [:map {:graphql/type :StandardActionCardInput}
-   [:slug :string]
+   [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:fate {:optional true} :int]
@@ -217,7 +217,7 @@
 (def TeamAssetCardInput
   "Input schema for creating/updating team asset cards."
   [:map {:graphql/type :TeamAssetCardInput}
-   [:slug :string]
+   [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:fate {:optional true} :int]

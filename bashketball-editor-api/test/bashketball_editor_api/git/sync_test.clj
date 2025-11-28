@@ -2,6 +2,7 @@
   (:require
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sync :as git-sync]
+   [clj-jgit.porcelain :as git]
    [clojure.java.io :as io]
    [clojure.test :refer [deftest is testing use-fixtures]]))
 
@@ -24,7 +25,7 @@
 (use-fixtures :each with-temp-repo)
 
 (deftest get-sync-status-test
-  (testing "returns status with defaults for non-git directory"
+  (testing "returns error status for non-git directory"
     (let [status (git-sync/get-sync-status *test-repo*)]
       (is (map? status))
       (is (contains? status :ahead))
@@ -32,7 +33,51 @@
       (is (contains? status :uncommitted-changes))
       (is (contains? status :is-clean))
       (is (= 0 (:ahead status)))
-      (is (= 0 (:behind status))))))
+      (is (= 0 (:behind status)))
+      (is (false? (:is-clean status)) "non-git directory should not be clean")
+      (is (= :not-a-git-repo (:error status))))))
+
+(deftest get-working-tree-status-test
+  (testing "returns error status for non-git directory"
+    (let [status (git-sync/get-working-tree-status *test-repo*)]
+      (is (map? status))
+      (is (true? (:is-dirty status)) "non-git directory should be dirty")
+      (is (= [] (:added status)))
+      (is (= [] (:modified status)))
+      (is (= [] (:deleted status)))
+      (is (= [] (:untracked status)))
+      (is (= :not-a-git-repo (:error status))))))
+
+(deftest get-sync-status-initialized-test
+  (testing "returns clean status for initialized empty git repo"
+    (git/git-init :dir *test-repo-path*)
+    (let [status (git-sync/get-sync-status *test-repo*)]
+      (is (map? status))
+      (is (nil? (:error status)))
+      (is (= 0 (:ahead status)))
+      (is (= 0 (:behind status)))
+      (is (= 0 (:uncommitted-changes status)))
+      (is (true? (:is-clean status))))))
+
+(deftest get-working-tree-status-initialized-test
+  (testing "returns clean status for initialized empty git repo"
+    (git/git-init :dir *test-repo-path*)
+    (let [status (git-sync/get-working-tree-status *test-repo*)]
+      (is (map? status))
+      (is (nil? (:error status)))
+      (is (false? (:is-dirty status)))
+      (is (= [] (:added status)))
+      (is (= [] (:modified status)))
+      (is (= [] (:deleted status)))
+      (is (= [] (:untracked status)))))
+
+  (testing "returns dirty status when there are untracked files"
+    (git/git-init :dir *test-repo-path*)
+    (git-repo/write-file *test-repo* "new-file.txt" "content")
+    (let [status (git-sync/get-working-tree-status *test-repo*)]
+      (is (nil? (:error status)))
+      (is (true? (:is-dirty status)))
+      (is (= ["new-file.txt"] (:untracked status))))))
 
 (deftest push-read-only-test
   (testing "push returns error for read-only repo"

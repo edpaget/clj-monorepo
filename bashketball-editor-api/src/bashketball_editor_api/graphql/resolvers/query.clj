@@ -52,5 +52,23 @@
   [ctx _args _value]
   (git-sync/get-sync-status (:git-repo ctx)))
 
+(def WorkingTreeStatus
+  "Malli schema for working tree status with file details."
+  [:map {:graphql/type :WorkingTreeStatus}
+   [:is-dirty :boolean]
+   [:added [:vector :string]]
+   [:modified [:vector :string]]
+   [:deleted [:vector :string]]
+   [:untracked [:vector :string]]])
+
+(gql/defresolver :Query :workingTreeStatus
+  "Returns detailed working tree status.
+
+  Shows whether there are uncommitted changes and lists affected files by category:
+  added (new files), modified, deleted, and untracked files."
+  [:=> [:cat :any :any :any] WorkingTreeStatus]
+  [ctx _args _value]
+  (git-sync/get-working-tree-status (:git-repo ctx)))
+
 (gql/def-resolver-map
   "Resolver map containing all Query resolvers.")

@@ -3,12 +3,16 @@
 
   Provides a dropdown to select and navigate to different card sets."
   (:require
-   [bashketball-editor-ui.components.ui.select :refer [select]]
+   ["@radix-ui/react-select" :as SelectPrimitive]
+   ["lucide-react" :refer [Plus]]
+   [bashketball-editor-ui.components.ui.select :as s]
+   [bashketball-editor-ui.context.auth :refer [use-auth]]
    [bashketball-editor-ui.hooks.sets :refer [use-sets]]
    [bashketball-editor-ui.router :as router]
    [uix.core :refer [$ defui]]))
 
 (def all-sets-value "__all__")
+(def create-new-value "__create__")
 
 (defui set-selector
   "Dropdown selector for navigating between card sets.
@@ -17,21 +21,41 @@
   - `:current-set-slug` - Currently selected set slug (optional)
   - `:class` - Additional CSS classes"
   [{:keys [current-set-slug class]}]
-  (let [{:keys [sets loading?]}           (use-sets)
+  (let [{:keys [logged-in?]}              (use-auth)
+        {:keys [sets loading?]}           (use-sets)
         [search-params set-search-params] (router/use-search-params)
-        options                           (into [{:value all-sets-value :label "All Sets"}]
-                                                (map (fn [{:keys [slug name]}]
-                                                       {:value slug :label name})
-                                                     sets))]
-    ($ select
-       {:placeholder (if loading? "Loading sets..." "Select a set...")
-        :value (or current-set-slug all-sets-value)
-        :options options
+        navigate                          (router/use-navigate)
+        set-options                       (mapv (fn [{:keys [slug name]}]
+                                                  {:value slug :label name})
+                                                sets)]
+    ($ SelectPrimitive/Root
+       {:value (or current-set-slug all-sets-value)
         :disabled loading?
-        :class class
-        :on-value-change (fn [value]
+        :onValueChange (fn [value]
+                         (cond
+                           (= value create-new-value)
+                           (navigate "/sets/new")
+
+                           :else
                            (let [current-type (.get search-params "type")
                                  new-params   (cond-> {}
                                                 (not= value all-sets-value) (assoc :set value)
                                                 current-type (assoc :type current-type))]
-                             (set-search-params (clj->js new-params))))})))
+                             (set-search-params (clj->js new-params)))))}
+       ($ s/select-trigger {:class class
+                            :placeholder (if loading? "Loading sets..." "Select a set...")})
+       ($ s/select-content
+          ($ s/select-item {:value all-sets-value} "All Sets")
+          (when (seq set-options)
+            ($ s/select-separator))
+          (for [{:keys [value label]} set-options]
+            ($ s/select-item {:key value :value value} label))
+          (when logged-in?
+            ($ :<>
+               ($ s/select-separator)
+               ($ SelectPrimitive/Item
+                  {:class (s/cn s/select-item-classes "text-blue-600 font-medium")
+                   :value create-new-value}
+                  ($ :span {:class "flex items-center gap-2"}
+                     ($ Plus {:className "w-4 h-4"})
+                     "Create New Set"))))))))

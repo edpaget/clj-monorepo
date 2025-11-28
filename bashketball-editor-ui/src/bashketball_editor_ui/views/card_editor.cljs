@@ -4,6 +4,7 @@
    ["@apollo/client" :refer [useApolloClient useQuery]]
    ["lucide-react" :refer [ArrowLeft Save]]
    [clojure.string :as str]
+   [bashketball-editor-ui.components.cards.card-preview :refer [card-preview]]
    [bashketball-editor-ui.components.cards.card-type-selector :refer [card-types]]
    [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.components.ui.input :refer [input]]
@@ -22,11 +23,9 @@
 ;; -----------------------------------------------------------------------------
 
 (def size-options
-  [{:value "XS" :label "XS"}
-   {:value "SM" :label "SM"}
-   {:value "MD" :label "MD"}
-   {:value "LG" :label "LG"}
-   {:value "XL" :label "XL"}])
+  [{:value "SM" :label "Small"}
+   {:value "MD" :label "Medium"}
+   {:value "LG" :label "Large"}])
 
 (def common-fields
   [{:key :name :label "Card Name" :type :text :placeholder "Enter card name..."}
@@ -160,6 +159,16 @@
    "assetPower" :asset-power
    "__typename" :card-type})
 
+(def graphql-typename->card-type
+  "Maps GraphQL __typename values to card-type-fields keys."
+  {"PlayerCard" "PLAYER_CARD"
+   "PlayCard" "PLAY_CARD"
+   "AbilityCard" "ABILITY_CARD"
+   "SplitPlayCard" "SPLIT_PLAY_CARD"
+   "CoachingCard" "COACHING_CARD"
+   "TeamAssetCard" "TEAM_ASSET_CARD"
+   "StandardActionCard" "STANDARD_ACTION_CARD"})
+
 (def form->graphql-key
   "Maps form field keys to GraphQL field names."
   {:image-prompt "imagePrompt"
@@ -175,6 +184,7 @@
        (let [form-key (get graphql->form-key k (keyword k))]
          (cond
            (= k "abilities") (assoc acc form-key (js->clj v))
+           (= k "__typename") (assoc acc form-key (get graphql-typename->card-type v v))
            (some? v) (assoc acc form-key v)
            :else acc)))
      {}
@@ -303,7 +313,7 @@
                                                       (set-error (:message e))))
                                             (.finally #(set-saving? false)))))]
 
-    ($ :div {:class "max-w-4xl mx-auto"}
+    ($ :div {:class "max-w-6xl mx-auto"}
        ;; Header
        ($ :div {:class "flex items-center gap-4 mb-6"}
           ($ button {:variant :ghost :on-click #(navigate "/")}
@@ -332,17 +342,26 @@
               ($ type-selector {:on-select set-card-type})))
 
          :else
-         ($ :div {:class "bg-white rounded-lg shadow p-6"}
-            (when error
-              ($ :div {:class "mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm"}
-                 error))
-            (when is-new?
-              ($ :div {:class "mb-4 pb-4 border-b"}
-                 ($ :span {:class "text-sm text-gray-500"} "Card Type: ")
-                 ($ :span {:class "font-medium"} card-type)))
-            ($ card-form {:data data
-                          :update-fn update
-                          :card-type card-type
-                          :on-submit handle-submit
-                          :saving? saving?
-                          :is-new? is-new?}))))))
+         ($ :div {:class "grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-6"}
+            ;; Form panel
+            ($ :div {:class "bg-white rounded-lg shadow p-6"}
+               (when error
+                 ($ :div {:class "mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm"}
+                    error))
+               (when is-new?
+                 ($ :div {:class "mb-4 pb-4 border-b"}
+                    ($ :span {:class "text-sm text-gray-500"} "Card Type: ")
+                    ($ :span {:class "font-medium"} card-type)))
+               ($ card-form {:data data
+                             :update-fn update
+                             :card-type card-type
+                             :on-submit handle-submit
+                             :saving? saving?
+                             :is-new? is-new?}))
+            ;; Live preview panel
+            ($ :div {:class "hidden lg:block"}
+               ($ :div {:class "sticky top-6"}
+                  ($ :h3 {:class "text-sm font-medium text-gray-500 mb-3"} "Live Preview")
+                  ($ card-preview {:card data
+                                   :card-type card-type
+                                   :set-slug set-slug}))))))))

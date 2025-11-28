@@ -4,6 +4,7 @@
   Provides declarative form handling with field definitions, reducing
   boilerplate in form components."
   (:require
+   [clojure.string :as str]
    [uix.core :refer [use-state use-callback]]))
 
 (defn use-form
@@ -55,5 +56,5 @@
   [update field]
   (fn [e]
     (update field (-> (.. e -target -value)
-                      (clojure.string/split #"\n")
+                      (str/split #"\n")
                       vec))))

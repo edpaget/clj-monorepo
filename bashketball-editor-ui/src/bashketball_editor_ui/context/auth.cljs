@@ -5,7 +5,10 @@
    [bashketball-editor-ui.hooks.use-me :refer [use-me]]
    [uix.core :refer [$ defui create-context use-context]]))
 
-(def ^:private auth-context (create-context nil))
+(def auth-context
+  "Context for authentication state. Use [[auth-provider]] to provide state
+  and [[use-auth]] to consume it."
+  (create-context nil))
 
 (defui auth-provider
   "Provides authentication state to child components.

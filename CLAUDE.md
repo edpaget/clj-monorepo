@@ -14,6 +14,7 @@ This monorepo contains the following projects:
 | **oidc** | Cross-platform (Clj/ClojureScript) OIDC client with discovery, JWT validation, and Ring middleware |
 | **oidc-provider** | OpenID Connect Provider supporting authorization code, refresh token, and client credentials grants |
 | **oidc-github** | GitHub OAuth/OIDC integration for both provider and client-side authentication |
+| **oidc-google** | Google OIDC integration with ID token validation, refresh tokens, and provider-side authentication |
 | **cljs-tlr** | ClojureScript wrapper for @testing-library/react with JSDom support |
 
 ## Applications
@@ -63,6 +64,11 @@ Full OIDC identity provider implementation.
 GitHub-specific OIDC/OAuth integration.
 - **Namespaces**: `oidc-github.provider`, `oidc-github.client`, `oidc-github.claims`
 - **Features**: GitHub Enterprise support, organization validation with caching
+
+### oidc-google
+Google OIDC integration using the base oidc library.
+- **Namespaces**: `oidc-google.core`, `oidc-google.client`, `oidc-google.claims`, `oidc-google.provider`
+- **Features**: ID token validation via JWKS, refresh token support, userinfo endpoint integration
 
 ### bashketball-editor-api
 Trading card game editor backend.

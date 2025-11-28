@@ -1,6 +1,7 @@
 (ns bashketball-editor-ui.views.layout
   "Application layout with header and navigation."
   (:require
+   [bashketball-editor-ui.components.git-status :refer [git-status]]
    [bashketball-editor-ui.components.sync-button :refer [sync-button]]
    [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.config :as config]
@@ -12,16 +13,21 @@
   "User menu shown when logged in."
   [{:keys [user on-logout]}]
   ($ :div {:class "flex items-center gap-4"}
+     ;; Git status indicators
+     ($ git-status)
+     ;; Separator
+     ($ :div {:class "h-6 w-px bg-gray-300"})
+     ;; Sync button (pull from remote)
      ($ sync-button)
-     (when-let [avatar-url (:avatar-url user)]
-       ($ :img {:src avatar-url
-                :alt (:name user)
-                :class "w-8 h-8 rounded-full"}))
-     ($ :span {:class "text-sm text-gray-700"}
-        (or (:name user) (:github-login user)))
-     ($ button {:variant :outline
-                :on-click on-logout}
-        "Logout")))
+     ;; User avatar and logout
+     ($ :div {:class "flex items-center gap-2"}
+        (when-let [avatar-url (:avatar-url user)]
+          ($ :img {:src avatar-url
+                   :alt (or (:name user) (:github-login user))
+                   :class "w-8 h-8 rounded-full"}))
+        ($ button {:variant :outline
+                   :on-click on-logout}
+           "Logout"))))
 
 (defui login-button
   "Login button shown when not logged in."

@@ -113,16 +113,19 @@
          (.call)))))
 
 (defn pull
-  "Pulls changes from remote and merges.
+  "Pulls changes from remote and rebases local commits on top.
 
-  Takes a [[GitRepo]] and optional GitHub token for authentication. Returns
-  the pull result."
+  Takes a [[GitRepo]] and optional GitHub token for authentication. Uses
+  rebase by default to maintain a linear history. Returns the pull result."
   ([repo]
-   (let [git-repo (git/load-repo (:repo-path repo))]
-     (git/git-pull git-repo)))
+   (let [^Git git-repo (git/load-repo (:repo-path repo))]
+     (-> (.pull git-repo)
+         (.setRebase true)
+         (.call))))
   ([repo github-token]
    (let [^Git git-repo (git/load-repo (:repo-path repo))]
      (-> (.pull git-repo)
+         (.setRebase true)
          (.setCredentialsProvider (credentials-provider github-token))
          (.call)))))
 
@@ -142,13 +145,15 @@
   "Gets the current repository status.
 
   Returns a map with keys like `:added`, `:changed`, `:removed`, `:untracked`.
-  Returns an empty map if the directory is not a git repository."
+  Returns a map with `:error :not-a-git-repo` if the directory is not a git
+  repository."
   [repo]
   (try
     (let [git-repo (git/load-repo (:repo-path repo))]
       (git/git-status git-repo))
-    (catch java.io.FileNotFoundException _
-      {})))
+    (catch java.io.FileNotFoundException e
+      (log/error e "Unable to get git status for" (:repo-path repo))
+      {:error :not-a-git-repo})))
 
 (defn ahead-behind
   "Returns the number of commits ahead and behind the remote tracking branch.
@@ -160,6 +165,7 @@
   [repo]
   (try
     (let [^Git git-repo   (git/load-repo (:repo-path repo))
+          _               (.. git-repo fetch call)
           branch-tracking (org.eclipse.jgit.lib.BranchTrackingStatus/of
                            (.getRepository git-repo)
                            (:branch repo))]
@@ -194,7 +200,7 @@
           {:created-at (Instant/ofEpochSecond (.getCommitTime first-commit))
            :updated-at (Instant/ofEpochSecond (.getCommitTime last-commit))})))
     (catch Exception e
-      (log/warn e "Unable to get file timestamps for" relative-path)
+      (log/error e "Unable to get file timestamps for" relative-path)
       nil)))
 
 (defn create-git-repo

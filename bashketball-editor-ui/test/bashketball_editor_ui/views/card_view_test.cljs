@@ -2,12 +2,20 @@
   (:require
    ["@apollo/client/testing" :refer [MockedProvider]]
    ["react-router-dom" :as rr]
+   [bashketball-editor-ui.context.auth :as auth]
    [bashketball-editor-ui.graphql.queries :as q]
    [bashketball-editor-ui.views.card-view :refer [card-view]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]
+   [goog.object :as obj]
    [uix.core :refer [$]]))
+
+;; Enable keyword access on JS objects (needed for route params)
+(extend-type object
+  ILookup
+  (-lookup ([o k] (obj/get o (name k)))
+    ([o k not-found] (obj/get o (name k) not-found))))
 
 (t/use-fixtures :each fixtures/cleanup-fixture)
 
@@ -42,11 +50,18 @@
 
 (defn with-providers
   "Wrap component with required providers for testing."
-  [component mocks initial-path]
-  ($ rr/MemoryRouter {:initialEntries #js [initial-path]}
-     ($ MockedProvider {:mocks mocks}
-        ($ rr/Routes
-           ($ rr/Route {:path "cards/:setSlug/:slug" :element component})))))
+  ([component mocks initial-path]
+   (with-providers component mocks initial-path {}))
+  ([component mocks initial-path {:keys [logged-in?] :or {logged-in? true}}]
+   (let [auth-state {:loading? false
+                     :logged-in? logged-in?
+                     :user (when logged-in? {:id "test-user"})
+                     :refetch (fn [])}]
+     ($ rr/MemoryRouter {:initialEntries #js [initial-path]}
+        ($ (.-Provider auth/auth-context) {:value auth-state}
+           ($ MockedProvider {:mocks mocks}
+              ($ rr/Routes
+                 ($ rr/Route {:path "cards/:setSlug/:slug" :element component}))))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Basic render tests

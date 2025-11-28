@@ -7,6 +7,7 @@
    [bashketball-editor-api.graphql.middleware :as middleware]
    [bashketball-editor-api.graphql.schemas.card :as schemas]
    [bashketball-editor-api.models.protocol :as repo]
+   [bashketball-editor-api.services.set :as set-svc]
    [graphql-server.core :as gql]))
 
 (defn- transform-card-set
@@ -45,14 +46,14 @@
   [:=> [:cat :any [:map [:input schemas/CardSetInput]] :any]
    schemas/CardSet]
   [ctx {:keys [input]} _value]
-  (transform-card-set (repo/create! (:set-repo ctx) input)))
+  (transform-card-set (set-svc/create-set! (:set-service ctx) input)))
 
 (gql/defresolver :Mutation :updateCardSet
   "Updates an existing card set."
   [:=> [:cat :any [:map [:slug :string] [:input schemas/CardSetInput]] :any]
    schemas/CardSet]
   [ctx {:keys [slug input]} _value]
-  (transform-card-set (repo/update! (:set-repo ctx) slug input)))
+  (transform-card-set (set-svc/update-set! (:set-service ctx) slug input)))
 
 (gql/defresolver :Mutation :deleteCardSet
   "Deletes a card set.
@@ -62,7 +63,7 @@
   [:=> [:cat :any [:map [:slug :string]] :any]
    :boolean]
   [ctx {:keys [slug]} _value]
-  (repo/delete! (:set-repo ctx) slug))
+  (set-svc/delete-set! (:set-service ctx) slug))
 
 (defn cards-resolver
   "Nested resolver for fetching cards in a card set.

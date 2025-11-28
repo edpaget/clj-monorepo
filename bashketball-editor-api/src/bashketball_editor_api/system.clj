@@ -7,7 +7,6 @@
    [authn.core :as authn]
    [bashketball-editor-api.auth.github :as gh-auth]
    [bashketball-editor-api.config :as config]
-   [bashketball-editor-api.context :as ctx]
    [bashketball-editor-api.git.cards :as git-cards]
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sets :as git-sets]
@@ -93,10 +92,10 @@
   (.close repo))
 
 (defmethod ig/init-key ::card-repo [_ {:keys [git-repo]}]
-  (git-cards/create-card-repository git-repo ctx/current-user-context))
+  (git-cards/create-card-repository git-repo))
 
 (defmethod ig/init-key ::set-repo [_ {:keys [git-repo]}]
-  (git-sets/create-set-repository git-repo ctx/current-user-context))
+  (git-sets/create-set-repository git-repo))
 
 (defmethod ig/init-key ::card-service [_ {:keys [card-repo]}]
   (card-svc/create-card-service card-repo))
@@ -112,7 +111,9 @@
    {:client-id (get-in config [:github :oauth :client-id])
     :client-secret (get-in config [:github :oauth :client-secret])
     :redirect-uri (get-in config [:github :oauth :redirect-uri])
-    :scopes ["user:email" "read:user" "read:org"]}))
+    ;; NOTE: "repo" grants push access to ALL repos user has access to.
+    ;; For per-repo access, would need GitHub Apps instead of OAuth.
+    :scopes ["user:email" "read:user" "read:org" "repo"]}))
 
 (defmethod ig/init-key ::handler [_ {:keys [resolver-map
                                             github-oidc-client
@@ -122,6 +123,8 @@
                                             git-repo
                                             card-repo
                                             set-repo
+                                            card-service
+                                            set-service
                                             config]}]
   (handler/create-handler
    resolver-map
@@ -132,6 +135,8 @@
    git-repo
    card-repo
    set-repo
+   card-service
+   set-service
    (:session config)
    config))
 
@@ -183,6 +188,8 @@
               :git-repo (ig/ref ::git-repo)
               :card-repo (ig/ref ::card-repo)
               :set-repo (ig/ref ::set-repo)
+              :card-service (ig/ref ::card-service)
+              :set-service (ig/ref ::set-service)
               :config (ig/ref ::config)}
    ::server {:handler (ig/ref ::handler)
              :config (ig/ref ::config)}})

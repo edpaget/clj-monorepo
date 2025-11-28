@@ -1,6 +1,5 @@
 (ns bashketball-editor-api.git.sets-test
   (:require
-   [bashketball-editor-api.context :as ctx]
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sets :as git-sets]
    [bashketball-editor-api.models.protocol :as proto]
@@ -29,11 +28,6 @@
 
 (use-fixtures :each with-temp-repo)
 
-(def test-user-ctx
-  {:name "Test User"
-   :email "test@example.com"
-   :github-token "test-token"})
-
 (deftest card-set-schema-test
   (testing "validates a complete card set"
     (let [card-set {:slug "test-set"
@@ -43,9 +37,13 @@
                     :updated-at (java.time.Instant/now)}]
       (is (m/validate git-sets/CardSet card-set))))
 
-  (testing "validates a minimal card set"
-    (let [card-set {:name "Test Set"}]
+  (testing "validates a minimal card set with slug and name"
+    (let [card-set {:slug "test-set" :name "Test Set"}]
       (is (m/validate git-sets/CardSet card-set))))
+
+  (testing "rejects card set without slug"
+    (let [card-set {:name "Test Set"}]
+      (is (not (m/validate git-sets/CardSet card-set)))))
 
   (testing "rejects card set without name"
     (let [card-set {:slug "test-set"}]
@@ -53,63 +51,46 @@
 
 (deftest create-set-repository-test
   (testing "creates a SetRepository record"
-    (let [repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
+    (let [repo (git-sets/create-set-repository *test-repo*)]
       (is (instance? bashketball_editor_api.git.sets.SetRepository repo))
       (is (= *test-repo* (:git-repo repo))))))
 
 (deftest find-by-test
   (testing "returns nil when set not found"
-    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
+    (let [set-repo (git-sets/create-set-repository *test-repo*)]
       (is (nil? (proto/find-by set-repo {:slug "nonexistent-set"})))))
 
   (testing "requires slug"
-    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
+    (let [set-repo (git-sets/create-set-repository *test-repo*)]
       (is (nil? (proto/find-by set-repo {}))))))
 
 (deftest find-all-test
   (testing "returns empty vector when no sets"
-    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)]
+    (let [set-repo (git-sets/create-set-repository *test-repo*)]
       (is (= [] (proto/find-all set-repo {}))))))
 
 (deftest read-only-test
   (testing "throws on create when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          set-repo       (git-sets/create-set-repository read-only-repo ctx/current-user-context)
-          set-data       {:name "Test Set"}]
-      (binding [ctx/*user-context* test-user-ctx]
-        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
-                              (proto/create! set-repo set-data))))))
+          set-repo       (git-sets/create-set-repository read-only-repo)
+          set-data       {:slug "test-set" :name "Test Set"}]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
+                            (proto/create! set-repo set-data)))))
 
   (testing "throws on update when read-only"
     (let [read-only-repo (git-repo/create-git-repo {:repo-path *test-repo-path*
                                                     :writer? false})
-          set-repo       (git-sets/create-set-repository read-only-repo ctx/current-user-context)
+          set-repo       (git-sets/create-set-repository read-only-repo)
           set-data       {:name "Test Set"}]
-      (binding [ctx/*user-context* test-user-ctx]
-        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
-                              (proto/update! set-repo "test-set" set-data)))))))
-
-(deftest user-context-required-test
-  (testing "throws when user context missing on create"
-    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)
-          set-data {:name "Test Set"}]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"No user context available"
-                            (proto/create! set-repo set-data)))))
-
-  (testing "throws when user context missing on update"
-    (let [set-repo (git-sets/create-set-repository *test-repo* ctx/current-user-context)
-          set-data {:name "Test Set"}]
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"No user context available"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"read-only"
                             (proto/update! set-repo "test-set" set-data))))))
 
 (deftest git-timestamps-find-by-test
   (testing "find-by returns git timestamps for sets without timestamps in EDN"
     (let [jgit-repo (git/git-init :dir *test-repo-path*)
-          set-repo  (git-sets/create-set-repository *test-repo* ctx/current-user-context)
-          ;; Write set metadata without timestamps
+          set-repo  (git-sets/create-set-repository *test-repo*)
           set-edn   "{:slug \"test-set\" :name \"Test Set\"}"]
-      ;; Create set directory and metadata file
       (git-repo/write-file *test-repo* "test-set/metadata.edn" set-edn)
       (git/git-add jgit-repo ".")
       (git/git-commit jgit-repo "Add test set" :name "Test" :email "test@test.com")
@@ -123,11 +104,9 @@
 (deftest git-timestamps-find-all-test
   (testing "find-all returns git timestamps for sets without timestamps in EDN"
     (let [jgit-repo (git/git-init :dir *test-repo-path*)
-          set-repo  (git-sets/create-set-repository *test-repo* ctx/current-user-context)
-          ;; Write sets without timestamps
+          set-repo  (git-sets/create-set-repository *test-repo*)
           set1-edn  "{:slug \"set-1\" :name \"Set 1\"}"
           set2-edn  "{:slug \"set-2\" :name \"Set 2\"}"]
-      ;; Create set directories and metadata files
       (git-repo/write-file *test-repo* "set-1/metadata.edn" set1-edn)
       (git-repo/write-file *test-repo* "set-2/metadata.edn" set2-edn)
       (git/git-add jgit-repo ".")

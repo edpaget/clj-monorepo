@@ -2,6 +2,7 @@
   (:require
    [bashketball-editor-api.graphql.resolvers.card :as card]
    [bashketball-editor-api.models.protocol :as repo]
+   [bashketball-editor-api.services.card :as card-svc]
    [clojure.test :refer [deftest is testing]]
    [com.walmartlabs.lacinia.resolve :as resolve]))
 
@@ -82,51 +83,53 @@
 (defn make-ctx
   ([cards] (make-ctx cards true))
   ([cards authenticated?]
-   {:card-repo (->MockCardRepo (atom cards))
-    :user-repo (->MockUserRepo)
-    :request {:authn/authenticated? authenticated?
-              :authn/user-id (str test-user-id)}}))
+   (let [card-repo (->MockCardRepo (atom cards))]
+     {:card-repo card-repo
+      :card-service (card-svc/create-card-service card-repo)
+      :user-repo (->MockUserRepo)
+      :request {:authn/authenticated? authenticated?
+                :authn/user-id (str test-user-id)}})))
 
 (deftest card-query-test
   (testing "returns card when found"
     (let [ctx                (make-ctx [mock-player-card])
           [_schema resolver] (get card/resolvers [:Query :card])
-          result             (resolver ctx {:slug "jordan" :setSlug test-set-slug} nil)]
+          result             (resolver ctx {:slug "jordan" :set-slug test-set-slug} nil)]
       (is (= "jordan" (:slug result)))
       (is (= "Jordan" (:name result)))))
 
   (testing "returns nil when card not found"
     (let [ctx                (make-ctx [])
           [_schema resolver] (get card/resolvers [:Query :card])
-          result             (resolver ctx {:slug "nonexistent" :setSlug test-set-slug} nil)]
+          result             (resolver ctx {:slug "nonexistent" :set-slug test-set-slug} nil)]
       (is (nil? result)))))
 
 (deftest cards-query-test
   (testing "returns all cards for a set wrapped in :data"
     (let [ctx                (make-ctx [mock-player-card mock-play-card])
           [_schema resolver] (get card/resolvers [:Query :cards])
-          result             (resolver ctx {:setSlug test-set-slug} nil)]
+          result             (resolver ctx {:set-slug test-set-slug} nil)]
       (is (map? result))
       (is (= 2 (count (:data result))))))
 
   (testing "filters by card type"
     (let [ctx                (make-ctx [mock-player-card mock-play-card])
           [_schema resolver] (get card/resolvers [:Query :cards])
-          result             (resolver ctx {:setSlug test-set-slug :cardType "PLAYER_CARD"} nil)]
+          result             (resolver ctx {:set-slug test-set-slug :card-type "PLAYER_CARD"} nil)]
       (is (= 1 (count (:data result))))
       (is (= "jordan" (:slug (first (:data result)))))))
 
   (testing "returns empty vector for unknown set"
     (let [ctx                (make-ctx [mock-player-card])
           [_schema resolver] (get card/resolvers [:Query :cards])
-          result             (resolver ctx {:setSlug "nonexistent-set"} nil)]
+          result             (resolver ctx {:set-slug "nonexistent-set"} nil)]
       (is (= [] (:data result))))))
 
 (deftest create-player-card-mutation-test
   (testing "requires authentication"
     (let [ctx                (make-ctx [] false)
           [_schema resolver] (get card/resolvers [:Mutation :createPlayerCard])
-          result             (resolver ctx {:setSlug test-set-slug
+          result             (resolver ctx {:set-slug test-set-slug
                                             :input {:slug "new-player" :name "New Player"}} nil)]
       (is (resolve/is-resolver-result? result))
       (let [wrapped-value (:resolved-value result)]
@@ -135,7 +138,7 @@
   (testing "creates player card when authenticated"
     (let [ctx                (make-ctx [] true)
           [_schema resolver] (get card/resolvers [:Mutation :createPlayerCard])
-          result             (resolver ctx {:setSlug test-set-slug
+          result             (resolver ctx {:set-slug test-set-slug
                                             :input {:slug "new-player" :name "New Player"}} nil)]
       (is (= "new-player" (:slug result)))
       (is (= "New Player" (:name result)))
@@ -146,7 +149,7 @@
     (let [ctx                (make-ctx [mock-player-card] false)
           [_schema resolver] (get card/resolvers [:Mutation :updateCard])
           result             (resolver ctx {:slug "jordan"
-                                            :setSlug test-set-slug
+                                            :set-slug test-set-slug
                                             :input {:name "Updated Jordan"}} nil)]
       (is (resolve/is-resolver-result? result))
       (let [wrapped-value (:resolved-value result)]
@@ -156,7 +159,7 @@
     (let [ctx                (make-ctx [mock-player-card] true)
           [_schema resolver] (get card/resolvers [:Mutation :updateCard])
           result             (resolver ctx {:slug "jordan"
-                                            :setSlug test-set-slug
+                                            :set-slug test-set-slug
                                             :input {:name "Updated Jordan"}} nil)]
       (is (= "jordan" (:slug result)))
       (is (= "Updated Jordan" (:name result))))))
@@ -165,7 +168,61 @@
   (testing "requires authentication"
     (let [ctx                (make-ctx [mock-player-card] false)
           [_schema resolver] (get card/resolvers [:Mutation :deleteCard])
-          result             (resolver ctx {:slug "jordan" :setSlug test-set-slug} nil)]
+          result             (resolver ctx {:slug "jordan" :set-slug test-set-slug} nil)]
       (is (resolve/is-resolver-result? result))
       (let [wrapped-value (:resolved-value result)]
         (is (= :error (:behavior wrapped-value)))))))
+
+(deftest create-ability-card-mutation-test
+  (testing "requires authentication"
+    (let [ctx                (make-ctx [] false)
+          [_schema resolver] (get card/resolvers [:Mutation :createAbilityCard])
+          result             (resolver ctx {:set-slug test-set-slug
+                                            :input {:name "New Ability"}} nil)]
+      (is (resolve/is-resolver-result? result))
+      (is (= :error (:behavior (:resolved-value result)))))))
+
+(deftest create-split-play-card-mutation-test
+  (testing "requires authentication"
+    (let [ctx                (make-ctx [] false)
+          [_schema resolver] (get card/resolvers [:Mutation :createSplitPlayCard])
+          result             (resolver ctx {:set-slug test-set-slug
+                                            :input {:name "New Split Play"}} nil)]
+      (is (resolve/is-resolver-result? result))
+      (is (= :error (:behavior (:resolved-value result)))))))
+
+(deftest create-play-card-mutation-test
+  (testing "requires authentication"
+    (let [ctx                (make-ctx [] false)
+          [_schema resolver] (get card/resolvers [:Mutation :createPlayCard])
+          result             (resolver ctx {:set-slug test-set-slug
+                                            :input {:name "New Play"}} nil)]
+      (is (resolve/is-resolver-result? result))
+      (is (= :error (:behavior (:resolved-value result)))))))
+
+(deftest create-coaching-card-mutation-test
+  (testing "requires authentication"
+    (let [ctx                (make-ctx [] false)
+          [_schema resolver] (get card/resolvers [:Mutation :createCoachingCard])
+          result             (resolver ctx {:set-slug test-set-slug
+                                            :input {:name "New Coaching"}} nil)]
+      (is (resolve/is-resolver-result? result))
+      (is (= :error (:behavior (:resolved-value result)))))))
+
+(deftest create-standard-action-card-mutation-test
+  (testing "requires authentication"
+    (let [ctx                (make-ctx [] false)
+          [_schema resolver] (get card/resolvers [:Mutation :createStandardActionCard])
+          result             (resolver ctx {:set-slug test-set-slug
+                                            :input {:name "New Standard Action"}} nil)]
+      (is (resolve/is-resolver-result? result))
+      (is (= :error (:behavior (:resolved-value result)))))))
+
+(deftest create-team-asset-card-mutation-test
+  (testing "requires authentication"
+    (let [ctx                (make-ctx [] false)
+          [_schema resolver] (get card/resolvers [:Mutation :createTeamAssetCard])
+          result             (resolver ctx {:set-slug test-set-slug
+                                            :input {:name "New Team Asset"}} nil)]
+      (is (resolve/is-resolver-result? result))
+      (is (= :error (:behavior (:resolved-value result)))))))

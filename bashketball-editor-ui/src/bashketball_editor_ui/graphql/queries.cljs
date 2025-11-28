@@ -202,6 +202,49 @@
     }
 "))
 
+(def COMMIT_CHANGES_MUTATION
+  "Mutation to commit staged changes."
+  (apollo/gql "
+    mutation CommitChanges($message: String) {
+      commitChanges(message: $message) {
+        success
+        message
+        commitId
+      }
+    }
+"))
+
+;; -----------------------------------------------------------------------------
+;; Git Status Queries
+;; -----------------------------------------------------------------------------
+
+(def SYNC_STATUS_QUERY
+  "Query for repository sync status with remote."
+  (apollo/gql "
+    query SyncStatus {
+      syncStatus {
+        ahead
+        behind
+        uncommittedChanges
+        isClean
+      }
+    }
+"))
+
+(def WORKING_TREE_STATUS_QUERY
+  "Query for detailed working tree status."
+  (apollo/gql "
+    query WorkingTreeStatus {
+      workingTreeStatus {
+        isDirty
+        added
+        modified
+        deleted
+        untracked
+      }
+    }
+"))
+
 ;; -----------------------------------------------------------------------------
 ;; Card Create Mutations
 ;; -----------------------------------------------------------------------------
@@ -334,6 +377,22 @@
   (apollo/gql "
     mutation DeleteCard($slug: String!, $setSlug: String!) {
       deleteCard(slug: $slug, setSlug: $setSlug)
+    }
+"))
+
+;; -----------------------------------------------------------------------------
+;; Set Mutations
+;; -----------------------------------------------------------------------------
+
+(def CREATE_CARD_SET_MUTATION
+  "Mutation to create a new card set."
+  (apollo/gql "
+    mutation CreateCardSet($input: CardSetInput!) {
+      createCardSet(input: $input) {
+        slug
+        name
+        description
+      }
     }
 "))
 

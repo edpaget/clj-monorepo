@@ -7,6 +7,7 @@
    [bashketball-editor-ui.components.cards.set-selector :refer [set-selector]]
    [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.components.ui.input :refer [input]]
+   [bashketball-editor-ui.context.auth :refer [use-auth]]
    [bashketball-editor-ui.router :as router]
    [bashketball-editor-ui.views.cards :refer [cards-view]]
    [uix.core :refer [$ defui use-state]]))
@@ -14,7 +15,8 @@
 (defui home-view
   "Main home view displaying the application landing page."
   []
-  (let [[search-params]               (router/use-search-params)
+  (let [{:keys [logged-in?]}          (use-auth)
+        [search-params]               (router/use-search-params)
         set-slug                      (.get search-params "set")
         card-type                     (.get search-params "type")
         [search-term set-search-term] (use-state "")
@@ -36,9 +38,10 @@
                     :value search-term
                     :on-change #(set-search-term (.. % -target -value))
                     :class "max-w-xs"})
-                ($ button {:variant :outline
-                           :on-click #(navigate new-card-url)}
-                   "New Card"))))
+                (when logged-in?
+                  ($ button {:variant :outline
+                             :on-click #(navigate new-card-url)}
+                     "New Card")))))
        ($ :div {:class "mt-8"}
           ($ cards-view {:set-slug set-slug
                          :card-type card-type
