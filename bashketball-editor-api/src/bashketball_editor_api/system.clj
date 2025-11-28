@@ -139,9 +139,10 @@
   (let [port (or port-override (get-in config [:server :port]))
         host (get-in config [:server :host])]
     (jetty/run-jetty handler
-                     {:port port
-                      :host host
-                      :join? false})))
+                     {:port             port
+                      :host             host
+                      :join?            false
+                      :virtual-threads? true})))
 
 (defmethod ig/halt-key! ::server [_ server]
   (.stop server))
