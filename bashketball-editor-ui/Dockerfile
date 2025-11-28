@@ -24,14 +24,18 @@ COPY bashketball-editor-ui/shadow-cljs.edn ./
 COPY bashketball-editor-ui/src ./src
 COPY bashketball-editor-ui/resources ./resources
 COPY bashketball-editor-ui/public ./public
+COPY bashketball-editor-ui/scripts ./scripts
 COPY bashketball-editor-ui/tailwind.config.js ./
 
 # Create production shadow-cljs config (without test alias that requires local deps)
 RUN sed -i 's/:deps {:aliases \[:test\]}/:deps true/' shadow-cljs.edn
 
-# Build production assets
-RUN npm run build
+# Build production assets with hashed filenames for cache busting
+RUN npm run build:prod
 RUN npm run css:build
+
+# Clean up build artifacts not needed in production
+RUN rm -f public/js/libs-meta.json
 
 # Inject production API config in <head> so it runs before any JS loads
 # Empty string = relative URLs (UI and API on same origin)
