@@ -55,23 +55,23 @@
 (t/deftest card-view-shows-loading-test
   (t/testing "shows loading spinner initially"
     (tlr/render (with-providers ($ card-view)
-                                #js [mock-player-card-response]
-                                "/cards/core-set/test-player"))
+                  #js [mock-player-card-response]
+                  "/cards/core-set/test-player"))
     (t/is (some? (js/document.querySelector "[class*='animate-spin']")))))
 
 (t/deftest card-view-has-back-button-test
   (t/testing "shows back button"
     (tlr/render (with-providers ($ card-view)
-                                #js [mock-player-card-response]
-                                "/cards/core-set/test-player"))
+                  #js [mock-player-card-response]
+                  "/cards/core-set/test-player"))
     (t/is (some? (tlr/get-by-role "button" {:name "Back"})))))
 
 (t/deftest card-view-loads-player-card-test
   (t/async done
            (t/testing "loads and displays player card"
              (tlr/render (with-providers ($ card-view)
-                                         #js [mock-player-card-response]
-                                         "/cards/core-set/test-player"))
+                           #js [mock-player-card-response]
+                           "/cards/core-set/test-player"))
              (-> (tlr/wait-for #(tlr/get-all-by-text "Test Player"))
                  (.then (fn []
                           (let [matches (tlr/get-all-by-text "Test Player")]
@@ -85,8 +85,8 @@
   (t/async done
            (t/testing "shows edit button after loading"
              (tlr/render (with-providers ($ card-view)
-                                         #js [mock-player-card-response]
-                                         "/cards/core-set/test-player"))
+                           #js [mock-player-card-response]
+                           "/cards/core-set/test-player"))
              (-> (tlr/wait-for #(tlr/get-by-role "button" {:name "Edit"}))
                  (.then (fn []
                           (t/is (some? (tlr/get-by-role "button" {:name "Edit"})))
@@ -99,8 +99,8 @@
   (t/async done
            (t/testing "shows card type badge"
              (tlr/render (with-providers ($ card-view)
-                                         #js [mock-player-card-response]
-                                         "/cards/core-set/test-player"))
+                           #js [mock-player-card-response]
+                           "/cards/core-set/test-player"))
              (-> (tlr/wait-for #(tlr/get-by-text "Player"))
                  (.then (fn []
                           (t/is (some? (tlr/get-by-text "Player")))
@@ -113,8 +113,8 @@
   (t/async done
            (t/testing "shows player stats"
              (tlr/render (with-providers ($ card-view)
-                                         #js [mock-player-card-response]
-                                         "/cards/core-set/test-player"))
+                           #js [mock-player-card-response]
+                           "/cards/core-set/test-player"))
              (-> (tlr/wait-for #(tlr/get-by-text "SHT"))
                  (.then (fn []
                           (t/is (some? (tlr/get-by-text "SHT")))

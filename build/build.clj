@@ -134,10 +134,10 @@
   Usage: clojure -T:build uberjar :project :bashketball-editor-api"
   [{:keys [project]}]
   (let [{:keys [basis-aliases main compile-ns src-dirs target-dir jar-file]} (get projects project)
-        namespaces-to-compile (or compile-ns [main])]
+        namespaces-to-compile                                                (or compile-ns [main])]
     (when-not jar-file
       (throw (ex-info (str "Unknown project: " project) {:project project
-                                                          :available (keys projects)})))
+                                                         :available (keys projects)})))
     (println (str "Building uberjar for " (name project) "..."))
     (let [basis     (b/create-basis {:aliases basis-aliases})
           class-dir (str target-dir "/classes")]

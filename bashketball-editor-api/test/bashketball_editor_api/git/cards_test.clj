@@ -114,10 +114,10 @@
 
 (deftest git-timestamps-find-by-test
   (testing "find-by returns git timestamps for cards without timestamps in EDN"
-    (let [jgit-repo  (git/git-init :dir *test-repo-path*)
-          card-repo  (git-cards/create-card-repository *test-repo* ctx/current-user-context)
+    (let [jgit-repo (git/git-init :dir *test-repo-path*)
+          card-repo (git-cards/create-card-repository *test-repo* ctx/current-user-context)
           ;; Write card EDN without timestamps
-          card-edn   "{:slug \"test-card\" :name \"Test\" :set-slug \"test-set\" :card-type :card-type/PLAYER_CARD}"]
+          card-edn  "{:slug \"test-card\" :name \"Test\" :set-slug \"test-set\" :card-type :card-type/PLAYER_CARD}"]
       ;; Create set directory and card file
       (git-repo/write-file *test-repo* "test-set/test-card.edn" card-edn)
       (git/git-add jgit-repo ".")
@@ -131,11 +131,11 @@
 
 (deftest git-timestamps-find-all-test
   (testing "find-all returns git timestamps for cards without timestamps in EDN"
-    (let [jgit-repo  (git/git-init :dir *test-repo-path*)
-          card-repo  (git-cards/create-card-repository *test-repo* ctx/current-user-context)
+    (let [jgit-repo (git/git-init :dir *test-repo-path*)
+          card-repo (git-cards/create-card-repository *test-repo* ctx/current-user-context)
           ;; Write cards without timestamps
-          card1-edn  "{:slug \"card-1\" :name \"Card 1\" :set-slug \"test-set\" :card-type :card-type/PLAYER_CARD}"
-          card2-edn  "{:slug \"card-2\" :name \"Card 2\" :set-slug \"test-set\" :card-type :card-type/ABILITY_CARD}"]
+          card1-edn "{:slug \"card-1\" :name \"Card 1\" :set-slug \"test-set\" :card-type :card-type/PLAYER_CARD}"
+          card2-edn "{:slug \"card-2\" :name \"Card 2\" :set-slug \"test-set\" :card-type :card-type/ABILITY_CARD}"]
       ;; Create set directory and card files
       (git-repo/write-file *test-repo* "test-set/metadata.edn" "{:slug \"test-set\" :name \"Test Set\"}")
       (git-repo/write-file *test-repo* "test-set/card-1.edn" card1-edn)

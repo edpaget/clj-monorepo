@@ -61,7 +61,7 @@
                              (when (.exists repo-dir)
                                (->> (.listFiles repo-dir)
                                     (filter #(.isDirectory %))
-                                 (remove #(str/starts-with? (.getName %) ".")))))]
+                                    (remove #(str/starts-with? (.getName %) ".")))))]
       (->> set-dirs
            (mapcat (fn [dir]
                      (let [dir-name   (.getName dir)

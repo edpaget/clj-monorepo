@@ -188,7 +188,7 @@
                             (.iterator)
                             iterator-seq)]
       (when (seq commits)
-        (let [sorted    (sort-by #(.getCommitTime %) commits)
+        (let [sorted       (sort-by #(.getCommitTime %) commits)
               first-commit (first sorted)
               last-commit  (last sorted)]
           {:created-at (Instant/ofEpochSecond (.getCommitTime first-commit))
