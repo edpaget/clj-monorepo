@@ -114,6 +114,9 @@
   {:bashketball-editor-api
    {:basis-aliases [:bashketball-editor-api]
     :main          'bashketball-editor-api.server
+    :compile-ns    '[bashketball-editor-api.server
+                     clojure.tools.logging
+                     clojure.tools.logging.impl]
     :src-dirs      ["bashketball-editor-api/src"
                     "bashketball-editor-api/resources"
                     "db/src"
@@ -130,7 +133,8 @@
 
   Usage: clojure -T:build uberjar :project :bashketball-editor-api"
   [{:keys [project]}]
-  (let [{:keys [basis-aliases main src-dirs target-dir jar-file]} (get projects project)]
+  (let [{:keys [basis-aliases main compile-ns src-dirs target-dir jar-file]} (get projects project)
+        namespaces-to-compile (or compile-ns [main])]
     (when-not jar-file
       (throw (ex-info (str "Unknown project: " project) {:project project
                                                           :available (keys projects)})))
@@ -141,9 +145,9 @@
       (println "Copying sources...")
       (b/copy-dir {:src-dirs   src-dirs
                    :target-dir class-dir})
-      (println "Compiling...")
+      (println "Compiling namespaces:" namespaces-to-compile)
       (b/compile-clj {:basis     basis
-                      :ns-compile [main]
+                      :ns-compile namespaces-to-compile
                       :class-dir class-dir})
       (println "Packaging uberjar...")
       (b/uber {:class-dir class-dir

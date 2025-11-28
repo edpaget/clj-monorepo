@@ -4,7 +4,8 @@
   Provides functions to start and stop the server."
   (:require
    [bashketball-editor-api.system :as system]
-   [clojure.tools.logging :as log]))
+   [clojure.tools.logging :as log])
+  (:gen-class))
 
 (defonce ^:private state (atom nil))
 

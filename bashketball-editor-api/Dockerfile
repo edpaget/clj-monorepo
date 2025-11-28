@@ -23,7 +23,7 @@ COPY oidc oidc/
 COPY oidc-github oidc-github/
 COPY exclusive-initializer exclusive-initializer/
 COPY bashketball-editor-api bashketball-editor-api/
-COPY build/build.clj ./
+COPY build build/
 
 # Build uberjar
 RUN clojure -T:build uberjar :project :bashketball-editor-api
