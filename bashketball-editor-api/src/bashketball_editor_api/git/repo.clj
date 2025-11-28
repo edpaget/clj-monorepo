@@ -26,11 +26,11 @@
   "Clones repository if it doesn't exist locally, otherwise opens it.
 
   Takes a config map with `:repo-path`, `:remote-url`, and `:branch`. If the
-  repository already exists at `:repo-path`, opens it. Otherwise clones from
-  `:remote-url`. Returns the JGit repository instance."
+  repository already exists at `:repo-path` (has a .git directory), opens it.
+  Otherwise clones from `:remote-url`. Returns the JGit repository instance."
   [{:keys [repo-path remote-url branch]}]
-  (let [repo-dir (io/file repo-path)]
-    (if (.exists repo-dir)
+  (let [git-dir (io/file repo-path ".git")]
+    (if (.exists git-dir)
       (do
         (log/info "Opening existing repository at" repo-path)
         (git/load-repo repo-path))
