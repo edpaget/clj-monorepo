@@ -253,11 +253,34 @@ Example:
 ## Library Preferences
 - Prefer `clojure.string` functions over Java interop for string operations
   - Use `str/ends-with?` instead of `.endsWith`
-  - Use `str/starts-with?` instead of `.startsWith`  
+  - Use `str/starts-with?` instead of `.startsWith`
   - Use `str/includes?` instead of `.contains`
   - Use `str/blank?` instead of checking `.isEmpty` or `.trim`
 - Follow Clojure naming conventions (predicates end with `?`)
 - Favor built-in Clojure functions that are more expressive and idiomatic
+
+## ClojureScript JavaScript Interop
+- Prefer keyword access over direct property interop for JavaScript objects
+- The `bashketball-editor-ui` project extends `ILookup` on JS objects, enabling idiomatic access:
+  ```clojure
+  ;; Preferred - keyword access
+  (:name user)
+  (:id card)
+  (get response :data)
+
+  ;; Avoid - direct interop
+  (.-name user)
+  (.-id card)
+  ```
+- This pattern works because `object` is extended with `ILookup` in `bashketball-editor-ui.core`:
+  ```clojure
+  (extend-type object
+    ILookup
+    (-lookup ([o k] (goog.object/get o (name k)))
+      ([o k not-found] (goog.object/get o (name k) not-found))))
+  ```
+- Benefits: more idiomatic, works with destructuring, consistent with Clojure map access
+- Use this pattern in all ClojureScript projects that interact with JS objects
 
 ## REPL best pratices
 - Always reload namespaces with `:reload` flag: `(require '[namespace] :reload)`
