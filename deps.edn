@@ -42,6 +42,9 @@
   :bashketball-game
   {:extra-deps {local/bashketball-game {:local/root "bashketball-game"}}}
 
+  :bashketball-ui
+  {:extra-deps {local/bashketball-ui {:local/root "bashketball-ui"}}}
+
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project
   :exclusive-initializer-test
@@ -145,7 +148,8 @@
                 local/oidc-google              {:local/root "oidc-google"}
                 local/graphql-server           {:local/root "graphql-server"}
                 local/bashketball-editor-api   {:local/root "bashketball-editor-api"}
-                local/bashketball-game         {:local/root "bashketball-game"}}}
+                local/bashketball-game         {:local/root "bashketball-game"}
+                local/bashketball-ui           {:local/root "bashketball-ui"}}}
 
   :test-all
   {:extra-paths ["exclusive-initializer/test" "db/test" "polix/test" "authn/test" "oidc/test" "oidc-provider/test" "oidc-github/test" "oidc-google/test" "graphql-server/test" "bashketball-editor-api/test" "bashketball-game/test"]

@@ -1,13 +1,9 @@
-(ns bashketball-editor-ui.components.cards.card-preview
+(ns bashketball-ui.cards.card-preview
   "Card preview component for displaying cards in MTG-style format.
 
   Works with both GraphQL JS objects and Clojure maps via keyword access."
   (:require
    [uix.core :refer [$ defui]]))
-
-;; -----------------------------------------------------------------------------
-;; Display components
-;; -----------------------------------------------------------------------------
 
 (defui stat-display
   "Display a stat value with label."
@@ -59,10 +55,6 @@
                      (or card-type "Unknown"))]
     ($ :span {:class "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-700 text-gray-100"}
        type-label)))
-
-;; -----------------------------------------------------------------------------
-;; Type-specific card displays
-;; -----------------------------------------------------------------------------
 
 (defui player-card-display
   "Display player card specific fields."
@@ -118,10 +110,6 @@
      ($ :div {:class "p-1 bg-red-100 rounded"}
         ($ text-block {:label "Defense" :value (:defense card)}))))
 
-;; -----------------------------------------------------------------------------
-;; Main card preview
-;; -----------------------------------------------------------------------------
-
 (def type-display-components
   "Map of card type to display component."
   {"PlayerCard" player-card-display
@@ -159,26 +147,21 @@
         name              (:name card)
         image-prompt      (or (:image-prompt card) (:imagePrompt card))]
     ($ :div {:class (str "aspect-[5/7] w-80 bg-gradient-to-b from-gray-100 to-gray-200 rounded-xl border-4 border-gray-800 shadow-xl overflow-hidden flex flex-col " class)}
-       ;; Card header with name
        ($ :div {:class "bg-gradient-to-r from-gray-700 to-gray-800 px-4 py-2 relative"}
           (when fate
             ($ :div {:class "absolute top-2 right-3 w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center text-gray-900 font-bold text-lg shadow-md"}
                fate))
           ($ :h2 {:class "text-white font-bold text-lg truncate pr-10"}
              (if (seq name) name "Card Name")))
-       ;; Card image area (placeholder)
        ($ :div {:class "h-32 bg-gradient-to-br from-blue-400 to-purple-500 mx-3 mt-3 rounded border-2 border-gray-600 flex items-center justify-center"}
           (when (seq image-prompt)
             ($ :div {:class "text-white/70 text-xs text-center px-2 italic"}
                image-prompt)))
-       ;; Card type badge
        (when resolved-type
          ($ :div {:class "flex justify-center mt-1"}
             ($ card-type-badge {:card-type resolved-type})))
-       ;; Card content area
        ($ :div {:class "flex-1 mx-3 my-2 bg-white/80 rounded p-2 overflow-y-auto text-xs"}
           (when display-component
             ($ display-component {:card card})))
-       ;; Card footer with set info
        ($ :div {:class "bg-gray-800 px-3 py-1 text-gray-400 text-xs"}
           (or resolved-set-slug "—")))))

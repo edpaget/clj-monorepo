@@ -1,21 +1,11 @@
-(ns bashketball-editor-ui.components.ui.loading
+(ns bashketball-ui.components.loading
   "Loading indicator components following shadcn/ui patterns.
 
   Provides spinner and skeleton loading states."
   (:require
    ["class-variance-authority" :refer [cva]]
-   ["clsx" :refer [clsx]]
-   ["tailwind-merge" :refer [twMerge]]
+   [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui]]))
-
-(defn cn
-  "Merges class names using clsx and tailwind-merge."
-  [& classes]
-  (twMerge (apply clsx (filter some? classes))))
-
-;; -----------------------------------------------------------------------------
-;; Spinner
-;; -----------------------------------------------------------------------------
 
 (def spinner-variants
   "CVA configuration for spinner variants."
@@ -46,10 +36,6 @@
       :aria-label label}
      ($ :span {:class "sr-only"} label)))
 
-;; -----------------------------------------------------------------------------
-;; Skeleton
-;; -----------------------------------------------------------------------------
-
 (defui skeleton
   "A placeholder skeleton for loading content.
 
@@ -79,10 +65,6 @@
                  class)
       :aria-hidden "true"}))
 
-;; -----------------------------------------------------------------------------
-;; Loading overlay
-;; -----------------------------------------------------------------------------
-
 (defui loading-overlay
   "A full-container loading overlay with spinner.
 
@@ -100,10 +82,6 @@
      (when message
        ($ :p {:class "text-sm text-gray-500"} message))))
 
-;; -----------------------------------------------------------------------------
-;; Loading dots
-;; -----------------------------------------------------------------------------
-
 (defui loading-dots
   "Animated loading dots.
 
@@ -120,10 +98,6 @@
           {:key i
            :class "h-2 w-2 rounded-full bg-gray-400 animate-bounce"
            :style {:animation-delay (str (* i 0.15) "s")}}))))
-
-;; -----------------------------------------------------------------------------
-;; Button loading state helper
-;; -----------------------------------------------------------------------------
 
 (defui button-spinner
   "A small spinner sized for use inside buttons.

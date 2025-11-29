@@ -3,11 +3,11 @@
   (:require
    ["@apollo/client" :refer [useMutation useQuery]]
    ["lucide-react" :refer [ArrowLeft FilePlus FileX FilePenLine FileQuestion GitCommit]]
-   [bashketball-editor-ui.components.ui.button :refer [button]]
-   [bashketball-editor-ui.components.ui.loading :refer [spinner]]
-   [bashketball-editor-ui.components.ui.textarea :refer [textarea]]
    [bashketball-editor-ui.graphql.queries :as q]
-   [bashketball-editor-ui.router :as router]
+   [bashketball-ui.components.button :refer [button]]
+   [bashketball-ui.components.loading :refer [spinner]]
+   [bashketball-ui.components.textarea :refer [textarea]]
+   [bashketball-ui.router :as router]
    [uix.core :refer [$ defui use-state]]))
 
 (defui file-list

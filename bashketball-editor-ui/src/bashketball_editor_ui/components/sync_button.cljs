@@ -3,8 +3,8 @@
   (:require
    ["@apollo/client" :refer [useMutation useApolloClient]]
    ["lucide-react" :refer [RefreshCw Check AlertCircle]]
-   [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.graphql.queries :as q]
+   [bashketball-ui.components.button :refer [button]]
    [uix.core :refer [$ defui use-state use-effect]]))
 
 (defui sync-button

@@ -1,17 +1,11 @@
-(ns bashketball-editor-ui.components.ui.button
+(ns bashketball-ui.components.button
   "Button component following shadcn/ui patterns.
 
   Provides multiple variants and sizes with consistent styling."
   (:require
    ["class-variance-authority" :refer [cva]]
-   ["clsx" :refer [clsx]]
-   ["tailwind-merge" :refer [twMerge]]
+   [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui]]))
-
-(defn cn
-  "Merges class names using clsx and tailwind-merge."
-  [& classes]
-  (twMerge (apply clsx (filter some? classes))))
 
 (def button-variants
   "CVA configuration for button variants and sizes."

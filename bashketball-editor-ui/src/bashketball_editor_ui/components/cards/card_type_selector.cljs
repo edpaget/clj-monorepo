@@ -4,9 +4,9 @@
    Card types are derived from [[bashketball-schemas.enums/CardType]]
    to ensure consistency with the backend."
   (:require
-   [bashketball-editor-ui.components.ui.select :refer [select]]
-   [bashketball-editor-ui.router :as router]
    [bashketball-schemas.enums :as enums]
+   [bashketball-ui.components.select :refer [select]]
+   [bashketball-ui.router :as router]
    [clojure.string :as str]
    [uix.core :refer [$ defui]]))
 

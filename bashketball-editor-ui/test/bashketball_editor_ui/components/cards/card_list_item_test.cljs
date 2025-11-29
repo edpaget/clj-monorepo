@@ -1,9 +1,9 @@
 (ns bashketball-editor-ui.components.cards.card-list-item-test
   (:require
-   [bashketball-editor-ui.components.cards.card-list-item :refer [card-list-item
-                                                                  card-list-item-skeleton
-                                                                  format-card-type
-                                                                  format-relative-time]]
+   [bashketball-ui.cards.card-list-item :refer [card-list-item
+                                                card-list-item-skeleton
+                                                format-card-type
+                                                format-relative-time]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]

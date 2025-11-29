@@ -2,9 +2,9 @@
   (:require
    ["@apollo/client/testing" :refer [MockedProvider]]
    ["react-router-dom" :as rr]
-   [bashketball-editor-ui.context.auth :as auth]
    [bashketball-editor-ui.graphql.queries :as q]
    [bashketball-editor-ui.views.home :refer [home-view]]
+   [bashketball-ui.context.auth :refer [auth-context]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]
@@ -34,7 +34,7 @@
                      :user (when logged-in? {:id "test-user"})
                      :refetch (fn [])}]
      ($ rr/MemoryRouter
-        ($ (.-Provider auth/auth-context) {:value auth-state}
+        ($ (.-Provider auth-context) {:value auth-state}
            ($ MockedProvider {:mocks #js [mock-empty-cards-response
                                           mock-card-sets-response]}
               component))))))

@@ -1,0 +1,7 @@
+{:paths ["src"]
+ :deps
+ {org.clojure/clojure       {:mvn/version "1.12.2"}
+  org.clojure/clojurescript {:mvn/version "1.11.132"}
+  com.pitch/uix.core        {:mvn/version "1.4.4"}
+  metosin/malli             {:mvn/version "0.19.1"}
+  local/bashketball-schemas {:local/root "../bashketball-schemas"}}}

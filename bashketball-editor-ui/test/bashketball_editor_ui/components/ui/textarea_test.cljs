@@ -1,6 +1,6 @@
 (ns bashketball-editor-ui.components.ui.textarea-test
   (:require
-   [bashketball-editor-ui.components.ui.textarea :refer [textarea]]
+   [bashketball-ui.components.textarea :refer [textarea]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]

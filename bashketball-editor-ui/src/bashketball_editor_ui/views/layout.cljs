@@ -2,10 +2,10 @@
   "Application layout with header and navigation."
   (:require
    [bashketball-editor-ui.components.git-status :refer [git-status]]
-   [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.config :as config]
    [bashketball-editor-ui.context.auth :as auth]
-   [bashketball-editor-ui.router :as router]
+   [bashketball-ui.components.button :refer [button]]
+   [bashketball-ui.router :as router]
    [uix.core :refer [$ defui]]))
 
 (defui user-menu

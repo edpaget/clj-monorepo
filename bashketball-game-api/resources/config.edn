@@ -1,0 +1,38 @@
+{:server
+ {:port #long #or [#env PORT 3002]
+  :host "0.0.0.0"}
+
+ :database
+ {:database-url #profile {:dev #or [#env DATABASE_URL "jdbc:postgresql://localhost:5432/bashketball_game_dev?user=postgres&password=postgres"]
+                          :test "jdbc:postgresql://localhost:5432/bashketball_game_test?user=postgres&password=postgres"
+                          :prod #env DATABASE_URL}
+  :c3p0-opts {:min-pool-size 1
+              :max-pool-size 10
+              :acquire-increment 1
+              :idle-connection-test-period 300}}
+
+ :google
+ {:client-id #profile {:test "test-google-client-id"
+                       :dev #or [#env GOOGLE_CLIENT_ID "dev-google-client-id"]
+                       :prod #env GOOGLE_CLIENT_ID}
+  :client-secret #profile {:test "test-google-client-secret"
+                           :dev #or [#env GOOGLE_CLIENT_SECRET "dev-google-client-secret"]
+                           :prod #env GOOGLE_CLIENT_SECRET}
+  :redirect-uri #or [#env GOOGLE_REDIRECT_URI "http://localhost:3002/auth/google/callback"]
+  :success-redirect-uri #or [#env GOOGLE_SUCCESS_REDIRECT_URI "http://localhost:3003/"]
+  :scopes ["openid" "email" "profile"]}
+
+ :session
+ {:ttl-ms #long #or [#env SESSION_TTL_MS 86400000]
+  :cookie-name "bashketball-game-session"
+  :cookie-secret #or [#env SESSION_COOKIE_SECRET "dev-secret-16byt"]
+  :cookie-secure? #profile {:dev false
+                            :test false
+                            :prod true}
+  :cookie-http-only? true
+  :cookie-same-site :lax}
+
+ :cors
+ {:allowed-origins #profile {:dev ["http://localhost:3003" "http://localhost:5173"]
+                             :test ["http://localhost:3003"]
+                             :prod #env CORS_ALLOWED_ORIGINS}}}

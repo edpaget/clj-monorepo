@@ -1,10 +1,10 @@
 (ns bashketball-editor-ui.components.ui.loading-test
   (:require
-   [bashketball-editor-ui.components.ui.loading :refer [button-spinner
-                                                        loading-dots
-                                                        loading-overlay
-                                                        skeleton
-                                                        spinner]]
+   [bashketball-ui.components.loading :refer [button-spinner
+                                              loading-dots
+                                              loading-overlay
+                                              skeleton
+                                              spinner]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]

@@ -1,39 +1,21 @@
 (ns bashketball-editor-ui.context.auth
-  "Authentication context for providing user state throughout the app."
+  "Authentication context for the editor app.
+
+  Wraps the configurable auth context from bashketball-ui with
+  app-specific configuration."
   (:require
    [bashketball-editor-ui.config :as config]
    [bashketball-editor-ui.hooks.use-me :refer [use-me]]
-   [uix.core :refer [$ defui create-context use-context]]))
+   [bashketball-ui.context.auth :as auth]))
 
-(def auth-context
-  "Context for authentication state. Use [[auth-provider]] to provide state
-  and [[use-auth]] to consume it."
-  (create-context nil))
+(def auth-provider
+  "Auth provider configured for the editor app."
+  (auth/create-auth-provider {:use-user-hook use-me}))
 
-(defui auth-provider
-  "Provides authentication state to child components.
+(def use-auth
+  "Re-export use-auth from shared library."
+  auth/use-auth)
 
-  Queries the `me` endpoint and provides user state via context."
-  [{:keys [children]}]
-  (let [auth-state (use-me)]
-    ($ (.-Provider auth-context) {:value auth-state}
-       children)))
-
-(defn use-auth
-  "Hook to access authentication state.
-
-  Returns a map with:
-  - `:user` - The current user or nil
-  - `:loading?` - Whether auth state is loading
-  - `:logged-in?` - Whether user is logged in
-  - `:refetch` - Function to refetch auth state"
-  []
-  (use-context auth-context))
-
-(defn logout!
-  "Logs out the user by calling the logout endpoint and refetching auth state."
-  [refetch]
-  (-> (js/fetch (str config/api-base-url "/auth/logout")
-                #js {:method "POST"
-                     :credentials "include"})
-      (.then (fn [_] (refetch)))))
+(def logout!
+  "Logout function configured for the editor app."
+  (auth/create-logout-fn {:logout-url (str config/api-base-url "/auth/logout")}))

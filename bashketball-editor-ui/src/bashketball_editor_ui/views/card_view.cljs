@@ -3,12 +3,12 @@
   (:require
    ["@apollo/client" :refer [useQuery]]
    ["lucide-react" :refer [ArrowLeft Edit]]
-   [bashketball-editor-ui.components.cards.card-preview :refer [card-preview]]
-   [bashketball-editor-ui.components.ui.button :refer [button]]
-   [bashketball-editor-ui.components.ui.loading :refer [spinner]]
    [bashketball-editor-ui.context.auth :refer [use-auth]]
    [bashketball-editor-ui.graphql.queries :as q]
-   [bashketball-editor-ui.router :as router]
+   [bashketball-ui.cards.card-preview :refer [card-preview]]
+   [bashketball-ui.components.button :refer [button]]
+   [bashketball-ui.components.loading :refer [spinner]]
+   [bashketball-ui.router :as router]
    [uix.core :refer [$ defui]]))
 
 (defui card-view

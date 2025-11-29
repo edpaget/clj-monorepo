@@ -1,6 +1,6 @@
 (ns bashketball-editor-ui.components.ui.label-test
   (:require
-   [bashketball-editor-ui.components.ui.label :refer [label]]
+   [bashketball-ui.components.label :refer [label]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]

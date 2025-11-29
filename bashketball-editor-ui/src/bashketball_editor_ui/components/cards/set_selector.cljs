@@ -5,10 +5,11 @@
   (:require
    ["@radix-ui/react-select" :as SelectPrimitive]
    ["lucide-react" :refer [Plus]]
-   [bashketball-editor-ui.components.ui.select :as s]
    [bashketball-editor-ui.context.auth :refer [use-auth]]
    [bashketball-editor-ui.hooks.sets :refer [use-sets]]
-   [bashketball-editor-ui.router :as router]
+   [bashketball-ui.components.select :as s]
+   [bashketball-ui.router :as router]
+   [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui]]))
 
 (def all-sets-value "__all__")
@@ -54,7 +55,7 @@
             ($ :<>
                ($ s/select-separator)
                ($ SelectPrimitive/Item
-                  {:class (s/cn s/select-item-classes "text-blue-600 font-medium")
+                  {:class (cn s/select-item-classes "text-blue-600 font-medium")
                    :value create-new-value}
                   ($ :span {:class "flex items-center gap-2"}
                      ($ Plus {:className "w-4 h-4"})

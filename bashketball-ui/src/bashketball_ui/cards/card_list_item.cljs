@@ -1,15 +1,10 @@
-(ns bashketball-editor-ui.components.cards.card-list-item
+(ns bashketball-ui.cards.card-list-item
   "Card list item component for compact list view."
   (:require
-   ["clsx" :refer [clsx]]
    ["lucide-react" :refer [ChevronRight]]
-   ["tailwind-merge" :refer [twMerge]]
+   [bashketball-ui.utils :refer [cn]]
    [clojure.string :as str]
    [uix.core :refer [$ defui]]))
-
-(defn cn
-  [& classes]
-  (twMerge (apply clsx (filter some? classes))))
 
 (def card-type-colors
   "Color mapping for card types."

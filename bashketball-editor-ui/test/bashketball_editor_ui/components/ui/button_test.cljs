@@ -1,6 +1,6 @@
 (ns bashketball-editor-ui.components.ui.button-test
   (:require
-   [bashketball-editor-ui.components.ui.button :refer [button]]
+   [bashketball-ui.components.button :refer [button]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]

@@ -3,13 +3,13 @@
   (:require
    ["@apollo/client" :refer [useApolloClient]]
    ["lucide-react" :refer [ArrowLeft Save]]
-   [bashketball-editor-ui.components.ui.button :refer [button]]
-   [bashketball-editor-ui.components.ui.input :refer [input]]
-   [bashketball-editor-ui.components.ui.label :refer [label]]
-   [bashketball-editor-ui.components.ui.textarea :refer [textarea]]
    [bashketball-editor-ui.graphql.queries :as q]
-   [bashketball-editor-ui.hooks.form :as form]
-   [bashketball-editor-ui.router :as router]
+   [bashketball-ui.components.button :refer [button]]
+   [bashketball-ui.components.input :refer [input]]
+   [bashketball-ui.components.label :refer [label]]
+   [bashketball-ui.components.textarea :refer [textarea]]
+   [bashketball-ui.hooks.form :as form]
+   [bashketball-ui.router :as router]
    [uix.core :refer [$ defui use-state]]))
 
 (defui form-field

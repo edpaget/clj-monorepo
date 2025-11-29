@@ -1,9 +1,8 @@
 (ns bashketball-editor-ui.components.protected-route-test
   (:require
    ["react-router-dom" :as rr]
-   [bashketball-editor-ui.components.protected-route :refer [protected-route
-                                                             require-auth]]
-   [bashketball-editor-ui.context.auth :as auth]
+   [bashketball-ui.components.protected-route :refer [protected-route require-auth]]
+   [bashketball-ui.context.auth :as auth]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]
@@ -30,7 +29,9 @@
 (t/deftest require-auth-not-logged-in-test
   (t/testing "shows login prompt when not logged in"
     (with-redefs [auth/use-auth (fn [] {:loading? false :logged-in? false})]
-      (tlr/render ($ require-auth ($ :div "Protected content")))
+      (tlr/render ($ require-auth {:login-url "/auth/github/login"
+                                   :login-label "Login with GitHub"}
+                     ($ :div "Protected content")))
       (t/is (some? (tlr/get-by-text "Please log in to access this feature.")))
       (t/is (some? (tlr/get-by-role "button" #js {:name "Login with GitHub"}))))))
 
@@ -43,7 +44,9 @@
 (t/deftest require-auth-login-link-href-test
   (t/testing "login button links to GitHub OAuth"
     (with-redefs [auth/use-auth (fn [] {:loading? false :logged-in? false})]
-      (tlr/render ($ require-auth ($ :div "Protected")))
+      (tlr/render ($ require-auth {:login-url "/auth/github/login"
+                                   :login-label "Login"}
+                     ($ :div "Protected")))
       (let [link (tlr/get-by-role "link")]
         (t/is (.includes (.-href link) "/auth/github/login"))))))
 

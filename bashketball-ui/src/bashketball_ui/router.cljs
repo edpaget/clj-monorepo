@@ -1,4 +1,4 @@
-(ns bashketball-editor-ui.router
+(ns bashketball-ui.router
   "React Router integration.
 
   Provides routing components and hooks for navigation."

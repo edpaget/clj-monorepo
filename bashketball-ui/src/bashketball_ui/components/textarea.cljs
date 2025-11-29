@@ -1,14 +1,8 @@
-(ns bashketball-editor-ui.components.ui.textarea
+(ns bashketball-ui.components.textarea
   "Textarea component following shadcn/ui patterns."
   (:require
-   ["clsx" :refer [clsx]]
-   ["tailwind-merge" :refer [twMerge]]
+   [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui]]))
-
-(defn cn
-  "Merges class names using clsx and tailwind-merge."
-  [& classes]
-  (twMerge (apply clsx (filter some? classes))))
 
 (def textarea-classes
   "Base CSS classes for textarea."

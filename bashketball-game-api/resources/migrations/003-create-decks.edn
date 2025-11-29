@@ -1,0 +1,15 @@
+{:up
+ ["CREATE TABLE decks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    card_slugs JSONB NOT NULL DEFAULT '[]',
+    is_valid BOOLEAN NOT NULL DEFAULT false,
+    validation_errors JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )"
+  "CREATE INDEX idx_decks_user_id ON decks(user_id)"]
+
+ :down
+ ["DROP TABLE IF EXISTS decks"]}

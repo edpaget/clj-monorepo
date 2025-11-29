@@ -1,6 +1,6 @@
 (ns bashketball-editor-ui.components.ui.input-test
   (:require
-   [bashketball-editor-ui.components.ui.input :refer [input]]
+   [bashketball-ui.components.input :refer [input]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
    [cljs.test :as t :include-macros true]

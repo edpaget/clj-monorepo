@@ -1,4 +1,4 @@
-(ns bashketball-editor-ui.hooks.form
+(ns bashketball-ui.hooks.form
   "Form state management hooks.
 
   Provides declarative form handling with field definitions, reducing

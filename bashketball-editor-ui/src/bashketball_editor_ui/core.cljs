@@ -3,24 +3,19 @@
 
   Initializes the React application and mounts it to the DOM."
   (:require
-   [bashketball-editor-ui.components.protected-route :refer [protected-route]]
    [bashketball-editor-ui.context.auth :as auth]
    [bashketball-editor-ui.graphql.client :as gql-client]
-   [bashketball-editor-ui.router :as router]
    [bashketball-editor-ui.views.card-editor :as card-editor]
    [bashketball-editor-ui.views.card-view :as card-view]
    [bashketball-editor-ui.views.commit :as commit]
    [bashketball-editor-ui.views.home :as home]
    [bashketball-editor-ui.views.layout :as layout]
    [bashketball-editor-ui.views.set-editor :as set-editor]
-   [goog.object :as obj]
+   [bashketball-ui.components.protected-route :refer [protected-route]]
+   [bashketball-ui.core]
+   [bashketball-ui.router :as router]
    [uix.core :refer [$ defui]]
    [uix.dom]))
-
-(extend-type object
-  ILookup
-  (-lookup ([o k] (obj/get o (name k)))
-    ([o k not-found] (obj/get o (name k) not-found))))
 
 (defonce root (atom nil))
 

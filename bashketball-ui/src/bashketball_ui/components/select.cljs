@@ -1,18 +1,12 @@
-(ns bashketball-editor-ui.components.ui.select
+(ns bashketball-ui.components.select
   "Select dropdown component following shadcn/ui patterns.
 
   Provides an accessible select dropdown using Radix UI primitives."
   (:require
    ["@radix-ui/react-select" :as SelectPrimitive]
-   ["clsx" :refer [clsx]]
    ["lucide-react" :refer [Check ChevronDown]]
-   ["tailwind-merge" :refer [twMerge]]
+   [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui]]))
-
-(defn cn
-  "Merges class names using clsx and tailwind-merge."
-  [& classes]
-  (twMerge (apply clsx (filter some? classes))))
 
 (def select-trigger-classes
   "Base CSS classes for select trigger."

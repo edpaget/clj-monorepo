@@ -1,0 +1,49 @@
+{:paths ["src" "resources"]
+ :deps
+ {org.clojure/clojure           {:mvn/version "1.12.2"}
+  org.clojure/core.async        {:mvn/version "1.7.701"}
+  metosin/malli                 {:mvn/version "0.19.1"}
+  integrant/integrant           {:mvn/version "0.13.1"}
+  aero/aero                     {:mvn/version "1.1.6"}
+  ring/ring-core                {:mvn/version "1.13.0"}
+  ring/ring-jetty-adapter       {:mvn/version "1.13.0"}
+  ring/ring-json                {:mvn/version "0.5.1"}
+  metosin/ring-http-response    {:mvn/version "0.9.4"}
+  clj-http/clj-http             {:mvn/version "3.13.0"}
+  cheshire/cheshire             {:mvn/version "5.13.0"}
+  org.clojure/tools.logging     {:mvn/version "1.3.0"}
+  org.slf4j/slf4j-simple        {:mvn/version "2.0.13"}
+  local/bashketball-schemas     {:local/root "../bashketball-schemas"}
+  local/bashketball-game        {:local/root "../bashketball-game"}
+  local/db                      {:local/root "../db"}
+  local/authn                   {:local/root "../authn"}
+  local/oidc                    {:local/root "../oidc"}
+  local/oidc-google             {:local/root "../oidc-google"}
+  local/graphql-server          {:local/root "../graphql-server"}
+  io.github.bashketball/cards   {:mvn/version "0.2.0"}}
+ :mvn/repos {"github" {:url "https://maven.pkg.github.com/bashketball/cards"}}
+ :aliases
+ {:test
+  {:extra-paths ["test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :main-opts   ["-m" "cognitect.test-runner"]
+   :exec-fn     cognitect.test-runner.api/test
+   :extra-deps  {io.github.cognitect-labs/test-runner
+                 {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+  :repl
+  {:extra-deps
+   {nrepl/nrepl                        {:mvn/version "1.3.0"}
+    cider/cider-nrepl                  {:mvn/version "0.50.2"}
+    org.clojure/tools.namespace        {:mvn/version "1.5.0"}}
+   :main-opts
+   ["-m"
+    "nrepl.cmdline"
+    "--middleware"
+    "[cider.nrepl/cider-middleware]"
+    "--port"
+    "7890"]}
+  :lint
+  {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2025.07.28"}}}
+  :outdated
+  {:extra-deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}
+   :main-opts  ["-m" "antq.core"]}}}

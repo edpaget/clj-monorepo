@@ -321,6 +321,33 @@ Example:
 - When capturing shell output, remember it may be truncated for very large outputs
 - Consider using shell commands for tasks that have mature CLI tools like diffing or git operations
 
+## Formatting and Linting
+
+The monorepo uses cljfmt for formatting and clj-kondo for linting. Both are run from the repository root.
+
+### Formatting
+Format requires a `:paths` argument as EDN:
+```bash
+# Format entire monorepo
+clojure -X:format :paths '["."]'
+
+# Format a specific project
+clojure -X:format :paths '["bashketball-ui"]'
+
+# Format multiple projects
+clojure -X:format :paths '["bashketball-ui" "bashketball-editor-ui"]'
+```
+
+### Linting
+Lint uses clj-kondo with `--lint` flag:
+```bash
+# Lint specific directories
+clojure -M:lint --lint bashketball-ui/src bashketball-editor-ui/src
+
+# Lint a project's src and test
+clojure -M:lint --lint oidc/src oidc/test
+```
+
 ## Context Maintenance
 - Use `clojure_eval` with `:reload` to ensure you're working with the latest code
 - always switch into `(in-ns ...)` the namespace that you are working on

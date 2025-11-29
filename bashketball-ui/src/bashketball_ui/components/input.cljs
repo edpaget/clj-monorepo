@@ -1,16 +1,10 @@
-(ns bashketball-editor-ui.components.ui.input
+(ns bashketball-ui.components.input
   "Input component following shadcn/ui patterns.
 
   Provides a styled text input with consistent appearance."
   (:require
-   ["clsx" :refer [clsx]]
-   ["tailwind-merge" :refer [twMerge]]
+   [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui]]))
-
-(defn cn
-  "Merges class names using clsx and tailwind-merge."
-  [& classes]
-  (twMerge (apply clsx (filter some? classes))))
 
 (def input-base-classes
   "Base CSS classes for input styling."

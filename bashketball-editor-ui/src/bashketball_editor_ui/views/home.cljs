@@ -5,11 +5,11 @@
   (:require
    [bashketball-editor-ui.components.cards.card-type-selector :refer [card-type-selector]]
    [bashketball-editor-ui.components.cards.set-selector :refer [set-selector]]
-   [bashketball-editor-ui.components.ui.button :refer [button]]
-   [bashketball-editor-ui.components.ui.input :refer [input]]
    [bashketball-editor-ui.context.auth :refer [use-auth]]
-   [bashketball-editor-ui.router :as router]
    [bashketball-editor-ui.views.cards :refer [cards-view]]
+   [bashketball-ui.components.button :refer [button]]
+   [bashketball-ui.components.input :refer [input]]
+   [bashketball-ui.router :as router]
    [uix.core :refer [$ defui use-state]]))
 
 (defui home-view

@@ -1,0 +1,23 @@
+{:up
+ ["CREATE TYPE game_status AS ENUM ('waiting', 'active', 'completed', 'abandoned')"
+  "CREATE TABLE games (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    player1_id UUID NOT NULL REFERENCES users(id),
+    player2_id UUID REFERENCES users(id),
+    player1_deck_id UUID NOT NULL REFERENCES decks(id),
+    player2_deck_id UUID REFERENCES decks(id),
+    status game_status NOT NULL DEFAULT 'waiting',
+    current_player_id UUID REFERENCES users(id),
+    game_state JSONB NOT NULL DEFAULT '{}',
+    winner_id UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    ended_at TIMESTAMPTZ
+  )"
+  "CREATE INDEX idx_games_status ON games(status)"
+  "CREATE INDEX idx_games_player1 ON games(player1_id)"
+  "CREATE INDEX idx_games_player2 ON games(player2_id)"]
+
+ :down
+ ["DROP TABLE IF EXISTS games"
+  "DROP TYPE IF EXISTS game_status"]}

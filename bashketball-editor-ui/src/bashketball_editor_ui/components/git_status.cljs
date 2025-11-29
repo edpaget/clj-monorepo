@@ -6,9 +6,9 @@
   (:require
    ["@apollo/client" :refer [useMutation useQuery useApolloClient]]
    ["lucide-react" :refer [ArrowDown ArrowUp Circle Check AlertCircle]]
-   [bashketball-editor-ui.components.ui.button :refer [button]]
    [bashketball-editor-ui.graphql.queries :as q]
-   [bashketball-editor-ui.router :as router]
+   [bashketball-ui.components.button :refer [button]]
+   [bashketball-ui.router :as router]
    [uix.core :refer [$ defui use-state use-effect]]))
 
 (defui commit-button

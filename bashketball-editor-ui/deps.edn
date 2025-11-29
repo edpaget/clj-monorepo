@@ -7,6 +7,9 @@
         ;; Shared schemas
         local/bashketball-schemas {:local/root "../bashketball-schemas"}
 
+        ;; Shared UI components
+        local/bashketball-ui {:local/root "../bashketball-ui"}
+
         ;; UIx (React 19 wrapper)
         com.pitch/uix.core {:mvn/version "1.4.4"}
         com.pitch/uix.dom {:mvn/version "1.4.4"}
