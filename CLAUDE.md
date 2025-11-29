@@ -18,6 +18,7 @@ This monorepo contains the following projects:
 | **cljs-tlr** | ClojureScript wrapper for @testing-library/react with JSDom support |
 | **bashketball-schemas** | Shared Malli schemas for Bashketball ecosystem (cards, enums, user) |
 | **bashketball-game** | CLJC game state engine for Bashketball with data-driven actions and Malli validation |
+| **bashketball-ui** | Shared ClojureScript UI components for Bashketball apps (UIx, Tailwind, Radix) |
 
 ## Applications
 
@@ -96,6 +97,11 @@ Shared Malli schemas for the Bashketball trading card game ecosystem.
 Game state engine for Bashketball trading card game.
 - **Namespaces**: `bashketball-game.schema`, `bashketball-game.state`, `bashketball-game.board`, `bashketball-game.actions`, `bashketball-game.event-log`
 - **Features**: CLJC, data-driven actions with Malli validation, 5x14 hex board, event log for replay
+
+### bashketball-ui
+Shared ClojureScript UI component library for Bashketball applications.
+- **Namespaces**: `bashketball-ui.core`, `bashketball-ui.utils`, `bashketball-ui.router`, `bashketball-ui.context.auth`, `bashketball-ui.hooks.form`, `bashketball-ui.components.*`, `bashketball-ui.cards.*`
+- **Features**: UIx components, Tailwind CSS styling, configurable auth context, Radix UI primitives, React Router wrappers
 
 ---
 

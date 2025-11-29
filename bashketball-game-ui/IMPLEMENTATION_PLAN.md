@@ -38,18 +38,9 @@ bashketball-game-ui/
 ├── src/bashketball_game_ui/
 │   ├── core.cljs                    # App entry, root component, init!
 │   ├── config.cljs                  # API URLs, app constants
-│   ├── router.cljs                  # React Router re-exports
 │   │
 │   ├── components/
-│   │   ├── ui/                      # Reusable UI primitives
-│   │   │   ├── button.cljs
-│   │   │   ├── input.cljs
-│   │   │   ├── select.cljs
-│   │   │   ├── card.cljs            # Card display component
-│   │   │   ├── dialog.cljs
-│   │   │   ├── loading.cljs
-│   │   │   └── avatar.cljs
-│   │   ├── protected-route.cljs     # Auth guard
+│   │   ├── avatar.cljs              # User avatar component
 │   │   ├── deck/                    # Deck-related components
 │   │   │   ├── deck-list.cljs
 │   │   │   ├── deck-builder.cljs
@@ -76,7 +67,7 @@ bashketball-game-ui/
 │   │   └── profile.cljs             # User profile/stats
 │   │
 │   ├── context/
-│   │   ├── auth.cljs                # Auth context + use-auth hook
+│   │   ├── auth.cljs                # Auth context wrapper (uses bashketball-ui)
 │   │   └── game.cljs                # Active game context
 │   │
 │   ├── graphql/
@@ -91,8 +82,7 @@ bashketball-game-ui/
 │   │   ├── use-decks.cljs           # Deck CRUD operations
 │   │   ├── use-cards.cljs           # Card collection queries
 │   │   ├── use-game.cljs            # Game state and actions
-│   │   ├── use-lobby.cljs           # Matchmaking hooks
-│   │   └── form.cljs                # Form state management
+│   │   └── use-lobby.cljs           # Matchmaking hooks
 │   │
 │   ├── game/                        # Client-side game logic
 │   │   ├── state.cljs               # Local game state management
@@ -101,7 +91,6 @@ bashketball-game-ui/
 │   │
 │   └── schemas/
 │       ├── deck.cljs                # Deck validation schemas
-│       ├── card.cljs                # Card type schemas
 │       └── game.cljs                # Game state schemas
 │
 ├── test/bashketball_game_ui/
@@ -128,26 +117,54 @@ bashketball-game-ui/
 └── README.md
 ```
 
+## Shared UI Library: bashketball-ui
+
+This project uses `bashketball-ui` for common UI components, utilities, and auth infrastructure.
+See `../bashketball-ui/README.md` for full documentation.
+
+### Components from bashketball-ui
+- **UI primitives**: `button`, `input`, `label`, `textarea`, `select`
+- **Loading states**: `spinner`, `skeleton`, `loading-overlay`, `loading-dots`, `button-spinner`
+- **Card components**: `card-preview`, `card-list-item`
+- **Auth**: `protected-route`, `require-auth`, configurable auth context
+- **Utilities**: `cn` (Tailwind class merging), router wrappers
+- **Core**: ILookup extension for JS objects
+
+### Usage
+```clojure
+;; UI components
+(require '[bashketball-ui.components.button :refer [button]])
+(require '[bashketball-ui.components.loading :refer [spinner skeleton]])
+(require '[bashketball-ui.cards.card-preview :refer [card-preview]])
+
+;; Auth (configure with your hooks)
+(require '[bashketball-ui.context.auth :as auth])
+(require '[bashketball-ui.components.protected-route :refer [protected-route require-auth]])
+
+;; Utilities
+(require '[bashketball-ui.utils :refer [cn]])
+(require '[bashketball-ui.router :as router])
+```
+
 ## Implementation Phases
 
 ### Phase 1: Project Scaffolding
 
 1. **Create project structure**
-   - Initialize deps.edn with UIx, Malli, shadow-cljs dependencies
+   - Initialize deps.edn with UIx, Malli, shadow-cljs, and bashketball-ui dependencies
    - Set up package.json with React, Apollo, Tailwind, Radix UI
    - Configure shadow-cljs.edn for :app and :test builds
    - Set up Tailwind CSS configuration
 
 2. **Core infrastructure**
-   - `core.cljs` - App entry point with ILookup extension for JS objects
+   - `core.cljs` - App entry point, requires `bashketball-ui.core` for ILookup extension
    - `config.cljs` - API URL configuration
-   - `router.cljs` - React Router re-exports
    - Basic `index.html` with app mount point
 
-3. **UI component library**
-   - Copy/adapt button, input, select, dialog from bashketball-editor-ui
-   - Add game-specific components (card display, avatar)
-   - Set up `cn` utility for Tailwind class merging
+3. **Game-specific components**
+   - UI primitives come from `bashketball-ui` (button, input, select, loading, etc.)
+   - Create game-specific components: `avatar.cljs`, `dialog.cljs` (if needed beyond Radix)
+   - Card components (`card-preview`, `card-list-item`) come from `bashketball-ui`
 
 ### Phase 2: Authentication
 
@@ -156,16 +173,25 @@ bashketball-game-ui/
    - InMemoryCache configuration
    - Custom SSE link for subscriptions (see Phase 5)
 
-2. **Auth context implementation**
+2. **Auth context implementation** (using bashketball-ui)
    ```clojure
-   ;; context/auth.cljs
-   (defui auth-provider [{:keys [children]}]
-     (let [{:keys [user loading?]} (use-me)]
-       ($ (.-Provider auth-context)
-          {:value {:user user
-                   :loading? loading?
-                   :logged-in? (some? user)}}
-          children)))
+   ;; context/auth.cljs - thin wrapper using bashketball-ui's configurable auth
+   (ns bashketball-game-ui.context.auth
+     (:require
+      [bashketball-game-ui.config :as config]
+      [bashketball-game-ui.hooks.use-me :refer [use-me]]
+      [bashketball-ui.context.auth :as auth]))
+
+   ;; Create auth provider configured with our user hook
+   (def auth-provider
+     (auth/create-auth-provider {:use-user-hook use-me}))
+
+   ;; Re-export use-auth for convenience
+   (def use-auth auth/use-auth)
+
+   ;; Create logout function for our API
+   (def logout!
+     (auth/create-logout-fn {:logout-url (str config/api-base-url "/auth/logout")}))
    ```
 
 3. **Google OAuth flow**
@@ -173,9 +199,20 @@ bashketball-game-ui/
    - OAuth callback view handles redirect from API
    - API sets session cookie, UI refetches user
 
-4. **Protected routes**
-   - Wrap authenticated routes with guard component
-   - Redirect to home if not logged in
+4. **Protected routes** (using bashketball-ui)
+   ```clojure
+   ;; Use protected-route for redirect behavior
+   (require '[bashketball-ui.components.protected-route :refer [protected-route require-auth]])
+
+   ;; In router - redirects to "/" when not logged in
+   ($ rr/Route {:path "/decks" :element ($ protected-route)}
+      ($ rr/Route {:index true :element ($ decks-view)}))
+
+   ;; Or use require-auth to show login prompt instead
+   ($ require-auth {:login-url (str config/api-base-url "/auth/google/login")
+                    :login-label "Sign in with Google"}
+      ($ protected-content))
+   ```
 
 ### Phase 3: Deck Management
 
@@ -669,11 +706,14 @@ bashketball-game-ui/
   camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
   binaryage/devtools {:mvn/version "1.0.7"}
 
+  ;; Shared UI components library
+  local/bashketball-ui {:local/root "../bashketball-ui"}
+
   ;; Shared schemas (CLJC)
-  bashketball-schemas {:local/root "../bashketball-schemas"}
+  local/bashketball-schemas {:local/root "../bashketball-schemas"}
 
   ;; Game logic (CLJC - shared with API)
-  bashketball-game {:local/root "../bashketball-game"}}
+  local/bashketball-game {:local/root "../bashketball-game"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {local/cljs-tlr {:local/root "../cljs-tlr"}}}}}
@@ -686,19 +726,11 @@ bashketball-game-ui/
     "@apollo/client": "^3.11.0",
     "@radix-ui/react-dialog": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.0",
-    "@radix-ui/react-label": "^2.1.0",
-    "@radix-ui/react-select": "^2.1.0",
-    "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
     "graphql": "^16.9.0",
-    "lucide-react": "^0.460.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.9.6",
-    "tailwind-merge": "^2.5.0",
     "zen-observable": "^0.10.0"
   },
   "devDependencies": {
@@ -712,7 +744,14 @@ bashketball-game-ui/
 }
 ```
 
-Note: SSE uses the browser's native `EventSource` API. `zen-observable` provides
+**Note**: Many npm dependencies are provided by `bashketball-ui` and don't need to be
+duplicated here:
+- `@radix-ui/react-select`, `@radix-ui/react-label`, `@radix-ui/react-slot` (UI components)
+- `class-variance-authority`, `clsx`, `tailwind-merge` (styling utilities)
+- `lucide-react` (icons)
+- `react-router-dom` (routing)
+
+SSE uses the browser's native `EventSource` API. `zen-observable` provides
 the Observable implementation required by Apollo's custom link API.
 
 ## API Alignment
@@ -806,20 +845,20 @@ The `bashketball-game` package (CLJC library) provides pure game logic:
 
 ## Testing Strategy
 
-1. **Unit tests** - Individual components with cljs-tlr
+1. **Unit tests** - Game-specific components with cljs-tlr (UI primitives tested in bashketball-ui)
 2. **Hook tests** - Custom hooks with mock Apollo client
 3. **Integration tests** - Full user flows with mock API
 4. **E2E tests** - Playwright for critical paths (optional)
 
 ## Implementation Order
 
-1. Project scaffolding and build setup
-2. Core infrastructure (router, config, UI components)
-3. Authentication flow
-4. Basic deck list view
+1. Project scaffolding and build setup (deps.edn, shadow-cljs, Tailwind)
+2. Core infrastructure (config, integrate bashketball-ui)
+3. Authentication flow (auth context wrapper, Google OAuth)
+4. Basic deck list view (using bashketball-ui components)
 5. Deck builder
 6. Game lobby
 7. Game board (read-only)
 8. Game actions
-9. Real-time subscriptions
+9. Real-time subscriptions (SSE link)
 10. Polish and animations

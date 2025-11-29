@@ -1,0 +1,23 @@
+{:paths ["src" "resources"]
+ :deps
+ {org.clojure/clojure {:mvn/version "1.12.2"}
+  org.clojure/clojurescript {:mvn/version "1.11.132"}
+  thheller/shadow-cljs {:mvn/version "2.28.21"}
+  com.pitch/uix.core {:mvn/version "1.4.4"}
+  com.pitch/uix.dom {:mvn/version "1.4.4"}
+  metosin/malli {:mvn/version "0.19.1"}
+  camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
+  binaryage/devtools {:mvn/version "1.0.7"}
+
+  ;; Shared UI components library
+  local/bashketball-ui {:local/root "../bashketball-ui"}
+
+  ;; Shared schemas (CLJC)
+  local/bashketball-schemas {:local/root "../bashketball-schemas"}
+
+  ;; Game logic (CLJC - shared with API)
+  local/bashketball-game {:local/root "../bashketball-game"}}
+
+ :aliases
+ {:test {:extra-paths ["test"]
+         :extra-deps {local/cljs-tlr {:local/root "../cljs-tlr"}}}}}

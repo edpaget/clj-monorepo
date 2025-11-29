@@ -4,11 +4,15 @@
   Defines the application's component system with dependencies between
   configuration, database, authentication, subscriptions, GraphQL, and HTTP server."
   (:require
+   [authn.core :as authn]
+   [bashketball-game-api.auth.google :as google-auth]
    [bashketball-game-api.config :as config]
+   [bashketball-game-api.handler :as handler]
    [bashketball-game-api.models.deck :as deck]
    [bashketball-game-api.models.game :as game]
    [bashketball-game-api.models.session :as session]
    [bashketball-game-api.models.user :as user]
+   [bashketball-game-api.services.auth :as auth-service]
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
@@ -69,17 +73,30 @@
 ;; ---------------------------------------------------------------------------
 ;; Services (Phase 3+)
 
-(defmethod ig/init-key ::auth-service [_ {:keys [_user-repo _config]}]
+(defmethod ig/init-key ::auth-service [_ {:keys [user-repo]}]
   (log/info "Creating auth service")
-  nil) ;; TODO: Implement in Phase 3
+  (auth-service/create-auth-service user-repo))
 
-(defmethod ig/init-key ::authenticator [_ {:keys [_auth-service _session-repo _config]}]
+(defmethod ig/init-key ::authenticator [_ {:keys [auth-service session-repo config]}]
   (log/info "Creating authenticator")
-  nil) ;; TODO: Implement in Phase 3
+  (authn/create-authenticator
+   {:credential-validator (:credential-validator auth-service)
+    :claims-provider (:claims-provider auth-service)
+    :session-store session-repo
+    :session-ttl-ms (get-in config [:session :ttl-ms])
+    :session-cookie-name (get-in config [:session :cookie-name])
+    :session-cookie-secure? (get-in config [:session :cookie-secure?])
+    :session-cookie-http-only? (get-in config [:session :cookie-http-only?])
+    :session-cookie-same-site (get-in config [:session :cookie-same-site])}))
 
-(defmethod ig/init-key ::google-oidc-client [_ {:keys [_config]}]
+(defmethod ig/init-key ::google-oidc-client [_ {:keys [config]}]
   (log/info "Creating Google OIDC client")
-  nil) ;; TODO: Implement in Phase 3
+  (let [google-config (:google config)]
+    (google-auth/create-google-oidc-client
+     {:client-id (:client-id google-config)
+      :client-secret (:client-secret google-config)
+      :redirect-uri (:redirect-uri google-config)
+      :scopes (:scopes google-config)})))
 
 ;; ---------------------------------------------------------------------------
 ;; Subscriptions (Phase 6)
@@ -98,25 +115,18 @@
 ;; ---------------------------------------------------------------------------
 ;; HTTP Handler & Server
 
-(defmethod ig/init-key ::handler [_ {:keys [_resolver-map
-                                            _google-oidc-client
-                                            _authenticator
-                                            _db-pool
-                                            _user-repo
-                                            _deck-repo
-                                            _game-repo
-                                            _subscription-manager
-                                            _config]}]
+(defmethod ig/init-key ::handler [_ {:keys [google-oidc-client
+                                            authenticator
+                                            db-pool
+                                            user-repo
+                                            config]}]
   (log/info "Creating HTTP handler")
-  ;; TODO: Implement full handler in later phases
-  ;; For now, return a simple health check handler
-  (fn [request]
-    (if (= (:uri request) "/health")
-      {:status 200
-       :headers {"Content-Type" "application/json"}
-       :body "{\"status\":\"ok\"}"}
-      {:status 404
-       :body "Not found"})))
+  (handler/create-handler
+   {:google-oidc-client google-oidc-client
+    :authenticator authenticator
+    :user-repo user-repo
+    :db-pool db-pool
+    :config config}))
 
 (defmethod ig/init-key ::server [_ {:keys [handler config port-override]}]
   (let [port (or port-override (get-in config [:server :port]))
@@ -167,14 +177,10 @@
    ::resolver-map {}
 
    ;; HTTP
-   ::handler {:resolver-map (ig/ref ::resolver-map)
-              :google-oidc-client (ig/ref ::google-oidc-client)
+   ::handler {:google-oidc-client (ig/ref ::google-oidc-client)
               :authenticator (ig/ref ::authenticator)
               :db-pool (ig/ref ::db-pool)
               :user-repo (ig/ref ::user-repo)
-              :deck-repo (ig/ref ::deck-repo)
-              :game-repo (ig/ref ::game-repo)
-              :subscription-manager (ig/ref ::subscription-manager)
               :config (ig/ref ::config)}
    ::server {:handler (ig/ref ::handler)
              :config (ig/ref ::config)}})

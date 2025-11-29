@@ -1,0 +1,47 @@
+{
+  "name": "bashketball-game-ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "js:build": "esbuild src/js/index.js --bundle --format=iife --outfile=public/js/libs.js",
+    "js:build:prod": "esbuild src/js/index.js --bundle --format=iife --minify --outdir=public/js --entry-names=[name]-[hash] --metafile=public/js/libs-meta.json",
+    "js:watch": "esbuild src/js/index.js --bundle --format=iife --outfile=public/js/libs.js --watch",
+    "dev": "npm run js:build && shadow-cljs watch app",
+    "build": "npm run js:build && shadow-cljs release app",
+    "test": "shadow-cljs compile test",
+    "test:watch": "shadow-cljs watch test",
+    "css:watch": "tailwindcss -i ./resources/public/css/input.css -o ./public/css/output.css --watch",
+    "css:build": "tailwindcss -i ./resources/public/css/input.css -o ./public/css/output.css --minify"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.14.0",
+    "@radix-ui/react-dialog": "^1.1.0",
+    "@radix-ui/react-dropdown-menu": "^2.1.0",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-select": "^2.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.0",
+    "@radix-ui/react-tooltip": "^1.1.0",
+    "@testing-library/dom": "^10.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.6.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "graphql": "^16.9.0",
+    "lucide-react": "^0.460.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.9.6",
+    "tailwind-merge": "^2.5.0",
+    "zen-observable": "^0.10.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.0",
+    "esbuild": "^0.27.0",
+    "global-jsdom": "^26.0.0",
+    "jsdom": "^26.0.0",
+    "postcss": "^8.4.0",
+    "shadow-cljs": "^2.28.21",
+    "tailwindcss": "^3.4.0"
+  }
+}
