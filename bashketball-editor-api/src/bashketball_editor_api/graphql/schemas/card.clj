@@ -1,158 +1,37 @@
 (ns bashketball-editor-api.graphql.schemas.card
-  "Malli schemas for Bashketball game cards.
+  "GraphQL card schemas for the editor API.
 
-  Defines the type system for all card types in the game, including:
-  - PlayerCard: Basketball player cards with stats
-  - AbilityCard: Special ability cards
-  - PlayCard: Single play action cards
-  - SplitPlayCard: Cards with offense/defense effects
-  - CoachingCard: Team-wide effect cards
-  - StandardActionCard: Cards available to all players
-  - TeamAssetCard: Persistent team resource cards
-
-  Cards are stored as EDN files in a Git repository and use `:name` as
-  the primary key within a set."
+   Re-exports card schemas from [[bashketball-schemas.card]] which include
+   GraphQL metadata. Defines API-specific input schemas and response wrappers."
   (:require
    [malli.core :as m]
-   [malli.util :as mu]))
+   [malli.util :as mu]
+   [bashketball-schemas.card :as base-card]
+   [bashketball-schemas.enums :as enums]))
 
-(def CardType
-  "Enum for card type discriminator."
-  [:enum {:graphql/type :CardType}
-   :card-type/PLAYER_CARD
-   :card-type/ABILITY_CARD
-   :card-type/SPLIT_PLAY_CARD
-   :card-type/PLAY_CARD
-   :card-type/COACHING_CARD
-   :card-type/STANDARD_ACTION_CARD
-   :card-type/TEAM_ASSET_CARD])
+;; =============================================================================
+;; Re-exports from bashketball-schemas (with GraphQL annotations)
+;; =============================================================================
 
-(def PlayerSize
-  "Enum for player sizes."
-  [:enum {:graphql/type :PlayerSize}
-   :size/SM
-   :size/MD
-   :size/LG])
+(def CardType enums/CardType)
+(def PlayerSize enums/Size)
 
-(def Card
-  "Base card schema shared by all card types.
+(def BaseCard base-card/BaseCard)
+(def Card base-card/Card)
+(def GameCard base-card/Card)
+(def PlayerCard base-card/PlayerCard)
+(def AbilityCard base-card/AbilityCard)
+(def PlayCard base-card/PlayCard)
+(def StandardActionCard base-card/StandardActionCard)
+(def SplitPlayCard base-card/SplitPlayCard)
+(def CoachingCard base-card/CoachingCard)
+(def TeamAssetCard base-card/TeamAssetCard)
+(def CardSet base-card/CardSet)
+(def card-type->schema base-card/card-type->schema)
 
-  Cards use `slug` as the primary key within a set. The slug is a URL-safe
-  version of the name (lowercase, alphanumeric with hyphens). The `set-slug`
-  is also a slug referencing the parent CardSet."
-  [:map {:graphql/interface :Card}
-   [:slug :string]
-   [:name :string]
-   [:set-slug :string]
-   [:image-prompt {:optional true} [:maybe :string]]
-   [:card-type CardType]
-   [:created-at {:optional true} [:maybe :string]]
-   [:updated-at {:optional true} [:maybe :string]]])
-
-(def PlayerCard
-  "Player cards represent basketball players with stats."
-  (mu/merge
-   Card
-   [:map {:graphql/type :PlayerCard}
-    [:card-type [:= :card-type/PLAYER_CARD]]
-    [:deck-size :int]
-    [:sht :int]
-    [:pss :int]
-    [:def :int]
-    [:speed :int]
-    [:size PlayerSize]
-    [:abilities [:vector :string]]]))
-
-(def AbilityCard
-  "Ability cards provide special powers."
-  (mu/merge
-   Card
-   [:map {:graphql/type :AbilityCard}
-    [:card-type [:= :card-type/ABILITY_CARD]]
-    [:abilities [:vector :string]]]))
-
-(def CardWithFate
-  "Intermediate schema for cards with fate values."
-  (mu/merge
-   Card
-   [:map
-    [:fate :int]]))
-
-(def SplitPlayCard
-  "Split play cards have both offense and defense effects."
-  (mu/merge
-   CardWithFate
-   [:map {:graphql/type :SplitPlayCard}
-    [:card-type [:= :card-type/SPLIT_PLAY_CARD]]
-    [:offense :string]
-    [:defense :string]]))
-
-(def PlayCard
-  "Play cards describe a single play action."
-  (mu/merge
-   CardWithFate
-   [:map {:graphql/type :PlayCard}
-    [:card-type [:= :card-type/PLAY_CARD]]
-    [:play :string]]))
-
-(def CoachingCard
-  "Coaching cards provide team-wide effects."
-  (mu/merge
-   CardWithFate
-   [:map {:graphql/type :CoachingCard}
-    [:card-type [:= :card-type/COACHING_CARD]]
-    [:coaching :string]]))
-
-(def StandardActionCard
-  "Standard action cards available to all players."
-  (mu/merge
-   CardWithFate
-   [:map {:graphql/type :StandardActionCard}
-    [:card-type [:= :card-type/STANDARD_ACTION_CARD]]
-    [:offense :string]
-    [:defense :string]]))
-
-(def TeamAssetCard
-  "Team asset cards represent persistent team resources."
-  (mu/merge
-   CardWithFate
-   [:map {:graphql/type :TeamAssetCard}
-    [:card-type [:= :card-type/TEAM_ASSET_CARD]]
-    [:asset-power :string]]))
-
-(def GameCard
-  "Union type for all card types, dispatched by :card-type."
-  [:multi {:dispatch :card-type
-           :graphql/type :GameCard}
-   [:card-type/PLAYER_CARD PlayerCard]
-   [:card-type/ABILITY_CARD AbilityCard]
-   [:card-type/SPLIT_PLAY_CARD SplitPlayCard]
-   [:card-type/PLAY_CARD PlayCard]
-   [:card-type/COACHING_CARD CoachingCard]
-   [:card-type/STANDARD_ACTION_CARD StandardActionCard]
-   [:card-type/TEAM_ASSET_CARD TeamAssetCard]])
-
-(def card-type->schema
-  "Map from card type enum to its schema."
-  {:card-type/PLAYER_CARD PlayerCard
-   :card-type/ABILITY_CARD AbilityCard
-   :card-type/SPLIT_PLAY_CARD SplitPlayCard
-   :card-type/PLAY_CARD PlayCard
-   :card-type/COACHING_CARD CoachingCard
-   :card-type/STANDARD_ACTION_CARD StandardActionCard
-   :card-type/TEAM_ASSET_CARD TeamAssetCard})
-
-(def CardSet
-  "Schema for card set metadata.
-
-  Sets use `slug` (URL-safe string derived from the name) for identification
-  and file storage paths."
-  [:map {:graphql/type :CardSet}
-   [:slug :string]
-   [:name :string]
-   [:description {:optional true} [:maybe :string]]
-   [:created-at {:optional true} [:maybe :string]]
-   [:updated-at {:optional true} [:maybe :string]]])
+;; =============================================================================
+;; Input schemas (GraphQL mutation inputs - API-specific)
+;; =============================================================================
 
 (def PlayerCardInput
   "Input schema for creating/updating player cards."
@@ -232,7 +111,7 @@
 (def CardUpdateInput
   "Input schema for generic card updates.
 
-  Note: slug cannot be updated as it's the primary key."
+   Note: slug cannot be updated as it's the primary key."
   [:map {:graphql/type :CardUpdateInput}
    [:name {:optional true} :string]
    [:image-prompt {:optional true} [:maybe :string]]
@@ -249,6 +128,10 @@
    [:play {:optional true} :string]
    [:coaching {:optional true} :string]
    [:asset-power {:optional true} :string]])
+
+;; =============================================================================
+;; Response wrappers (GraphQL-specific)
+;; =============================================================================
 
 (def PageInfo
   "Pagination metadata."
@@ -269,8 +152,12 @@
   [:map {:graphql/type :CardSetsResponse}
    [:data [:vector CardSet]]])
 
+;; =============================================================================
+;; Internal schemas (for storage with inst timestamps)
+;; =============================================================================
+
 (def InternalCard
-  "Internal schema for card storage (with slug set-slug and inst timestamps)."
+  "Internal schema for card storage (with inst timestamps)."
   [:map
    [:slug :string]
    [:name :string]
@@ -281,7 +168,7 @@
    [:updated-at {:optional true} inst?]])
 
 (def InternalPlayerCard
-  "Internal schema for player cards."
+  "Internal schema for player cards with inst timestamps."
   (mu/merge
    InternalCard
    [:map
@@ -303,6 +190,10 @@
    :card-type/COACHING_CARD CoachingCard
    :card-type/STANDARD_ACTION_CARD StandardActionCard
    :card-type/TEAM_ASSET_CARD TeamAssetCard})
+
+;; =============================================================================
+;; Validation functions
+;; =============================================================================
 
 (defn validate-card
   "Validates a card against its type-specific schema."

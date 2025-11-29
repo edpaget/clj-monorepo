@@ -16,6 +16,8 @@ This monorepo contains the following projects:
 | **oidc-github** | GitHub OAuth/OIDC integration for both provider and client-side authentication |
 | **oidc-google** | Google OIDC integration with ID token validation, refresh tokens, and provider-side authentication |
 | **cljs-tlr** | ClojureScript wrapper for @testing-library/react with JSDom support |
+| **bashketball-schemas** | Shared Malli schemas for Bashketball ecosystem (cards, enums, user) |
+| **bashketball-game** | CLJC game state engine for Bashketball with data-driven actions and Malli validation |
 
 ## Applications
 
@@ -84,6 +86,16 @@ Trading card game editor frontend built with ClojureScript and React.
 React Testing Library wrapper for ClojureScript.
 - **Namespaces**: `cljs-tlr.core`, `cljs-tlr.render`, `cljs-tlr.screen`, `cljs-tlr.user-event`, `cljs-tlr.async`, `cljs-tlr.fixtures`
 - **Features**: JSDom setup via shadow-cljs `:prepend-js`, UIx support
+
+### bashketball-schemas
+Shared Malli schemas for the Bashketball trading card game ecosystem.
+- **Namespaces**: `bashketball-schemas.core`, `bashketball-schemas.enums`, `bashketball-schemas.card`, `bashketball-schemas.user`
+- **Features**: CLJC (works in Clojure and ClojureScript), card type schemas, shared enums (CardType, Size, GameStatus, Team, GamePhase)
+
+### bashketball-game
+Game state engine for Bashketball trading card game.
+- **Namespaces**: `bashketball-game.schema`, `bashketball-game.state`, `bashketball-game.board`, `bashketball-game.actions`, `bashketball-game.event-log`
+- **Features**: CLJC, data-driven actions with Malli validation, 5x14 hex board, event log for replay
 
 ---
 

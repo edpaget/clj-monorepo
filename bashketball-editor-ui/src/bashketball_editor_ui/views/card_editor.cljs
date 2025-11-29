@@ -15,6 +15,7 @@
    [bashketball-editor-ui.hooks.form :as form]
    [bashketball-editor-ui.hooks.sets :refer [use-sets]]
    [bashketball-editor-ui.router :as router]
+   [bashketball-schemas.enums :as enums]
    [clojure.string :as str]
    [uix.core :refer [$ defui use-state use-effect]]))
 
@@ -22,10 +23,18 @@
 ;; Field definitions - declarative schema for each card type
 ;; -----------------------------------------------------------------------------
 
+(def size-labels
+  "Human-readable labels for player sizes."
+  {:size/SM "Small"
+   :size/MD "Medium"
+   :size/LG "Large"})
+
 (def size-options
-  [{:value "SM" :label "Small"}
-   {:value "MD" :label "Medium"}
-   {:value "LG" :label "Large"}])
+  "Size options derived from bashketball-schemas."
+  (mapv (fn [s]
+          {:value (name s)
+           :label (get size-labels s (name s))})
+        (enums/enum-values enums/Size)))
 
 (def common-fields
   [{:key :name :label "Card Name" :type :text :placeholder "Enter card name..."}

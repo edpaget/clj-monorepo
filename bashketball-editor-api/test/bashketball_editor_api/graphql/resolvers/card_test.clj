@@ -142,7 +142,7 @@
                                             :input {:slug "new-player" :name "New Player"}} nil)]
       (is (= "new-player" (:slug result)))
       (is (= "New Player" (:name result)))
-      (is (= :card-type/PLAYER_CARD (:cardType result))))))
+      (is (= "PLAYER_CARD" (:cardType result))))))
 
 (deftest update-card-mutation-test
   (testing "requires authentication"

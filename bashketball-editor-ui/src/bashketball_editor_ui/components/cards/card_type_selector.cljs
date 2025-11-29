@@ -1,20 +1,33 @@
 (ns bashketball-editor-ui.components.cards.card-type-selector
-  "Card type selector dropdown component."
+  "Card type selector dropdown component.
+
+   Card types are derived from [[bashketball-schemas.enums/CardType]]
+   to ensure consistency with the backend."
   (:require
    [bashketball-editor-ui.components.ui.select :refer [select]]
    [bashketball-editor-ui.router :as router]
+   [bashketball-schemas.enums :as enums]
+   [clojure.string :as str]
    [uix.core :refer [$ defui]]))
 
 (def all-types-value "__all__")
 
+(def card-type-labels
+  "Human-readable labels for card types."
+  {:card-type/PLAYER_CARD "Player"
+   :card-type/PLAY_CARD "Play"
+   :card-type/ABILITY_CARD "Ability"
+   :card-type/SPLIT_PLAY_CARD "Split Play"
+   :card-type/COACHING_CARD "Coaching"
+   :card-type/TEAM_ASSET_CARD "Team Asset"
+   :card-type/STANDARD_ACTION_CARD "Standard Action"})
+
 (def card-types
-  [{:value "PLAYER_CARD" :label "Player"}
-   {:value "PLAY_CARD" :label "Play"}
-   {:value "ABILITY_CARD" :label "Ability"}
-   {:value "SPLIT_PLAY_CARD" :label "Split Play"}
-   {:value "COACHING_CARD" :label "Coaching"}
-   {:value "TEAM_ASSET_CARD" :label "Team Asset"}
-   {:value "STANDARD_ACTION_CARD" :label "Standard Action"}])
+  "Card type options derived from bashketball-schemas."
+  (mapv (fn [ct]
+          {:value (name ct)
+           :label (get card-type-labels ct (-> ct name (str/replace "_" " ")))})
+        (enums/enum-values enums/CardType)))
 
 (defui card-type-selector
   "Dropdown selector for filtering cards by type.
