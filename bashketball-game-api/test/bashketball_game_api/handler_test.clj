@@ -20,14 +20,6 @@
       (is (= 200 (:status response)))
       (is (= "ok" (get-in response [:body :status]))))))
 
-(deftest me-endpoint-unauthenticated-test
-  (testing "Me endpoint returns 401 when not authenticated"
-    (let [response (http/get (str (base-url) "/api/me")
-                             {:throw-exceptions false})
-          body     (json/parse-string (:body response) true)]
-      (is (= 401 (:status response)))
-      (is (= "Not authenticated" (:error body))))))
-
 (deftest not-found-test
   (testing "Unknown routes return 404"
     (let [response (http/get (str (base-url) "/unknown")
@@ -50,9 +42,9 @@
   (testing "CORS preflight returns 204"
     (let [response (http/request
                     {:method :options
-                     :url (str (base-url) "/api/me")
+                     :url (str (base-url) "/graphql")
                      :headers {"Origin" "http://localhost:3003"
-                               "Access-Control-Request-Method" "GET"}
+                               "Access-Control-Request-Method" "POST"}
                      :throw-exceptions false})]
       (is (= 204 (:status response)))
       (is (= "http://localhost:3003"

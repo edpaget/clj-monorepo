@@ -7,12 +7,15 @@
    [authn.core :as authn]
    [bashketball-game-api.auth.google :as google-auth]
    [bashketball-game-api.config :as config]
+   [bashketball-game-api.graphql.resolvers.card :as card-resolvers]
+   [bashketball-game-api.graphql.resolvers.user :as user-resolvers]
    [bashketball-game-api.handler :as handler]
    [bashketball-game-api.models.deck :as deck]
    [bashketball-game-api.models.game :as game]
    [bashketball-game-api.models.session :as session]
    [bashketball-game-api.models.user :as user]
    [bashketball-game-api.services.auth :as auth-service]
+   [bashketball-game-api.services.catalog :as catalog]
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
@@ -71,6 +74,13 @@
   (game/create-game-repository))
 
 ;; ---------------------------------------------------------------------------
+;; Card Catalog (Phase 4)
+
+(defmethod ig/init-key ::card-catalog [_ _]
+  (log/info "Creating card catalog")
+  (catalog/create-card-catalog))
+
+;; ---------------------------------------------------------------------------
 ;; Services (Phase 3+)
 
 (defmethod ig/init-key ::auth-service [_ {:keys [user-repo]}]
@@ -108,9 +118,13 @@
 ;; ---------------------------------------------------------------------------
 ;; GraphQL (Phase 4+)
 
-(defmethod ig/init-key ::resolver-map [_ _]
+(defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog]}]
   (log/info "Creating GraphQL resolver map")
-  {}) ;; TODO: Implement in Phase 4+
+  {:resolvers (merge #_{:clj-kondo/ignore [:unresolved-var]}
+                     card-resolvers/resolvers
+                     #_{:clj-kondo/ignore [:unresolved-var]}
+                     user-resolvers/resolvers)
+   :card-catalog card-catalog})
 
 ;; ---------------------------------------------------------------------------
 ;; HTTP Handler & Server
@@ -119,6 +133,7 @@
                                             authenticator
                                             db-pool
                                             user-repo
+                                            resolver-map
                                             config]}]
   (log/info "Creating HTTP handler")
   (handler/create-handler
@@ -126,6 +141,7 @@
     :authenticator authenticator
     :user-repo user-repo
     :db-pool db-pool
+    :resolver-map resolver-map
     :config config}))
 
 (defmethod ig/init-key ::server [_ {:keys [handler config port-override]}]
@@ -164,6 +180,9 @@
    ::deck-repo {:migrate (ig/ref ::migrate)}
    ::game-repo {:migrate (ig/ref ::migrate)}
 
+   ;; Card Catalog
+   ::card-catalog {}
+
    ;; Services
    ::auth-service {:user-repo (ig/ref ::user-repo)
                    :config (ig/ref ::config)}
@@ -174,13 +193,14 @@
    ::subscription-manager {}
 
    ;; GraphQL
-   ::resolver-map {}
+   ::resolver-map {:card-catalog (ig/ref ::card-catalog)}
 
    ;; HTTP
    ::handler {:google-oidc-client (ig/ref ::google-oidc-client)
               :authenticator (ig/ref ::authenticator)
               :db-pool (ig/ref ::db-pool)
               :user-repo (ig/ref ::user-repo)
+              :resolver-map (ig/ref ::resolver-map)
               :config (ig/ref ::config)}
    ::server {:handler (ig/ref ::handler)
              :config (ig/ref ::config)}})

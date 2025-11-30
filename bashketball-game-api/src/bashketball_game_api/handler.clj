@@ -9,6 +9,7 @@
    [cheshire.core :as json]
    [clojure.string :as str]
    [db.core :as db]
+   [graphql-server.ring :as gql-ring]
    [oidc.ring :as oidc-ring]
    [ring.middleware.cookies :refer [wrap-cookies]]
    [ring.middleware.params :refer [wrap-params]]
@@ -28,27 +29,14 @@
   [_request]
   (json-response {:status "ok"} 200))
 
-(defn me-handler
-  "Returns the current authenticated user."
-  [request]
-  (if (:authn/authenticated? request)
-    (json-response {:id (:authn/user-id request)
-                    :claims (:authn/claims request)}
-                   200)
-    (json-response {:error "Not authenticated"} 401)))
-
 (defn routes
   "Main application routes."
   [_opts]
   (fn [request]
-    (let [uri    (:uri request)
-          method (:request-method request)]
+    (let [uri (:uri request)]
       (cond
         (= uri "/health")
         (health-handler request)
-
-        (and (= method :get) (= uri "/api/me"))
-        (me-handler request)
 
         :else
         (json-response {:error "Not found"} 404)))))
@@ -109,6 +97,12 @@
     (binding [db/*datasource* db-pool]
       (handler request))))
 
+(defn wrap-resolver-map
+  "Middleware that attaches the resolver-map to the request for GraphQL context."
+  [handler resolver-map]
+  (fn [request]
+    (handler (assoc request :resolver-map resolver-map))))
+
 (defn create-handler
   "Creates the main Ring handler with all middleware applied.
 
@@ -117,14 +111,22 @@
   - `:authenticator` - Authn authenticator instance
   - `:user-repo` - User repository
   - `:db-pool` - Database connection pool
+  - `:resolver-map` - GraphQL resolver map with :resolvers and :card-catalog
   - `:config` - Application configuration"
-  [{:keys [google-oidc-client authenticator user-repo db-pool config]}]
+  [{:keys [google-oidc-client authenticator user-repo db-pool resolver-map config]}]
   (let [session-config  (:session config)
         google-config   (:google config)
         cors-config     (:cors config)
         allowed-origins (:allowed-origins cors-config)
         cookie-secret   (.getBytes ^String (:cookie-secret session-config))]
     (-> (routes {})
+        ;; GraphQL middleware (before auth so we can check auth in resolvers)
+        (gql-ring/graphql-middleware
+         {:path "/graphql"
+          :resolver-map (:resolvers resolver-map)
+          :context-fn (fn [req]
+                        {:request req})
+          :enable-graphiql? true})
         ;; Authentication middleware
         (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)
@@ -154,6 +156,8 @@
         wrap-json-response
         wrap-json-body
         wrap-params
+        ;; Resolver map for GraphQL context
+        (wrap-resolver-map resolver-map)
         ;; CORS
         (wrap-cors allowed-origins)
         ;; Database binding
