@@ -1,11 +1,12 @@
-name: Build and Deploy Bashketball Editor
+name: Build and Deploy Bashketball Game
 
 on:
   push:
     branches: [main]
     paths:
-      - 'bashketball-editor-api/**'
-      - 'bashketball-editor-ui/**'
+      - 'bashketball-game-api/**'
+      - 'bashketball-game-ui/**'
+      - 'bashketball-game/**'
       - 'bashketball-schemas/**'
       - 'bashketball-ui/**'
       - 'cljs-tlr/**'
@@ -13,16 +14,16 @@ on:
       - 'graphql-server/**'
       - 'authn/**'
       - 'oidc/**'
-      - 'oidc-github/**'
+      - 'oidc-google/**'
       - 'exclusive-initializer/**'
       - 'build/**'
-      - '.github/workflows/deploy-bashketball.yml'
+      - '.github/workflows/deploy-bashketball-game.yml'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/${{ github.repository_owner }}/bashketball-editor-api
-  UI_IMAGE: ghcr.io/${{ github.repository_owner }}/bashketball-editor-ui
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/bashketball-game-api
+  UI_IMAGE: ghcr.io/${{ github.repository_owner }}/bashketball-game-ui
 
 jobs:
   changes:
@@ -37,17 +38,19 @@ jobs:
         with:
           filters: |
             api:
-              - 'bashketball-editor-api/**'
+              - 'bashketball-game-api/**'
+              - 'bashketball-game/**'
               - 'bashketball-schemas/**'
               - 'db/**'
               - 'graphql-server/**'
               - 'authn/**'
               - 'oidc/**'
-              - 'oidc-github/**'
+              - 'oidc-google/**'
               - 'exclusive-initializer/**'
               - 'build/**'
             ui:
-              - 'bashketball-editor-ui/**'
+              - 'bashketball-game-ui/**'
+              - 'bashketball-game/**'
               - 'bashketball-schemas/**'
               - 'bashketball-ui/**'
               - 'cljs-tlr/**'
@@ -85,7 +88,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./bashketball-editor-api/Dockerfile
+          file: ./bashketball-game-api/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -125,7 +128,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./bashketball-editor-ui/Dockerfile
+          file: ./bashketball-game-ui/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -150,15 +153,15 @@ jobs:
 
           # Update API image tag if API was built
           if [[ "${{ needs.build-api.result }}" == "success" ]]; then
-            sed -i "s|image: ghcr.io/edpaget/bashketball-editor-api:.*|image: ghcr.io/edpaget/bashketball-editor-api:${{ github.sha }}|" \
-              apps/base/bashketball/api.yaml
+            sed -i "s|image: ghcr.io/edpaget/bashketball-game-api:.*|image: ghcr.io/edpaget/bashketball-game-api:${{ github.sha }}|" \
+              apps/base/bashketball-game/api.yaml
             echo "Updated API image to ${{ github.sha }}"
           fi
 
           # Update UI image tag if UI was built
           if [[ "${{ needs.build-ui.result }}" == "success" ]]; then
-            sed -i "s|image: ghcr.io/edpaget/bashketball-editor-ui:.*|image: ghcr.io/edpaget/bashketball-editor-ui:${{ github.sha }}|" \
-              apps/base/bashketball/ui.yaml
+            sed -i "s|image: ghcr.io/edpaget/bashketball-game-ui:.*|image: ghcr.io/edpaget/bashketball-game-ui:${{ github.sha }}|" \
+              apps/base/bashketball-game/ui.yaml
             echo "Updated UI image to ${{ github.sha }}"
           fi
 
@@ -171,6 +174,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Deploy bashketball-editor ${{ github.sha }}"
+            git commit -m "Deploy bashketball-game ${{ github.sha }}"
             git push
           fi
