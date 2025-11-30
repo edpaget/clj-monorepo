@@ -133,6 +133,7 @@
 
   (update-deck! [this deck-id user-id updates]
     (when (get-deck-for-user this deck-id user-id)
+      (prn "UPDATES" updates)
       (let [allowed-keys #{:name :card-slugs}
             filtered     (select-keys updates allowed-keys)]
         (when (seq filtered)

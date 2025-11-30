@@ -22,7 +22,7 @@
 (def UPDATE_DECK_MUTATION
   "Mutation to update an existing deck."
   (apollo/gql "
-    mutation UpdateDeck($id: ID!, $name: String, $cardSlugs: [String!]) {
+    mutation UpdateDeck($id: Uuid!, $name: String, $cardSlugs: [String!]) {
       updateDeck(id: $id, name: $name, cardSlugs: $cardSlugs) {
         id
         name
@@ -36,7 +36,7 @@
 (def DELETE_DECK_MUTATION
   "Mutation to delete a deck."
   (apollo/gql "
-    mutation DeleteDeck($id: ID!) {
+    mutation DeleteDeck($id: Uuid!) {
       deleteDeck(id: $id)
     }
   "))
@@ -44,7 +44,7 @@
 (def VALIDATE_DECK_MUTATION
   "Mutation to validate a deck server-side."
   (apollo/gql "
-    mutation ValidateDeck($id: ID!) {
+    mutation ValidateDeck($id: Uuid!) {
       validateDeck(id: $id) {
         id
         isValid

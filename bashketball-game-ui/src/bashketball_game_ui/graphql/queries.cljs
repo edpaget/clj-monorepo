@@ -105,7 +105,7 @@
 (def DECK_QUERY
   "Query for a single deck with resolved cards."
   (apollo/gql "
-    query Deck($id: String!) {
+    query Deck($id: Uuid!) {
       deck(id: $id) {
         id
         name

@@ -10,7 +10,6 @@
    [bashketball-ui.components.input :refer [input]]
    [bashketball-ui.components.loading :refer [button-spinner]]
    [bashketball-ui.router :as router]
-   [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui use-state]]))
 
 (defui create-deck-dialog

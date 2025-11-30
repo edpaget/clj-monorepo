@@ -4,7 +4,7 @@
   Provides Malli schemas for deck validation and card type helpers."
   (:require
    [bashketball-schemas.card :as card]
-   [bashketball-schemas.enums :as enums]))
+   [bashketball-schemas.core :as schemas]))
 
 (def Deck
   "Schema for a deck after decoding from GraphQL.
@@ -16,7 +16,9 @@
    [:card-slugs [:vector card/Slug]]
    [:cards {:optional true} [:vector card/Card]]
    [:is-valid :boolean]
-   [:validation-errors {:optional true} [:vector :string]]])
+   [:validation-errors {:optional true} [:vector :string]]
+   [:created-at {:optional true} [:maybe schemas/DateTime]]
+   [:updated-at {:optional true} [:maybe schemas/DateTime]]])
 
 (def deck-rules
   "Deck validation rules for the UI."
@@ -29,7 +31,6 @@
 (defn player-card?
   "Returns true if the card is a player card."
   [card]
-  (prn card)
   (= (:card-type card) :card-type/PLAYER_CARD))
 
 (defn action-card?

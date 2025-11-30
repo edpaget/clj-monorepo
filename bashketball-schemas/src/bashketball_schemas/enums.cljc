@@ -2,7 +2,9 @@
   "Shared enumerations for the Bashketball ecosystem.
 
    Provides Malli enum schemas used across game logic, APIs, and UIs.
-   All enums use namespaced keywords for clarity and to avoid conflicts.")
+   All enums use namespaced keywords for clarity and to avoid conflicts."
+  (:require
+   [clojure.string :as str]))
 
 (def CardType
   "Card type enumeration for all Bashketball card types.
@@ -103,7 +105,7 @@
   (mapv (fn [k]
           {:value (name k)
            :label (-> k name
-                      (clojure.string/replace "_" " ")
-                      clojure.string/lower-case
-                      clojure.string/capitalize)})
+                      (str/replace "_" " ")
+                      str/lower-case
+                      str/capitalize)})
         (enum-values enum-schema)))

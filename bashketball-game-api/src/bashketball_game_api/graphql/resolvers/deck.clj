@@ -4,20 +4,37 @@
   Provides Query resolvers for listing and fetching decks, and Mutation
   resolvers for deck CRUD operations. All deck operations require authentication."
   (:require
+   [bashketball-game-api.services.catalog :as catalog]
    [bashketball-game-api.services.deck :as deck-svc]
    [bashketball-schemas.card :as card-schema]
-   [bashketball-game-api.services.catalog :as catalog]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
 (def Deck
-  "GraphQL schema for Deck type."
+  "GraphQL schema for Deck type.
+
+  Used for GraphQL schema generation. Defines the complete Deck type including
+  the `cards` field which is resolved lazily by the `Deck.cards` field resolver."
   [:map {:graphql/type :Deck}
    [:id :uuid]
    [:name :string]
    [:cardSlugs [:vector :string]]
    [:cards [:vector card-schema/Card]]
    [:isValid :boolean]
-   [:validationErrors {:optional true} [:maybe [:vector :string]]]])
+   [:validationErrors {:optional true} [:vector :string]]])
+
+(def DeckResponse
+  "Schema for deck data returned by resolvers.
+
+  Separate from [[Deck]] because resolvers return partial data - the `cards`
+  field is populated by the `Deck.cards` field resolver, not by the query/mutation
+  resolvers directly. This schema makes `cards` optional for Malli validation."
+  [:map {:graphql/type :Deck}
+   [:id :uuid]
+   [:name :string]
+   [:cardSlugs [:vector :string]]
+   [:cards {:optional true} [:vector card-schema/Card]]
+   [:isValid :boolean]
+   [:validationErrors {:optional true} [:vector :string]]])
 
 (defn- get-user-id
   "Extracts and parses the user ID from the request context."
@@ -55,7 +72,7 @@
 
 (defresolver :Query :myDecks
   "Returns all decks owned by the authenticated user."
-  [:=> [:cat :any :any :any] [:vector Deck]]
+  [:=> [:cat :any :any :any] [:vector DeckResponse]]
   [ctx _args _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
@@ -64,28 +81,27 @@
 
 (defresolver :Query :deck
   "Returns a deck by ID if owned by the authenticated user."
-  [:=> [:cat :any [:map [:id :string]] :any] [:maybe Deck]]
+  [:=> [:cat :any [:map [:id :uuid]] :any] [:maybe DeckResponse]]
   [ctx {:keys [id]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
-        user-id      (get-user-id ctx)
-        deck-id      (parse-uuid id)]
-    (when-let [deck (deck-svc/get-deck-for-user deck-service deck-id user-id)]
+        user-id      (get-user-id ctx)]
+    (when-let [deck (deck-svc/get-deck-for-user deck-service id user-id)]
       (deck->graphql deck))))
 
 (defresolver :Deck :cards
   "Returns cards in a given deck"
   [:=> [:cat :any :any :any] [:vector card-schema/Card]]
-  [ctx _args {:keys [card-slugs]}]
+  [ctx _args {:keys [cardSlugs]}]
   (let [card-catalog (get-in ctx [:request :resolver-map :card-catalog])]
-    (mapv #(catalog/get-card card-catalog %) card-slugs)))
+    (mapv #(catalog/get-card card-catalog %) cardSlugs)))
 
 ;; ---------------------------------------------------------------------------
 ;; Mutation Resolvers
 
 (defresolver :Mutation :createDeck
   "Creates a new empty deck for the authenticated user."
-  [:=> [:cat :any [:map [:name :string]] :any] Deck]
+  [:=> [:cat :any [:map [:name :string]] :any] DeckResponse]
   [ctx {:keys [name]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
@@ -96,64 +112,59 @@
 (defresolver :Mutation :updateDeck
   "Updates a deck's name and/or card list."
   [:=> [:cat :any [:map
-                   [:id :string]
+                   [:id :uuid]
                    [:name {:optional true} [:maybe :string]]
-                   [:cardSlugs {:optional true} [:maybe [:vector :string]]]] :any]
-   [:maybe Deck]]
-  [ctx {:keys [id name cardSlugs]} _value]
+                   [:card-slugs {:optional true} [:vector :string]]] :any]
+   [:maybe DeckResponse]]
+  [ctx {:keys [id name card-slugs]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
         user-id      (get-user-id ctx)
-        deck-id      (parse-uuid id)
         updates      (cond-> {}
                        name (assoc :name name)
-                       cardSlugs (assoc :card-slugs cardSlugs))]
-    (when-let [deck (deck-svc/update-deck! deck-service deck-id user-id updates)]
+                       card-slugs (assoc :card-slugs card-slugs))]
+    (when-let [deck (deck-svc/update-deck! deck-service id user-id updates)]
       (deck->graphql deck))))
 
 (defresolver :Mutation :deleteDeck
   "Deletes a deck owned by the authenticated user."
-  [:=> [:cat :any [:map [:id :string]] :any] :boolean]
+  [:=> [:cat :any [:map [:id :uuid]] :any] :boolean]
   [ctx {:keys [id]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
-        user-id      (get-user-id ctx)
-        deck-id      (parse-uuid id)]
-    (boolean (deck-svc/delete-deck! deck-service deck-id user-id))))
+        user-id      (get-user-id ctx)]
+    (boolean (deck-svc/delete-deck! deck-service id user-id))))
 
 (defresolver :Mutation :validateDeck
   "Validates a deck and updates its validation state."
-  [:=> [:cat :any [:map [:id :string]] :any] [:maybe Deck]]
+  [:=> [:cat :any [:map [:id :uuid]] :any] [:maybe DeckResponse]]
   [ctx {:keys [id]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
-        user-id      (get-user-id ctx)
-        deck-id      (parse-uuid id)]
-    (when-let [deck (deck-svc/validate-deck! deck-service deck-id user-id)]
+        user-id      (get-user-id ctx)]
+    (when-let [deck (deck-svc/validate-deck! deck-service id user-id)]
       (deck->graphql deck))))
 
 (defresolver :Mutation :addCardsToDeck
   "Adds cards to an existing deck."
-  [:=> [:cat :any [:map [:id :string] [:cardSlugs [:vector :string]]] :any]
-   [:maybe Deck]]
-  [ctx {:keys [id cardSlugs]} _value]
+  [:=> [:cat :any [:map [:id :uuid] [:card-slugs [:vector :string]]] :any]
+   [:maybe DeckResponse]]
+  [ctx {:keys [id card-slugs]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
-        user-id      (get-user-id ctx)
-        deck-id      (parse-uuid id)]
-    (when-let [deck (deck-svc/add-cards-to-deck! deck-service deck-id user-id cardSlugs)]
+        user-id      (get-user-id ctx)]
+    (when-let [deck (deck-svc/add-cards-to-deck! deck-service id user-id card-slugs)]
       (deck->graphql deck))))
 
 (defresolver :Mutation :removeCardsFromDeck
   "Removes cards from an existing deck."
-  [:=> [:cat :any [:map [:id :string] [:cardSlugs [:vector :string]]] :any]
-   [:maybe Deck]]
-  [ctx {:keys [id cardSlugs]} _value]
+  [:=> [:cat :any [:map [:id :uuid] [:card-slugs [:vector :string]]] :any]
+   [:maybe DeckResponse]]
+  [ctx {:keys [id card-slugs]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
-        user-id      (get-user-id ctx)
-        deck-id      (parse-uuid id)]
-    (when-let [deck (deck-svc/remove-cards-from-deck! deck-service deck-id user-id cardSlugs)]
+        user-id      (get-user-id ctx)]
+    (when-let [deck (deck-svc/remove-cards-from-deck! deck-service id user-id card-slugs)]
       (deck->graphql deck))))
 
 (def-resolver-map)

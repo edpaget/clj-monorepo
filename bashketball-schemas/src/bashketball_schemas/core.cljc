@@ -16,7 +16,20 @@
    - [[bashketball-schemas.user]] - User schema"
   (:require [bashketball-schemas.card :as card]
             [bashketball-schemas.enums :as enums]
+            [bashketball-schemas.types :as types]
             [bashketball-schemas.user :as user]))
+
+;; =============================================================================
+;; Common Types
+;; =============================================================================
+
+(def iso8601-pattern
+  "Regex pattern for ISO8601 datetime strings. See [[types/iso8601-pattern]]."
+  types/iso8601-pattern)
+
+(def DateTime
+  "Cross-platform datetime schema. See [[types/DateTime]]."
+  types/DateTime)
 
 ;; =============================================================================
 ;; Enums

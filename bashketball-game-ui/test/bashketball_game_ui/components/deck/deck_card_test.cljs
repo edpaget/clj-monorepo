@@ -13,16 +13,16 @@
 (def valid-deck
   {:id "deck-1"
    :name "Test Deck"
-   :cardSlugs ["card-1" "card-2" "card-3"]
-   :isValid true
-   :validationErrors []})
+   :card-slugs ["card-1" "card-2" "card-3"]
+   :is-valid true
+   :validation-errors []})
 
 (def invalid-deck
   {:id "deck-2"
    :name "Invalid Deck"
-   :cardSlugs ["card-1"]
-   :isValid false
-   :validationErrors ["Need at least 3 player cards"]})
+   :card-slugs ["card-1"]
+   :is-valid false
+   :validation-errors ["Need at least 3 player cards"]})
 
 (t/deftest deck-card-renders-name-test
   (uix-tlr/render ($ deck-card {:deck valid-deck}))

@@ -12,14 +12,14 @@
 
 (def sample-deck
   {:name "My Deck"
-   :cardSlugs ["player-1" "player-1" "action-1" "action-2"]
-   :isValid false
-   :validationErrors ["Need at least 3 player cards"]})
+   :card-slugs ["player-1" "player-1" "action-1" "action-2"]
+   :is-valid false
+   :validation-errors ["Need at least 3 player cards"]})
 
 (def sample-cards
-  [{:slug "player-1" :name "Star Player" :cardType "PLAYER_CARD"}
-   {:slug "action-1" :name "Quick Pass" :cardType "COACHING_CARD"}
-   {:slug "action-2" :name "Fast Break" :cardType "STANDARD_ACTION_CARD"}])
+  [{:slug "player-1" :name "Star Player" :card-type :card-type/PLAYER_CARD}
+   {:slug "action-1" :name "Quick Pass" :card-type :card-type/COACHING_CARD}
+   {:slug "action-2" :name "Fast Break" :card-type :card-type/STANDARD_ACTION_CARD}])
 
 (t/deftest deck-builder-renders-title-test
   (uix-tlr/render ($ deck-builder {:deck sample-deck :cards sample-cards}))
@@ -34,7 +34,7 @@
   (t/is (some? (screen/get-by-text "Incomplete deck"))))
 
 (t/deftest deck-builder-renders-valid-status-test
-  (let [valid-deck (assoc sample-deck :isValid true :validationErrors [])]
+  (let [valid-deck (assoc sample-deck :is-valid true :validation-errors [])]
     (uix-tlr/render ($ deck-builder {:deck valid-deck :cards sample-cards}))
     (t/is (some? (screen/get-by-text "Valid deck")))))
 

@@ -3,7 +3,7 @@
 
   Displays available cards with filtering and allows adding to deck."
   (:require
-   ["lucide-react" :refer [Plus Search X]]
+   ["lucide-react" :refer [Plus Search]]
    [bashketball-game-ui.hooks.use-cards :refer [use-cards use-sets]]
    [bashketball-game-ui.schemas.deck :as deck-schema]
    [bashketball-ui.cards.card-list-item :refer [card-list-item card-list-item-skeleton]]

@@ -8,6 +8,7 @@
    the appropriate type-specific schema."
   (:require
    [bashketball-schemas.enums :as enums]
+   [bashketball-schemas.types :as types]
    [malli.util :as mu]))
 
 (def Slug
@@ -31,8 +32,8 @@
    [:set-slug Slug]
    [:card-type enums/CardType]
    [:image-prompt {:optional true} [:maybe :string]]
-   [:created-at {:optional true} [:maybe :string]]
-   [:updated-at {:optional true} [:maybe :string]]])
+   [:created-at {:optional true} [:maybe types/DateTime]]
+   [:updated-at {:optional true} [:maybe types/DateTime]]])
 
 (def PlayerCardFields
   "Fields specific to player cards.
@@ -161,5 +162,5 @@
    [:slug Slug]
    [:name [:string {:min 1 :max 255}]]
    [:description {:optional true} [:maybe :string]]
-   [:created-at {:optional true} [:maybe :string]]
-   [:updated-at {:optional true} [:maybe :string]]])
+   [:created-at {:optional true} [:maybe types/DateTime]]
+   [:updated-at {:optional true} [:maybe types/DateTime]]])

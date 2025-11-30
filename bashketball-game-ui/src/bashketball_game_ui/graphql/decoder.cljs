@@ -7,72 +7,90 @@
   - Converts JS objects/arrays to Clojure maps/vectors"
   (:require
    [camel-snake-kebab.core :as csk]
-   [malli.core :as m]
-   [malli.transform :as mt]))
+   [goog.object :as gobj]
+   [malli.core :as m]))
 
-(def ^:private enum-transformer
-  "Decodes string enum values to namespaced keywords.
+(defn- collect-enums
+  "Recursively collects all enum schemas from a Malli schema.
 
-  For `:enum` schemas with namespaced keyword options, converts string values
-  like `\"PLAYER_CARD\"` to `:card-type/PLAYER_CARD`."
-  (mt/transformer
-   {:decoders
-    {:enum
-     {:compile
-      (fn [schema _options]
-        (let [enum-options   (m/children schema)
-              enum-namespace (when-let [first-option (first enum-options)]
-                               (when (keyword? first-option)
-                                 (namespace first-option)))]
-          (fn [value]
-            (if (and enum-namespace (string? value))
-              (let [kw-value (keyword enum-namespace value)]
-                (if (some #(= kw-value %) enum-options)
-                  kw-value
-                  value))
-              value))))}}}))
+  Returns a map of {string-value -> namespaced-keyword} for all enums
+  that have namespaced keyword options."
+  [schema]
+  (let [result (atom {})]
+    (m/walk schema
+            (fn [s _path _children _options]
+              (when (= :enum (m/type s))
+                (let [options (m/children s)]
+                  (when (and (seq options)
+                             (keyword? (first options))
+                             (namespace (first options)))
+                    (doseq [opt options]
+                      (when (keyword? opt)
+                        (swap! result assoc (name opt) opt))))))
+              s))
+    @result))
 
-(def ^:private key-transformer
-  "Decodes map keys from camelCase strings to kebab-case keywords."
-  (mt/key-transformer
-   {:decode (fn [k]
-              (csk/->kebab-case-keyword (name k)))}))
+(defn- transform-value
+  "Transforms a value using the enum map if it's a matching string."
+  [enum-map value]
+  (if (string? value)
+    (get enum-map value value)
+    value))
 
-(def ^:private js->clj-transformer
-  "Converts JS objects and arrays to Clojure data structures.
+(defn- js->clj-decoded
+  "Converts a JavaScript value to Clojure with kebab-case keywords and decoded enums.
 
-  Handles the conversion of Apollo Client response objects to native
-  Clojure maps and vectors before other transformations are applied."
-  (mt/transformer
-   {:decoders
-    {:map
-     {:enter (fn [value]
-               (if (object? value)
-                 (js->clj value)
-                 value))}
-     :vector
-     {:enter (fn [value]
-               (if (array? value)
-                 (js->clj value)
-                 value))}}}))
+  Recursively processes JS objects to maps and JS arrays to vectors,
+  converting all object keys from camelCase strings to kebab-case keywords,
+  and transforming enum string values to namespaced keywords."
+  [enum-map x]
+  (cond
+    (object? x)
+    (into {}
+          (map (fn [k]
+                 [(csk/->kebab-case-keyword k)
+                  (js->clj-decoded enum-map (gobj/get x k))]))
+          (js-keys x))
 
-(def decoding-transformer
-  "Composite transformer for decoding GraphQL responses.
+    (array? x)
+    (mapv #(js->clj-decoded enum-map %) x)
 
-  Transforms Apollo Client responses into idiomatic Clojure data:
-  1. Convert JS objects/arrays to Clojure data structures
-  2. Transform map keys from camelCase to kebab-case keywords
-  3. Transform enum strings to namespaced keywords"
-  (mt/transformer
-   js->clj-transformer
-   key-transformer
-   enum-transformer))
+    (string? x)
+    (transform-value enum-map x)
+
+    :else x))
+
+(defn- clj->clj-decoded
+  "Transforms a Clojure data structure, converting enum strings to keywords."
+  [enum-map x]
+  (cond
+    (map? x)
+    (into {}
+          (map (fn [[k v]]
+                 [k (clj->clj-decoded enum-map v)]))
+          x)
+
+    (vector? x)
+    (mapv #(clj->clj-decoded enum-map %) x)
+
+    (sequential? x)
+    (map #(clj->clj-decoded enum-map %) x)
+
+    (string? x)
+    (transform-value enum-map x)
+
+    :else x))
 
 (defn decode
   "Decodes a GraphQL response value using the given Malli schema.
 
-  Transforms the JS object returned by Apollo Client into a Clojure map
-  with kebab-case keys and properly namespaced enum keywords.
+  Extracts enum definitions from the schema, then converts the value:
+  1. JS objects/arrays become Clojure maps/vectors
+  2. camelCase keys become kebab-case keywords
+  3. Enum string values become namespaced keywords
+
+  This approach handles multi-schema dispatch correctly because enum
+  values are transformed before Malli sees the data.
 
   Example:
     (decode card-schema/Card apollo-card)
@@ -81,11 +99,17 @@
     ;    :card-type :card-type/PLAYER_CARD
     ;    ...}"
   [schema value]
-  (m/decode schema value decoding-transformer))
+  (let [enum-map (collect-enums schema)]
+    (if (object? value)
+      (js->clj-decoded enum-map value)
+      (clj->clj-decoded enum-map value))))
 
 (defn decode-seq
   "Decodes a sequence of GraphQL response values using the given schema.
 
   Convenience function for decoding arrays of items like query results."
   [schema values]
-  (mapv #(decode schema %) values))
+  (let [enum-map (collect-enums schema)]
+    (if (array? values)
+      (mapv #(js->clj-decoded enum-map %) values)
+      (mapv #(clj->clj-decoded enum-map %) values))))

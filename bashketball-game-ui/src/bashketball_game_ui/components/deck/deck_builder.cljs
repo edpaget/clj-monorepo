@@ -54,25 +54,23 @@
   - `:on-remove-card` - Callback when a card is removed (receives card)
   - `:class` - Additional CSS classes"
   [{:keys [deck cards on-remove-card class]}]
-  (prn deck)
-  (prn cards)
-  (let [card-slugs                              (:card-slugs deck)
-        slug-counts                             (use-memo
-                                                 (fn [] (frequencies card-slugs))
-                                                 [card-slugs])
-        cards-by-slug                           (use-memo
-                                                 (fn []
-                                                   (into {} (map (juxt :slug identity)) cards))
-                                                 [cards])
-        unique-cards                            (use-memo
-                                                 (fn []
-                                                   (keep #(get cards-by-slug %) (distinct card-slugs)))
-                                                 [cards-by-slug card-slugs])
-        player-cards                            (filter deck-schema/player-card? unique-cards)
-        action-cards                            (filter deck-schema/action-card? unique-cards)
-        player-counts                           (select-keys slug-counts (map :slug player-cards))
-        action-counts                           (select-keys slug-counts (map :slug action-cards))
-        total-cards                             (count card-slugs)
+  (let [card-slugs                           (:card-slugs deck)
+        slug-counts                          (use-memo
+                                              (fn [] (frequencies card-slugs))
+                                              [card-slugs])
+        cards-by-slug                        (use-memo
+                                              (fn []
+                                                (into {} (map (juxt :slug identity)) cards))
+                                              [cards])
+        unique-cards                         (use-memo
+                                              (fn []
+                                                (keep #(get cards-by-slug %) (distinct card-slugs)))
+                                              [cards-by-slug card-slugs])
+        player-cards                         (filter deck-schema/player-card? unique-cards)
+        action-cards                         (filter deck-schema/action-card? unique-cards)
+        player-counts                        (select-keys slug-counts (map :slug player-cards))
+        action-counts                        (select-keys slug-counts (map :slug action-cards))
+        total-cards                          (count card-slugs)
         {:keys [is-valid validation-errors]} deck]
     ($ :div {:class (cn "flex flex-col h-full bg-white rounded-lg shadow border border-gray-200" class)}
        ($ :div {:class "p-4 border-b border-gray-200"}
