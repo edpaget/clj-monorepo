@@ -52,7 +52,7 @@
   (testing "exchanges code using oidc.authorization"
     (let [exchanged? (atom false)]
       (with-redefs [discovery/fetch-discovery-document (constantly mock-discovery)
-                    auth/exchange-code                 (fn [endpoint code client-id secret redirect _opts]
+                    auth/exchange-code                 (fn [endpoint code client-id secret _redirect _opts]
                                                          (reset! exchanged? true)
                                                          (is (= "https://oauth2.googleapis.com/token" endpoint))
                                                          (is (= "auth-code" code))
@@ -93,7 +93,7 @@
                     jwt/fetch-jwks                     (fn [uri]
                                                          (is (= "https://www.googleapis.com/oauth2/v3/certs" uri))
                                                          {:keys []})
-                    jwt/validate-id-token              (fn [token jwks issuer audience opts]
+                    jwt/validate-id-token              (fn [token _jwks issuer audience _opts]
                                                          (reset! validated? true)
                                                          (is (= "id-token" token))
                                                          (is (= "https://accounts.google.com" issuer))

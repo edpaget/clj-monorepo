@@ -4,6 +4,7 @@
   Provides convenience wrappers around Google's OIDC flow, leveraging the base
   [[oidc.core]] library for discovery, token exchange, and JWT validation."
   (:require
+   [clojure.string :as str]
    [oidc-google.claims :as claims]
    [oidc.authorization :as auth]
    [oidc.discovery :as discovery]
@@ -43,7 +44,7 @@
   ([{:keys [client-id redirect-uri scopes]} state opts]
    (let [discovery     (fetch-discovery-document)
          auth-endpoint (:authorization_endpoint discovery)
-         scope-str     (clojure.string/join " " (or scopes ["openid" "email" "profile"]))
+         scope-str     (str/join " " (or scopes ["openid" "email" "profile"]))
          additional    (cond-> {}
                          (:access-type opts)
                          (assoc "access_type" (:access-type opts))

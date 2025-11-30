@@ -15,7 +15,7 @@
 
 (deftest credential-validator-test
   (testing "validates with id-token"
-    (with-redefs [client/validate-id-token (fn [token client-id]
+    (with-redefs [client/validate-id-token (fn [token _client-id]
                                              (when (= "valid-token" token)
                                                {:sub "123" :email "test@example.com"}))]
       (let [config    {:client-id "test-id" :client-secret "test-secret"}

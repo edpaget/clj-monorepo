@@ -18,7 +18,7 @@ COPY bashketball-game-api/deps.edn bashketball-game-api/
 # Download dependencies (mount GitHub token for private packages)
 RUN --mount=type=secret,id=gh_packages_token \
     mkdir -p ~/.m2 && \
-    echo "<settings><servers><server><id>github</id><username>token</username><password>$(cat /run/secrets/gh_packages_token)</password></server></servers></settings>" > ~/.m2/settings.xml && \
+    echo "<settings><servers><server><id>github</id><username>edpaget</username><password>$(cat /run/secrets/gh_packages_token)</password></server></servers></settings>" > ~/.m2/settings.xml && \
     clojure -P -M:bashketball-game-api && \
     rm -f ~/.m2/settings.xml
 
@@ -37,7 +37,7 @@ COPY build build/
 # Build uberjar (mount GitHub token for private packages)
 RUN --mount=type=secret,id=gh_packages_token \
     mkdir -p ~/.m2 && \
-    echo "<settings><servers><server><id>github</id><username>token</username><password>$(cat /run/secrets/gh_packages_token)</password></server></servers></settings>" > ~/.m2/settings.xml && \
+    echo "<settings><servers><server><id>github</id><username>edpaget</username><password>$(cat /run/secrets/gh_packages_token)</password></server></servers></settings>" > ~/.m2/settings.xml && \
     clojure -T:build uberjar :project :bashketball-game-api && \
     rm -f ~/.m2/settings.xml
 
