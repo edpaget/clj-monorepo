@@ -16,8 +16,19 @@
         :credentials "include"}))
 
 (def cache
-  "Apollo in-memory cache for query results."
-  (apollo/InMemoryCache.))
+  "Apollo in-memory cache for query results.
+
+  Includes `possibleTypes` for union types so Apollo can correctly match
+  inline fragments to concrete types."
+  (apollo/InMemoryCache.
+   #js {:possibleTypes
+        #js {:GameCard #js ["PlayerCard"
+                            "AbilityCard"
+                            "PlayCard"
+                            "StandardActionCard"
+                            "SplitPlayCard"
+                            "CoachingCard"
+                            "TeamAssetCard"]}}))
 
 (def client
   "Configured Apollo client instance.

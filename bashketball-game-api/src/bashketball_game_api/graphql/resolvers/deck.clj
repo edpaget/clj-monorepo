@@ -5,6 +5,8 @@
   resolvers for deck CRUD operations. All deck operations require authentication."
   (:require
    [bashketball-game-api.services.deck :as deck-svc]
+   [bashketball-schemas.card :as card-schema]
+   [bashketball-game-api.services.catalog :as catalog]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
 (def Deck
@@ -13,6 +15,7 @@
    [:id :uuid]
    [:name :string]
    [:cardSlugs [:vector :string]]
+   [:cards [:vector card-schema/Card]]
    [:isValid :boolean]
    [:validationErrors {:optional true} [:maybe [:vector :string]]]])
 
@@ -69,6 +72,13 @@
         deck-id      (parse-uuid id)]
     (when-let [deck (deck-svc/get-deck-for-user deck-service deck-id user-id)]
       (deck->graphql deck))))
+
+(defresolver :Deck :cards
+  "Returns cards in a given deck"
+  [:=> [:cat :any :any :any] [:vector card-schema/Card]]
+  [ctx _args {:keys [card-slugs]}]
+  (let [card-catalog (get-in ctx [:request :resolver-map :card-catalog])]
+    (mapv #(catalog/get-card card-catalog %) card-slugs)))
 
 ;; ---------------------------------------------------------------------------
 ;; Mutation Resolvers

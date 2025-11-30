@@ -5,6 +5,7 @@
   (:require
    [bashketball-game-ui.context.auth :as auth]
    [bashketball-game-ui.graphql.client :as gql-client]
+   [bashketball-game-ui.views.deck-editor :as deck-editor]
    [bashketball-game-ui.views.decks :as decks]
    [bashketball-game-ui.views.games :as games]
    [bashketball-game-ui.views.home :as home]
@@ -33,6 +34,7 @@
                  ($ router/route {:element ($ protected-route)}
                     ($ router/route {:path "lobby" :element ($ lobby/lobby-view)})
                     ($ router/route {:path "decks" :element ($ decks/decks-view)})
+                    ($ router/route {:path "decks/:id" :element ($ deck-editor/deck-editor-view)})
                     ($ router/route {:path "games" :element ($ games/games-view)}))))))))
 
 (defn render!

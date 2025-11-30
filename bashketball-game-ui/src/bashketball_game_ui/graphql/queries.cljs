@@ -17,3 +17,331 @@
       }
     }
   "))
+
+(def MY_DECKS_QUERY
+  "Query for the current user's decks."
+  (apollo/gql "
+    query MyDecks {
+      myDecks {
+        id
+        name
+        cardSlugs
+        isValid
+        validationErrors
+      }
+    }
+  "))
+
+(def CARD_FIELDS_FRAGMENT
+  "Fragment for common card fields and type-specific fields."
+  (apollo/gql "
+    fragment CardFields on GameCard {
+      __typename
+      ... on PlayerCard {
+        slug
+        name
+        setSlug
+        cardType
+        sht
+        pss
+        def
+        speed
+        size
+        abilities
+        deckSize
+      }
+      ... on AbilityCard {
+        slug
+        name
+        setSlug
+        cardType
+        abilities
+      }
+      ... on PlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        play
+      }
+      ... on StandardActionCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on SplitPlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on CoachingCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        coaching
+      }
+      ... on TeamAssetCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        assetPower
+      }
+    }
+  "))
+
+(def DECK_QUERY
+  "Query for a single deck with resolved cards."
+  (apollo/gql "
+    query Deck($id: String!) {
+      deck(id: $id) {
+        id
+        name
+        cardSlugs
+        cards {
+          ...CardFields
+        }
+        isValid
+        validationErrors
+      }
+    }
+    fragment CardFields on GameCard {
+      __typename
+      ... on PlayerCard {
+        slug
+        name
+        setSlug
+        cardType
+        sht
+        pss
+        def
+        speed
+        size
+        abilities
+        deckSize
+      }
+      ... on AbilityCard {
+        slug
+        name
+        setSlug
+        cardType
+        abilities
+      }
+      ... on PlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        play
+      }
+      ... on StandardActionCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on SplitPlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on CoachingCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        coaching
+      }
+      ... on TeamAssetCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        assetPower
+      }
+    }
+  "))
+
+(def CARDS_QUERY
+  "Query for card catalog with optional set filter."
+  (apollo/gql "
+    query Cards($setSlug: String) {
+      cards(setSlug: $setSlug) {
+        ...CardFields
+      }
+    }
+    fragment CardFields on GameCard {
+      __typename
+      ... on PlayerCard {
+        slug
+        name
+        setSlug
+        cardType
+        sht
+        pss
+        def
+        speed
+        size
+        abilities
+        deckSize
+      }
+      ... on AbilityCard {
+        slug
+        name
+        setSlug
+        cardType
+        abilities
+      }
+      ... on PlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        play
+      }
+      ... on StandardActionCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on SplitPlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on CoachingCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        coaching
+      }
+      ... on TeamAssetCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        assetPower
+      }
+    }
+  "))
+
+(def SETS_QUERY
+  "Query for available card sets."
+  (apollo/gql "
+    query Sets {
+      sets {
+        slug
+        name
+        description
+      }
+    }
+  "))
+
+(def CARD_QUERY
+  "Query for a single card."
+  (apollo/gql "
+    query Card($slug: String!) {
+      card(slug: $slug) {
+        ...CardFields
+      }
+    }
+    fragment CardFields on GameCard {
+      __typename
+      ... on PlayerCard {
+        slug
+        name
+        setSlug
+        cardType
+        sht
+        pss
+        def
+        speed
+        size
+        abilities
+        deckSize
+      }
+      ... on AbilityCard {
+        slug
+        name
+        setSlug
+        cardType
+        abilities
+      }
+      ... on PlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        play
+      }
+      ... on StandardActionCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on SplitPlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on CoachingCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        coaching
+      }
+      ... on TeamAssetCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        assetPower
+      }
+    }
+  "))
