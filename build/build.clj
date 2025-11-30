@@ -119,6 +119,7 @@
                      clojure.tools.logging.impl]
     :src-dirs      ["bashketball-editor-api/src"
                     "bashketball-editor-api/resources"
+                    "bashketball-schemas/src"
                     "db/src"
                     "graphql-server/src"
                     "authn/src"
@@ -126,7 +127,26 @@
                     "oidc-github/src"
                     "exclusive-initializer/src"]
     :target-dir    "bashketball-editor-api/target"
-    :jar-file      "bashketball-editor-api/target/bashketball-editor-api.jar"}})
+    :jar-file      "bashketball-editor-api/target/bashketball-editor-api.jar"}
+
+   :bashketball-game-api
+   {:basis-aliases [:bashketball-game-api]
+    :main          'bashketball-game-api.server
+    :compile-ns    '[bashketball-game-api.server
+                     clojure.tools.logging
+                     clojure.tools.logging.impl]
+    :src-dirs      ["bashketball-game-api/src"
+                    "bashketball-game-api/resources"
+                    "bashketball-schemas/src"
+                    "bashketball-game/src"
+                    "db/src"
+                    "graphql-server/src"
+                    "authn/src"
+                    "oidc/src"
+                    "oidc-google/src"
+                    "exclusive-initializer/src"]
+    :target-dir    "bashketball-game-api/target"
+    :jar-file      "bashketball-game-api/target/bashketball-game-api.jar"}})
 
 (defn uberjar
   "Build an uberjar for a project.

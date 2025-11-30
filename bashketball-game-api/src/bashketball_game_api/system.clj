@@ -8,6 +8,7 @@
    [bashketball-game-api.auth.google :as google-auth]
    [bashketball-game-api.config :as config]
    [bashketball-game-api.graphql.resolvers.card :as card-resolvers]
+   [bashketball-game-api.graphql.resolvers.deck :as deck-resolvers]
    [bashketball-game-api.graphql.resolvers.user :as user-resolvers]
    [bashketball-game-api.handler :as handler]
    [bashketball-game-api.models.deck :as deck]
@@ -16,6 +17,7 @@
    [bashketball-game-api.models.user :as user]
    [bashketball-game-api.services.auth :as auth-service]
    [bashketball-game-api.services.catalog :as catalog]
+   [bashketball-game-api.services.deck :as deck-service]
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
@@ -83,6 +85,10 @@
 ;; ---------------------------------------------------------------------------
 ;; Services (Phase 3+)
 
+(defmethod ig/init-key ::deck-service [_ {:keys [deck-repo card-catalog]}]
+  (log/info "Creating deck service")
+  (deck-service/create-deck-service deck-repo card-catalog))
+
 (defmethod ig/init-key ::auth-service [_ {:keys [user-repo]}]
   (log/info "Creating auth service")
   (auth-service/create-auth-service user-repo))
@@ -118,13 +124,16 @@
 ;; ---------------------------------------------------------------------------
 ;; GraphQL (Phase 4+)
 
-(defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog]}]
+(defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog deck-service]}]
   (log/info "Creating GraphQL resolver map")
   {:resolvers (merge #_{:clj-kondo/ignore [:unresolved-var]}
                card-resolvers/resolvers
                      #_{:clj-kondo/ignore [:unresolved-var]}
+                     deck-resolvers/resolvers
+                     #_{:clj-kondo/ignore [:unresolved-var]}
                      user-resolvers/resolvers)
-   :card-catalog card-catalog})
+   :card-catalog card-catalog
+   :deck-service deck-service})
 
 ;; ---------------------------------------------------------------------------
 ;; HTTP Handler & Server
@@ -184,6 +193,8 @@
    ::card-catalog {}
 
    ;; Services
+   ::deck-service {:deck-repo (ig/ref ::deck-repo)
+                   :card-catalog (ig/ref ::card-catalog)}
    ::auth-service {:user-repo (ig/ref ::user-repo)
                    :config (ig/ref ::config)}
    ::authenticator {:auth-service (ig/ref ::auth-service)
@@ -193,7 +204,8 @@
    ::subscription-manager {}
 
    ;; GraphQL
-   ::resolver-map {:card-catalog (ig/ref ::card-catalog)}
+   ::resolver-map {:card-catalog (ig/ref ::card-catalog)
+                   :deck-service (ig/ref ::deck-service)}
 
    ;; HTTP
    ::handler {:google-oidc-client (ig/ref ::google-oidc-client)

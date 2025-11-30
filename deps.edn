@@ -45,6 +45,12 @@
   :bashketball-ui
   {:extra-deps {local/bashketball-ui {:local/root "bashketball-ui"}}}
 
+  :bashketball-game-api
+  {:extra-deps {local/bashketball-game-api {:local/root "bashketball-game-api"}}}
+
+  :bashketball-game-ui
+  {:extra-deps {local/bashketball-game-ui {:local/root "bashketball-game-ui"}}}
+
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project
   :exclusive-initializer-test
