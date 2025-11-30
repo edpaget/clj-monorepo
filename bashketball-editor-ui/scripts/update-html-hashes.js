@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * Updates index.html with hashed JS filenames for cache busting.
+ * Updates index.html with hashed JS and CSS filenames for cache busting.
  *
  * Reads:
  * - public/js/libs-meta.json (esbuild metafile) to find libs-[hash].js
  * - public/js/main.*.js to find shadow-cljs hashed output
+ * - public/css/output.css to hash and rename
  *
  * Updates public/index.html with the actual hashed filenames.
  */
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const publicDir = path.join(__dirname, '..', 'public');
 const jsDir = path.join(publicDir, 'js');
+const cssDir = path.join(publicDir, 'css');
 const indexPath = path.join(publicDir, 'index.html');
 
 // Get libs hash from esbuild metafile
@@ -42,6 +45,20 @@ if (!mainFile) {
 }
 console.log(`Found main: ${mainFile}`);
 
+// Hash and rename CSS file
+const cssPath = path.join(cssDir, 'output.css');
+if (!fs.existsSync(cssPath)) {
+  console.error('Error: output.css not found. Run npm run css:build first.');
+  process.exit(1);
+}
+
+const cssContent = fs.readFileSync(cssPath);
+const cssHash = crypto.createHash('md5').update(cssContent).digest('hex').slice(0, 8).toUpperCase();
+const cssFilename = `output.${cssHash}.css`;
+const hashedCssPath = path.join(cssDir, cssFilename);
+fs.renameSync(cssPath, hashedCssPath);
+console.log(`Renamed CSS to: ${cssFilename}`);
+
 // Read and update index.html
 let html = fs.readFileSync(indexPath, 'utf8');
 
@@ -55,6 +72,12 @@ html = html.replace(
 html = html.replace(
   /<script src="\/js\/main\.js"><\/script>/,
   `<script src="/js/${mainFile}"></script>`
+);
+
+// Replace output.css reference with hashed version
+html = html.replace(
+  /<link href="\/css\/output\.css" rel="stylesheet">/,
+  `<link href="/css/${cssFilename}" rel="stylesheet">`
 );
 
 fs.writeFileSync(indexPath, html);

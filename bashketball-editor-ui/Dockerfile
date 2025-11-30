@@ -36,10 +36,10 @@ COPY bashketball-editor-ui/resources ./resources
 COPY bashketball-editor-ui/public ./public
 COPY bashketball-editor-ui/scripts ./scripts
 COPY bashketball-editor-ui/tailwind.config.js ./
+COPY bashketball-editor-ui/postcss.config.js ./
 
 # Build production assets with hashed filenames for cache busting
 RUN npm run build:prod
-RUN npm run css:build
 
 # Clean up build artifacts not needed in production
 RUN rm -f public/js/libs-meta.json

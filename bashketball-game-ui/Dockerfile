@@ -42,7 +42,6 @@ COPY bashketball-game-ui/postcss.config.js ./
 
 # Build production assets with hashed filenames for cache busting
 RUN npm run build:prod
-RUN npm run css:build
 
 # Clean up build artifacts not needed in production
 RUN rm -f public/js/libs-meta.json

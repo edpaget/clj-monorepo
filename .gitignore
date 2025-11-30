@@ -19,4 +19,5 @@ package-lock.json
 !bashketball-editor-ui/package-lock.json
 /bashketball-editor-ui/public/css/
 /bashketball-editor-ui/public/js/
-/bashketball-game-ui/public/
+/bashketball-game-ui/public/js
+/bashketball-game-ui/public/css

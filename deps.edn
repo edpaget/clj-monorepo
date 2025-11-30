@@ -141,6 +141,15 @@
    :extra-deps  {local/bashketball-game {:local/root "bashketball-game"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
+  :bashketball-game-api-test
+  {:extra-paths ["bashketball-game-api/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :exec-fn     cognitect.test-runner.api/test
+   :exec-args   {:dirs ["bashketball-game-api/test"]}
+   :extra-deps  {local/bashketball-game-api {:local/root "bashketball-game-api"}
+                 io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+   :mvn/repos   {"github" {:url "https://maven.pkg.github.com/bashketball/cards"}}}
+
   ;; === Aggregated Aliases ===
   ;; Work with all projects at once
   :dev-all

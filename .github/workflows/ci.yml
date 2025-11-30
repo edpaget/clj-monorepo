@@ -41,7 +41,7 @@ jobs:
         run: clojure -X:format check '{:paths ["."]}'
 
       - name: Run clj-kondo
-        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-provider oidc-github graphql-server bashketball-editor-api cljs-tlr bashketball-editor-ui bashketball-game build scripts
+        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-provider oidc-github oidc-google graphql-server bashketball-editor-api bashketball-game-api cljs-tlr bashketball-editor-ui bashketball-game bashketball-game-ui bashketball-ui build scripts
 
   test-no-db:
     name: Test ${{ matrix.project }}
@@ -57,6 +57,7 @@ jobs:
           - oidc
           - oidc-provider
           - oidc-github
+          - oidc-google
           - graphql-server
           - bashketball-game
 
@@ -114,6 +115,7 @@ jobs:
         project:
           - db
           - bashketball-editor-api
+          - bashketball-game-api
 
     steps:
       - name: Checkout code
@@ -130,6 +132,24 @@ jobs:
         with:
           cli: latest
 
+      - name: Configure Maven for GitHub Packages
+        if: matrix.project == 'bashketball-game-api'
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml << 'EOF'
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${env.GITHUB_ACTOR}</username>
+                <password>${env.GH_PACKAGES_TOKEN}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+        env:
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
@@ -143,6 +163,8 @@ jobs:
 
       - name: Test ${{ matrix.project }}
         run: clojure -X:${{ matrix.project }}-test
+        env:
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 
   test-cljs:
     name: Test ${{ matrix.project }} (ClojureScript)
@@ -155,6 +177,7 @@ jobs:
           - cljs-tlr
           - bashketball-editor-ui
           - bashketball-game
+          - bashketball-game-ui
 
     steps:
       - name: Checkout code

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM clojure:temurin-21-tools-deps-alpine AS builder
 
 WORKDIR /app
@@ -14,8 +15,12 @@ COPY bashketball-schemas/deps.edn bashketball-schemas/
 COPY bashketball-game/deps.edn bashketball-game/
 COPY bashketball-game-api/deps.edn bashketball-game-api/
 
-# Download dependencies
-RUN clojure -P -M:bashketball-game-api
+# Download dependencies (mount GitHub token for private packages)
+RUN --mount=type=secret,id=gh_packages_token \
+    mkdir -p ~/.m2 && \
+    echo "<settings><servers><server><id>github</id><username>token</username><password>$(cat /run/secrets/gh_packages_token)</password></server></servers></settings>" > ~/.m2/settings.xml && \
+    clojure -P -M:bashketball-game-api && \
+    rm -f ~/.m2/settings.xml
 
 # Copy source files
 COPY db db/
@@ -29,8 +34,12 @@ COPY bashketball-game bashketball-game/
 COPY bashketball-game-api bashketball-game-api/
 COPY build build/
 
-# Build uberjar
-RUN clojure -T:build uberjar :project :bashketball-game-api
+# Build uberjar (mount GitHub token for private packages)
+RUN --mount=type=secret,id=gh_packages_token \
+    mkdir -p ~/.m2 && \
+    echo "<settings><servers><server><id>github</id><username>token</username><password>$(cat /run/secrets/gh_packages_token)</password></server></servers></settings>" > ~/.m2/settings.xml && \
+    clojure -T:build uberjar :project :bashketball-game-api && \
+    rm -f ~/.m2/settings.xml
 
 FROM eclipse-temurin:21-jre-alpine
 

@@ -94,6 +94,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            gh_packages_token=${{ secrets.GH_PACKAGES_TOKEN }}
 
   build-ui:
     needs: changes
