@@ -64,16 +64,16 @@
 
 (t/deftest input-controlled-value-test
   (t/async done
-    (let [_   (uix-tlr/render ($ controlled-input {}))
-          usr (user/setup)
-          inp (screen/get-by-placeholder-text "Controlled")]
-      (-> (user/type-text usr inp "hello")
-          (.then (fn []
-                   (t/is (= "hello" (.-value inp)))
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (let [_   (uix-tlr/render ($ controlled-input {}))
+                 usr (user/setup)
+                 inp (screen/get-by-placeholder-text "Controlled")]
+             (-> (user/type-text usr inp "hello")
+                 (.then (fn []
+                          (t/is (= "hello" (.-value inp)))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
 
 (t/deftest input-default-value-test
   (uix-tlr/render ($ input {:default-value "initial" :placeholder "Default"}))

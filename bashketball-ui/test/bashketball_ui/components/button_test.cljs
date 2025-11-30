@@ -47,16 +47,16 @@
 
 (t/deftest button-click-handler-test
   (t/async done
-    (let [clicked (atom false)
-          _       (uix-tlr/render ($ button {:on-click #(reset! clicked true)} "Click"))
-          usr     (user/setup)]
-      (-> (user/click usr (screen/get-by-role "button"))
-          (.then (fn []
-                   (t/is @clicked)
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (let [clicked (atom false)
+                 _       (uix-tlr/render ($ button {:on-click #(reset! clicked true)} "Click"))
+                 usr     (user/setup)]
+             (-> (user/click usr (screen/get-by-role "button"))
+                 (.then (fn []
+                          (t/is @clicked)
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
 
 (t/deftest button-type-submit-test
   (uix-tlr/render ($ button {:type "submit"} "Submit"))

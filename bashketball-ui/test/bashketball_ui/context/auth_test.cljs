@@ -76,27 +76,27 @@
 
 (t/deftest create-logout-fn-calls-fetch-test
   (t/async done
-    (let [fetch-calls   (atom [])
-          original-fetch js/fetch
-          _             (set! js/fetch
-                              (fn [url opts]
-                                (swap! fetch-calls conj {:url url :opts opts})
-                                (js/Promise.resolve #js {:ok true})))
-          logout-fn     (create-logout-fn {:logout-url "/api/logout"})
-          refetch-called (atom false)]
-      (-> (logout-fn #(reset! refetch-called true))
-          (.then (fn []
-                   (t/is (= 1 (count @fetch-calls)))
-                   (t/is (= "/api/logout" (:url (first @fetch-calls))))
-                   (t/is (= "POST" (.-method (:opts (first @fetch-calls)))))
-                   (t/is (= "include" (.-credentials (:opts (first @fetch-calls)))))
-                   (t/is @refetch-called)
-                   (set! js/fetch original-fetch)
-                   (done)))
-          (.catch (fn [e]
-                    (set! js/fetch original-fetch)
-                    (t/is false (str e))
-                    (done)))))))
+           (let [fetch-calls    (atom [])
+                 original-fetch js/fetch
+                 _              (set! js/fetch
+                                      (fn [url opts]
+                                        (swap! fetch-calls conj {:url url :opts opts})
+                                        (js/Promise.resolve #js {:ok true})))
+                 logout-fn      (create-logout-fn {:logout-url "/api/logout"})
+                 refetch-called (atom false)]
+             (-> (logout-fn #(reset! refetch-called true))
+                 (.then (fn []
+                          (t/is (= 1 (count @fetch-calls)))
+                          (t/is (= "/api/logout" (:url (first @fetch-calls))))
+                          (t/is (= "POST" (.-method (:opts (first @fetch-calls)))))
+                          (t/is (= "include" (.-credentials (:opts (first @fetch-calls)))))
+                          (t/is @refetch-called)
+                          (set! js/fetch original-fetch)
+                          (done)))
+                 (.catch (fn [e]
+                           (set! js/fetch original-fetch)
+                           (t/is false (str e))
+                           (done)))))))
 
 (defui refetch-consumer []
   (let [{:keys [refetch]} (use-auth)]

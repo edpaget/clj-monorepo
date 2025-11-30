@@ -121,7 +121,7 @@
 (defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog]}]
   (log/info "Creating GraphQL resolver map")
   {:resolvers (merge #_{:clj-kondo/ignore [:unresolved-var]}
-                     card-resolvers/resolvers
+               card-resolvers/resolvers
                      #_{:clj-kondo/ignore [:unresolved-var]}
                      user-resolvers/resolvers)
    :card-catalog card-catalog})

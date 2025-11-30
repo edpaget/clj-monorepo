@@ -14,8 +14,8 @@
    - [[bashketball-schemas.enums]] - Enum definitions
    - [[bashketball-schemas.card]] - Card type schemas
    - [[bashketball-schemas.user]] - User schema"
-  (:require [bashketball-schemas.enums :as enums]
-            [bashketball-schemas.card :as card]
+  (:require [bashketball-schemas.card :as card]
+            [bashketball-schemas.enums :as enums]
             [bashketball-schemas.user :as user]))
 
 ;; =============================================================================

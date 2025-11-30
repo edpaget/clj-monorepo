@@ -6,8 +6,8 @@
 
    The [[Card]] multi-schema dispatches on `:card-type` to validate against
    the appropriate type-specific schema."
-  (:require [malli.util :as mu]
-            [bashketball-schemas.enums :as enums]))
+  (:require [bashketball-schemas.enums :as enums]
+            [malli.util :as mu]))
 
 (def Slug
   "Card or set slug identifier.
