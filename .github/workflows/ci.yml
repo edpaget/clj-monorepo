@@ -132,6 +132,17 @@ jobs:
         with:
           cli: latest
 
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: ${{ runner.os }}-clojure-${{ hashFiles('**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-clojure-
+
       - name: Configure Maven for GitHub Packages
         if: matrix.project == 'bashketball-game-api'
         run: |
@@ -147,28 +158,8 @@ jobs:
             </servers>
           </settings>
           EOF
-          echo "=== Debug: settings.xml location ==="
-          ls -la ~/.m2/
-          echo "=== Debug: settings.xml content (password masked) ==="
-          sed 's/<password>.*<\/password>/<password>***<\/password>/' ~/.m2/settings.xml
-          echo "=== Debug: Token length ==="
-          echo "Token length: ${#GH_PACKAGES_TOKEN}"
-          echo "=== Debug: Test GitHub Packages API ==="
-          curl -s -o /dev/null -w "%{http_code}" -u "edpaget:${GH_PACKAGES_TOKEN}" \
-            "https://maven.pkg.github.com/bashketball/cards/io/github/bashketball/cards/maven-metadata.xml" || true
         env:
           GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.gitlibs
-            ~/.deps.clj
-          key: ${{ runner.os }}-clojure-${{ hashFiles('**/deps.edn') }}
-          restore-keys: |
-            ${{ runner.os }}-clojure-
 
       - name: Clear Clojure cache for bashketball-game-api
         if: matrix.project == 'bashketball-game-api'
