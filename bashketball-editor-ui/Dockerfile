@@ -17,7 +17,17 @@ RUN npm ci
 
 # Copy deps.edn for Clojure dependency resolution (shadow-cljs needs root deps.edn)
 COPY deps.edn /app/
+
+# Copy local dependency deps.edn files
+COPY bashketball-schemas/deps.edn /app/bashketball-schemas/
+COPY bashketball-ui/deps.edn /app/bashketball-ui/
+COPY cljs-tlr/deps.edn /app/cljs-tlr/
 COPY bashketball-editor-ui/deps.edn ./
+
+# Copy local dependency source files
+COPY bashketball-schemas/src /app/bashketball-schemas/src
+COPY bashketball-ui/src /app/bashketball-ui/src
+COPY cljs-tlr/src /app/cljs-tlr/src
 
 # Copy shadow-cljs config and source
 COPY bashketball-editor-ui/shadow-cljs.edn ./
@@ -26,9 +36,6 @@ COPY bashketball-editor-ui/resources ./resources
 COPY bashketball-editor-ui/public ./public
 COPY bashketball-editor-ui/scripts ./scripts
 COPY bashketball-editor-ui/tailwind.config.js ./
-
-# Create production shadow-cljs config (without test alias that requires local deps)
-RUN sed -i 's/:deps {:aliases \[:test\]}/:deps true/' shadow-cljs.edn
 
 # Build production assets with hashed filenames for cache busting
 RUN npm run build:prod

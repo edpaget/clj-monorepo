@@ -12,7 +12,7 @@
   the default localhost:4000."
   (if (exists? js/window.API_BASE_URL)
     js/window.API_BASE_URL
-    "http://localhost:4000"))
+    "http://localhost:3002"))
 
 (def api-url
   "Base URL for the bashketball-game-api GraphQL endpoint."

@@ -10,6 +10,7 @@ COPY authn/deps.edn authn/
 COPY oidc/deps.edn oidc/
 COPY oidc-github/deps.edn oidc-github/
 COPY exclusive-initializer/deps.edn exclusive-initializer/
+COPY bashketball-schemas/deps.edn bashketball-schemas/
 COPY bashketball-editor-api/deps.edn bashketball-editor-api/
 
 # Download dependencies
@@ -22,6 +23,7 @@ COPY authn authn/
 COPY oidc oidc/
 COPY oidc-github oidc-github/
 COPY exclusive-initializer exclusive-initializer/
+COPY bashketball-schemas bashketball-schemas/
 COPY bashketball-editor-api bashketball-editor-api/
 COPY build build/
 
