@@ -115,6 +115,29 @@
                                  :name deck-name
                                  :card-slugs card-slugs})))))
 
+(def valid-deck-cards
+  "Card slugs that make up a valid deck (3 players + 30 action cards)."
+  (vec (concat
+        ;; 3 player cards
+        ["michael-jordan" "shaq" "mugsy-bogues"]
+        ;; 30 action cards (using 4 copies of each to stay under limit)
+        (mapcat #(repeat 4 %)
+                ["basic-shot" "jump-shot" "layup" "drive-and-dish"
+                 "post-up" "pick-and-roll" "alley-oop" "fast-break"]))))
+
+(defn create-valid-test-deck
+  "Creates a test deck with valid cards that passes validation."
+  ([user-id]
+   (create-valid-test-deck user-id "Valid Deck"))
+  ([user-id deck-name]
+   (with-db
+     (let [deck-repo (deck/create-deck-repository)
+           deck      (proto/create! deck-repo {:user-id    user-id
+                                               :name       deck-name
+                                               :card-slugs valid-deck-cards
+                                               :is-valid   true})]
+       deck))))
+
 ;; ---------------------------------------------------------------------------
 ;; Authentication Helpers
 

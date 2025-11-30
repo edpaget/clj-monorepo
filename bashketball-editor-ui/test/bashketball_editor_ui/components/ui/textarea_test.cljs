@@ -1,10 +1,14 @@
 (ns bashketball-editor-ui.components.ui.textarea-test
   (:require
+   ["react" :refer [useState]]
    [bashketball-ui.components.textarea :refer [textarea]]
    [cljs-tlr.core :as tlr]
    [cljs-tlr.fixtures :as fixtures]
+   [cljs-tlr.screen :as screen]
+   [cljs-tlr.uix :as uix-tlr]
+   [cljs-tlr.user-event :as user]
    [cljs.test :as t :include-macros true]
-   [uix.core :refer [$]]))
+   [uix.core :refer [$ defui]]))
 
 (t/use-fixtures :each fixtures/cleanup-fixture)
 
@@ -60,3 +64,48 @@
     (let [ta (tlr/get-by-role "textbox")]
       (t/is (.includes (.-className ta) "rounded-md"))
       (t/is (.includes (.-className ta) "border")))))
+
+(defui controlled-textarea [{:keys [initial-value]}]
+  (let [[value set-value] (useState (or initial-value ""))]
+    ($ textarea {:value value
+                 :on-change #(set-value (.. % -target -value))
+                 :placeholder "Enter text"})))
+
+(t/deftest textarea-accepts-newlines-test
+  (t/async done
+           (let [_   (uix-tlr/render ($ controlled-textarea {}))
+                 usr (user/setup)
+                 ta  (screen/get-by-placeholder-text "Enter text")]
+             (-> (user/type-text usr ta "line1{Enter}line2")
+                 (.then (fn []
+                          (t/is (= "line1\nline2" (.-value ta)))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
+
+(t/deftest textarea-preserves-multiple-newlines-test
+  (t/async done
+           (let [_   (uix-tlr/render ($ controlled-textarea {}))
+                 usr (user/setup)
+                 ta  (screen/get-by-placeholder-text "Enter text")]
+             (-> (user/type-text usr ta "a{Enter}{Enter}b")
+                 (.then (fn []
+                          (t/is (= "a\n\nb" (.-value ta)))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
+
+(t/deftest textarea-trailing-newline-test
+  (t/async done
+           (let [_   (uix-tlr/render ($ controlled-textarea {}))
+                 usr (user/setup)
+                 ta  (screen/get-by-placeholder-text "Enter text")]
+             (-> (user/type-text usr ta "text{Enter}")
+                 (.then (fn []
+                          (t/is (= "text\n" (.-value ta)))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))

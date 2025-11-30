@@ -44,7 +44,7 @@
 (deftest missing-variable-value-test
   (testing "Missing variable value for required argument returns error"
     (let [response (tu/graphql-request
-                    "query GetDeck($id: String!) { deck(id: $id) { id } }"
+                    "query GetDeck($id: Uuid!) { deck(id: $id) { id } }"
                     :variables {})]
       (is (seq (tu/graphql-errors response))))))
 
@@ -62,7 +62,7 @@
 (deftest null-on-non-nullable-test
   (testing "Null value for non-nullable argument returns error"
     (let [response (tu/graphql-request
-                    "query GetDeck($id: String!) { deck(id: $id) { id } }"
+                    "query GetDeck($id: Uuid!) { deck(id: $id) { id } }"
                     :variables {:id nil})]
       (is (seq (tu/graphql-errors response))))))
 
@@ -95,7 +95,7 @@
           deck     (tu/create-test-deck (:id user) "Test")
           ;; Try to access deck without auth - should get auth error even with invalid field
           response (tu/graphql-request
-                    "query GetDeck($id: String!) { deck(id: $id) { invalidField } }"
+                    "query GetDeck($id: Uuid!) { deck(id: $id) { invalidField } }"
                     :variables {:id (str (:id deck))})]
       ;; Should have errors (either auth or field error depending on evaluation order)
       (is (seq (tu/graphql-errors response))))))

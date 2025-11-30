@@ -52,3 +52,65 @@
       }
     }
   "))
+
+;; ---------------------------------------------------------------------------
+;; Game Mutations
+
+(def CREATE_GAME_MUTATION
+  "Mutation to create a new game with selected deck."
+  (apollo/gql "
+    mutation CreateGame($deckId: Uuid!) {
+      createGame(deckId: $deckId) {
+        id
+        player1Id
+        status
+        createdAt
+      }
+    }
+  "))
+
+(def JOIN_GAME_MUTATION
+  "Mutation to join an existing game as player 2."
+  (apollo/gql "
+    mutation JoinGame($gameId: Uuid!, $deckId: Uuid!) {
+      joinGame(gameId: $gameId, deckId: $deckId) {
+        id
+        player1Id
+        player2Id
+        status
+        startedAt
+      }
+    }
+  "))
+
+(def LEAVE_GAME_MUTATION
+  "Mutation to leave a waiting game."
+  (apollo/gql "
+    mutation LeaveGame($gameId: Uuid!) {
+      leaveGame(gameId: $gameId)
+    }
+  "))
+
+(def FORFEIT_GAME_MUTATION
+  "Mutation to forfeit an active game."
+  (apollo/gql "
+    mutation ForfeitGame($gameId: Uuid!) {
+      forfeitGame(gameId: $gameId) {
+        id
+        status
+        winnerId
+      }
+    }
+  "))
+
+(def SUBMIT_ACTION_MUTATION
+  "Mutation to submit a game action."
+  (apollo/gql "
+    mutation SubmitAction($gameId: Uuid!, $action: ActionInput!) {
+      submitAction(gameId: $gameId, action: $action) {
+        success
+        gameId
+        error
+      }
+    }
+  "))

@@ -16,7 +16,7 @@
           deck       (tu/create-test-deck (:id user) "Empty")
           session-id (tu/create-authenticated-session! (:id user) :user user)
           response   (tu/graphql-request
-                      "mutation ValidateDeck($id: String!) {
+                      "mutation ValidateDeck($id: Uuid!) {
                        validateDeck(id: $id) { isValid validationErrors }
                      }"
                       :variables {:id (str (:id deck))}
@@ -32,12 +32,12 @@
           session-id (tu/create-authenticated-session! (:id user) :user user)
           ;; First validate
           _          (tu/graphql-request
-                      "mutation ValidateDeck($id: String!) { validateDeck(id: $id) { isValid } }"
+                      "mutation ValidateDeck($id: Uuid!) { validateDeck(id: $id) { isValid } }"
                       :variables {:id (str (:id deck))}
                       :session-id session-id)
           ;; Then query
           response   (tu/graphql-request
-                      "query GetDeck($id: String!) {
+                      "query GetDeck($id: Uuid!) {
                        deck(id: $id) { isValid validationErrors }
                      }"
                       :variables {:id (str (:id deck))}
@@ -51,7 +51,7 @@
     (let [user     (tu/create-test-user)
           deck     (tu/create-test-deck (:id user) "Test")
           response (tu/graphql-request
-                    "mutation ValidateDeck($id: String!) { validateDeck(id: $id) { isValid } }"
+                    "mutation ValidateDeck($id: Uuid!) { validateDeck(id: $id) { isValid } }"
                     :variables {:id (str (:id deck))})]
       (is (seq (tu/graphql-errors response))))))
 
@@ -62,7 +62,7 @@
           deck       (tu/create-test-deck (:id user1) "User 1 Deck")
           session-id (tu/create-authenticated-session! (:id user2) :user user2)
           response   (tu/graphql-request
-                      "mutation ValidateDeck($id: String!) { validateDeck(id: $id) { isValid } }"
+                      "mutation ValidateDeck($id: Uuid!) { validateDeck(id: $id) { isValid } }"
                       :variables {:id (str (:id deck))}
                       :session-id session-id)]
       (is (nil? (get-in (tu/graphql-data response) [:validateDeck]))))))
@@ -73,7 +73,7 @@
           deck       (tu/create-test-deck (:id user) "Test" ["michael-jordan"])
           session-id (tu/create-authenticated-session! (:id user) :user user)
           response   (tu/graphql-request
-                      "mutation ValidateDeck($id: String!) {
+                      "mutation ValidateDeck($id: Uuid!) {
                        validateDeck(id: $id) { isValid validationErrors }
                      }"
                       :variables {:id (str (:id deck))}

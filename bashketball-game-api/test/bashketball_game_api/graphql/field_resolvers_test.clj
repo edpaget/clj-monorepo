@@ -26,7 +26,7 @@
           deck       (tu/create-test-deck (:id user) "Test Deck"
                                           ["michael-jordan" "basic-shot"])
           session-id (tu/create-authenticated-session! (:id user) :user user)
-          query      (str "query GetDeck($id: String!) {
+          query      (str "query GetDeck($id: Uuid!) {
                         deck(id: $id) {
                           name
                           cardSlugs
@@ -46,7 +46,7 @@
     (let [user       (tu/create-test-user)
           deck       (tu/create-test-deck (:id user) "Empty Deck")
           session-id (tu/create-authenticated-session! (:id user) :user user)
-          query      (str "query GetDeck($id: String!) {
+          query      (str "query GetDeck($id: Uuid!) {
                         deck(id: $id) { cards { " card-inline-fragments " } }
                       }")
           response   (tu/graphql-request query
@@ -59,7 +59,7 @@
     (let [user       (tu/create-test-user)
           deck       (tu/create-test-deck (:id user) "Test Deck" ["michael-jordan"])
           session-id (tu/create-authenticated-session! (:id user) :user user)
-          query      "query GetDeck($id: String!) {
+          query      "query GetDeck($id: Uuid!) {
                    deck(id: $id) {
                      cards {
                        ... on PlayerCard { slug name sht pss def speed size }

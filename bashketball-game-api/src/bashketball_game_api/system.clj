@@ -9,6 +9,7 @@
    [bashketball-game-api.config :as config]
    [bashketball-game-api.graphql.resolvers.card :as card-resolvers]
    [bashketball-game-api.graphql.resolvers.deck :as deck-resolvers]
+   [bashketball-game-api.graphql.resolvers.game :as game-resolvers]
    [bashketball-game-api.graphql.resolvers.user :as user-resolvers]
    [bashketball-game-api.handler :as handler]
    [bashketball-game-api.models.deck :as deck]
@@ -18,6 +19,8 @@
    [bashketball-game-api.services.auth :as auth-service]
    [bashketball-game-api.services.catalog :as catalog]
    [bashketball-game-api.services.deck :as deck-service]
+   [bashketball-game-api.services.game :as game-service]
+   [bashketball-game-api.subscriptions.core :as subs]
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
@@ -89,6 +92,10 @@
   (log/info "Creating deck service")
   (deck-service/create-deck-service deck-repo card-catalog))
 
+(defmethod ig/init-key ::game-service [_ {:keys [game-repo deck-service card-catalog subscription-manager]}]
+  (log/info "Creating game service")
+  (game-service/create-game-service game-repo deck-service card-catalog subscription-manager))
+
 (defmethod ig/init-key ::auth-service [_ {:keys [user-repo]}]
   (log/info "Creating auth service")
   (auth-service/create-auth-service user-repo))
@@ -119,21 +126,25 @@
 
 (defmethod ig/init-key ::subscription-manager [_ _]
   (log/info "Creating subscription manager")
-  nil) ;; TODO: Implement in Phase 6
+  (subs/create-subscription-manager))
 
 ;; ---------------------------------------------------------------------------
 ;; GraphQL (Phase 4+)
 
-(defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog deck-service]}]
+(defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog deck-service game-service user-repo]}]
   (log/info "Creating GraphQL resolver map")
   {:resolvers (merge #_{:clj-kondo/ignore [:unresolved-var]}
                card-resolvers/resolvers
                      #_{:clj-kondo/ignore [:unresolved-var]}
                      deck-resolvers/resolvers
                      #_{:clj-kondo/ignore [:unresolved-var]}
+                     game-resolvers/resolvers
+                     #_{:clj-kondo/ignore [:unresolved-var]}
                      user-resolvers/resolvers)
    :card-catalog card-catalog
-   :deck-service deck-service})
+   :deck-service deck-service
+   :game-service game-service
+   :user-repo user-repo})
 
 ;; ---------------------------------------------------------------------------
 ;; HTTP Handler & Server
@@ -143,6 +154,7 @@
                                             db-pool
                                             user-repo
                                             resolver-map
+                                            subscription-manager
                                             config]}]
   (log/info "Creating HTTP handler")
   (handler/create-handler
@@ -151,6 +163,7 @@
     :user-repo user-repo
     :db-pool db-pool
     :resolver-map resolver-map
+    :subscription-manager subscription-manager
     :config config}))
 
 (defmethod ig/init-key ::server [_ {:keys [handler config port-override]}]
@@ -195,6 +208,10 @@
    ;; Services
    ::deck-service {:deck-repo (ig/ref ::deck-repo)
                    :card-catalog (ig/ref ::card-catalog)}
+   ::game-service {:game-repo (ig/ref ::game-repo)
+                   :deck-service (ig/ref ::deck-service)
+                   :card-catalog (ig/ref ::card-catalog)
+                   :subscription-manager (ig/ref ::subscription-manager)}
    ::auth-service {:user-repo (ig/ref ::user-repo)
                    :config (ig/ref ::config)}
    ::authenticator {:auth-service (ig/ref ::auth-service)
@@ -205,7 +222,9 @@
 
    ;; GraphQL
    ::resolver-map {:card-catalog (ig/ref ::card-catalog)
-                   :deck-service (ig/ref ::deck-service)}
+                   :deck-service (ig/ref ::deck-service)
+                   :game-service (ig/ref ::game-service)
+                   :user-repo (ig/ref ::user-repo)}
 
    ;; HTTP
    ::handler {:google-oidc-client (ig/ref ::google-oidc-client)
@@ -213,6 +232,7 @@
               :db-pool (ig/ref ::db-pool)
               :user-repo (ig/ref ::user-repo)
               :resolver-map (ig/ref ::resolver-map)
+              :subscription-manager (ig/ref ::subscription-manager)
               :config (ig/ref ::config)}
    ::server {:handler (ig/ref ::handler)
              :config (ig/ref ::config)}})

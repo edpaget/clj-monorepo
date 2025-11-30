@@ -46,10 +46,10 @@
           ($ card-list-item
              {:card card
               :on-click nil}))
-       ($ :div {:class "flex items-center gap-2 px-4"}
-          (when (pos? copies-in-deck)
-            ($ :span {:class "text-sm text-gray-500"}
-               (str copies-in-deck "/" max-copies)))
+       ($ :div {:class "flex items-center gap-2 px-4 shrink-0"}
+          ($ :span {:class (cn "text-sm text-gray-500 min-w-[2.5rem] text-right"
+                               (when-not (pos? copies-in-deck) "invisible"))}
+             (str copies-in-deck "/" max-copies))
           ($ :button
              {:class (cn "w-8 h-8 rounded-full flex items-center justify-center transition-colors"
                          (if at-max?

@@ -3,11 +3,16 @@
    ["@apollo/client/testing" :refer [MockedProvider]]
    ["react-router-dom" :as rr]
    [bashketball-editor-ui.graphql.queries :as q]
-   [bashketball-editor-ui.views.card-editor :refer [card-editor-view]]
+   [bashketball-editor-ui.views.card-editor :refer [card-editor-view card-form]]
+   [bashketball-ui.hooks.form :as form]
    [cljs-tlr.core :as tlr]
+   [cljs-tlr.events :as events]
    [cljs-tlr.fixtures :as fixtures]
+   [cljs-tlr.screen :as screen]
+   [cljs-tlr.uix :as uix-tlr]
+   [cljs-tlr.user-event :as user]
    [cljs.test :as t :include-macros true]
-   [uix.core :refer [$]]))
+   [uix.core :refer [$ defui]]))
 
 (t/use-fixtures :each fixtures/cleanup-fixture)
 
@@ -66,3 +71,51 @@
                  (.catch (fn [e]
                            (t/is false (str e))
                            (done)))))))
+
+;; -----------------------------------------------------------------------------
+;; Card form Enter key behavior tests
+;; -----------------------------------------------------------------------------
+
+(defui test-card-form [{:keys [on-submit]}]
+  (let [{:keys [data update]} (form/use-form {:name "" :abilities []})]
+    ($ card-form {:data data
+                  :update-fn update
+                  :card-type "PLAYER_CARD"
+                  :on-submit on-submit
+                  :saving? false
+                  :is-new? true})))
+
+(t/deftest card-form-enter-in-input-does-not-submit-test
+  (t/async done
+           (let [submitted? (atom false)
+                 on-submit  #(reset! submitted? true)
+                 _          (uix-tlr/render ($ test-card-form {:on-submit on-submit}))
+                 usr        (user/setup)
+                 inp        (screen/get-by-placeholder-text "Enter card name...")]
+             (-> (user/type-text usr inp "Test Card{Enter}")
+                 (.then (fn []
+                          (t/is (false? @submitted?) "Form should not submit on Enter in input")
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
+
+(t/deftest card-form-textarea-accepts-newlines-test
+  (t/async done
+           (let [_   (uix-tlr/render ($ test-card-form {:on-submit identity}))
+                 usr (user/setup)
+                 ta  (screen/get-by-placeholder-text "Describe the card image for AI generation...")]
+             (-> (user/type-text usr ta "line1{Enter}line2")
+                 (.then (fn []
+                          (t/is (= "line1\nline2" (.-value ta)))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
+
+(t/deftest card-form-abilities-textarea-newlines-test
+  (t/testing "abilities textarea stores and displays newlines correctly"
+    (uix-tlr/render ($ test-card-form {:on-submit identity}))
+    (let [ta (screen/get-by-label-text "Abilities (one per line)")]
+      (events/change ta "ability 1\nability 2")
+      (t/is (= "ability 1\nability 2" (.-value ta))))))

@@ -6,6 +6,7 @@
   (:require
    [authn.middleware :as authn-mw]
    [bashketball-game-api.auth.google :as google-auth]
+   [bashketball-game-api.subscriptions.sse :as sse]
    [cheshire.core :as json]
    [clojure.string :as str]
    [db.core :as db]
@@ -112,8 +113,10 @@
   - `:user-repo` - User repository
   - `:db-pool` - Database connection pool
   - `:resolver-map` - GraphQL resolver map with :resolvers and :card-catalog
+  - `:subscription-manager` - Subscription manager for real-time updates
   - `:config` - Application configuration"
-  [{:keys [google-oidc-client authenticator user-repo db-pool resolver-map config]}]
+  [{:keys [google-oidc-client authenticator user-repo db-pool resolver-map
+           subscription-manager config]}]
   (let [session-config  (:session config)
         google-config   (:google config)
         cors-config     (:cors config)
@@ -127,6 +130,8 @@
           :context-fn (fn [req]
                         {:request req})
           :enable-graphiql? true})
+        ;; Subscription routes (SSE) - after auth, returns streaming responses
+        (sse/wrap-subscription-routes subscription-manager)
         ;; Authentication middleware
         (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)

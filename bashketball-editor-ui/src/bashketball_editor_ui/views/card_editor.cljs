@@ -230,6 +230,10 @@
     ($ :form {:on-submit (fn [e]
                            (.preventDefault e)
                            (on-submit))
+              :on-key-down (fn [e]
+                             (when (and (= (.-key e) "Enter")
+                                        (= (.-tagName (.-target e)) "INPUT"))
+                               (.preventDefault e)))
               :class "space-y-6"}
        ($ render-fields {:fields common-fields :data data :update-fn update-fn})
        (when type-fields

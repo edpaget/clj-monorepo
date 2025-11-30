@@ -11,7 +11,7 @@
    [bashketball-ui.components.input :refer [input]]
    [bashketball-ui.components.loading :refer [spinner button-spinner]]
    [bashketball-ui.router :as router]
-   [uix.core :refer [$ defui use-state use-effect use-callback]]))
+   [uix.core :refer [$ defui use-state use-effect use-callback use-memo]]))
 
 (defui deck-editor-view
   "Deck editor page component.
@@ -27,21 +27,30 @@
         [update-deck {:keys [loading saving-loading]}] (use-update-deck)
         [local-name set-local-name]                    (use-state nil)
         [local-slugs set-local-slugs]                  (use-state nil)
+        [local-cards set-local-cards]                  (use-state {})
         [has-changes? set-has-changes]                 (use-state false)
         deck-name                                      (or local-name (:name deck) "")
         deck-slugs                                     (or local-slugs (:card-slugs deck) [])
-        deck-cards                                     (:cards deck)]
+        server-cards                                   (:cards deck)
+        ;; Merge server cards with locally added cards
+        merged-cards                                   (use-memo
+                                                        (fn []
+                                                          (let [server-by-slug (into {} (map (juxt :slug identity)) server-cards)]
+                                                            (vals (merge server-by-slug local-cards))))
+                                                        [server-cards local-cards])]
 
     (use-effect
      (fn []
        (when deck
          (set-local-name (:name deck))
-         (set-local-slugs (:card-slugs deck))))
+         (set-local-slugs (:card-slugs deck))
+         (set-local-cards {})))
      [deck])
 
     (let [handle-add-card    (use-callback
                               (fn [card]
                                 (set-local-slugs #(conj (or % []) (:slug card)))
+                                (set-local-cards #(assoc % (:slug card) card))
                                 (set-has-changes true))
                               [])
           handle-remove-card (use-callback
@@ -116,5 +125,5 @@
                          :card-slugs deck-slugs
                          :is-valid (:is-valid deck)
                          :validation-errors (:validation-errors deck)}
-                  :cards deck-cards
+                  :cards merged-cards
                   :on-remove-card handle-remove-card})))))))

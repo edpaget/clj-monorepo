@@ -345,3 +345,51 @@
       }
     }
   "))
+
+;; ---------------------------------------------------------------------------
+;; Game Queries
+
+(def MY_GAMES_QUERY
+  "Query for the current user's games with optional status filter."
+  (apollo/gql "
+    query MyGames($status: String) {
+      myGames(status: $status) {
+        id
+        player1Id
+        player2Id
+        status
+        createdAt
+        startedAt
+      }
+    }
+  "))
+
+(def AVAILABLE_GAMES_QUERY
+  "Query for games waiting for an opponent."
+  (apollo/gql "
+    query AvailableGames {
+      availableGames {
+        id
+        player1Id
+        status
+        createdAt
+      }
+    }
+  "))
+
+(def GAME_QUERY
+  "Query for a single game with full state."
+  (apollo/gql "
+    query Game($id: Uuid!) {
+      game(id: $id) {
+        id
+        player1Id
+        player2Id
+        status
+        gameState
+        winnerId
+        createdAt
+        startedAt
+      }
+    }
+  "))

@@ -50,11 +50,14 @@
 (defn textarea-list-handler
   "Creates handler for textarea that stores values as a vector of lines.
 
+  Uses a limit of -1 to preserve trailing empty strings, allowing users
+  to press Enter at the end of a line without losing the newline.
+
   Example:
       ($ textarea {:value (str/join \"\\n\" (:abilities data))
                    :on-change (textarea-list-handler update :abilities)})"
   [update field]
   (fn [e]
     (update field (-> (.. e -target -value)
-                      (str/split #"\n")
+                      (str/split #"\n" -1)
                       vec))))
