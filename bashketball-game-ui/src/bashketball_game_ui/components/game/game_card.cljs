@@ -10,9 +10,9 @@
   "Formats a date string as relative time (e.g., '5m ago')."
   [date-str]
   (when date-str
-    (let [date    (js/Date. date-str)
-          now     (js/Date.)
-          diff-ms (- now date)
+    (let [date     (js/Date. date-str)
+          now      (js/Date.)
+          diff-ms  (- now date)
           diff-min (/ diff-ms 60000)]
       (cond
         (< diff-min 1)    "just now"
@@ -45,7 +45,7 @@
   - show-join?: boolean to show join button (default false)"
   [{:keys [game current-user-id on-join on-resume on-view on-cancel show-join?]}]
   (let [{:keys [id player-1-id player-2-id status created-at]} game
-        is-owner? (= current-user-id player-1-id)]
+        is-owner?                                              (= current-user-id player-1-id)]
     ($ :div {:class "bg-white rounded-lg shadow-sm border border-gray-200 p-4"}
        ($ :div {:class "flex justify-between items-start mb-3"}
           ($ :div {:class "flex items-center gap-2"}

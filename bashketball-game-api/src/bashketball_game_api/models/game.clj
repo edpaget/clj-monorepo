@@ -150,15 +150,43 @@
          :order-by [[:created-at :desc]]})))
 
 (defn find-by-player
-  "Returns games where the user is either player1 or player2."
-  [_repo user-id]
-  (vec (db/execute!
-        {:select [:*]
-         :from [:games]
-         :where [:or
-                 [:= :player1-id [:cast user-id :uuid]]
-                 [:= :player2-id [:cast user-id :uuid]]]
-         :order-by [[:created-at :desc]]})))
+  "Returns games where the user is either player1 or player2.
+
+  Accepts optional `opts` map with `:status`, `:limit`, and `:offset` keys."
+  ([_repo user-id]
+   (find-by-player _repo user-id {}))
+  ([_repo user-id {:keys [status limit offset]}]
+   (let [base-where   [:or
+                       [:= :player1-id [:cast user-id :uuid]]
+                       [:= :player2-id [:cast user-id :uuid]]]
+         where-clause (if status
+                        [:and base-where [:= :status [:lift status]]]
+                        base-where)
+         query        (cond-> {:select [:*]
+                               :from [:games]
+                               :where where-clause
+                               :order-by [[:created-at :desc]]}
+                        limit (assoc :limit limit)
+                        offset (assoc :offset offset))]
+     (vec (db/execute! query)))))
+
+(defn count-by-player
+  "Returns count of games where the user is either player1 or player2.
+
+  Accepts optional `opts` map with `:status` key for filtering."
+  ([_repo user-id]
+   (count-by-player _repo user-id {}))
+  ([_repo user-id {:keys [status]}]
+   (let [base-where   [:or
+                       [:= :player1-id [:cast user-id :uuid]]
+                       [:= :player2-id [:cast user-id :uuid]]]
+         where-clause (if status
+                        [:and base-where [:= :status [:lift status]]]
+                        base-where)]
+     (:count (db/execute-one!
+              {:select [[[:count :*] :count]]
+               :from [:games]
+               :where where-clause})))))
 
 (defn find-active-by-player
   "Returns active games where the user is either player1 or player2."

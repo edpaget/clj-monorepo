@@ -19,12 +19,12 @@
   - on-submit: fn(deck-id) called on submit
   - submitting?: boolean loading state"
   [{:keys [open? game title submit-label on-close on-submit submitting?]}]
-  (let [{:keys [decks loading]}     (use-my-decks)
-        valid-decks                 (filter :is-valid decks)
-        [selected set-selected]     (use-state nil)
-        deck-options                (mapv (fn [d] {:value (str (:id d))
-                                                    :label (:name d)})
-                                          valid-decks)]
+  (let [{:keys [decks loading]} (use-my-decks)
+        valid-decks             (filter :is-valid decks)
+        [selected set-selected] (use-state nil)
+        deck-options            (mapv (fn [d] {:value (str (:id d))
+                                               :label (:name d)})
+                                      valid-decks)]
 
     ;; Reset selection when dialog opens
     (use-effect

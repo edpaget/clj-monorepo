@@ -215,3 +215,60 @@
             next2     (game/get-next-sequence-num (:id game-rec))]
         (is (= 1 next1))
         (is (= 2 next2))))))
+
+(deftest game-status-enum-create-test
+  (testing "PostgreSQL game_status enum is properly handled on create"
+    (with-db
+      (let [user      (create-test-user)
+            deck      (create-test-deck (:id user))
+            game-repo (game/create-game-repository)
+            ;; Create game with default status (waiting)
+            waiting   (proto/create! game-repo {:player-1-id (:id user)
+                                                :player-1-deck-id (:id deck)})
+            ;; Create game with explicit status
+            active    (proto/create! game-repo {:player-1-id (:id user)
+                                                :player-1-deck-id (:id deck)
+                                                :status :game-status/active})]
+        (is (= :game-status/waiting (:status waiting))
+            "Default status should be :game-status/waiting")
+        (is (= :game-status/active (:status active))
+            "Explicit status should be stored correctly")))))
+
+(deftest game-status-enum-filter-test
+  (testing "Filtering by status enum works correctly"
+    (with-db
+      (let [user      (create-test-user)
+            deck      (create-test-deck (:id user))
+            game-repo (game/create-game-repository)
+            _         (proto/create! game-repo {:player-1-id (:id user)
+                                                :player-1-deck-id (:id deck)})
+            _         (proto/create! game-repo {:player-1-id (:id user)
+                                                :player-1-deck-id (:id deck)
+                                                :status :game-status/active})
+            waiting   (game/find-by-player game-repo (:id user)
+                                           {:status :game-status/waiting})
+            active    (game/find-by-player game-repo (:id user)
+                                           {:status :game-status/active})]
+        (is (= 1 (count waiting)) "Should find 1 waiting game")
+        (is (= 1 (count active)) "Should find 1 active game")
+        (is (= :game-status/waiting (:status (first waiting))))
+        (is (= :game-status/active (:status (first active))))))))
+
+(deftest game-status-enum-transitions-test
+  (testing "All game status transitions work"
+    (with-db
+      (let [user         (create-test-user)
+            deck         (create-test-deck (:id user))
+            game-repo    (game/create-game-repository)
+            game-rec     (proto/create! game-repo {:player-1-id (:id user)
+                                                   :player-1-deck-id (:id deck)})
+            ;; Transition through all statuses
+            to-active    (proto/update! game-repo (:id game-rec)
+                                        {:status :game-status/active})
+            to-completed (proto/update! game-repo (:id game-rec)
+                                        {:status :game-status/completed})
+            to-abandoned (proto/update! game-repo (:id game-rec)
+                                        {:status :game-status/abandoned})]
+        (is (= :game-status/active (:status to-active)))
+        (is (= :game-status/completed (:status to-completed)))
+        (is (= :game-status/abandoned (:status to-abandoned)))))))

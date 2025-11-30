@@ -9,20 +9,39 @@
    [bashketball-game-ui.schemas.game :as game-schema]))
 
 (defn use-my-games
-  "Fetches the current user's games with optional status filter.
+  "Fetches the current user's games with optional status filter and pagination.
 
-  Returns a map with `:games`, `:loading`, `:error`, and `:refetch`.
-  Status should be a string like \"ACTIVE\", \"WAITING\", \"COMPLETED\"."
-  ([] (use-my-games nil))
-  ([status]
-   (let [result (useQuery queries/MY_GAMES_QUERY
-                          #js {:variables (when status
-                                            #js {:status status})})]
-     {:games   (some->> result .-data .-myGames
-                        (decoder/decode-seq game-schema/GameSummary))
-      :loading (.-loading result)
-      :error   (.-error result)
-      :refetch (.-refetch result)})))
+  Returns a map with:
+  - `:games` - vector of game summaries
+  - `:page-info` - {:total-count :has-next-page :has-previous-page}
+  - `:loading` - boolean
+  - `:error` - error object if any
+  - `:refetch` - function to refetch
+
+  Options:
+  - `status` - filter by game status (\"ACTIVE\", \"WAITING\", \"COMPLETED\")
+  - `limit` - number of results (default 20, max 100)
+  - `offset` - pagination offset (default 0)"
+  ([] (use-my-games {}))
+  ([opts]
+   (let [{:keys [status limit offset]} (if (string? opts)
+                                         {:status opts}
+                                         opts)
+         variables                     (cond-> #js {}
+                                         status (doto (aset "status" status))
+                                         limit  (doto (aset "limit" limit))
+                                         offset (doto (aset "offset" offset)))
+         result                        (useQuery queries/MY_GAMES_QUERY
+                                                 #js {:variables variables})]
+     {:games     (some->> result .-data .-myGames .-data
+                          (decoder/decode-seq game-schema/GameSummary))
+      :page-info (when-let [^js pi (some-> result .-data .-myGames .-pageInfo)]
+                   {:total-count       (.-totalCount pi)
+                    :has-next-page     (.-hasNextPage pi)
+                    :has-previous-page (.-hasPreviousPage pi)})
+      :loading   (.-loading result)
+      :error     (.-error result)
+      :refetch   (.-refetch result)})))
 
 (defn use-available-games
   "Fetches games waiting for an opponent.

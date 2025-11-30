@@ -121,6 +121,11 @@
   (list-user-games [this user-id]
     "Returns all games where user is a player.")
 
+  (list-user-games-paginated [this user-id opts]
+    "Returns paginated games where user is a player.
+     Opts: {:status keyword, :limit int, :offset int}
+     Returns: {:data [games] :total-count int}")
+
   (list-user-games-by-status [this user-id status]
     "Returns games where user is a player with the given status.")
 
@@ -189,6 +194,13 @@
 
   (list-user-games [_this user-id]
     (game-model/find-by-player game-repo user-id))
+
+  (list-user-games-paginated [_this user-id opts]
+    (let [games (game-model/find-by-player game-repo user-id opts)
+          total (game-model/count-by-player game-repo user-id
+                                            (select-keys opts [:status]))]
+      {:data games
+       :total-count total}))
 
   (list-user-games-by-status [_this user-id status]
     (if (= status :game-status/active)

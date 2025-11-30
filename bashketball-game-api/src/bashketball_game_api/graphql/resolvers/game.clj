@@ -8,12 +8,18 @@
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
 (def GameResponse
-  "Schema for game data returned by resolvers."
+  "Schema for game data returned by resolvers.
+
+  Uses kebab-case keys; graphql-server converts to camelCase for GraphQL."
   [:map {:graphql/type :Game}
    [:id :uuid]
-   [:player1Id :uuid]
+   [:player-1-id :uuid]
+   [:player-2-id {:optional true} [:maybe :uuid]]
    [:status :string]
-   [:createdAt :string]])
+   [:game-state {:optional true} [:maybe :any]]
+   [:winner-id {:optional true} [:maybe :uuid]]
+   [:created-at :string]
+   [:started-at {:optional true} [:maybe :string]]])
 
 (def ActionInput
   "Merged input schema for all game action types.
@@ -50,7 +56,22 @@
 (def GameActionResult
   "GraphQL schema for action submission result."
   [:map {:graphql/type :GameActionResult}
-   [:success :boolean]])
+   [:success :boolean]
+   [:game-id {:optional true} [:maybe :uuid]]
+   [:error {:optional true} [:maybe :string]]])
+
+(def PageInfo
+  "GraphQL schema for pagination metadata."
+  [:map {:graphql/type :PageInfo}
+   [:total-count :int]
+   [:has-next-page :boolean]
+   [:has-previous-page :boolean]])
+
+(def GameConnection
+  "GraphQL schema for paginated game results."
+  [:map {:graphql/type :GameConnection}
+   [:data [:vector GameResponse]]
+   [:page-info PageInfo]])
 
 (defn- get-user-id
   "Extracts and parses the user ID from the request context."
@@ -70,35 +91,62 @@
     (throw (ex-info "Authentication required" {:type :unauthorized}))))
 
 (defn- game->graphql
-  "Transforms a game record to GraphQL response format."
+  "Transforms a game record to GraphQL response format.
+
+  Returns kebab-case keys; graphql-server converts to camelCase for GraphQL."
   [game]
-  {:id (:id game)
-   :player1Id (:player-1-id game)
-   :player2Id (:player-2-id game)
-   :status (name (:status game))
-   :gameState (:game-state game)
-   :winnerId (:winner-id game)
-   :createdAt (str (:created-at game))
-   :startedAt (some-> (:started-at game) str)})
+  {:id           (:id game)
+   :player-1-id  (:player-1-id game)
+   :player-2-id  (:player-2-id game)
+   :status       (name (:status game))
+   :game-state   (:game-state game)
+   :winner-id    (:winner-id game)
+   :created-at   (str (:created-at game))
+   :started-at   (some-> (:started-at game) str)})
 
 (defn- get-game-service
   "Gets the game service from the request context."
   [ctx]
   (get-in ctx [:request :resolver-map :game-service]))
 
+(def ^:private default-limit 20)
+(def ^:private max-limit 100)
+
+(defn- parse-status
+  "Parses status string to keyword if present."
+  [status]
+  (when status
+    (keyword "game-status" status)))
+
 ;; ---------------------------------------------------------------------------
 ;; Query Resolvers
 
 (defresolver :Query :myGames
-  "Returns all games where the authenticated user is a participant."
-  [:=> [:cat :any :any :any] [:vector GameResponse]]
-  [ctx {:keys [status]} _value]
+  "Returns paginated games where the authenticated user is a participant.
+
+  Accepts optional `status` to filter by game status (waiting, active, completed),
+  `limit` (default 20, max 100), and `offset` (default 0) for pagination."
+  [:=> [:cat :any [:map
+                   [:status {:optional true} :string]
+                   [:limit {:optional true} :int]
+                   [:offset {:optional true} :int]]
+        :any]
+   GameConnection]
+  [ctx {:keys [status limit offset]} _value]
   (require-auth! ctx)
   (let [game-service (get-game-service ctx)
-        user-id      (get-user-id ctx)]
-    (if status
-      (mapv game->graphql (game-svc/list-user-games-by-status game-service user-id status))
-      (mapv game->graphql (game-svc/list-user-games game-service user-id)))))
+        user-id      (get-user-id ctx)
+        limit        (min (or limit default-limit) max-limit)
+        offset       (or offset 0)
+        opts         (cond-> {:limit limit :offset offset}
+                       status (assoc :status (parse-status status)))
+        result       (game-svc/list-user-games-paginated game-service user-id opts)
+        total-count  (:total-count result)
+        games        (mapv game->graphql (:data result))]
+    {:data games
+     :page-info {:total-count       total-count
+                 :has-next-page     (< (+ offset (count games)) total-count)
+                 :has-previous-page (pos? offset)}}))
 
 (defresolver :Query :game
   "Returns a game by ID if the authenticated user is a participant."
@@ -187,8 +235,8 @@
         game-action  (input->action action)
         result       (game-svc/submit-action! game-service game-id user-id game-action)]
     {:success (:success result)
-     :gameId (when (:game result) (:id (:game result)))
-     :error (:error result)}))
+     :game-id (when (:game result) (:id (:game result)))
+     :error   (:error result)}))
 
 (defresolver :Mutation :forfeitGame
   "Forfeits the game, opponent wins."

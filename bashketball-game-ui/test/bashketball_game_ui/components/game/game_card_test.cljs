@@ -38,74 +38,74 @@
 
 (t/deftest game-card-renders-waiting-status-badge-test
   (uix-tlr/render ($ game-card {:game sample-game-waiting
-                                 :current-user-id sample-user-id}))
+                                :current-user-id sample-user-id}))
   (t/is (some? (screen/get-by-text "Waiting"))))
 
 (t/deftest game-card-renders-active-status-badge-test
   (uix-tlr/render ($ game-card {:game sample-game-active
-                                 :current-user-id sample-user-id}))
+                                :current-user-id sample-user-id}))
   (t/is (some? (screen/get-by-text "In Progress"))))
 
 (t/deftest game-card-renders-completed-status-badge-test
   (uix-tlr/render ($ game-card {:game sample-game-completed
-                                 :current-user-id sample-user-id}))
+                                :current-user-id sample-user-id}))
   (t/is (some? (screen/get-by-text "Completed"))))
 
 (t/deftest game-card-shows-you-when-current-user-is-owner-test
   (uix-tlr/render ($ game-card {:game sample-game-waiting
-                                 :current-user-id sample-user-id}))
+                                :current-user-id sample-user-id}))
   (t/is (some? (screen/get-by-text "You"))))
 
 (t/deftest game-card-shows-player-1-when-not-owner-test
   (uix-tlr/render ($ game-card {:game sample-game-waiting
-                                 :current-user-id "different-user"}))
+                                :current-user-id "different-user"}))
   (t/is (some? (screen/get-by-text "Player 1"))))
 
 (t/deftest game-card-shows-vs-player-2-when-has-opponent-test
   (uix-tlr/render ($ game-card {:game sample-game-active
-                                 :current-user-id sample-user-id}))
+                                :current-user-id sample-user-id}))
   (t/is (some? (screen/get-by-text "vs")))
   (t/is (some? (screen/get-by-text "Player 2"))))
 
 (t/deftest game-card-shows-cancel-for-own-waiting-game-test
   (uix-tlr/render ($ game-card {:game sample-game-waiting
-                                 :current-user-id sample-user-id
-                                 :on-cancel identity}))
+                                :current-user-id sample-user-id
+                                :on-cancel identity}))
   (t/is (some? (screen/get-by-role "button" {:name "Cancel"}))))
 
 (t/deftest game-card-shows-join-for-other-waiting-game-test
   (uix-tlr/render ($ game-card {:game sample-game-waiting
-                                 :current-user-id "different-user"
-                                 :show-join? true
-                                 :on-join identity}))
+                                :current-user-id "different-user"
+                                :show-join? true
+                                :on-join identity}))
   (t/is (some? (screen/get-by-role "button" {:name "Join Game"}))))
 
 (t/deftest game-card-shows-resume-for-active-game-test
   (uix-tlr/render ($ game-card {:game sample-game-active
-                                 :current-user-id sample-user-id
-                                 :on-resume identity}))
+                                :current-user-id sample-user-id
+                                :on-resume identity}))
   (t/is (some? (screen/get-by-role "button" {:name "Resume"}))))
 
 (t/deftest game-card-shows-view-for-completed-game-test
   (uix-tlr/render ($ game-card {:game sample-game-completed
-                                 :current-user-id sample-user-id
-                                 :on-view identity}))
+                                :current-user-id sample-user-id
+                                :on-view identity}))
   (t/is (some? (screen/get-by-role "button" {:name "View"}))))
 
 (t/deftest game-card-join-button-calls-handler-test
   (t/async done
-    (let [clicked (atom nil)
-          game    (assoc sample-game-waiting :player-1-id "other-user")
-          _       (uix-tlr/render ($ game-card {:game game
-                                                 :current-user-id sample-user-id
-                                                 :show-join? true
-                                                 :on-join #(reset! clicked %)}))
-          usr     (user/setup)
-          btn     (screen/get-by-role "button" {:name "Join Game"})]
-      (-> (user/click usr btn)
-          (.then (fn []
-                   (t/is (= game @clicked))
-                   (done)))
-          (.catch (fn [e]
-                    (t/is false (str e))
-                    (done)))))))
+           (let [clicked (atom nil)
+                 game    (assoc sample-game-waiting :player-1-id "other-user")
+                 _       (uix-tlr/render ($ game-card {:game game
+                                                       :current-user-id sample-user-id
+                                                       :show-join? true
+                                                       :on-join #(reset! clicked %)}))
+                 usr     (user/setup)
+                 btn     (screen/get-by-role "button" {:name "Join Game"})]
+             (-> (user/click usr btn)
+                 (.then (fn []
+                          (t/is (= game @clicked))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))

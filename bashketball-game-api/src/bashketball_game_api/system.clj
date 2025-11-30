@@ -24,6 +24,7 @@
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
+   [db.jdbc-ext :as db.jdbc-ext]
    [db.migrate :as migrate]
    [db.test-utils :as db.test]
    [integrant.core :as ig]
@@ -56,7 +57,9 @@
 (defmethod ig/init-key ::migrate [_ {:keys [db-pool]}]
   (log/info "Running database migrations")
   (binding [db/*datasource* db-pool]
-    (migrate/migrate)))
+    (migrate/migrate)
+    (log/info "Refreshing PostgreSQL enum cache")
+    (db.jdbc-ext/refresh-enum-cache! db-pool)))
 
 ;; ---------------------------------------------------------------------------
 ;; Repositories

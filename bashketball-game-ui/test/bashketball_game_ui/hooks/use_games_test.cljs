@@ -39,15 +39,24 @@
        :createdAt "2024-01-15T10:00:00Z"
        :startedAt "2024-01-15T10:05:00Z"})
 
+(def sample-page-info
+  #js {:totalCount 2
+       :hasNextPage false
+       :hasPreviousPage false})
+
 (def mock-my-games-query
   #js {:request #js {:query queries/MY_GAMES_QUERY
                      :variables #js {}}
-       :result #js {:data #js {:myGames #js [sample-game-waiting sample-game-active]}}})
+       :result #js {:data #js {:myGames #js {:data #js [sample-game-waiting sample-game-active]
+                                             :pageInfo sample-page-info}}}})
 
 (def mock-my-games-active-query
   #js {:request #js {:query queries/MY_GAMES_QUERY
                      :variables #js {:status "ACTIVE"}}
-       :result #js {:data #js {:myGames #js [sample-game-active]}}})
+       :result #js {:data #js {:myGames #js {:data #js [sample-game-active]
+                                             :pageInfo #js {:totalCount 1
+                                                            :hasNextPage false
+                                                            :hasPreviousPage false}}}}})
 
 (def mock-available-games-query
   #js {:request #js {:query queries/AVAILABLE_GAMES_QUERY}
@@ -86,64 +95,86 @@
 
 (t/deftest use-my-games-returns-games-after-loading-test
   (t/async done
-    (let [hook-result (with-mocked-provider #(use-games/use-my-games) [mock-my-games-query])]
-      (-> (wait-for
-           (fn []
-             (let [result (get-result hook-result)]
-               (when (:loading result)
-                 (throw (js/Error. "Still loading"))))))
-          (.then
-           (fn []
-             (let [result (get-result hook-result)
-                   games  (:games result)]
-               (t/is (not (:loading result)))
-               (t/is (= 2 (count games)))
-               (done))))
-          (.catch
-           (fn [e]
-             (t/is false (str "Test failed: " e))
-             (done)))))))
+           (let [hook-result (with-mocked-provider #(use-games/use-my-games) [mock-my-games-query])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (:loading result)
+                        (throw (js/Error. "Still loading"))))))
+                 (.then
+                  (fn []
+                    (let [result (get-result hook-result)
+                          games  (:games result)]
+                      (t/is (not (:loading result)))
+                      (t/is (= 2 (count games)))
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
 
 (t/deftest use-my-games-filters-by-status-test
   (t/async done
-    (let [hook-result (with-mocked-provider #(use-games/use-my-games "ACTIVE") [mock-my-games-active-query])]
-      (-> (wait-for
-           (fn []
-             (let [result (get-result hook-result)]
-               (when (:loading result)
-                 (throw (js/Error. "Still loading"))))))
-          (.then
-           (fn []
-             (let [result (get-result hook-result)
-                   games  (:games result)]
-               (t/is (= 1 (count games)))
-               (t/is (= :game-status/ACTIVE (:status (first games))))
-               (done))))
-          (.catch
-           (fn [e]
-             (t/is false (str "Test failed: " e))
-             (done)))))))
+           (let [hook-result (with-mocked-provider #(use-games/use-my-games "ACTIVE") [mock-my-games-active-query])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (:loading result)
+                        (throw (js/Error. "Still loading"))))))
+                 (.then
+                  (fn []
+                    (let [result (get-result hook-result)
+                          games  (:games result)]
+                      (t/is (= 1 (count games)))
+                      (t/is (= :game-status/ACTIVE (:status (first games))))
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
 
 (t/deftest use-my-games-decodes-game-fields-test
   (t/async done
-    (let [hook-result (with-mocked-provider #(use-games/use-my-games) [mock-my-games-query])]
-      (-> (wait-for
-           (fn []
-             (let [result (get-result hook-result)]
-               (when (or (:loading result) (empty? (:games result)))
-                 (throw (js/Error. "Still loading or no games"))))))
-          (.then
-           (fn []
-             (let [result (get-result hook-result)
-                   game   (first (:games result))]
-               (t/is (some? (:id game)))
-               (t/is (some? (:player-1-id game)))
-               (t/is (= :game-status/WAITING (:status game)))
-               (done))))
-          (.catch
-           (fn [e]
-             (t/is false (str "Test failed: " e))
-             (done)))))))
+           (let [hook-result (with-mocked-provider #(use-games/use-my-games) [mock-my-games-query])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (or (:loading result) (empty? (:games result)))
+                        (throw (js/Error. "Still loading or no games"))))))
+                 (.then
+                  (fn []
+                    (let [result (get-result hook-result)
+                          game   (first (:games result))]
+                      (t/is (some? (:id game)))
+                      (t/is (some? (:player-1-id game)))
+                      (t/is (= :game-status/WAITING (:status game)))
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
+
+(t/deftest use-my-games-returns-page-info-test
+  (t/async done
+           (let [hook-result (with-mocked-provider #(use-games/use-my-games) [mock-my-games-query])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (:loading result)
+                        (throw (js/Error. "Still loading"))))))
+                 (.then
+                  (fn []
+                    (let [result    (get-result hook-result)
+                          page-info (:page-info result)]
+                      (t/is (some? page-info))
+                      (t/is (= 2 (:total-count page-info)))
+                      (t/is (= false (:has-next-page page-info)))
+                      (t/is (= false (:has-previous-page page-info)))
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
 
 ;; =============================================================================
 ;; use-available-games tests
@@ -156,23 +187,23 @@
 
 (t/deftest use-available-games-returns-waiting-games-test
   (t/async done
-    (let [hook-result (with-mocked-provider #(use-games/use-available-games) [mock-available-games-query])]
-      (-> (wait-for
-           (fn []
-             (let [result (get-result hook-result)]
-               (when (:loading result)
-                 (throw (js/Error. "Still loading"))))))
-          (.then
-           (fn []
-             (let [result (get-result hook-result)
-                   games  (:games result)]
-               (t/is (= 1 (count games)))
-               (t/is (= :game-status/WAITING (:status (first games))))
-               (done))))
-          (.catch
-           (fn [e]
-             (t/is false (str "Test failed: " e))
-             (done)))))))
+           (let [hook-result (with-mocked-provider #(use-games/use-available-games) [mock-available-games-query])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (:loading result)
+                        (throw (js/Error. "Still loading"))))))
+                 (.then
+                  (fn []
+                    (let [result (get-result hook-result)
+                          games  (:games result)]
+                      (t/is (= 1 (count games)))
+                      (t/is (= :game-status/WAITING (:status (first games))))
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
 
 ;; =============================================================================
 ;; use-game tests
@@ -185,24 +216,24 @@
 
 (t/deftest use-game-returns-single-game-test
   (t/async done
-    (let [hook-result (with-mocked-provider #(use-games/use-game "game-1") [mock-game-query])]
-      (-> (wait-for
-           (fn []
-             (let [result (get-result hook-result)]
-               (when (:loading result)
-                 (throw (js/Error. "Still loading"))))))
-          (.then
-           (fn []
-             (let [result (get-result hook-result)
-                   game   (:game result)]
-               (t/is (some? game))
-               (t/is (= "game-1" (:id game)))
-               (t/is (= :game-status/ACTIVE (:status game)))
-               (done))))
-          (.catch
-           (fn [e]
-             (t/is false (str "Test failed: " e))
-             (done)))))))
+           (let [hook-result (with-mocked-provider #(use-games/use-game "game-1") [mock-game-query])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (:loading result)
+                        (throw (js/Error. "Still loading"))))))
+                 (.then
+                  (fn []
+                    (let [result (get-result hook-result)
+                          game   (:game result)]
+                      (t/is (some? game))
+                      (t/is (= "game-1" (:id game)))
+                      (t/is (= :game-status/ACTIVE (:status game)))
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
 
 (t/deftest use-game-skips-when-id-nil-test
   (let [hook-result (with-mocked-provider #(use-games/use-game nil) [])

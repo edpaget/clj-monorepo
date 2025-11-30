@@ -16,18 +16,18 @@
   #js {:request #js {:query mutations/CREATE_GAME_MUTATION
                      :variables #js {:deckId "deck-1"}}
        :result #js {:data #js {:createGame #js {:id "new-game-id"
-                                                 :player1Id "user-1"
-                                                 :status "WAITING"
-                                                 :createdAt "2024-01-15T10:00:00Z"}}}})
+                                                :player1Id "user-1"
+                                                :status "WAITING"
+                                                :createdAt "2024-01-15T10:00:00Z"}}}})
 
 (def mock-join-game-mutation
   #js {:request #js {:query mutations/JOIN_GAME_MUTATION
                      :variables #js {:gameId "game-1" :deckId "deck-2"}}
        :result #js {:data #js {:joinGame #js {:id "game-1"
-                                               :player1Id "user-1"
-                                               :player2Id "user-2"
-                                               :status "ACTIVE"
-                                               :startedAt "2024-01-15T10:05:00Z"}}}})
+                                              :player1Id "user-1"
+                                              :player2Id "user-2"
+                                              :status "ACTIVE"
+                                              :startedAt "2024-01-15T10:05:00Z"}}}})
 
 (def mock-leave-game-mutation
   #js {:request #js {:query mutations/LEAVE_GAME_MUTATION
@@ -38,8 +38,8 @@
   #js {:request #js {:query mutations/FORFEIT_GAME_MUTATION
                      :variables #js {:gameId "game-1"}}
        :result #js {:data #js {:forfeitGame #js {:id "game-1"
-                                                  :status "COMPLETED"
-                                                  :winnerId "user-2"}}}})
+                                                 :status "COMPLETED"
+                                                 :winnerId "user-2"}}}})
 
 (defn create-test-cache []
   (InMemoryCache.))

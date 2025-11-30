@@ -34,19 +34,19 @@
 
 (t/deftest game-list-renders-custom-empty-message-test
   (uix-tlr/render ($ game-list {:games []
-                                 :empty-message "Create a game to get started!"}))
+                                :empty-message "Create a game to get started!"}))
   (t/is (some? (screen/get-by-text "Create a game to get started!"))))
 
 (t/deftest game-list-renders-all-games-test
   (uix-tlr/render ($ game-list {:games sample-games
-                                 :current-user-id sample-user-id}))
+                                :current-user-id sample-user-id}))
   ;; Should show status badges for both games
   (t/is (some? (screen/get-by-text "Waiting")))
   (t/is (some? (screen/get-by-text "In Progress"))))
 
 (t/deftest game-list-renders-correct-number-of-status-badges-test
   (uix-tlr/render ($ game-list {:games sample-games
-                                 :current-user-id sample-user-id}))
+                                :current-user-id sample-user-id}))
   ;; Should have status badges for both games
   (t/is (= 2 (+ (count (screen/query-all-by-text "Waiting"))
                 (count (screen/query-all-by-text "In Progress"))))))

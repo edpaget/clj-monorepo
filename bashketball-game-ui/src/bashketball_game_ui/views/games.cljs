@@ -22,11 +22,11 @@
 
   Displays the user's game history with filtering options."
   []
-  (let [{:keys [user]}                            (use-auth)
-        current-user-id                           (:id user)
-        [active-tab set-active-tab]               (use-state nil)
-        {:keys [games loading error]}             (use-my-games active-tab)
-        navigate                                  (router/use-navigate)]
+  (let [{:keys [user]}                (use-auth)
+        current-user-id               (:id user)
+        [active-tab set-active-tab]   (use-state nil)
+        {:keys [games loading error]} (use-my-games active-tab)
+        navigate                      (router/use-navigate)]
 
     ($ :div {:class "space-y-6"}
        ($ :h1 {:class "text-2xl font-bold text-gray-900"} "My Games")

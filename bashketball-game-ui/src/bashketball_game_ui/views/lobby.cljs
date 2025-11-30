@@ -18,17 +18,17 @@
 
   Displays available games to join and active games to resume."
   []
-  (let [{:keys [user]}                               (use-auth)
-        current-user-id                              (:id user)
-        {:keys [games loading refetch]}              (use-available-games)
-        {:keys [games active-games]}                 (use-my-games "ACTIVE")
+  (let [{:keys [user]}                                 (use-auth)
+        current-user-id                                (:id user)
+        {:keys [games loading refetch]}                (use-available-games)
+        {:keys [games active-games]}                   (use-my-games "ACTIVE")
         [create-game {:keys [loading create-loading]}] (use-create-game)
-        [join-game {:keys [loading join-loading]}]   (use-join-game)
-        [leave-game _]                               (use-leave-game)
-        navigate                                     (router/use-navigate)
+        [join-game {:keys [loading join-loading]}]     (use-join-game)
+        [leave-game _]                                 (use-leave-game)
+        navigate                                       (router/use-navigate)
 
-        [show-create? set-show-create]               (use-state false)
-        [game-to-join set-game-to-join]              (use-state nil)]
+        [show-create? set-show-create]                 (use-state false)
+        [game-to-join set-game-to-join]                (use-state nil)]
 
     ($ :div {:class "space-y-8"}
        ;; Header
