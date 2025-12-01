@@ -84,9 +84,9 @@
 ;; ---------------------------------------------------------------------------
 ;; Card Catalog (Phase 4)
 
-(defmethod ig/init-key ::card-catalog [_ _]
+(defmethod ig/init-key ::card-catalog [_ {:keys [catalog-override]}]
   (log/info "Creating card catalog")
-  (catalog/create-card-catalog))
+  (or catalog-override (catalog/create-card-catalog)))
 
 ;; ---------------------------------------------------------------------------
 ;; Services (Phase 3+)
@@ -189,8 +189,10 @@
 (defn system-config
   "Returns the Integrant system configuration map.
 
-  Defines all components and their dependencies."
-  [profile]
+  Defines all components and their dependencies. Accepts an optional
+  `opts` map with:
+  - `:card-catalog` - Override the card catalog instance (useful for testing)"
+  [profile opts]
   {::config {:profile profile}
    ::ensure-test-db {:config (ig/ref ::config)
                      :profile profile}
@@ -206,7 +208,7 @@
    ::game-repo {:migrate (ig/ref ::migrate)}
 
    ;; Card Catalog
-   ::card-catalog {}
+   ::card-catalog {:catalog-override (:card-catalog opts)}
 
    ;; Services
    ::deck-service {:deck-repo (ig/ref ::deck-repo)
@@ -245,13 +247,14 @@
 
   Accepts an optional `opts` map with:
   - `:exclude-keys` - set of component keys to exclude from initialization
-  - `:port` - override the server port (use 0 for auto-select)"
+  - `:port` - override the server port (use 0 for auto-select)
+  - `:card-catalog` - override the card catalog instance (useful for testing)"
   ([]
    (start-system :dev))
   ([profile]
    (start-system profile {}))
-  ([profile {:keys [exclude-keys port]}]
-   (let [config (cond-> (system-config profile)
+  ([profile {:keys [exclude-keys port] :as opts}]
+   (let [config (cond-> (system-config profile opts)
                   exclude-keys (as-> cfg (apply dissoc cfg exclude-keys))
                   port         (assoc-in [::server :port-override] port))]
      (ig/init config))))

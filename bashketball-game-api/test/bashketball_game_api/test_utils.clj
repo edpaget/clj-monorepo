@@ -8,6 +8,7 @@
    [bashketball-game-api.models.protocol :as proto]
    [bashketball-game-api.models.user :as user]
    [bashketball-game-api.system :as system]
+   [bashketball-game-api.test-fixtures.cards :as test-cards]
    [cheshire.core :as json]
    [clj-http.client :as http]
    [clojure.string :as str]
@@ -24,14 +25,19 @@
 (defn start-test-system!
   "Starts a test system with test configuration.
 
-  By default excludes the HTTP server to avoid port conflicts.
-  Pass `{:include-server? true}` to start the server on an auto-selected port."
+  By default excludes the HTTP server to avoid port conflicts and uses a
+  mock card catalog instead of the real one from the cards JAR.
+
+  Options:
+  - `:include-server?` - Start the HTTP server on an auto-selected port
+  - `:use-real-catalog?` - Use the real card catalog from the JAR (default: false)"
   ([]
    (start-test-system! {}))
-  ([{:keys [include-server?]}]
-   (let [opts (if include-server?
-                {:port 0}
-                {:exclude-keys #{::system/server}})
+  ([{:keys [include-server? use-real-catalog?]}]
+   (let [opts (cond-> {:card-catalog (when-not use-real-catalog?
+                                       test-cards/mock-card-catalog)}
+                (not include-server?) (assoc :exclude-keys #{::system/server})
+                include-server? (assoc :port 0))
          sys  (system/start-system :test opts)]
      (binding [db/*datasource* (::system/db-pool sys)]
        (migrate/migrate)

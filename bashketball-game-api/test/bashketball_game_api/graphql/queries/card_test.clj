@@ -35,8 +35,8 @@
                     "query GetSet($slug: String!) { set(slug: $slug) { slug name description } }"
                     :variables {:slug "base"})
           result   (get-in (tu/graphql-data response) [:set])]
-      (is (= "base" (:slug result)))
-      (is (some? (:name result))))))
+      (is (= "base" (:slug result)) "Expected 'base' set slug")
+      (is (some? (:name result)) "Expected set name to be present"))))
 
 (deftest set-query-not-found-test
   (testing "set query returns null for unknown slug"
