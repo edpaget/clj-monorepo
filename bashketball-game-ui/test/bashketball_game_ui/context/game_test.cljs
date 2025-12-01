@@ -38,10 +38,10 @@
   #js {:request #js {:query subscriptions/GAME_UPDATED_SUBSCRIPTION
                      :variables #js {:gameId game-id}}
        :result #js {:data #js {:gameUpdated #js {:type "state-changed"
-                                                  :game sample-game
-                                                  :event #js {:type "test"
-                                                              :playerId user-id
-                                                              :timestamp "2024-01-15T10:06:00Z"}}}}})
+                                                 :game sample-game
+                                                 :event #js {:type "test"
+                                                             :playerId user-id
+                                                             :timestamp "2024-01-15T10:06:00Z"}}}}})
 
 (defn create-test-cache []
   (InMemoryCache.))

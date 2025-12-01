@@ -61,44 +61,44 @@
   [game-id]
   (let [[submit-mutation result] (useMutation mutations/SUBMIT_ACTION_MUTATION)
 
-        submit (fn [action]
-                 (submit-mutation
-                  #js {:variables #js {:gameId game-id
-                                       :action (clj->js (clj->action-input action))}}))
+        submit                   (fn [action]
+                                   (submit-mutation
+                                    #js {:variables #js {:gameId game-id
+                                                         :action (clj->js (clj->action-input action))}}))
 
-        move-player (fn [player-id q r]
-                      (submit {:type "bashketball/move-player"
-                               :player-id player-id
-                               :position [q r]}))
+        move-player              (fn [player-id q r]
+                                   (submit {:type "bashketball/move-player"
+                                            :player-id player-id
+                                            :position [q r]}))
 
-        pass-ball (fn [origin target]
-                    (submit {:type "bashketball/set-ball-in-air"
-                             :origin origin
-                             :target target
-                             :action-type "pass"}))
+        pass-ball                (fn [origin target]
+                                   (submit {:type "bashketball/set-ball-in-air"
+                                            :origin origin
+                                            :target target
+                                            :action-type "pass"}))
 
-        shoot-ball (fn [origin target]
-                     (submit {:type "bashketball/set-ball-in-air"
-                              :origin origin
-                              :target target
-                              :action-type "shot"}))
+        shoot-ball               (fn [origin target]
+                                   (submit {:type "bashketball/set-ball-in-air"
+                                            :origin origin
+                                            :target target
+                                            :action-type "shot"}))
 
-        draw-cards (fn [team count]
-                     (submit {:type "bashketball/draw-cards"
-                              :player (name team)
-                              :count count}))
+        draw-cards               (fn [team count]
+                                   (submit {:type "bashketball/draw-cards"
+                                            :player (name team)
+                                            :count count}))
 
-        discard-cards (fn [team card-slugs]
-                        (submit {:type "bashketball/discard-cards"
-                                 :player (name team)
-                                 :card-slugs card-slugs}))
+        discard-cards            (fn [team card-slugs]
+                                   (submit {:type "bashketball/discard-cards"
+                                            :player (name team)
+                                            :card-slugs card-slugs}))
 
-        end-turn (fn []
-                   (submit {:type "bashketball/advance-turn"}))
+        end-turn                 (fn []
+                                   (submit {:type "bashketball/advance-turn"}))
 
-        set-phase (fn [phase]
-                    (submit {:type "bashketball/set-phase"
-                             :phase (name phase)}))]
+        set-phase                (fn [phase]
+                                   (submit {:type "bashketball/set-phase"
+                                            :phase (name phase)}))]
 
     {:submit        submit
      :move-player   move-player

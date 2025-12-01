@@ -129,7 +129,9 @@
           :resolver-map (:resolvers resolver-map)
           :context-fn (fn [req]
                         {:request req})
-          :enable-graphiql? true})
+          :enable-graphiql? true
+          :scalars {:HexPosition {:parse vec
+                                  :serialize identity}}})
         ;; Subscription routes (SSE) - after auth, returns streaming responses
         (sse/wrap-subscription-routes subscription-manager)
         ;; Authentication middleware

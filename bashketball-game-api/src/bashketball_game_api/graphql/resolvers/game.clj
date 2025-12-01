@@ -5,6 +5,7 @@
   for game lifecycle operations, and field resolvers for player references."
   (:require
    [bashketball-game-api.services.game :as game-svc]
+   [bashketball-game.schema :as game-schema]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
 (def GameStatus
@@ -26,7 +27,7 @@
    [:player-1-id :uuid]
    [:player-2-id {:optional true} [:maybe :uuid]]
    [:status :string]
-   [:game-state {:optional true} [:maybe :any]]
+   [:game-state {:optional true} [:maybe game-schema/GameState]]
    [:winner-id {:optional true} [:maybe :uuid]]
    [:created-at :string]
    [:started-at {:optional true} [:maybe :string]]])

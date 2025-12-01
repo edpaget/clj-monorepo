@@ -7,6 +7,7 @@
    [bashketball-game-ui.graphql.client :as gql-client]
    [bashketball-game-ui.views.deck-editor :as deck-editor]
    [bashketball-game-ui.views.decks :as decks]
+   [bashketball-game-ui.views.game :as game]
    [bashketball-game-ui.views.games :as games]
    [bashketball-game-ui.views.home :as home]
    [bashketball-game-ui.views.layout :as layout]
@@ -35,7 +36,8 @@
                     ($ router/route {:path "lobby" :element ($ lobby/lobby-view)})
                     ($ router/route {:path "decks" :element ($ decks/decks-view)})
                     ($ router/route {:path "decks/:id" :element ($ deck-editor/deck-editor-view)})
-                    ($ router/route {:path "games" :element ($ games/games-view)}))))))))
+                    ($ router/route {:path "games" :element ($ games/games-view)})
+                    ($ router/route {:path "games/:id" :element ($ game/game-view)}))))))))
 
 (defn render!
   "Renders the application to the root."

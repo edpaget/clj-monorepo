@@ -84,7 +84,7 @@
                         "query($status: GameStatus) {
                          myGames(status: $status) { data { id status } pageInfo { totalCount } }
                        }"
-                        :variables {:status "active"}
+                        :variables {:status "ACTIVE"}
                         :session-id session-id)
             result     (get-in (tu/graphql-data response) [:myGames])]
         (is (= 1 (count (:data result))))

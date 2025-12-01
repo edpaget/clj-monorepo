@@ -50,10 +50,10 @@
   [subscription-name variables]
   (Observable.
    (fn [observer]
-     (let [url (case subscription-name
-                 "gameUpdated" (game-subscription-url (:gameId variables))
-                 "lobbyUpdated" (lobby-subscription-url)
-                 nil)
+     (let [url          (case subscription-name
+                          "gameUpdated" (game-subscription-url (:gameId variables))
+                          "lobbyUpdated" (lobby-subscription-url)
+                          nil)
            event-source (when url (create-event-source url))]
 
        (if-not event-source
@@ -93,5 +93,5 @@
      (if-not (is-subscription? operation)
        (forward operation)
        (let [subscription-name (get-subscription-name operation)
-             variables (js->clj (:variables operation) :keywordize-keys true)]
+             variables         (js->clj (:variables operation) :keywordize-keys true)]
          (handle-sse-subscription subscription-name variables))))))

@@ -19,8 +19,8 @@
                      :variables #js {:gameId game-id
                                      :action #js {:type "bashketball/advance-turn"}}}
        :result #js {:data #js {:submitAction #js {:success true
-                                                   :gameId game-id
-                                                   :error nil}}}})
+                                                  :gameId game-id
+                                                  :error nil}}}})
 
 (def mock-submit-action-move
   #js {:request #js {:query mutations/SUBMIT_ACTION_MUTATION
@@ -29,8 +29,8 @@
                                                   :playerId "player-1"
                                                   :position #js [2 3]}}}
        :result #js {:data #js {:submitAction #js {:success true
-                                                   :gameId game-id
-                                                   :error nil}}}})
+                                                  :gameId game-id
+                                                  :error nil}}}})
 
 (defn create-test-cache []
   (InMemoryCache.))
@@ -54,7 +54,7 @@
   (let [hook-result (with-mocked-provider
                       #(use-game-actions/use-game-actions game-id)
                       [mock-submit-action-success])
-        result (get-result hook-result)]
+        result      (get-result hook-result)]
     (t/is (fn? (:submit result)))
     (t/is (fn? (:move-player result)))
     (t/is (fn? (:pass-ball result)))
@@ -68,7 +68,7 @@
   (let [hook-result (with-mocked-provider
                       #(use-game-actions/use-game-actions game-id)
                       [mock-submit-action-success])
-        result (get-result hook-result)]
+        result      (get-result hook-result)]
     (t/is (contains? result :loading))
     (t/is (contains? result :error))))
 
@@ -76,7 +76,7 @@
   (let [hook-result (with-mocked-provider
                       #(use-game-actions/use-game-actions game-id)
                       [mock-submit-action-success])
-        result (get-result hook-result)]
+        result      (get-result hook-result)]
     (t/is (not (:loading result)))))
 
 ;; =============================================================================

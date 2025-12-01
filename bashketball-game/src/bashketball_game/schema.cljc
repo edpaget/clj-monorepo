@@ -10,72 +10,76 @@
 
 (def HexPosition
   "Axial coordinates for hex grid position [q r]."
-  [:tuple [:int {:min 0 :max 4}] [:int {:min 0 :max 13}]])
+  [:tuple {:graphql/scalar :HexPosition} [:int {:min 0 :max 4}] [:int {:min 0 :max 13}]])
 
 (def Team
   "Game player identifier (the human controlling a team)."
-  [:enum :home :away])
+  [:enum {:graphql/type :Team} :home :away])
 
 (def Phase
   "Game phase."
-  [:enum :setup :upkeep :actions :resolution :end-of-turn :game-over])
+  [:enum {:graphql/type :Phase} :setup :upkeep :actions :resolution :end-of-turn :game-over])
 
 (def Size
   "Basketball player size category."
-  [:enum :small :mid :big])
+  [:enum {:graphql/type :Size} :small :mid :big])
 
 (def Stat
   "Basketball player stat names."
-  [:enum :speed :shooting :passing :dribbling :defense])
+  [:enum {:graphql/type :Stat} :speed :shooting :passing :dribbling :defense])
 
 (def BallActionType
   "Type of ball action when in-air."
-  [:enum :shot :pass])
+  [:enum {:graphql/type :BallActionType} :shot :pass])
 
 (def Terrain
   "Board tile terrain types."
-  [:enum :court :three-point-line :paint :hoop])
+  [:enum {:graphql/type :Terrain} :court :three-point-line :paint :hoop])
 
 ;; -----------------------------------------------------------------------------
 ;; Component Schemas
 
 (def Modifier
   "Temporary stat modifier applied to a basketball player."
-  [:map
+  [:map {:graphql/type :Modifier}
    [:id :string]
    [:stat Stat]
    [:amount :int]
    [:source {:optional true} :string]
    [:expires-at {:optional true} :int]])
 
+(def PlayerStats
+  "Basketball player stats."
+  [:map {:graphql/type :PlayerStats}
+   [:size Size]
+   [:speed :int]
+   [:shooting :int]
+   [:passing :int]
+   [:dribbling :int]
+   [:defense :int]])
+
 (def BasketballPlayer
   "A basketball player on a team."
-  [:map
+  [:map {:graphql/type :BasketballPlayer}
    [:id :string]
    [:card-slug :string]
    [:name :string]
    [:position {:optional true} [:maybe HexPosition]]
    [:exhausted? :boolean]
-   [:stats [:map
-            [:size Size]
-            [:speed :int]
-            [:shooting :int]
-            [:passing :int]
-            [:dribbling :int]
-            [:defense :int]]]
+   [:stats PlayerStats]
    [:abilities [:vector :string]]
    [:modifiers [:vector Modifier]]])
 
 (def TeamRoster
   "A team's roster of basketball players."
-  [:map
+  [:map {:graphql/type :TeamRoster}
    [:starters [:vector :string]]
    [:bench [:vector :string]]
    [:players [:map-of :string BasketballPlayer]]])
 
-(def Deck
-  "A game player's deck state."
-  [:map
+(def DeckState
+  "A game player's deck state during a game."
+  [:map {:graphql/type :DeckState}
    [:draw-pile [:vector :string]]
    [:hand [:vector :string]]
    [:discard [:vector :string]]
@@ -83,28 +87,32 @@
 
 (def GamePlayer
   "A game player (human/AI controlling a team)."
-  [:map
+  [:map {:graphql/type :GamePlayer}
    [:id Team]
    [:actions-remaining :int]
-   [:deck Deck]
+   [:deck DeckState]
    [:team TeamRoster]
    [:assets [:vector :string]]])
 
 (def Tile
   "A board tile."
-  [:map
+  [:map {:graphql/type :Tile}
    [:terrain Terrain]
    [:side {:optional true} Team]])
 
+(def OccupantType
+  "Type of occupant on a board tile."
+  [:enum {:graphql/type :OccupantType} :basketball-player :ball])
+
 (def Occupant
   "An occupant of a board tile."
-  [:map
-   [:type [:enum :basketball-player :ball]]
+  [:map {:graphql/type :Occupant}
+   [:type OccupantType]
    [:id {:optional true} :string]])
 
 (def Board
   "The game board (5x14 hex grid)."
-  [:map
+  [:map {:graphql/type :Board}
    [:width :int]
    [:height :int]
    [:tiles [:map-of [:tuple :int :int] Tile]]
@@ -112,34 +120,38 @@
 
 (def BallPossessed
   "Ball state when held by a player."
-  [:map
+  [:map {:graphql/type :BallPossessed}
    [:status [:= :possessed]]
    [:holder-id :string]])
 
 (def BallLoose
   "Ball state when on the ground."
-  [:map
+  [:map {:graphql/type :BallLoose}
    [:status [:= :loose]]
    [:position HexPosition]])
 
+(def BallTarget
+  "Target for a ball in air - either a position or player ID."
+  [:or {:graphql/scalar :String} HexPosition :string])
+
 (def BallInAir
   "Ball state when in flight."
-  [:map
+  [:map {:graphql/type :BallInAir}
    [:status [:= :in-air]]
    [:origin HexPosition]
-   [:target [:or HexPosition :string]]
+   [:target BallTarget]
    [:action-type BallActionType]])
 
 (def Ball
   "Ball state (one of three states)."
-  [:multi {:dispatch :status}
+  [:multi {:dispatch :status :graphql/type :Ball}
    [:possessed BallPossessed]
    [:loose BallLoose]
    [:in-air BallInAir]])
 
 (def StackEffect
   "An effect on the resolution stack."
-  [:map
+  [:map {:graphql/type :StackEffect}
    [:id :string]
    [:type :keyword]
    [:source {:optional true} :string]
@@ -147,22 +159,34 @@
 
 (def Event
   "A logged game event."
-  [:map
+  [:map {:graphql/type :Event}
    [:type :keyword]
    [:timestamp :string]
    [:data {:optional true} :map]])
 
+(def Score
+  "Game score for both teams."
+  [:map {:graphql/type :Score}
+   [:home :int]
+   [:away :int]])
+
+(def Players
+  "Both players in a game."
+  [:map {:graphql/type :Players}
+   [:home GamePlayer]
+   [:away GamePlayer]])
+
 (def GameState
   "The complete game state."
-  [:map
+  [:map {:graphql/type :GameState}
    [:game-id :string]
    [:phase Phase]
    [:turn-number :int]
    [:active-player Team]
-   [:score [:map [:home :int] [:away :int]]]
+   [:score Score]
    [:board Board]
    [:ball Ball]
-   [:players [:map [:home GamePlayer] [:away GamePlayer]]]
+   [:players Players]
    [:stack [:vector StackEffect]]
    [:events [:vector Event]]
    [:metadata :map]])
@@ -276,7 +300,7 @@
   [:map
    [:type [:= :bashketball/set-ball-in-air]]
    [:origin HexPosition]
-   [:target [:or HexPosition :string]]
+   [:target BallTarget]
    [:action-type BallActionType]])
 
 (def AddScoreAction

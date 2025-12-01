@@ -71,33 +71,33 @@
   - `children` - Child components"
   [{:keys [game-id user-id children]}]
   (let [;; Initial game fetch
-        query-result (useQuery queries/GAME_QUERY
-                               #js {:variables #js {:id game-id}
-                                    :skip (nil? game-id)})
+        query-result              (useQuery queries/GAME_QUERY
+                                            #js {:variables #js {:id game-id}
+                                                 :skip (nil? game-id)})
 
         ;; Subscribe to real-time updates
-        subscription-result (useSubscription subscriptions/GAME_UPDATED_SUBSCRIPTION
-                                             #js {:variables #js {:gameId game-id}
-                                                  :skip (nil? game-id)})
+        subscription-result       (useSubscription subscriptions/GAME_UPDATED_SUBSCRIPTION
+                                                   #js {:variables #js {:gameId game-id}
+                                                        :skip (nil? game-id)})
 
         ;; Local state for merged game data
-        [game set-game] (use-state nil)
+        [game set-game]           (use-state nil)
         [connected set-connected] (use-state false)
 
         ;; Decode initial game from query
-        initial-game (use-memo
-                      (fn []
-                        (some->> query-result :data :game
-                                 (decoder/decode game-schema/Game)))
-                      [query-result (:data query-result)])
+        initial-game              (use-memo
+                                   (fn []
+                                     (some->> query-result :data :game
+                                              (decoder/decode game-schema/Game)))
+                                   [query-result (:data query-result)])
 
         ;; Actions hook
-        actions (use-game-actions game-id)
+        actions                   (use-game-actions game-id)
 
         ;; Derived values
-        my-team (when game (determine-my-team game user-id))
-        game-state (parse-game-state (:game-state game))
-        is-turn (is-my-turn? game-state my-team)]
+        my-team                   (when game (determine-my-team game user-id))
+        game-state                (parse-game-state (:game-state game))
+        is-turn                   (is-my-turn? game-state my-team)]
 
     ;; Set initial game from query
     (use-effect
