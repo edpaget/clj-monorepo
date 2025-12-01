@@ -69,7 +69,7 @@
   "Provides game state context to children.
 
   Fetches initial game state via query, then subscribes to updates.
-  Merges subscription updates into local state.
+  Refetches game data when subscription events indicate state changes.
 
   Props:
   - `game-id` - UUID of the game to load
@@ -113,18 +113,24 @@
        js/undefined)
      [initial-game])
 
-    ;; Handle subscription updates
+    ;; Handle subscription events
     (use-effect
      (fn []
-       (when-let [update-data (some-> subscription-result :data :gameUpdated)]
-         ;; Mark as connected on first message
-         (when-not connected
-           (set-connected true))
-         ;; Update game state from subscription
-         (when-let [updated-game (:game update-data)]
-           (set-game (decoder/decode game-schema/Game updated-game))))
+       (when-let [event (some-> subscription-result :data :gameUpdated)]
+         (let [event-type (or (:type event) (get event "type"))]
+           ;; Mark as connected on first message
+           (when-not connected
+             (set-connected true))
+           ;; Refetch game data when state changes
+           (when (contains? #{"state-changed" "STATE_CHANGED"
+                              "player-joined" "PLAYER_JOINED"
+                              "game-started" "GAME_STARTED"
+                              "game-ended" "GAME_ENDED"}
+                            event-type)
+             (when-let [refetch (:refetch query-result)]
+               (refetch)))))
        js/undefined)
-     [connected subscription-result (:data subscription-result)])
+     [connected subscription-result (:data subscription-result) query-result])
 
     ;; Provide context value
     ($ (.-Provider game-context)

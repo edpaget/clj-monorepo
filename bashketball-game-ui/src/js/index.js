@@ -6,6 +6,7 @@ import * as ReactDOM from "react-dom";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import * as ApolloClient from "@apollo/client";
 import * as ApolloClientTesting from "@apollo/client/testing";
+import { print as gqlPrint } from "graphql";
 import * as RadixDialog from "@radix-ui/react-dialog";
 import * as RadixDropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as RadixLabel from "@radix-ui/react-label";
@@ -30,6 +31,7 @@ const modules = {
   "react-dom/client": { createRoot, hydrateRoot },
   "@apollo/client": ApolloClient,
   "@apollo/client/testing": ApolloClientTesting,
+  "graphql": { print: gqlPrint },
   "@radix-ui/react-dialog": RadixDialog,
   "@radix-ui/react-dropdown-menu": RadixDropdownMenu,
   "@radix-ui/react-label": RadixLabel,

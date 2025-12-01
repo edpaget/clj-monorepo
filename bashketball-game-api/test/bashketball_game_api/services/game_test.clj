@@ -2,13 +2,13 @@
   "Tests for game service."
   (:require
    [bashketball-game-api.services.game :as game-svc]
-   [bashketball-game-api.subscriptions.core :as subs]
    [bashketball-game-api.system :as system]
    [bashketball-game-api.test-utils :refer [*system* create-test-user
                                             create-valid-test-deck create-test-deck
                                             with-clean-db with-db with-system]]
    [clojure.core.async :as async]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
+   [clojure.test :refer [deftest is testing use-fixtures]]
+   [graphql-server.subscriptions :as subs]))
 
 (use-fixtures :once with-system)
 (use-fixtures :each with-clean-db)

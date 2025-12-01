@@ -6,7 +6,6 @@
   (:require
    [authn.middleware :as authn-mw]
    [bashketball-game-api.auth.google :as google-auth]
-   [bashketball-game-api.subscriptions.sse :as sse]
    [cheshire.core :as json]
    [clojure.string :as str]
    [db.core :as db]
@@ -128,12 +127,13 @@
          {:path "/graphql"
           :resolver-map (:resolvers resolver-map)
           :context-fn (fn [req]
-                        {:request req})
+                        {:request req
+                         :subscription-manager subscription-manager})
           :enable-graphiql? true
+          :enable-subscriptions? true
+          :subscription-path "/graphql/subscriptions"
           :scalars {:HexPosition {:parse vec
                                   :serialize identity}}})
-        ;; Subscription routes (SSE) - after auth, returns streaming responses
-        (sse/wrap-subscription-routes subscription-manager)
         ;; Authentication middleware
         (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)

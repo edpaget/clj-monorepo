@@ -9,10 +9,10 @@
    [bashketball-game-api.models.protocol :as proto]
    [bashketball-game-api.services.catalog :as catalog]
    [bashketball-game-api.services.deck :as deck-svc]
-   [bashketball-game-api.subscriptions.core :as subs]
    [bashketball-game.actions :as game-actions]
    [bashketball-game.schema :as game-schema]
-   [bashketball-game.state :as game-state]))
+   [bashketball-game.state :as game-state]
+   [graphql-server.subscriptions :as subs]))
 
 (defn- player-card?
   "Returns true if the card is a player card."

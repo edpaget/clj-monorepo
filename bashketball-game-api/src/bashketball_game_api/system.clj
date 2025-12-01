@@ -11,6 +11,7 @@
    [bashketball-game-api.graphql.resolvers.deck :as deck-resolvers]
    [bashketball-game-api.graphql.resolvers.game :as game-resolvers]
    [bashketball-game-api.graphql.resolvers.user :as user-resolvers]
+   [bashketball-game-api.graphql.subscriptions :as sub-streamers]
    [bashketball-game-api.handler :as handler]
    [bashketball-game-api.models.deck :as deck]
    [bashketball-game-api.models.game :as game]
@@ -20,13 +21,13 @@
    [bashketball-game-api.services.catalog :as catalog]
    [bashketball-game-api.services.deck :as deck-service]
    [bashketball-game-api.services.game :as game-service]
-   [bashketball-game-api.subscriptions.core :as subs]
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
    [db.jdbc-ext :as db.jdbc-ext]
    [db.migrate :as migrate]
    [db.test-utils :as db.test]
+   [graphql-server.subscriptions :as subs]
    [integrant.core :as ig]
    [ring.adapter.jetty :as jetty]))
 
@@ -143,7 +144,9 @@
                      #_{:clj-kondo/ignore [:unresolved-var]}
                      game-resolvers/resolvers
                      #_{:clj-kondo/ignore [:unresolved-var]}
-                     user-resolvers/resolvers)
+                     user-resolvers/resolvers
+                     #_{:clj-kondo/ignore [:unresolved-var]}
+                     sub-streamers/resolvers)
    :card-catalog card-catalog
    :deck-service deck-service
    :game-service game-service

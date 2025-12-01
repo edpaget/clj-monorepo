@@ -1,31 +1,29 @@
 (ns bashketball-game-ui.graphql.sse-link
-  "Custom Apollo link for game subscriptions over SSE.
+  "Custom Apollo link for GraphQL subscriptions over SSE.
 
-  The bashketball-game-api uses REST-style SSE endpoints rather than
-  GraphQL-over-SSE. This link intercepts subscription operations and
-  connects to the appropriate SSE endpoint based on the subscription name."
+  Intercepts subscription operations and connects to the GraphQL
+  SSE endpoint at `/graphql/subscriptions`. Encodes the subscription
+  query as a URL parameter and streams events from the server."
   (:require
    ["@apollo/client" :refer [ApolloLink]]
+   ["graphql" :refer [print] :rename {print gql-print}]
    ["zen-observable" :as Observable]
    [bashketball-game-ui.config :as config]))
 
-(defn game-subscription-url
-  "Returns SSE endpoint URL for game subscriptions."
-  [game-id]
-  (str config/api-base-url "/subscriptions/game/" game-id))
+(defn- graphql-subscription-url
+  "Builds the GraphQL subscription URL with encoded query and variables.
 
-(defn lobby-subscription-url
-  "Returns SSE endpoint URL for lobby subscriptions."
-  []
-  (str config/api-base-url "/subscriptions/lobby"))
-
-(defn- get-subscription-name
-  "Extracts the subscription name from a GraphQL operation."
-  [operation]
-  (let [definition (-> operation :query :definitions (aget 0))
-        selections (-> definition :selectionSet :selections)]
-    (when (pos? (:length selections))
-      (-> selections (aget 0) :name :value))))
+  The endpoint expects the query as a URL parameter in the format:
+  `/graphql/subscriptions?query=subscription {...}&variables={...}`"
+  [query variables]
+  (let [base-url (str config/api-base-url "/graphql/subscriptions")
+        ;; Convert query AST to string using graphql's print function
+        query-str (gql-print query)
+        encoded-query (js/encodeURIComponent query-str)
+        url (str base-url "?query=" encoded-query)]
+    (if (and variables (pos? (count (js/Object.keys variables))))
+      (str url "&variables=" (js/encodeURIComponent (js/JSON.stringify variables)))
+      url)))
 
 (defn- is-subscription?
   "Returns true if the operation is a subscription."
@@ -46,52 +44,43 @@
   "Handles an SSE subscription by creating an Observable.
 
   Returns a zen-observable that emits GraphQL-shaped responses
-  from SSE events."
-  [subscription-name variables]
+  from SSE events. The server sends data as `data: {\"subscriptionName\": {...}}`
+  which we pass through directly as Apollo expects."
+  [query variables]
   (Observable.
    (fn [observer]
-     (let [url          (case subscription-name
-                          "gameUpdated" (game-subscription-url (:gameId variables))
-                          "lobbyUpdated" (lobby-subscription-url)
-                          nil)
-           event-source (when url (create-event-source url))]
+     (let [url          (graphql-subscription-url query variables)
+           event-source (create-event-source url)]
 
-       (if-not event-source
-         (do
-           (.error observer (js/Error. (str "Unknown subscription: " subscription-name)))
-           (fn []))
+       (set! (.-onopen event-source)
+             (fn [_]
+               (js/console.debug "SSE connected to" url)))
 
-         (do
-           (set! (.-onopen event-source)
-                 (fn [_]
-                   (js/console.debug "SSE connected to" url)))
+       (set! (.-onmessage event-source)
+             (fn [event]
+               (let [data (js/JSON.parse (.-data event))]
+                 ;; Server sends GraphQL-shaped data directly: {subscriptionName: {...}}
+                 (.next observer #js {:data data}))))
 
-           (set! (.-onmessage event-source)
-                 (fn [event]
-                   (let [data (js/JSON.parse (.-data event))]
-                     (.next observer #js {:data (js-obj subscription-name data)}))))
+       (set! (.-onerror event-source)
+             (fn [error]
+               (js/console.error "SSE error" error)
+               (when (= (.-readyState event-source) 2)
+                 (.error observer error))))
 
-           (set! (.-onerror event-source)
-                 (fn [error]
-                   (js/console.error "SSE error" error)
-                   (when (= (.-readyState event-source) 2)
-                     (.error observer error))))
-
-           (fn []
-             (js/console.debug "SSE disconnecting from" url)
-             (.close event-source))))))))
+       (fn []
+         (js/console.debug "SSE disconnecting from" url)
+         (.close event-source))))))
 
 (defn create-sse-link
   "Creates an Apollo link that handles subscriptions via SSE.
 
-  Intercepts subscription operations and connects to the API's
-  SSE endpoints. Non-subscription operations are forwarded to
+  Intercepts subscription operations and connects to the GraphQL
+  SSE endpoint. Non-subscription operations are forwarded to
   the next link in the chain."
   []
   (ApolloLink.
    (fn [operation forward]
      (if-not (is-subscription? operation)
        (forward operation)
-       (let [subscription-name (get-subscription-name operation)
-             variables         (js->clj (:variables operation) :keywordize-keys true)]
-         (handle-sse-subscription subscription-name variables))))))
+       (handle-sse-subscription (:query operation) (:variables operation))))))

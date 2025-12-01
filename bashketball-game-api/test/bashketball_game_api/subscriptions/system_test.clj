@@ -1,9 +1,9 @@
 (ns bashketball-game-api.subscriptions.system-test
   "System integration tests for subscription infrastructure."
-  (:require [bashketball-game-api.subscriptions.core :as subs]
-            [bashketball-game-api.system :as system]
+  (:require [bashketball-game-api.system :as system]
             [bashketball-game-api.test-utils :as tu]
-            [clojure.test :refer [deftest is testing use-fixtures]]))
+            [clojure.test :refer [deftest is testing use-fixtures]]
+            [graphql-server.subscriptions :as subs]))
 
 (use-fixtures :once tu/with-system)
 
