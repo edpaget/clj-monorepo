@@ -21,7 +21,7 @@
   (let [{:keys [user]}                                 (use-auth)
         current-user-id                                (:id user)
         {:keys [games loading refetch]}                (use-available-games)
-        {:keys [games active-games]}                   (use-my-games "ACTIVE")
+        {:keys [games active-games]}                   (use-my-games "active")
         [create-game {:keys [loading create-loading]}] (use-create-game)
         [join-game {:keys [loading join-loading]}]     (use-join-game)
         [leave-game _]                                 (use-leave-game)

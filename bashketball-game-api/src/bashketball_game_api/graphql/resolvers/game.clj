@@ -7,6 +7,16 @@
    [bashketball-game-api.services.game :as game-svc]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
+(def GameStatus
+  "GraphQL enum for game status.
+
+  Values match the PostgreSQL game_status enum."
+  [:enum {:graphql/type :GameStatus}
+   :game-status/waiting
+   :game-status/active
+   :game-status/completed
+   :game-status/abandoned])
+
 (def GameResponse
   "Schema for game data returned by resolvers.
 
@@ -112,12 +122,6 @@
 (def ^:private default-limit 20)
 (def ^:private max-limit 100)
 
-(defn- parse-status
-  "Parses status string to keyword if present."
-  [status]
-  (when status
-    (keyword "game-status" status)))
-
 ;; ---------------------------------------------------------------------------
 ;; Query Resolvers
 
@@ -127,7 +131,7 @@
   Accepts optional `status` to filter by game status (waiting, active, completed),
   `limit` (default 20, max 100), and `offset` (default 0) for pagination."
   [:=> [:cat :any [:map
-                   [:status {:optional true} :string]
+                   [:status {:optional true} [:maybe GameStatus]]
                    [:limit {:optional true} :int]
                    [:offset {:optional true} :int]]
         :any]
@@ -139,7 +143,7 @@
         limit        (min (or limit default-limit) max-limit)
         offset       (or offset 0)
         opts         (cond-> {:limit limit :offset offset}
-                       status (assoc :status (parse-status status)))
+                       status (assoc :status status))
         result       (game-svc/list-user-games-paginated game-service user-id opts)
         total-count  (:total-count result)
         games        (mapv game->graphql (:data result))]

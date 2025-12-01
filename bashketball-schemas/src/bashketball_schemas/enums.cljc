@@ -37,15 +37,15 @@
 (def GameStatus
   "Game lifecycle status.
 
-   - `:game-status/WAITING` - Created, waiting for opponent
-   - `:game-status/ACTIVE` - Game in progress
-   - `:game-status/COMPLETED` - Game finished with winner
-   - `:game-status/ABANDONED` - Game cancelled"
+   - `:game-status/waiting` - Created, waiting for opponent
+   - `:game-status/active` - Game in progress
+   - `:game-status/completed` - Game finished with winner
+   - `:game-status/abandoned` - Game cancelled"
   [:enum {:graphql/type :GameStatus}
-   :game-status/WAITING
-   :game-status/ACTIVE
-   :game-status/COMPLETED
-   :game-status/ABANDONED])
+   :game-status/waiting
+   :game-status/active
+   :game-status/completed
+   :game-status/abandoned])
 
 (def Team
   "Team identifier for home/away distinction."

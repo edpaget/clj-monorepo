@@ -6,7 +6,8 @@
    ["@apollo/client" :refer [useQuery]]
    [bashketball-game-ui.graphql.decoder :as decoder]
    [bashketball-game-ui.graphql.queries :as queries]
-   [bashketball-game-ui.schemas.game :as game-schema]))
+   [bashketball-game-ui.schemas.game :as game-schema]
+   [bashketball-ui.core]))
 
 (defn use-my-games
   "Fetches the current user's games with optional status filter and pagination.
@@ -19,7 +20,7 @@
   - `:refetch` - function to refetch
 
   Options:
-  - `status` - filter by game status (\"ACTIVE\", \"WAITING\", \"COMPLETED\")
+  - `status` - filter by game status (\"waiting\", \"active\", \"completed\", \"abandoned\")
   - `limit` - number of results (default 20, max 100)
   - `offset` - pagination offset (default 0)"
   ([] (use-my-games {}))
@@ -33,15 +34,15 @@
                                          offset (doto (aset "offset" offset)))
          result                        (useQuery queries/MY_GAMES_QUERY
                                                  #js {:variables variables})]
-     {:games     (some->> result .-data .-myGames .-data
+     {:games     (some->> result :data :myGames :data
                           (decoder/decode-seq game-schema/GameSummary))
-      :page-info (when-let [^js pi (some-> result .-data .-myGames .-pageInfo)]
-                   {:total-count       (.-totalCount pi)
-                    :has-next-page     (.-hasNextPage pi)
-                    :has-previous-page (.-hasPreviousPage pi)})
-      :loading   (.-loading result)
-      :error     (.-error result)
-      :refetch   (.-refetch result)})))
+      :page-info (when-let [pi (some-> result :data :myGames :pageInfo)]
+                   {:total-count       (:totalCount pi)
+                    :has-next-page     (:hasNextPage pi)
+                    :has-previous-page (:hasPreviousPage pi)})
+      :loading   (:loading result)
+      :error     (:error result)
+      :refetch   (:refetch result)})))
 
 (defn use-available-games
   "Fetches games waiting for an opponent.
@@ -51,11 +52,11 @@
   []
   (let [result (useQuery queries/AVAILABLE_GAMES_QUERY
                          #js {:pollInterval 10000})]
-    {:games   (some->> result .-data .-availableGames
+    {:games   (some->> result :data :availableGames
                        (decoder/decode-seq game-schema/GameSummary))
-     :loading (.-loading result)
-     :error   (.-error result)
-     :refetch (.-refetch result)}))
+     :loading (:loading result)
+     :error   (:error result)
+     :refetch (:refetch result)}))
 
 (defn use-game
   "Fetches a single game by ID.
@@ -65,8 +66,8 @@
   (let [result (useQuery queries/GAME_QUERY
                          #js {:variables #js {:id game-id}
                               :skip (nil? game-id)})]
-    {:game    (some->> result .-data .-game
+    {:game    (some->> result :data :game
                        (decoder/decode game-schema/Game))
-     :loading (.-loading result)
-     :error   (.-error result)
-     :refetch (.-refetch result)}))
+     :loading (:loading result)
+     :error   (:error result)
+     :refetch (:refetch result)}))

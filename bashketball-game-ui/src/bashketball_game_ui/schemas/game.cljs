@@ -8,10 +8,10 @@
 (def GameStatus
   "API game status (persistence layer, not game engine phase)."
   [:enum
-   :game-status/WAITING
-   :game-status/ACTIVE
-   :game-status/COMPLETED
-   :game-status/ABANDONED])
+   :game-status/waiting
+   :game-status/active
+   :game-status/completed
+   :game-status/abandoned])
 
 (def GameUser
   "Minimal user info for game displays."

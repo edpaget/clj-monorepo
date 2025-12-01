@@ -352,7 +352,7 @@
 (def MY_GAMES_QUERY
   "Query for the current user's games with optional status filter and pagination."
   (apollo/gql "
-    query MyGames($status: String, $limit: Int, $offset: Int) {
+    query MyGames($status: GameStatus, $limit: Int, $offset: Int) {
       myGames(status: $status, limit: $limit, offset: $offset) {
         data {
           id

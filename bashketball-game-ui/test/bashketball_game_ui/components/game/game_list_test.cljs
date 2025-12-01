@@ -15,12 +15,12 @@
   [{:id "game-1"
     :player-1-id sample-user-id
     :player-2-id nil
-    :status :game-status/WAITING
+    :status :game-status/waiting
     :created-at "2024-01-15T10:00:00Z"}
    {:id "game-2"
     :player-1-id "other-user"
     :player-2-id sample-user-id
-    :status :game-status/ACTIVE
+    :status :game-status/active
     :created-at "2024-01-15T09:00:00Z"}])
 
 (t/deftest game-list-renders-loading-skeleton-test

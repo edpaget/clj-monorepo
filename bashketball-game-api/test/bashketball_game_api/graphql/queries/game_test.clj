@@ -70,7 +70,7 @@
         (is (= 1 (get-in result [:pageInfo :totalCount])))))))
 
 (deftest my-games-status-filter-test
-  (testing "myGames filters by status"
+  (testing "myGames filters by status enum"
     (tu/with-db
       (let [user1      (tu/create-test-user "user-1")
             user2      (tu/create-test-user "user-2")
@@ -81,7 +81,7 @@
             _          (game-svc/join-game! (game-service) (:id game2) (:id user2) (:id deck2))
             session-id (tu/create-authenticated-session! (:id user1) :user user1)
             response   (tu/graphql-request
-                        "query($status: String) {
+                        "query($status: GameStatus) {
                          myGames(status: $status) { data { id status } pageInfo { totalCount } }
                        }"
                         :variables {:status "active"}

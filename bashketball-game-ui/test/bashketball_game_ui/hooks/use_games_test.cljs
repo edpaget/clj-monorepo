@@ -17,7 +17,7 @@
   #js {:id "game-1"
        :player1Id "user-1"
        :player2Id nil
-       :status "WAITING"
+       :status "waiting"
        :createdAt "2024-01-15T10:00:00Z"
        :startedAt nil})
 
@@ -25,7 +25,7 @@
   #js {:id "game-2"
        :player1Id "user-1"
        :player2Id "user-2"
-       :status "ACTIVE"
+       :status "active"
        :createdAt "2024-01-15T09:00:00Z"
        :startedAt "2024-01-15T09:05:00Z"})
 
@@ -33,7 +33,7 @@
   #js {:id "game-1"
        :player1Id "user-1"
        :player2Id "user-2"
-       :status "ACTIVE"
+       :status "active"
        :gameState #js {:phase "actions" :turnNumber 1}
        :winnerId nil
        :createdAt "2024-01-15T10:00:00Z"
@@ -52,7 +52,7 @@
 
 (def mock-my-games-active-query
   #js {:request #js {:query queries/MY_GAMES_QUERY
-                     :variables #js {:status "ACTIVE"}}
+                     :variables #js {:status "active"}}
        :result #js {:data #js {:myGames #js {:data #js [sample-game-active]
                                              :pageInfo #js {:totalCount 1
                                                             :hasNextPage false
@@ -115,7 +115,7 @@
 
 (t/deftest use-my-games-filters-by-status-test
   (t/async done
-           (let [hook-result (with-mocked-provider #(use-games/use-my-games "ACTIVE") [mock-my-games-active-query])]
+           (let [hook-result (with-mocked-provider #(use-games/use-my-games "active") [mock-my-games-active-query])]
              (-> (wait-for
                   (fn []
                     (let [result (get-result hook-result)]
@@ -126,7 +126,7 @@
                     (let [result (get-result hook-result)
                           games  (:games result)]
                       (t/is (= 1 (count games)))
-                      (t/is (= :game-status/ACTIVE (:status (first games))))
+                      (t/is (= :game-status/active (:status (first games))))
                       (done))))
                  (.catch
                   (fn [e]
@@ -147,7 +147,7 @@
                           game   (first (:games result))]
                       (t/is (some? (:id game)))
                       (t/is (some? (:player-1-id game)))
-                      (t/is (= :game-status/WAITING (:status game)))
+                      (t/is (= :game-status/waiting (:status game)))
                       (done))))
                  (.catch
                   (fn [e]
@@ -198,7 +198,7 @@
                     (let [result (get-result hook-result)
                           games  (:games result)]
                       (t/is (= 1 (count games)))
-                      (t/is (= :game-status/WAITING (:status (first games))))
+                      (t/is (= :game-status/waiting (:status (first games))))
                       (done))))
                  (.catch
                   (fn [e]
@@ -228,7 +228,7 @@
                           game   (:game result)]
                       (t/is (some? game))
                       (t/is (= "game-1" (:id game)))
-                      (t/is (= :game-status/ACTIVE (:status game)))
+                      (t/is (= :game-status/active (:status game)))
                       (done))))
                  (.catch
                   (fn [e]
