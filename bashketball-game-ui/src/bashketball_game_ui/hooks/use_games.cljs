@@ -20,7 +20,7 @@
   - `:refetch` - function to refetch
 
   Options:
-  - `status` - filter by game status (\"waiting\", \"active\", \"completed\", \"abandoned\")
+  - `status` - filter by game status (\"WAITING\", \"ACTIVE\", \"COMPLETED\", \"ABANDONED\")
   - `limit` - number of results (default 20, max 100)
   - `offset` - pagination offset (default 0)"
   ([] (use-my-games {}))

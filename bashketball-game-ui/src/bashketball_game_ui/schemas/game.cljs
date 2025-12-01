@@ -6,12 +6,14 @@
   (:require [bashketball-game.schema :as game-schema]))
 
 (def GameStatus
-  "API game status (persistence layer, not game engine phase)."
+  "API game status (persistence layer, not game engine phase).
+
+  Values use SCREAMING_SNAKE_CASE to match GraphQL enum encoding."
   [:enum
-   :game-status/waiting
-   :game-status/active
-   :game-status/completed
-   :game-status/abandoned])
+   :game-status/WAITING
+   :game-status/ACTIVE
+   :game-status/COMPLETED
+   :game-status/ABANDONED])
 
 (def GameUser
   "Minimal user info for game displays."

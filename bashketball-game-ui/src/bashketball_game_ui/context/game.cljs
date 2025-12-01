@@ -11,6 +11,7 @@
    [bashketball-game-ui.hooks.use-game-actions :refer [use-game-actions]]
    [bashketball-game-ui.schemas.game :as game-schema]
    [bashketball-ui.core]
+   [clojure.string :as str]
    [uix.core :refer [$ defui create-context use-context use-state use-effect use-memo]]))
 
 (def game-context
@@ -41,12 +42,17 @@
     :else nil))
 
 (defn- is-my-turn?
-  "Returns true if it's the user's turn to act."
+  "Returns true if it's the user's turn to act.
+
+  Handles both lowercase and SCREAMING_SNAKE_CASE team values from the server."
   [game-state my-team]
   (when (and game-state my-team)
     (let [active-player (or (:active-player game-state)
-                            (get game-state "activePlayer"))]
-      (= (keyword active-player) my-team))))
+                            (get game-state "activePlayer"))
+          ;; Normalize to lowercase keyword for comparison
+          active-kw     (when active-player
+                          (-> active-player name str/lower-case keyword))]
+      (= active-kw my-team))))
 
 (defn- parse-game-state
   "Parses game state from server format to client format.

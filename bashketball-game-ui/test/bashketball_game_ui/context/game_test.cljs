@@ -21,10 +21,27 @@
   #js {:id game-id
        :player1Id user-id
        :player2Id "user-789"
-       :status "active"
-       :gameState #js {:phase "actions"
-                       :activePlayer "home"
-                       :turnNumber 1}
+       :status "ACTIVE"
+       :gameState #js {:gameId game-id
+                       :phase "ACTIONS"
+                       :activePlayer "HOME"
+                       :turnNumber 1
+                       :score #js {:home 0 :away 0}
+                       :board #js {:width 5 :height 14 :tiles #js {} :occupants #js {}}
+                       :ball #js {:__typename "BallPossessed" :holderId "player-1"}
+                       :players #js {:home #js {:id "HOME"
+                                                :actionsRemaining 2
+                                                :deck #js {:drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
+                                                :team #js {:starters #js [] :bench #js [] :players #js {}}
+                                                :assets #js []}
+                                     :away #js {:id "AWAY"
+                                                :actionsRemaining 0
+                                                :deck #js {:drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
+                                                :team #js {:starters #js [] :bench #js [] :players #js {}}
+                                                :assets #js []}}
+                       :stack #js []
+                       :events #js []
+                       :metadata #js {}}
        :winnerId nil
        :createdAt "2024-01-15T10:00:00Z"
        :startedAt "2024-01-15T10:05:00Z"})
@@ -160,5 +177,5 @@
     (t/is (not (#'game-context/is-my-turn? game-state :home)))))
 
 (t/deftest is-my-turn-handles-string-active-player-test
-  (let [game-state {"activePlayer" "home"}]
+  (let [game-state {"activePlayer" "HOME"}]
     (t/is (#'game-context/is-my-turn? game-state :home))))

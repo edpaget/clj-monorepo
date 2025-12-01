@@ -16,7 +16,7 @@
   {:id "game-1"
    :player-1-id sample-user-id
    :player-2-id nil
-   :status :game-status/waiting
+   :status :game-status/WAITING
    :created-at "2024-01-15T10:00:00Z"
    :started-at nil})
 
@@ -24,7 +24,7 @@
   {:id "game-2"
    :player-1-id sample-user-id
    :player-2-id "other-user-id"
-   :status :game-status/active
+   :status :game-status/ACTIVE
    :created-at "2024-01-15T09:00:00Z"
    :started-at "2024-01-15T09:05:00Z"})
 
@@ -32,7 +32,7 @@
   {:id "game-3"
    :player-1-id sample-user-id
    :player-2-id "other-user-id"
-   :status :game-status/completed
+   :status :game-status/COMPLETED
    :created-at "2024-01-14T10:00:00Z"
    :started-at "2024-01-14T10:05:00Z"})
 

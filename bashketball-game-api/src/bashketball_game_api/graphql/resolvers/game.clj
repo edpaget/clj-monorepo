@@ -104,13 +104,14 @@
 (defn- game->graphql
   "Transforms a game record to GraphQL response format.
 
-  Returns kebab-case keys; graphql-server converts to camelCase for GraphQL."
+  Returns kebab-case keys; graphql-server converts to camelCase for GraphQL.
+  Returns nil for game-state when empty (waiting games have no state yet)."
   [game]
   {:id           (:id game)
    :player-1-id  (:player-1-id game)
    :player-2-id  (:player-2-id game)
    :status       (name (:status game))
-   :game-state   (:game-state game)
+   :game-state   (not-empty (:game-state game))
    :winner-id    (:winner-id game)
    :created-at   (str (:created-at game))
    :started-at   (some-> (:started-at game) str)})

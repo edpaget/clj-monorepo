@@ -13,9 +13,9 @@
 (def tabs
   "Filter tabs for game list."
   [{:id nil :label "All Games"}
-   {:id "active" :label "Active"}
-   {:id "waiting" :label "Waiting"}
-   {:id "completed" :label "Completed"}])
+   {:id "ACTIVE" :label "Active"}
+   {:id "WAITING" :label "Waiting"}
+   {:id "COMPLETED" :label "Completed"}])
 
 (defui games-view
   "Games page component.
@@ -53,9 +53,9 @@
            :current-user-id current-user-id
            :empty-message (case active-tab
                             nil "You haven't played any games yet."
-                            "active" "No active games."
-                            "waiting" "No waiting games."
-                            "completed" "No completed games."
+                            "ACTIVE" "No active games."
+                            "WAITING" "No waiting games."
+                            "COMPLETED" "No completed games."
                             "No games found.")
            :on-resume #(navigate (str "/games/" (:id %)))
            :on-view #(navigate (str "/games/" (:id %)))}))))

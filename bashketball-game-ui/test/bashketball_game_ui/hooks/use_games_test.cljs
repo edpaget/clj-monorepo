@@ -17,7 +17,7 @@
   #js {:id "game-1"
        :player1Id "user-1"
        :player2Id nil
-       :status "waiting"
+       :status "WAITING"
        :createdAt "2024-01-15T10:00:00Z"
        :startedAt nil})
 
@@ -25,7 +25,7 @@
   #js {:id "game-2"
        :player1Id "user-1"
        :player2Id "user-2"
-       :status "active"
+       :status "ACTIVE"
        :createdAt "2024-01-15T09:00:00Z"
        :startedAt "2024-01-15T09:05:00Z"})
 
@@ -33,8 +33,27 @@
   #js {:id "game-1"
        :player1Id "user-1"
        :player2Id "user-2"
-       :status "active"
-       :gameState #js {:phase "actions" :turnNumber 1}
+       :status "ACTIVE"
+       :gameState #js {:gameId "game-1"
+                       :phase "ACTIONS"
+                       :turnNumber 1
+                       :activePlayer "HOME"
+                       :score #js {:home 0 :away 0}
+                       :board #js {:width 5 :height 14 :tiles #js {} :occupants #js {}}
+                       :ball #js {:__typename "BallPossessed" :holderId "player-1"}
+                       :players #js {:home #js {:id "HOME"
+                                                :actionsRemaining 2
+                                                :deck #js {:drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
+                                                :team #js {:starters #js [] :bench #js [] :players #js {}}
+                                                :assets #js []}
+                                     :away #js {:id "AWAY"
+                                                :actionsRemaining 0
+                                                :deck #js {:drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
+                                                :team #js {:starters #js [] :bench #js [] :players #js {}}
+                                                :assets #js []}}
+                       :stack #js []
+                       :events #js []
+                       :metadata #js {}}
        :winnerId nil
        :createdAt "2024-01-15T10:00:00Z"
        :startedAt "2024-01-15T10:05:00Z"})
@@ -52,7 +71,7 @@
 
 (def mock-my-games-active-query
   #js {:request #js {:query queries/MY_GAMES_QUERY
-                     :variables #js {:status "active"}}
+                     :variables #js {:status "ACTIVE"}}
        :result #js {:data #js {:myGames #js {:data #js [sample-game-active]
                                              :pageInfo #js {:totalCount 1
                                                             :hasNextPage false
@@ -115,7 +134,7 @@
 
 (t/deftest use-my-games-filters-by-status-test
   (t/async done
-           (let [hook-result (with-mocked-provider #(use-games/use-my-games "active") [mock-my-games-active-query])]
+           (let [hook-result (with-mocked-provider #(use-games/use-my-games "ACTIVE") [mock-my-games-active-query])]
              (-> (wait-for
                   (fn []
                     (let [result (get-result hook-result)]
@@ -126,7 +145,7 @@
                     (let [result (get-result hook-result)
                           games  (:games result)]
                       (t/is (= 1 (count games)))
-                      (t/is (= :game-status/active (:status (first games))))
+                      (t/is (= :game-status/ACTIVE (:status (first games))))
                       (done))))
                  (.catch
                   (fn [e]
@@ -147,7 +166,7 @@
                           game   (first (:games result))]
                       (t/is (some? (:id game)))
                       (t/is (some? (:player-1-id game)))
-                      (t/is (= :game-status/waiting (:status game)))
+                      (t/is (= :game-status/WAITING (:status game)))
                       (done))))
                  (.catch
                   (fn [e]
@@ -198,7 +217,7 @@
                     (let [result (get-result hook-result)
                           games  (:games result)]
                       (t/is (= 1 (count games)))
-                      (t/is (= :game-status/waiting (:status (first games))))
+                      (t/is (= :game-status/WAITING (:status (first games))))
                       (done))))
                  (.catch
                   (fn [e]
@@ -228,7 +247,7 @@
                           game   (:game result)]
                       (t/is (some? game))
                       (t/is (= "game-1" (:id game)))
-                      (t/is (= :game-status/active (:status game)))
+                      (t/is (= :game-status/ACTIVE (:status game)))
                       (done))))
                  (.catch
                   (fn [e]

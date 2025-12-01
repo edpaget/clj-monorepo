@@ -17,10 +17,10 @@
   [:map {:graphql/type :Deck}
    [:id :uuid]
    [:name :string]
-   [:cardSlugs [:vector :string]]
+   [:card-slugs [:vector :string]]
    [:cards [:vector card-schema/Card]]
-   [:isValid :boolean]
-   [:validationErrors {:optional true} [:vector :string]]])
+   [:is-valid :boolean]
+   [:validation-errors {:optional true} [:vector :string]]])
 
 (def DeckResponse
   "Schema for deck data returned by resolvers.
@@ -31,10 +31,10 @@
   [:map {:graphql/type :Deck}
    [:id :uuid]
    [:name :string]
-   [:cardSlugs [:vector :string]]
+   [:card-slugs [:vector :string]]
    [:cards {:optional true} [:vector card-schema/Card]]
-   [:isValid :boolean]
-   [:validationErrors {:optional true} [:vector :string]]])
+   [:is-valid :boolean]
+   [:validation-errors {:optional true} [:vector :string]]])
 
 (defn- get-user-id
   "Extracts and parses the user ID from the request context."
@@ -53,15 +53,6 @@
   (when-not (authenticated? ctx)
     (throw (ex-info "Authentication required" {:type :unauthorized}))))
 
-(defn- deck->graphql
-  "Transforms a deck record to GraphQL response format."
-  [deck]
-  {:id (:id deck)
-   :name (:name deck)
-   :cardSlugs (or (:card-slugs deck) [])
-   :isValid (boolean (:is-valid deck))
-   :validationErrors (:validation-errors deck)})
-
 (defn- get-deck-service
   "Gets the deck service from the request context."
   [ctx]
@@ -77,7 +68,7 @@
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
         user-id      (get-user-id ctx)]
-    (mapv deck->graphql (deck-svc/list-user-decks deck-service user-id))))
+    (deck-svc/list-user-decks deck-service user-id)))
 
 (defresolver :Query :deck
   "Returns a deck by ID if owned by the authenticated user."
@@ -86,8 +77,7 @@
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
         user-id      (get-user-id ctx)]
-    (when-let [deck (deck-svc/get-deck-for-user deck-service id user-id)]
-      (deck->graphql deck))))
+    (deck-svc/get-deck-for-user deck-service id user-id)))
 
 (defresolver :Deck :cards
   "Returns cards in a given deck"
@@ -105,9 +95,8 @@
   [ctx {:keys [name]} _value]
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
-        user-id      (get-user-id ctx)
-        deck         (deck-svc/create-deck! deck-service user-id name)]
-    (deck->graphql deck)))
+        user-id      (get-user-id ctx)]
+    (deck-svc/create-deck! deck-service user-id name)))
 
 (defresolver :Mutation :updateDeck
   "Updates a deck's name and/or card list."
@@ -123,8 +112,7 @@
         updates      (cond-> {}
                        name (assoc :name name)
                        card-slugs (assoc :card-slugs card-slugs))]
-    (when-let [deck (deck-svc/update-deck! deck-service id user-id updates)]
-      (deck->graphql deck))))
+    (deck-svc/update-deck! deck-service id user-id updates)))
 
 (defresolver :Mutation :deleteDeck
   "Deletes a deck owned by the authenticated user."
@@ -142,8 +130,7 @@
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
         user-id      (get-user-id ctx)]
-    (when-let [deck (deck-svc/validate-deck! deck-service id user-id)]
-      (deck->graphql deck))))
+    (deck-svc/validate-deck! deck-service id user-id)))
 
 (defresolver :Mutation :addCardsToDeck
   "Adds cards to an existing deck."
@@ -153,8 +140,7 @@
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
         user-id      (get-user-id ctx)]
-    (when-let [deck (deck-svc/add-cards-to-deck! deck-service id user-id card-slugs)]
-      (deck->graphql deck))))
+    (deck-svc/add-cards-to-deck! deck-service id user-id card-slugs)))
 
 (defresolver :Mutation :removeCardsFromDeck
   "Removes cards from an existing deck."
@@ -164,7 +150,6 @@
   (require-auth! ctx)
   (let [deck-service (get-deck-service ctx)
         user-id      (get-user-id ctx)]
-    (when-let [deck (deck-svc/remove-cards-from-deck! deck-service id user-id card-slugs)]
-      (deck->graphql deck))))
+    (deck-svc/remove-cards-from-deck! deck-service id user-id card-slugs)))
 
 (def-resolver-map)

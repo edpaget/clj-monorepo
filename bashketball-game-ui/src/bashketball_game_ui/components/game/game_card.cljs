@@ -24,10 +24,10 @@
   "Renders a status badge with appropriate styling."
   [{:keys [status]}]
   (let [[label color] (case status
-                        :game-status/waiting   ["Waiting" "bg-yellow-100 text-yellow-800"]
-                        :game-status/active    ["In Progress" "bg-green-100 text-green-800"]
-                        :game-status/completed ["Completed" "bg-gray-100 text-gray-800"]
-                        :game-status/abandoned ["Abandoned" "bg-red-100 text-red-800"]
+                        :game-status/WAITING   ["Waiting" "bg-yellow-100 text-yellow-800"]
+                        :game-status/ACTIVE    ["In Progress" "bg-green-100 text-green-800"]
+                        :game-status/COMPLETED ["Completed" "bg-gray-100 text-gray-800"]
+                        :game-status/ABANDONED ["Abandoned" "bg-red-100 text-red-800"]
                         ["Unknown" "bg-gray-100 text-gray-500"])]
     ($ :span {:class (cn "px-2 py-1 text-xs font-medium rounded-full" color)}
        label)))
@@ -65,7 +65,7 @@
 
        ($ :div {:class "flex justify-end gap-2"}
           (case status
-            :game-status/waiting
+            :game-status/WAITING
             (if (and is-owner? on-cancel)
               ($ button {:size :sm :variant :outline :on-click #(on-cancel game)}
                  "Cancel")
@@ -73,13 +73,13 @@
                 ($ button {:size :sm :on-click #(on-join game)}
                    "Join Game")))
 
-            :game-status/active
+            :game-status/ACTIVE
             (when on-resume
               ($ button {:size :sm :on-click #(on-resume game)}
                  ($ Play {:className "w-3 h-3 mr-1"})
                  "Resume"))
 
-            :game-status/completed
+            :game-status/COMPLETED
             (when on-view
               ($ button {:size :sm :variant :outline :on-click #(on-view game)}
                  "View"))

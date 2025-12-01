@@ -393,7 +393,82 @@
         player1Id
         player2Id
         status
-        gameState
+        gameState {
+          gameId
+          phase
+          turnNumber
+          activePlayer
+          score {
+            home
+            away
+          }
+          board {
+            width
+            height
+            tiles
+            occupants
+          }
+          ball {
+            __typename
+            ... on BallPossessed {
+              holderId
+            }
+            ... on BallLoose {
+              position
+            }
+            ... on BallInAir {
+              origin
+              target
+              actionType
+            }
+          }
+          players {
+            home {
+              id
+              actionsRemaining
+              deck {
+                drawPile
+                hand
+                discard
+                removed
+              }
+              team {
+                starters
+                bench
+                players
+              }
+              assets
+            }
+            away {
+              id
+              actionsRemaining
+              deck {
+                drawPile
+                hand
+                discard
+                removed
+              }
+              team {
+                starters
+                bench
+                players
+              }
+              assets
+            }
+          }
+          stack {
+            id
+            type
+            source
+            data
+          }
+          events {
+            type
+            timestamp
+            data
+          }
+          metadata
+        }
         winnerId
         createdAt
         startedAt
