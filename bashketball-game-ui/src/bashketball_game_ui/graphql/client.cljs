@@ -2,10 +2,12 @@
   "Apollo GraphQL client setup.
 
   Provides the configured Apollo client instance for making GraphQL
-  queries and mutations to the bashketball-game-api."
+  queries, mutations, and subscriptions to the bashketball-game-api.
+  Subscriptions use SSE (Server-Sent Events) via a custom link."
   (:require
    ["@apollo/client" :as apollo]
-   [bashketball-game-ui.config :as config]))
+   [bashketball-game-ui.config :as config]
+   [bashketball-game-ui.graphql.sse-link :as sse]))
 
 (def apollo-provider apollo/ApolloProvider)
 
@@ -30,10 +32,29 @@
                             "CoachingCard"
                             "TeamAssetCard"]}}))
 
+(def sse-link
+  "SSE link for handling subscriptions via Server-Sent Events."
+  (sse/create-sse-link))
+
+(defn- is-subscription-operation?
+  "Returns true if the operation is a subscription."
+  [op]
+  (let [definition (-> op :query :definitions (aget 0))]
+    (and (= "OperationDefinition" (:kind definition))
+         (= "subscription" (:operation definition)))))
+
+(def split-link
+  "Split link that routes subscriptions to SSE and other operations to HTTP."
+  (apollo/split
+   is-subscription-operation?
+   sse-link
+   http-link))
+
 (def client
   "Configured Apollo client instance.
 
-  Uses credentials: include for session cookie authentication."
+  Uses credentials: include for session cookie authentication.
+  Subscriptions are handled via SSE, queries/mutations via HTTP."
   (apollo/ApolloClient.
-   #js {:link http-link
+   #js {:link split-link
         :cache cache}))
