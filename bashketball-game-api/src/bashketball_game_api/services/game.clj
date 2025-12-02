@@ -71,7 +71,7 @@
                         (keyword active-player)
                         active-player)
         user-team-val (user-team game user-id)]
-    (and (= :game-status/active (:status game))
+    (and (= :game-status/ACTIVE (:status game))
          (= active-kw user-team-val))))
 
 (defn- game-over?
@@ -87,10 +87,16 @@
     "small" "mid" "big"                                    ; Size
     "speed" "shooting" "passing" "dribbling" "defense"     ; Stat
     "shot" "pass"                                          ; BallActionType
-    "court" "three-point-line" "paint" "hoop"})            ; Terrain
+    "court" "three-point-line" "paint" "hoop"              ; Terrain
+    "possessed" "loose" "in-air"                           ; Ball status
+    "basketball-player" "ball"})                           ; OccupantType
 
-(defn- keywordize-game-state
-  "Recursively converts string keys and known enum values to keywords in game state from JSON."
+(defn keywordize-game-state
+  "Recursively converts string keys and known enum values to keywords in game state from JSON.
+
+  When game state is stored as JSON in PostgreSQL, keywords become strings.
+  This function converts them back to keywords so they work correctly with
+  Malli schemas and the graphql-server type tagging transformer."
   [m]
   (cond
     (map? m) (into {} (map (fn [[k v]]
@@ -151,7 +157,7 @@
         (let [game (proto/create! game-repo
                                   {:player-1-id      user-id
                                    :player-1-deck-id deck-id
-                                   :status           :game-status/waiting
+                                   :status           :game-status/WAITING
                                    :game-state       {}})]
           (subs/publish! subscription-manager [:lobby]
                          {:type :game-created
@@ -160,7 +166,7 @@
 
   (join-game! [_this game-id user-id deck-id]
     (when-let [game (proto/find-by game-repo {:id game-id})]
-      (when (and (= :game-status/waiting (:status game))
+      (when (and (= :game-status/WAITING (:status game))
                  (not= user-id (:player-1-id game)))
         (when-let [deck2 (deck-svc/get-deck-for-user deck-service deck-id user-id)]
           (when (:is-valid deck2)
@@ -203,7 +209,7 @@
        :total-count total}))
 
   (list-user-games-by-status [_this user-id status]
-    (if (= status :game-status/active)
+    (if (= status :game-status/ACTIVE)
       (game-model/find-active-by-player game-repo user-id)
       (->> (game-model/find-by-player game-repo user-id)
            (filter #(= status (:status %)))
@@ -240,7 +246,7 @@
                                                       (:player-2-id game))]
                                     (game-model/update-game-state! game-repo game-id new-state)
                                     (game-model/end-game! game-repo game-id
-                                                          :game-status/completed winner-id))
+                                                          :game-status/COMPLETED winner-id))
                                   (game-model/update-game-state! game-repo game-id new-state))]
               (subs/publish! subscription-manager [:game game-id]
                              {:type :state-changed
@@ -252,12 +258,12 @@
 
   (forfeit-game! [this game-id user-id]
     (when-let [game (get-game-for-player this game-id user-id)]
-      (when (= :game-status/active (:status game))
+      (when (= :game-status/ACTIVE (:status game))
         (let [winner-id (if (= user-id (:player-1-id game))
                           (:player-2-id game)
                           (:player-1-id game))
               updated   (game-model/end-game! game-repo game-id
-                                              :game-status/completed winner-id)]
+                                              :game-status/COMPLETED winner-id)]
           (subs/publish! subscription-manager [:game game-id]
                          {:type :game-ended
                           :data {:game-id   (str game-id)
@@ -267,7 +273,7 @@
 
   (leave-game! [this game-id user-id]
     (when-let [game (get-game-for-player this game-id user-id)]
-      (when (and (= :game-status/waiting (:status game))
+      (when (and (= :game-status/WAITING (:status game))
                  (= user-id (:player-1-id game)))
         (let [deleted (proto/delete! game-repo game-id)]
           (when deleted

@@ -32,7 +32,7 @@
                         :session-id session-id)
             game       (get-in (tu/graphql-data response) [:createGame])]
         (is (some? (:id game)))
-        (is (= "waiting" (:status game)))
+        (is (= "WAITING" (:status game)))
         (is (= (str (:id user)) (:player1Id game)))
         (is (some? (:createdAt game)))))))
 
@@ -66,7 +66,7 @@
 ;; Join Game
 
 (deftest join-game-test
-  (testing "joinGame allows player 2 to join a waiting game"
+  (testing "joinGame allows player 2 to join a WAITING game"
     (tu/with-db
       (let [user1      (tu/create-test-user "user-1")
             user2      (tu/create-test-user "user-2")
@@ -83,7 +83,7 @@
                         :session-id session-id)
             result     (get-in (tu/graphql-data response) [:joinGame])]
         (is (some? result))
-        (is (= "active" (:status result)))))))
+        (is (= "ACTIVE" (:status result)))))))
 
 (deftest join-own-game-test
   (testing "joinGame returns null when trying to join own game"
@@ -119,7 +119,7 @@
 ;; Forfeit Game
 
 (deftest forfeit-game-test
-  (testing "forfeitGame ends active game and sets opponent as winner"
+  (testing "forfeitGame ends ACTIVE game and sets opponent as winner"
     (tu/with-db
       (let [user1      (tu/create-test-user "user-1")
             user2      (tu/create-test-user "user-2")
@@ -136,7 +136,7 @@
                         :session-id session-id)
             result     (get-in (tu/graphql-data response) [:forfeitGame])]
         (is (some? result))
-        (is (= "completed" (:status result)))))))
+        (is (= "COMPLETED" (:status result)))))))
 
 (deftest forfeit-game-unauthenticated-test
   (testing "forfeitGame returns errors when not authenticated"
@@ -158,7 +158,7 @@
 ;; Leave Game
 
 (deftest leave-game-test
-  (testing "leaveGame allows player 1 to leave a waiting game"
+  (testing "leaveGame allows player 1 to leave a WAITING game"
     (tu/with-db
       (let [user       (tu/create-test-user)
             deck       (tu/create-valid-test-deck (:id user))
@@ -170,8 +170,8 @@
                         :session-id session-id)]
         (is (true? (get-in (tu/graphql-data response) [:leaveGame])))))))
 
-(deftest leave-active-game-test
-  (testing "leaveGame returns false for active game"
+(deftest leave-ACTIVE-game-test
+  (testing "leaveGame returns false for ACTIVE game"
     (tu/with-db
       (let [user1      (tu/create-test-user "user-1")
             user2      (tu/create-test-user "user-2")

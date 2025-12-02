@@ -8,14 +8,17 @@
 
    (m/validate schemas/Card my-card)
    (m/validate schemas/User my-user)
+   (m/validate schemas/Game my-game)
    ```
 
    For more granular imports, use the specific namespaces:
    - [[bashketball-schemas.enums]] - Enum definitions
    - [[bashketball-schemas.card]] - Card type schemas
-   - [[bashketball-schemas.user]] - User schema"
+   - [[bashketball-schemas.user]] - User schema
+   - [[bashketball-schemas.game]] - API-level game schemas"
   (:require [bashketball-schemas.card :as card]
             [bashketball-schemas.enums :as enums]
+            [bashketball-schemas.game :as game]
             [bashketball-schemas.types :as types]
             [bashketball-schemas.user :as user]))
 
@@ -139,3 +142,19 @@
 (def GitHubId
   "GitHub user ID schema. See [[user/GitHubId]]."
   user/GitHubId)
+
+;; =============================================================================
+;; Game Schemas
+;; =============================================================================
+
+(def Game
+  "API-level game record. See [[game/Game]]."
+  game/Game)
+
+(def GameSummary
+  "Game summary for list views. See [[game/GameSummary]]."
+  game/GameSummary)
+
+(def GameUser
+  "Minimal user info for games. See [[game/GameUser]]."
+  game/GameUser)

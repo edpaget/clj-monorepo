@@ -132,8 +132,11 @@
           :enable-graphiql? true
           :enable-subscriptions? true
           :subscription-path "/graphql/subscriptions"
+          ;; HexPosition tuples are converted to Java arrays by the encoding transformer
+          ;; so Lacinia doesn't interpret them as GraphQL list values. The serialize
+          ;; function converts them back to vectors for JSON output.
           :scalars {:HexPosition {:parse vec
-                                  :serialize identity}}})
+                                  :serialize (fn [v] (when v (vec v)))}}})
         ;; Authentication middleware
         (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)

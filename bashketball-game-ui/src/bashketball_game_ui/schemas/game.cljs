@@ -2,47 +2,27 @@
   "API-level schemas for game data from GraphQL.
 
   Game state schemas are imported from bashketball-game.schema.
-  This namespace only defines API-specific wrapper types."
-  (:require [bashketball-game.schema :as game-schema]))
+  API-level schemas (Game, GameSummary, GameUser, GameStatus) are
+  imported from bashketball-schemas for consistency with the API."
+  (:require [bashketball-game.schema :as game-schema]
+            [bashketball-schemas.enums :as enums]
+            [bashketball-schemas.game :as game-schemas]))
 
 (def GameStatus
-  "API game status (persistence layer, not game engine phase).
-
-  Values use SCREAMING_SNAKE_CASE to match GraphQL enum encoding."
-  [:enum
-   :game-status/WAITING
-   :game-status/ACTIVE
-   :game-status/COMPLETED
-   :game-status/ABANDONED])
+  "API game status. Re-exported from [[bashketball-schemas.enums]]."
+  enums/GameStatus)
 
 (def GameUser
-  "Minimal user info for game displays."
-  [:map
-   [:id :uuid]
-   [:name {:optional true} [:maybe :string]]
-   [:avatar-url {:optional true} [:maybe :string]]])
+  "Minimal user info for game displays. Re-exported from [[bashketball-schemas.game]]."
+  game-schemas/GameUser)
 
 (def GameSummary
-  "Game summary for list views (no full state)."
-  [:map
-   [:id :uuid]
-   [:player-1-id :uuid]
-   [:player-2-id {:optional true} [:maybe :uuid]]
-   [:status GameStatus]
-   [:created-at :string]
-   [:started-at {:optional true} [:maybe :string]]])
+  "Game summary for list views. Re-exported from [[bashketball-schemas.game]]."
+  game-schemas/GameSummary)
 
 (def Game
-  "Full game including game engine state."
-  [:map
-   [:id :uuid]
-   [:player-1-id :uuid]
-   [:player-2-id {:optional true} [:maybe :uuid]]
-   [:status GameStatus]
-   [:game-state {:optional true} [:maybe :map]]
-   [:winner-id {:optional true} [:maybe :uuid]]
-   [:created-at :string]
-   [:started-at {:optional true} [:maybe :string]]])
+  "Full game including game engine state. Re-exported from [[bashketball-schemas.game]]."
+  game-schemas/Game)
 
 ;; Re-export commonly used schemas from bashketball-game
 (def GameState game-schema/GameState)

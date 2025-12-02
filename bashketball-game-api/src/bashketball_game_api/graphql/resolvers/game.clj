@@ -6,17 +6,18 @@
   (:require
    [bashketball-game-api.services.game :as game-svc]
    [bashketball-game.schema :as game-schema]
+   [bashketball-schemas.enums :as enums]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
-(def GameStatus
-  "GraphQL enum for game status.
+(defn- keywordize-game-state
+  "Wrapper for [[game-svc/keywordize-game-state]] for use in resolvers."
+  [game-state]
+  (when game-state
+    (game-svc/keywordize-game-state game-state)))
 
-  Values match the PostgreSQL game_status enum."
-  [:enum {:graphql/type :GameStatus}
-   :game-status/waiting
-   :game-status/active
-   :game-status/completed
-   :game-status/abandoned])
+(def GameStatus
+  "GraphQL enum for game status. Re-exported from [[bashketball-schemas.enums]]."
+  enums/GameStatus)
 
 (def GameResponse
   "Schema for game data returned by resolvers.
@@ -26,7 +27,7 @@
    [:id :uuid]
    [:player-1-id :uuid]
    [:player-2-id {:optional true} [:maybe :uuid]]
-   [:status :string]
+   [:status GameStatus]
    [:game-state {:optional true} [:maybe game-schema/GameState]]
    [:winner-id {:optional true} [:maybe :uuid]]
    [:created-at :string]
@@ -105,13 +106,15 @@
   "Transforms a game record to GraphQL response format.
 
   Returns kebab-case keys; graphql-server converts to camelCase for GraphQL.
-  Returns nil for game-state when empty (waiting games have no state yet)."
+  Returns nil for game-state when empty (waiting games have no state yet).
+  Keywordizes game-state to ensure enum values (like Ball status) are keywords
+  for proper GraphQL union type tagging."
   [game]
   {:id           (:id game)
    :player-1-id  (:player-1-id game)
    :player-2-id  (:player-2-id game)
    :status       (name (:status game))
-   :game-state   (not-empty (:game-state game))
+   :game-state   (keywordize-game-state (not-empty (:game-state game)))
    :winner-id    (:winner-id game)
    :created-at   (str (:created-at game))
    :started-at   (some-> (:started-at game) str)})

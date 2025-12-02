@@ -2,15 +2,16 @@
   "Game model and repository.
 
   Manages game data stored in PostgreSQL including game state and events.
-  Games go through status transitions: waiting -> active -> completed/abandoned."
+  Games go through status transitions: WAITING -> ACTIVE -> COMPLETED/ABANDONED."
   (:require
    [bashketball-game-api.models.protocol :as proto]
+   [bashketball-schemas.enums :as enums]
    [db.core :as db]
    [malli.core :as m]))
 
 (def GameStatus
-  "Valid game status values as namespaced keywords for PostgreSQL enum support."
-  [:enum :game-status/waiting :game-status/active :game-status/completed :game-status/abandoned])
+  "Valid game status values. Re-exported from [[bashketball-schemas.enums]]."
+  enums/GameStatus)
 
 (def Game
   "Malli schema for game entity."
@@ -88,7 +89,7 @@
           ;; Use :player1-id (no hyphen) for HoneySQL to generate correct column name player1_id
           game-data {:player1-id [:cast (:player-1-id data) :uuid]
                      :player1-deck-id [:cast (:player-1-deck-id data) :uuid]
-                     :status [:lift (or (:status data) :game-status/waiting)]
+                     :status [:lift (or (:status data) :game-status/WAITING)]
                      :game-state [:lift (or (:game-state data) {})]
                      :created-at now}]
       (db/execute-one!
@@ -146,7 +147,7 @@
   (vec (db/execute!
         {:select [:*]
          :from [:games]
-         :where [:= :status [:lift :game-status/waiting]]
+         :where [:= :status [:lift :game-status/WAITING]]
          :order-by [[:created-at :desc]]})))
 
 (defn find-by-player
@@ -195,7 +196,7 @@
         {:select [:*]
          :from [:games]
          :where [:and
-                 [:= :status [:lift :game-status/active]]
+                 [:= :status [:lift :game-status/ACTIVE]]
                  [:or
                   [:= :player1-id [:cast user-id :uuid]]
                   [:= :player2-id [:cast user-id :uuid]]]]
@@ -216,7 +217,7 @@
   (proto/update! repo game-id
                  {:player-2-id player2-id
                   :player-2-deck-id player2-deck-id
-                  :status :game-status/active
+                  :status :game-status/ACTIVE
                   :game-state initial-state
                   :current-player-id current-player-id
                   :started-at (java.time.Instant/now)}))

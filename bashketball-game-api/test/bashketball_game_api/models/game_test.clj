@@ -23,7 +23,7 @@
         (is (uuid? (:id created)))
         (is (= (:id user) (:player-1-id created)))
         (is (= (:id deck) (:player-1-deck-id created)))
-        (is (= :game-status/waiting (:status created)))
+        (is (= :game-status/WAITING (:status created)))
         (is (= {} (:game-state created)))
         (is (inst? (:created-at created)))))))
 
@@ -53,7 +53,7 @@
                                                 :player-1-deck-id (:id deck2)})
             waiting   (game/find-waiting-games game-repo)]
         (is (= 2 (count waiting)))
-        (is (every? #(= :game-status/waiting (:status %)) waiting))))))
+        (is (every? #(= :game-status/WAITING (:status %)) waiting))))))
 
 (deftest game-repository-find-by-player-test
   (testing "Finding games by player"
@@ -85,11 +85,11 @@
             updated   (proto/update! game-repo (:id created)
                                      {:player-2-id (:id user2)
                                       :player-2-deck-id (:id deck2)
-                                      :status :game-status/active})]
+                                      :status :game-status/ACTIVE})]
         (is (some? updated))
         (is (= (:id user2) (:player-2-id updated)))
         (is (= (:id deck2) (:player-2-deck-id updated)))
-        (is (= :game-status/active (:status updated)))))))
+        (is (= :game-status/ACTIVE (:status updated)))))))
 
 (deftest game-repository-start-game-test
   (testing "Starting a game"
@@ -106,7 +106,7 @@
                                          (:id user2) (:id deck2)
                                          game-state (:id user1))]
         (is (some? started))
-        (is (= :game-status/active (:status started)))
+        (is (= :game-status/ACTIVE (:status started)))
         (is (= (:id user2) (:player-2-id started)))
         (is (= (:id deck2) (:player-2-deck-id started)))
         ;; Keywords are converted to strings when stored in JSONB
@@ -122,9 +122,9 @@
             game-repo (game/create-game-repository)
             created   (proto/create! game-repo {:player-1-id (:id user)
                                                 :player-1-deck-id (:id deck)})
-            ended     (game/end-game! game-repo (:id created) :game-status/completed (:id user))]
+            ended     (game/end-game! game-repo (:id created) :game-status/COMPLETED (:id user))]
         (is (some? ended))
-        (is (= :game-status/completed (:status ended)))
+        (is (= :game-status/COMPLETED (:status ended)))
         (is (= (:id user) (:winner-id ended)))
         (is (inst? (:ended-at ended)))))))
 
@@ -228,10 +228,10 @@
             ;; Create game with explicit status
             active    (proto/create! game-repo {:player-1-id (:id user)
                                                 :player-1-deck-id (:id deck)
-                                                :status :game-status/active})]
-        (is (= :game-status/waiting (:status waiting))
-            "Default status should be :game-status/waiting")
-        (is (= :game-status/active (:status active))
+                                                :status :game-status/ACTIVE})]
+        (is (= :game-status/WAITING (:status waiting))
+            "Default status should be :game-status/WAITING")
+        (is (= :game-status/ACTIVE (:status active))
             "Explicit status should be stored correctly")))))
 
 (deftest game-status-enum-filter-test
@@ -244,15 +244,15 @@
                                                 :player-1-deck-id (:id deck)})
             _         (proto/create! game-repo {:player-1-id (:id user)
                                                 :player-1-deck-id (:id deck)
-                                                :status :game-status/active})
+                                                :status :game-status/ACTIVE})
             waiting   (game/find-by-player game-repo (:id user)
-                                           {:status :game-status/waiting})
+                                           {:status :game-status/WAITING})
             active    (game/find-by-player game-repo (:id user)
-                                           {:status :game-status/active})]
+                                           {:status :game-status/ACTIVE})]
         (is (= 1 (count waiting)) "Should find 1 waiting game")
         (is (= 1 (count active)) "Should find 1 active game")
-        (is (= :game-status/waiting (:status (first waiting))))
-        (is (= :game-status/active (:status (first active))))))))
+        (is (= :game-status/WAITING (:status (first waiting))))
+        (is (= :game-status/ACTIVE (:status (first active))))))))
 
 (deftest game-status-enum-transitions-test
   (testing "All game status transitions work"
@@ -264,11 +264,11 @@
                                                    :player-1-deck-id (:id deck)})
             ;; Transition through all statuses
             to-active    (proto/update! game-repo (:id game-rec)
-                                        {:status :game-status/active})
+                                        {:status :game-status/ACTIVE})
             to-completed (proto/update! game-repo (:id game-rec)
-                                        {:status :game-status/completed})
+                                        {:status :game-status/COMPLETED})
             to-abandoned (proto/update! game-repo (:id game-rec)
-                                        {:status :game-status/abandoned})]
-        (is (= :game-status/active (:status to-active)))
-        (is (= :game-status/completed (:status to-completed)))
-        (is (= :game-status/abandoned (:status to-abandoned)))))))
+                                        {:status :game-status/ABANDONED})]
+        (is (= :game-status/ACTIVE (:status to-active)))
+        (is (= :game-status/COMPLETED (:status to-completed)))
+        (is (= :game-status/ABANDONED (:status to-abandoned)))))))

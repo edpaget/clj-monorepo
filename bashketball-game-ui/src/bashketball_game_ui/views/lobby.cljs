@@ -20,7 +20,7 @@
   []
   (let [{:keys [user]}                                 (use-auth)
         current-user-id                                (:id user)
-        {:keys [games loading refetch]}                (use-available-games)
+        {available-games :games :keys [loading refetch]}                (use-available-games)
         {:keys [games active-games]}                   (use-my-games "ACTIVE")
         [create-game {:keys [loading create-loading]}] (use-create-game)
         [join-game {:keys [loading join-loading]}]     (use-join-game)
@@ -58,7 +58,7 @@
           ($ :h2 {:class "text-lg font-semibold text-gray-900 mb-4"}
              "Available Games")
           ($ game-list
-             {:games games
+             {:games available-games
               :loading loading
               :current-user-id current-user-id
               :empty-message "No games available. Create a game to get started!"

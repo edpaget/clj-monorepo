@@ -32,7 +32,7 @@
         (is (some? (:id game)))
         (is (= (:id user) (:player-1-id game)))
         (is (= (:id deck) (:player-1-deck-id game)))
-        (is (= :game-status/waiting (:status game)))
+        (is (= :game-status/WAITING (:status game)))
         (is (nil? (:player-2-id game)))))))
 
 (deftest create-game-with-invalid-deck-test
@@ -81,7 +81,7 @@
             game         (game-svc/create-game! game-service (:id user1) (:id deck1))
             joined       (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))]
         (is (some? joined))
-        (is (= :game-status/active (:status joined)))
+        (is (= :game-status/ACTIVE (:status joined)))
         (is (= (:id user2) (:player-2-id joined)))
         (is (= (:id deck2) (:player-2-deck-id joined)))
         (is (some? (:game-state joined)))
@@ -256,7 +256,7 @@
             game         (game-svc/create-game! game-service (:id user1) (:id deck1))
             _            (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))
             forfeited    (game-svc/forfeit-game! game-service (:id game) (:id user1))]
-        (is (= :game-status/completed (:status forfeited)))
+        (is (= :game-status/COMPLETED (:status forfeited)))
         (is (= (:id user2) (:winner-id forfeited)))))))
 
 (deftest leave-waiting-game-test

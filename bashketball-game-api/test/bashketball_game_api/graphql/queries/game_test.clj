@@ -45,7 +45,7 @@
             result     (get-in (tu/graphql-data response) [:myGames])
             games      (:data result)]
         (is (= 2 (count games)))
-        (is (every? #(= "waiting" (:status %)) games))
+        (is (every? #(= "WAITING" (:status %)) games))
         (is (= 2 (get-in result [:pageInfo :totalCount])))
         (is (false? (get-in result [:pageInfo :hasNextPage])))
         (is (false? (get-in result [:pageInfo :hasPreviousPage])))))))
@@ -76,7 +76,7 @@
             user2      (tu/create-test-user "user-2")
             deck1      (tu/create-valid-test-deck (:id user1))
             deck2      (tu/create-valid-test-deck (:id user2))
-            _waiting   (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _WAITING   (game-svc/create-game! (game-service) (:id user1) (:id deck1))
             game2      (game-svc/create-game! (game-service) (:id user1) (:id deck1))
             _          (game-svc/join-game! (game-service) (:id game2) (:id user2) (:id deck2))
             session-id (tu/create-authenticated-session! (:id user1) :user user1)
@@ -88,7 +88,7 @@
                         :session-id session-id)
             result     (get-in (tu/graphql-data response) [:myGames])]
         (is (= 1 (count (:data result))))
-        (is (= "active" (:status (first (:data result)))))
+        (is (= "ACTIVE" (:status (first (:data result)))))
         (is (= 1 (get-in result [:pageInfo :totalCount])))))))
 
 (deftest my-games-pagination-test
@@ -125,7 +125,7 @@
                         :session-id session-id)
             result     (get-in (tu/graphql-data response) [:game])]
         (is (= (str (:id game)) (:id result)))
-        (is (= "waiting" (:status result)))
+        (is (= "WAITING" (:status result)))
         (is (= (str (:id user)) (:player1Id result)))
         (is (some? (:createdAt result)))))))
 
@@ -155,7 +155,7 @@
         (is (nil? (get-in (tu/graphql-data response) [:game])))))))
 
 (deftest available-games-test
-  (testing "availableGames returns waiting games excluding user's own"
+  (testing "availableGames returns WAITING games excluding user's own"
     (tu/with-db
       (let [user1      (tu/create-test-user "user-1")
             user2      (tu/create-test-user "user-2")
@@ -169,9 +169,54 @@
             games      (get-in (tu/graphql-data response) [:availableGames])]
         (is (= 1 (count games)))
         (is (= (str (:id user2)) (:player1Id (first games))))
-        (is (= "waiting" (:status (first games))))))))
+        (is (= "WAITING" (:status (first games))))))))
 
 (deftest available-games-unauthenticated-test
   (testing "availableGames returns errors when not authenticated"
     (let [response (tu/graphql-request "{ availableGames { id } }")]
       (is (seq (tu/graphql-errors response))))))
+
+(deftest game-state-union-type-tagging-test
+  (testing "game query returns gameState with correctly tagged Ball union type"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            query      "query GetGame($id: Uuid!) {
+                          game(id: $id) {
+                            id
+                            status
+                            gameState {
+                              turnNumber
+                              phase
+                              ball {
+                                __typename
+                                ... on BallPossessed {
+                                  holderId
+                                }
+                                ... on BallLoose {
+                                  position
+                                }
+                                ... on BallInAir {
+                                  origin
+                                  target
+                                }
+                              }
+                            }
+                          }
+                        }"
+            response   (tu/graphql-request query
+                                           :variables {:id (str (:id game))}
+                                           :session-id session-id)
+            result     (tu/graphql-data response)
+            game-data  (:game result)]
+        (is (= "ACTIVE" (:status game-data)))
+        (is (some? (:gameState game-data)) "gameState should be present")
+        (is (some? (get-in game-data [:gameState :ball])) "ball should be present")
+        (is (contains? #{"BallPossessed" "BallLoose" "BallInAir"}
+                       (get-in game-data [:gameState :ball :__typename]))
+            "ball __typename should be one of the Ball union types")))))

@@ -74,15 +74,17 @@
 (defn- split-db-name-from-uri
   "Splits the database name from JDBC URL.
 
-  Returns tuple of [base-url db-name]."
+  Returns tuple of [admin-url db-name] where admin-url connects to the
+  `postgres` maintenance database for administrative operations."
   [db-url]
   (let [path    (.getPath (java.net.URI. (str/replace-first db-url #"^jdbc:" "")))
         db-name (when (and path (> (count path) 1)) (subs path 1))]
     (when-not db-name
       (throw (ex-info "Could not parse database name from JDBC URL" {:url db-url})))
-    (let [base-url (-> (subs db-url 0 (inc (str/last-index-of db-url "/")))
-                       (str (subs db-url (+ (count db-name) (str/index-of db-url db-name)))))]
-      [base-url db-name])))
+    (let [base-url  (subs db-url 0 (inc (str/last-index-of db-url "/")))
+          suffix    (subs db-url (+ (count db-name) (str/index-of db-url db-name)))
+          admin-url (str base-url "postgres" suffix)]
+      [admin-url db-name])))
 
 (defn drop-database!
   "Drops the database specified in the configuration.
