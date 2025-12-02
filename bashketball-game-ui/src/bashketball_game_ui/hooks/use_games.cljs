@@ -1,13 +1,16 @@
 (ns bashketball-game-ui.hooks.use-games
   "React hooks for game data operations.
 
-  Provides hooks for fetching game data via GraphQL."
+  Provides hooks for fetching game data via GraphQL, including real-time
+  updates via SSE subscriptions."
   (:require
-   ["@apollo/client" :refer [useQuery]]
+   ["@apollo/client" :refer [useQuery useSubscription]]
    [bashketball-game-ui.graphql.decoder :as decoder]
    [bashketball-game-ui.graphql.queries :as queries]
+   [bashketball-game-ui.graphql.subscriptions :as subscriptions]
    [bashketball-game-ui.schemas.game :as game-schema]
-   [bashketball-ui.core]))
+   [bashketball-ui.core]
+   [uix.core :as uix]))
 
 (defn use-my-games
   "Fetches the current user's games with optional status filter and pagination.
@@ -48,10 +51,10 @@
   "Fetches games waiting for an opponent.
 
   Returns a map with `:games`, `:loading`, `:error`, and `:refetch`.
-  Polls every 10 seconds for new games."
+  Use with [[use-lobby-subscription]] for real-time updates, or use
+  [[use-available-games-live]] which combines both."
   []
-  (let [result (useQuery queries/AVAILABLE_GAMES_QUERY
-                         #js {:pollInterval 10000})]
+  (let [result (useQuery queries/AVAILABLE_GAMES_QUERY)]
     {:games   (some->> result :data :availableGames
                        (decoder/decode-seq game-schema/GameSummary))
      :loading (:loading result)
@@ -71,3 +74,47 @@
      :loading (:loading result)
      :error   (:error result)
      :refetch (:refetch result)}))
+
+(defn use-lobby-subscription
+  "Subscribes to real-time lobby updates via SSE.
+
+  Returns a map with:
+  - `:connected` - true when subscription is established
+  - `:event` - the last event received (type, gameId, userId)
+  - `:loading` - true while connecting
+  - `:error` - error object if subscription failed"
+  []
+  (let [result (useSubscription subscriptions/LOBBY_UPDATED_SUBSCRIPTION)]
+    {:connected (= "connected" (some-> result :data :lobbyUpdated :type))
+     :event     (some-> result :data :lobbyUpdated)
+     :loading   (:loading result)
+     :error     (:error result)}))
+
+(defn use-available-games-live
+  "Fetches available games with real-time SSE updates.
+
+  Combines [[use-available-games]] and [[use-lobby-subscription]] to provide
+  automatic refetching when lobby events occur (game-created, game-started,
+  game-cancelled).
+
+  Returns a map with:
+  - `:games` - vector of available games
+  - `:loading` - true while fetching
+  - `:error` - error object if query failed
+  - `:refetch` - function to manually refetch
+  - `:subscription` - subscription state map with `:connected`, `:event`, `:error`"
+  []
+  (let [{:keys [games loading error refetch]} (use-available-games)
+        {:keys [event] :as subscription}      (use-lobby-subscription)
+        event-type                            (:type event)]
+    (uix/use-effect
+      (fn []
+        (when (contains? #{"GAME_CREATED" "GAME_STARTED" "GAME_CANCELLED"} event-type)
+          (refetch))
+        js/undefined)
+      [event-type refetch])
+    {:games        games
+     :loading      loading
+     :error        error
+     :refetch      refetch
+     :subscription subscription}))

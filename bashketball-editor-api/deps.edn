@@ -5,8 +5,8 @@
   local/bashketball-schemas     {:local/root "../bashketball-schemas"}
   integrant/integrant           {:mvn/version "0.13.1"}
   aero/aero                     {:mvn/version "1.1.6"}
-  ring/ring-core                {:mvn/version "1.13.0"}
-  ring/ring-jetty-adapter       {:mvn/version "1.13.0"}
+  ring/ring-core                {:mvn/version "1.15.3"}
+  ring/ring-jetty-adapter       {:mvn/version "1.15.3"}
   ring/ring-json                {:mvn/version "0.5.1"}
   metosin/ring-http-response    {:mvn/version "0.9.4"}
   clj-http/clj-http             {:mvn/version "3.13.0"}

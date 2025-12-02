@@ -40,14 +40,24 @@
    [:game-id {:optional true} [:maybe :string]]
    [:user-id {:optional true} [:maybe :string]]])
 
+(def ^:private game-event-defaults
+  "Default nil values for all GameEvent fields."
+  {:type nil :game-id nil :player-id nil :winner-id nil :reason nil :user-id nil})
+
+(def ^:private lobby-event-defaults
+  "Default nil values for all LobbyEvent fields."
+  {:type nil :game-id nil :user-id nil})
+
 (defn- wrap-channel-with-transform
-  "Wraps a channel to transform raw {:type :data} events into flat events."
-  [raw-ch]
+  "Wraps a channel to transform raw {:type :data} events into flat events.
+
+  Merges with defaults to ensure all fields are present (Apollo requires this)."
+  [raw-ch defaults]
   (let [out-ch (async/chan 10)]
     (async/go-loop []
       (if-let [msg (async/<! raw-ch)]
         (do
-          (async/>! out-ch (merge {:type (:type msg)} (:data msg)))
+          (async/>! out-ch (merge defaults {:type (:type msg)} (:data msg)))
           (recur))
         (async/close! out-ch)))
     out-ch))
@@ -62,10 +72,11 @@
   (let [sub-mgr (:subscription-manager ctx)
         user-id (get-in ctx [:request :authn/user-id])
         raw-ch  (subs/subscribe! sub-mgr [:game game-id])
-        out-ch  (wrap-channel-with-transform raw-ch)]
-    (async/put! out-ch {:type    :connected
-                        :game-id (str game-id)
-                        :user-id user-id})
+        out-ch  (wrap-channel-with-transform raw-ch game-event-defaults)]
+    (async/put! out-ch (merge game-event-defaults
+                              {:type    :connected
+                               :game-id (str game-id)
+                               :user-id user-id}))
     out-ch))
 
 (defstreamer :Subscription :lobbyUpdated
@@ -77,9 +88,10 @@
   (let [sub-mgr (:subscription-manager ctx)
         user-id (get-in ctx [:request :authn/user-id])
         raw-ch  (subs/subscribe! sub-mgr [:lobby])
-        out-ch  (wrap-channel-with-transform raw-ch)]
-    (async/put! out-ch {:type    :connected
-                        :user-id user-id})
+        out-ch  (wrap-channel-with-transform raw-ch lobby-event-defaults)]
+    (async/put! out-ch (merge lobby-event-defaults
+                              {:type    :connected
+                               :user-id user-id}))
     out-ch))
 
 (def-resolver-map)

@@ -7,7 +7,7 @@
    [bashketball-game-ui.components.game.game-list :refer [game-list]]
    [bashketball-game-ui.components.game.join-dialog :refer [join-dialog]]
    [bashketball-game-ui.context.auth :refer [use-auth]]
-   [bashketball-game-ui.hooks.use-games :refer [use-available-games use-my-games]]
+   [bashketball-game-ui.hooks.use-games :refer [use-available-games-live use-my-games]]
    [bashketball-game-ui.hooks.use-lobby :refer [use-create-game use-join-game use-leave-game]]
    [bashketball-ui.components.button :refer [button]]
    [bashketball-ui.router :as router]
@@ -20,7 +20,7 @@
   []
   (let [{:keys [user]}                                 (use-auth)
         current-user-id                                (:id user)
-        {available-games :games :keys [loading refetch]}                (use-available-games)
+        {available-games :games :keys [loading refetch]}                (use-available-games-live)
         {:keys [games active-games]}                   (use-my-games "ACTIVE")
         [create-game {:keys [loading create-loading]}] (use-create-game)
         [join-game {:keys [loading join-loading]}]     (use-join-game)

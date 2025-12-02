@@ -117,6 +117,7 @@
     (use-effect
      (fn []
        (when-let [event (some-> subscription-result :data :gameUpdated)]
+         (prn event)
          (let [event-type (or (:type event) (get event "type"))]
            ;; Mark as connected on first message
            (when-not connected

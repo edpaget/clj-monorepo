@@ -2,7 +2,6 @@
   "Integration tests for lobby subscriptions via GraphQL."
   (:require [bashketball-game-api.system :as system]
             [bashketball-game-api.test-utils :as tu]
-            [clj-http.client :as http]
             [clojure.core.async :as async]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [graphql-server.subscriptions :as subs]))
@@ -10,38 +9,62 @@
 (use-fixtures :once tu/with-server)
 (use-fixtures :each tu/with-clean-db)
 
-(defn- server-url []
-  (str "http://localhost:" (tu/server-port)))
-
-(defn- subscription-url [query]
-  (str (server-url) "/graphql/subscriptions?query="
-       (java.net.URLEncoder/encode query "UTF-8")))
-
-(deftest lobby-subscription-endpoint-returns-sse-test
-  (testing "lobby subscription returns SSE response"
+(deftest lobby-subscription-returns-sse-headers-test
+  (testing "lobby subscription returns SSE headers immediately"
     (let [user       (tu/create-test-user)
           session-id (tu/create-authenticated-session! (:id user) :user user)
           query      "subscription { lobbyUpdated { type gameId } }"
-          url        (subscription-url query)]
-      ;; SSE connections don't complete normally - they stay open.
-      ;; Use socket-timeout to force early termination, then check we got headers.
+          response   (tu/sse-request query session-id)]
       (try
-        (http/get url
-                  {:socket-timeout 500
-                   :headers {"Cookie" (str "bashketball-game-session="
-                                           (tu/create-session-cookie session-id))}})
-        ;; If we get here without timeout, check the response
-        (is false "SSE request should not complete immediately")
-        (catch java.net.SocketTimeoutException _
-          ;; Expected - SSE streams don't end, so we time out reading body.
-          ;; This actually means we connected successfully and got headers.
-          (is true "SSE endpoint accepted connection"))
-        (catch clojure.lang.ExceptionInfo e
-          ;; clj-http wraps the socket timeout
-          (let [cause (ex-cause e)]
-            (if (instance? java.net.SocketTimeoutException cause)
-              (is true "SSE endpoint accepted connection")
-              (throw e))))))))
+        (is (= 200 (:status response)))
+        (is (= "text/event-stream" (get-in response [:headers "content-type"])))
+        (finally
+          (.close (:reader response)))))))
+
+(deftest lobby-subscription-sends-connected-event-test
+  (testing "lobby subscription sends initial connected event from ring layer"
+    (let [user       (tu/create-test-user)
+          session-id (tu/create-authenticated-session! (:id user) :user user)
+          query      "subscription { lobbyUpdated { type userId } }"
+          response   (tu/sse-request query session-id)
+          reader     (:reader response)]
+      (try
+        ;; First event is from the ring layer
+        (let [ring-event (tu/read-sse-event reader)]
+          (is (= "connected" (:event ring-event)))
+          (is (= "active" (get-in ring-event [:data :subscription]))))
+        ;; Second event is from the streamer with user-specific data
+        (let [streamer-event (tu/read-sse-event reader)]
+          (is (= "message" (:event streamer-event)))
+          (is (= "CONNECTED" (get-in streamer-event [:data :lobbyUpdated :type])))
+          (is (= (str (:id user)) (get-in streamer-event [:data :lobbyUpdated :userId]))))
+        (finally
+          (.close reader))))))
+
+(deftest lobby-subscription-receives-published-events-test
+  (testing "lobby subscription receives events published to lobby topic"
+    (let [user       (tu/create-test-user)
+          session-id (tu/create-authenticated-session! (:id user) :user user)
+          query      "subscription { lobbyUpdated { type gameId } }"
+          response   (tu/sse-request query session-id)
+          reader     (:reader response)
+          sub-mgr    (::system/subscription-manager tu/*system*)]
+      (try
+        ;; Skip the ring layer's connected event
+        (tu/read-sse-event reader)
+        ;; Skip the streamer's connected event
+        (tu/read-sse-event reader)
+        ;; Publish an event to the lobby topic
+        (subs/publish! sub-mgr [:lobby]
+                       {:type :game-created
+                        :data {:game-id "new-game-456"}})
+        ;; Read the published event
+        (let [event (tu/read-sse-event reader)]
+          (is (= "message" (:event event)))
+          (is (= "GAME_CREATED" (get-in event [:data :lobbyUpdated :type])))
+          (is (= "new-game-456" (get-in event [:data :lobbyUpdated :gameId]))))
+        (finally
+          (.close reader))))))
 
 (deftest lobby-subscription-publishes-to-channel-test
   (testing "published messages go to lobby topic subscribers"

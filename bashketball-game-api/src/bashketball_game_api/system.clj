@@ -177,10 +177,11 @@
         host (get-in config [:server :host])]
     (log/info "Starting HTTP server on" (str host ":" port))
     (jetty/run-jetty handler
-                     {:port             port
-                      :host             host
-                      :join?            false
-                      :virtual-threads? true})))
+                     {:port        port
+                      :host        host
+                      :join?       false
+                      :thread-pool (doto (org.eclipse.jetty.util.thread.VirtualThreadPool.)
+                                     (.setTracking true))})))
 
 (defmethod ig/halt-key! ::server [_ server]
   (log/info "Stopping HTTP server")

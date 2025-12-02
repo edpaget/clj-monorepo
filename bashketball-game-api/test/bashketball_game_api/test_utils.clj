@@ -16,7 +16,9 @@
    [db.core :as db]
    [db.jdbc-ext :as jdbc-ext]
    [db.migrate :as migrate]
-   [ring.middleware.session.cookie :refer [cookie-store]]))
+   [hato.client :as hato]
+   [ring.middleware.session.cookie :refer [cookie-store]])
+  (:import [java.io BufferedReader InputStreamReader]))
 
 (def ^:dynamic *system*
   "Dynamic var holding the current test system."
@@ -256,3 +258,52 @@
   [response message]
   (some #(str/includes? (get % :message "") message)
         (:errors response)))
+
+;; ---------------------------------------------------------------------------
+;; SSE Subscription Helpers
+
+(defn subscription-url
+  "Returns the subscription endpoint URL for the test server with the given query."
+  [query]
+  (str "http://localhost:" (server-port) "/graphql/subscriptions?query="
+       (java.net.URLEncoder/encode query "UTF-8")))
+
+(defn read-sse-event
+  "Reads a single SSE event from a BufferedReader, returning a map with :event and :data.
+
+  Skips comment-only blocks (keepalives) and returns the first real event.
+  The :data value is parsed as JSON if possible."
+  [^BufferedReader reader]
+  (loop [event nil
+         data nil]
+    (let [line (.readLine reader)]
+      (cond
+        (nil? line) nil
+        ;; Blank line ends an event block - but only return if we have content
+        (str/blank? line) (if (or event data)
+                           {:event event
+                            :data  (when data
+                                     (try (json/parse-string data true)
+                                          (catch Exception _ data)))}
+                           (recur nil nil))
+        (str/starts-with? line "event: ") (recur (subs line 7) data)
+        (str/starts-with? line "data: ") (recur event (subs line 6))
+        ;; Comments are skipped
+        (str/starts-with? line ":") (recur event data)
+        :else (recur event data)))))
+
+(defn sse-request
+  "Makes an SSE subscription request and returns the response with an open stream.
+
+  Takes a GraphQL subscription query and session-id for authentication.
+  Returns a map with :status, :headers, :body (InputStream), and :reader (BufferedReader).
+
+  The caller is responsible for closing the reader when done."
+  [query session-id]
+  (let [cookie-value (create-session-cookie session-id)
+        response     (hato/get (subscription-url query)
+                               {:as      :stream
+                                :timeout 10000
+                                :headers {"Cookie" (str "bashketball-game-session=" cookie-value)}})
+        reader       (BufferedReader. (InputStreamReader. (:body response) "UTF-8"))]
+    (assoc response :reader reader)))
