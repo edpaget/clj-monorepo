@@ -21,23 +21,26 @@
 (defn hex->pixel
   "Converts axial hex [q r] to pixel [x y] coordinates.
 
-  Uses pointy-top orientation with odd-r offset layout. Returns the
-  center point of the hex tile."
+  Uses flat-top orientation with odd-column offset layout. The board
+  is rendered horizontally with r increasing left-to-right and q
+  increasing top-to-bottom. Returns the center point of the hex tile."
   [[q r]]
   (let [size hex-size
-        x    (+ (* size (Math/sqrt 3) q)
-                (* size (Math/sqrt 3) 0.5 (mod r 2)))
-        y    (* size 1.5 r)]
+        ;; Swap axes: r -> x (horizontal), q -> y (vertical)
+        x    (* size 1.5 r)
+        y    (+ (* size (Math/sqrt 3) q)
+                (* size (Math/sqrt 3) 0.5 (mod r 2)))]
     [x y]))
 
 (defn pixel->hex
   "Converts pixel [x y] to nearest axial hex [q r].
 
-  Uses pointy-top orientation with odd-r offset layout."
+  Uses flat-top orientation with odd-column offset layout (horizontal board)."
   [[px py]]
   (let [size hex-size
-        r    (/ py (* size 1.5))
-        q    (- (/ px (* size (Math/sqrt 3)))
+        ;; Inverse of hex->pixel with swapped axes
+        r    (/ px (* size 1.5))
+        q    (- (/ py (* size (Math/sqrt 3)))
                 (* 0.5 (mod (Math/round r) 2)))
         rr   (Math/round r)
         qq   (Math/round q)]
@@ -46,10 +49,11 @@
 (defn hex-corners
   "Returns the six corner points for a hex at the given pixel center.
 
-  Used for rendering hex polygons in SVG."
+  Uses flat-top orientation for horizontal board layout."
   [[cx cy]]
   (for [i    (range 6)
-        :let [angle-deg (- (* 60 i) 30)
+        :let [;; Flat-top: start at 0 degrees instead of -30
+              angle-deg (* 60 i)
               angle-rad (* (/ Math/PI 180) angle-deg)]]
     [(+ cx (* hex-size (Math/cos angle-rad)))
      (+ cy (* hex-size (Math/sin angle-rad)))]))
@@ -82,19 +86,28 @@
     (>= r 7) :away
     :else nil))
 
+(def hex-half-height
+  "Half the height of a flat-top hex."
+  (* hex-size (/ (Math/sqrt 3) 2)))
+
 (defn board-dimensions
   "Returns the pixel dimensions needed to render the full board.
 
-  Returns [width height] in pixels including padding."
+  Returns [width height padding] in pixels. With horizontal orientation,
+  r maps to x and q maps to y. Padding accounts for hex geometry extending
+  beyond center points."
   []
-  (let [padding   20
-        max-q     (dec board-width)
-        max-r     (dec board-height)
-        [max-x _] (hex->pixel [max-q max-r])
-        [_ max-y] (hex->pixel [0 max-r])
-        width     (+ (* 2 padding) max-x (* hex-size (Math/sqrt 3)))
-        height    (+ (* 2 padding) max-y hex-size)]
-    [(Math/ceil width) (Math/ceil height)]))
+  (let [;; Padding must accommodate hex extending beyond its center
+        ;; Flat-top hex extends hex-size horizontally, hex-half-height vertically
+        padding   (+ hex-size 4)
+        max-q     (dec board-width)   ;; 4 (vertical range)
+        max-r     (dec board-height)  ;; 13 (horizontal range)
+        [max-x _] (hex->pixel [0 max-r])
+        [_ max-y] (hex->pixel [max-q max-r])
+        ;; Add hex extents: hex-size on right, hex-half-height on bottom
+        width     (+ (* 2 padding) max-x)
+        height    (+ (* 2 padding) max-y)]
+    [(Math/ceil width) (Math/ceil height) padding]))
 
 (defn all-positions
   "Returns a sequence of all valid board positions."
