@@ -2,7 +2,7 @@
   "Tests for the use-cards, use-sets, and use-card hooks."
   (:require
    ["@apollo/client" :refer [InMemoryCache]]
-   ["@apollo/client/testing" :refer [MockedProvider]]
+   ["@apollo/client/testing/react" :refer [MockedProvider]]
    ["@testing-library/react" :as rtl]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.hooks.use-cards :as use-cards]
@@ -147,7 +147,7 @@
                     (let [result (get-result hook-result)
                           player (first (:cards result))]
                       (t/is (map? player) "Card should be a map")
-                      (t/is (= "PlayerCard" (:typename player)) "First card should be PlayerCard type")
+                      (t/is (= "PlayerCard" (:__typename player)) "First card should be PlayerCard type")
                       (done))))
                  (.catch
                   (fn [e]
@@ -232,7 +232,7 @@
                     (let [result (get-result hook-result)
                           action (second (:cards result))]
                       (t/is (map? action) "Second card should be a map")
-                      (t/is (= "StandardActionCard" (:typename action)) "Second card should be StandardActionCard type")
+                      (t/is (= "StandardActionCard" (:__typename action)) "Second card should be StandardActionCard type")
                       (done))))
                  (.catch
                   (fn [e]
@@ -392,7 +392,7 @@
                     (let [result (get-result hook-result)
                           card   (:card result)]
                       (t/is (map? card) "Card should be a map")
-                      (t/is (= "PlayerCard" (:typename card)) "Card should have PlayerCard typename")
+                      (t/is (= "PlayerCard" (:__typename card)) "Card should have PlayerCard typename")
                       (done))))
                  (.catch
                   (fn [e]

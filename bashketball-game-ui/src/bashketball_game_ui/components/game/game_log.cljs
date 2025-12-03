@@ -29,11 +29,11 @@
   [{:keys [type data] :as _event}]
   (case (keyword type)
     :bashketball/move-player
-    (let [{:keys [player-id position]} data]
+    (let [{:keys [position]} data]
       (str "Player moved to " (pr-str position)))
 
     :bashketball/set-ball-in-air
-    (let [{:keys [action-type origin target]} data]
+    (let [{:keys [action-type origin]} data]
       (if (= action-type "shot")
         (str "Shot from " (pr-str origin))
         (str "Pass from " (pr-str origin))))
@@ -47,7 +47,6 @@
 
     :bashketball/set-phase
     (let [{:keys [phase]} data]
-      (prn phase)
       (some->> phase name (str "Phase: ")))
 
     :bashketball/shot-result
@@ -92,8 +91,8 @@
   - events: Vector of event maps with :type, :timestamp, :data
   - max-height: CSS max-height value (default 200px)"
   [{:keys [events max-height]}]
-  (let [scroll-ref  (use-ref nil)
-        height      (or max-height "200px")]
+  (let [scroll-ref (use-ref nil)
+        height     (or max-height "200px")]
 
     ;; Auto-scroll to bottom when new events added
     (use-effect

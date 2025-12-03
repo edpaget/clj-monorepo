@@ -2,7 +2,7 @@
   "Tests for game query hooks: use-my-games, use-available-games, use-game."
   (:require
    ["@apollo/client" :refer [InMemoryCache]]
-   ["@apollo/client/testing" :refer [MockedProvider]]
+   ["@apollo/client/testing/react" :refer [MockedProvider]]
    ["@testing-library/react" :as rtl]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.hooks.use-games :as use-games]
@@ -14,7 +14,8 @@
 (t/use-fixtures :each fixtures/cleanup-fixture)
 
 (def sample-game-waiting
-  #js {:id "game-1"
+  #js {:__typename "GameSummary"
+       :id "game-1"
        :player1Id "user-1"
        :player2Id nil
        :status "WAITING"
@@ -22,7 +23,8 @@
        :startedAt nil})
 
 (def sample-game-active
-  #js {:id "game-2"
+  #js {:__typename "GameSummary"
+       :id "game-2"
        :player1Id "user-1"
        :player2Id "user-2"
        :status "ACTIVE"
@@ -30,11 +32,13 @@
        :startedAt "2024-01-15T09:05:00Z"})
 
 (def sample-game-with-state
-  #js {:id "game-1"
+  #js {:__typename "Game"
+       :id "game-1"
        :player1Id "user-1"
        :player2Id "user-2"
        :status "ACTIVE"
-       :gameState #js {:gameId "game-1"
+       :gameState #js {:__typename "GameState"
+                       :gameId "game-1"
                        :phase "ACTIONS"
                        :turnNumber 1
                        :activePlayer "HOME"
@@ -87,14 +91,15 @@
        :result #js {:data #js {:game sample-game-with-state}}})
 
 (defn create-test-cache []
-  (InMemoryCache.))
+  (InMemoryCache. #js {:addTypename false}))
 
 (defn with-mocked-provider [hook-fn mocks]
   (render/render-hook
    hook-fn
    {:wrapper (fn [props]
                ($ MockedProvider {:mocks (clj->js mocks)
-                                  :cache (create-test-cache)}
+                                  :cache (create-test-cache)
+                                  :addTypename false}
                   (.-children props)))}))
 
 (defn get-result [hook-result]

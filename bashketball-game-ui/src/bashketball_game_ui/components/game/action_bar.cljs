@@ -5,6 +5,7 @@
   selected player, and whose turn it is."
   (:require
    [bashketball-game-ui.game.actions :as actions]
+   [bashketball-game-ui.game.selectors :as sel]
    [bashketball-ui.components.button :refer [button]]
    [uix.core :refer [$ defui]]))
 
@@ -32,24 +33,27 @@
   - on-cancel-discard: fn [] called to cancel discard mode
   - on-submit-discard: fn [] called to submit selected cards for discard
   - on-start-game: fn [] called when Start Game clicked (setup phase)
+  - on-next-phase: fn [] called when Next Phase clicked
   - loading: boolean to disable all buttons"
   [{:keys [game-state my-team is-my-turn phase selected-player selected-card
            pass-mode discard-mode discard-count setup-placed-count
            on-end-turn on-shoot on-pass on-cancel-pass on-play-card on-draw
-           on-enter-discard on-cancel-discard on-submit-discard on-start-game loading]}]
-  (let [can-shoot   (and is-my-turn
-                         selected-player
-                         (actions/player-has-ball? game-state selected-player)
-                         (actions/can-shoot? game-state my-team))
-        can-pass    (and is-my-turn
-                         selected-player
-                         (actions/player-has-ball? game-state selected-player)
-                         (actions/can-pass? game-state my-team))
-        has-moves   (and is-my-turn
-                         selected-player
-                         (seq (actions/valid-move-positions game-state selected-player)))
-        setup-mode  (or (= phase :setup) (= phase "SETUP"))
-        setup-ready (= setup-placed-count 3)]
+           on-enter-discard on-cancel-discard on-submit-discard on-start-game on-next-phase loading]}]
+  (let [can-shoot        (and is-my-turn
+                              selected-player
+                              (actions/player-has-ball? game-state selected-player)
+                              (actions/can-shoot? game-state my-team))
+        can-pass         (and is-my-turn
+                              selected-player
+                              (actions/player-has-ball? game-state selected-player)
+                              (actions/can-pass? game-state my-team))
+        has-moves        (and is-my-turn
+                              selected-player
+                              (seq (actions/valid-move-positions game-state selected-player)))
+        setup-mode       (or (= phase :setup) (= phase "SETUP"))
+        setup-ready      (= setup-placed-count 3)
+        next-phase-value (sel/next-phase phase)
+        can-advance      (and is-my-turn (sel/can-advance-phase? phase))]
 
     ($ :div {:class "flex items-center justify-between gap-4"}
        ;; Left side: status text
@@ -149,6 +153,15 @@
                             :disabled loading
                             :class    "text-red-600 border-red-300 hover:bg-red-50"}
                     "Discard"))
+
+               ;; Next Phase button (visible in non-SETUP phases during your turn)
+               (when can-advance
+                 ($ button {:variant  :outline
+                            :size     :sm
+                            :on-click on-next-phase
+                            :disabled loading
+                            :class    "text-blue-600 border-blue-300 hover:bg-blue-50"}
+                    (str "Next Phase (" (sel/phase-label next-phase-value) ")")))
 
                ;; End Turn button (always visible when it's my turn)
                ($ button {:variant  (if is-my-turn :default :secondary)

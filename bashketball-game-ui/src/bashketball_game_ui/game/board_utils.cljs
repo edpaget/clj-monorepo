@@ -5,7 +5,8 @@
   5x14 axial hex grid. Uses pointy-top orientation. Re-exports some
   functions from bashketball-game.board for convenience."
   (:require
-   [bashketball-game.board :as board]))
+   [bashketball-game.board :as board]
+   [clojure.string :as str]))
 
 (def board-width board/width)
 (def board-height board/height)
@@ -63,7 +64,7 @@
   [center]
   (->> (hex-corners center)
        (map (fn [[x y]] (str x "," y)))
-       (clojure.string/join " ")))
+       (str/join " ")))
 
 (defn terrain-at
   "Returns terrain info for a position.

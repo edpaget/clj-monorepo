@@ -77,11 +77,10 @@
                                                           :ball         nil
                                                           :home-players {}
                                                           :away-players {}
-                                                          :valid-moves  [[2 5] [3 5]]}))]
-    ;; Valid move tiles get green highlight fill
-    (let [polygons (.querySelectorAll container "polygon")
-          fills    (map #(.getAttribute % "fill") polygons)]
-      (t/is (some #(= "#bbf7d0" %) fills)))))
+                                                          :valid-moves  [[2 5] [3 5]]}))
+        polygons            (.querySelectorAll container "polygon")
+        fills               (map #(.getAttribute % "fill") polygons)]
+    (t/is (some #(= "#bbf7d0" %) fills))))
 
 (t/deftest hex-grid-tile-click-calls-handler-test
   (t/async done

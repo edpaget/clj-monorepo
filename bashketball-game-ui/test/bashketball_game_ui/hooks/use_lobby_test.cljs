@@ -2,7 +2,7 @@
   "Tests for lobby mutation hooks: use-create-game, use-join-game, etc."
   (:require
    ["@apollo/client" :refer [InMemoryCache]]
-   ["@apollo/client/testing" :refer [MockedProvider]]
+   ["@apollo/client/testing/react" :refer [MockedProvider]]
    [bashketball-game-ui.graphql.mutations :as mutations]
    [bashketball-game-ui.hooks.use-lobby :as use-lobby]
    [cljs-tlr.fixtures :as fixtures]
@@ -42,14 +42,15 @@
                                                  :winnerId "user-2"}}}})
 
 (defn create-test-cache []
-  (InMemoryCache.))
+  (InMemoryCache. #js {:addTypename false}))
 
 (defn with-mocked-provider [hook-fn mocks]
   (render/render-hook
    hook-fn
    {:wrapper (fn [props]
                ($ MockedProvider {:mocks (clj->js mocks)
-                                  :cache (create-test-cache)}
+                                  :cache (create-test-cache)
+                                  :addTypename false}
                   (.-children props)))}))
 
 (defn get-result [hook-result]

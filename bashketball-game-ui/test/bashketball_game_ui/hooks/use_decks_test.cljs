@@ -2,7 +2,7 @@
   "Tests for deck-related hooks: use-my-decks, use-deck, and mutation hooks."
   (:require
    ["@apollo/client" :refer [InMemoryCache]]
-   ["@apollo/client/testing" :refer [MockedProvider]]
+   ["@apollo/client/testing/react" :refer [MockedProvider]]
    ["@testing-library/react" :as rtl]
    [bashketball-game-ui.graphql.mutations :as mutations]
    [bashketball-game-ui.graphql.queries :as queries]
@@ -106,7 +106,8 @@
 (defn create-test-cache
   "Creates an InMemoryCache configured for testing with union types."
   []
-  (InMemoryCache. #js {:possibleTypes game-card-possible-types}))
+  (InMemoryCache. #js {:possibleTypes game-card-possible-types
+                       :addTypename false}))
 
 (defn with-mocked-provider
   "Wraps hook rendering with MockedProvider configured for union types."
@@ -115,7 +116,8 @@
    hook-fn
    {:wrapper (fn [props]
                ($ MockedProvider {:mocks (clj->js mocks)
-                                  :cache (create-test-cache)}
+                                  :cache (create-test-cache)
+                                  :addTypename false}
                   (.-children props)))}))
 
 (defn get-result
@@ -302,7 +304,7 @@
                       (t/is (= 1 (count cards)) "Should have 1 card")
                       (let [card (first cards)]
                         (t/is (map? card) "Card should be a map")
-                        (t/is (= "PlayerCard" (:typename card)) "Card should have PlayerCard typename"))
+                        (t/is (= "PlayerCard" (:__typename card)) "Card should have PlayerCard typename"))
                       (done))))
                  (.catch
                   (fn [e]

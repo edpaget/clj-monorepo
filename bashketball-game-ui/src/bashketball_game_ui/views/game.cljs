@@ -27,140 +27,146 @@
         (use-game-context)
 
         ;; Derived data using pure selectors
-        opponent-team     (sel/opponent-team my-team)
-        phase             (:phase game-state)
-        setup-mode        (sel/setup-mode? phase)
+        opponent-team                                                                (sel/opponent-team my-team)
+        phase                                                                        (:phase game-state)
+        setup-mode                                                                   (sel/setup-mode? phase)
         {:keys [my-player my-players my-starters my-hand]}
         (sel/my-player-data game-state my-team)
-        opponent          (sel/opponent-data game-state opponent-team)
-        {:keys [home-players away-players]} (sel/all-players game-state)
-        ball-holder-id    (get-in game-state [:ball :holder-id])
-        score             (:score game-state)
-        active-player     (:active-player game-state)
-        events            (:events game-state)
+        opponent                                                                     (sel/opponent-data game-state opponent-team)
+        {:keys [home-players away-players]}                                          (sel/all-players game-state)
+        ball-holder-id                                                               (get-in game-state [:ball :holder-id])
+        score                                                                        (:score game-state)
+        active-player                                                                (:active-player game-state)
+        events                                                                       (:events game-state)
 
         ;; UI state using custom hooks
-        selection    (ui/use-selection)
-        pass         (ui/use-pass-mode)
-        discard      (ui/use-discard-mode)
-        detail-modal (ui/use-detail-modal)
+        selection                                                                    (ui/use-selection)
+        pass                                                                         (ui/use-pass-mode)
+        discard                                                                      (ui/use-discard-mode)
+        detail-modal                                                                 (ui/use-detail-modal)
 
         ;; Computed values
-        selected-player-id (:selected-player selection)
-        pass-active        (:active pass)
+        selected-player-id                                                           (:selected-player selection)
+        pass-active                                                                  (:active pass)
 
-        valid-moves (use-memo
-                     #(when (and is-my-turn selected-player-id game-state)
-                        (actions/valid-move-positions game-state selected-player-id))
-                     [is-my-turn selected-player-id game-state])
+        valid-moves                                                                  (use-memo
+                                                                                      #(when (and is-my-turn selected-player-id game-state)
+                                                                                         (actions/valid-move-positions game-state selected-player-id))
+                                                                                      [is-my-turn selected-player-id game-state])
 
-        valid-pass-targets (use-memo
-                            #(when pass-active
-                               (sel/valid-pass-targets my-players ball-holder-id))
-                            [pass-active my-players ball-holder-id])
+        valid-pass-targets                                                           (use-memo
+                                                                                      #(when pass-active
+                                                                                         (sel/valid-pass-targets my-players ball-holder-id))
+                                                                                      [pass-active my-players ball-holder-id])
 
-        valid-setup-positions (use-memo
-                               #(when (and setup-mode selected-player-id)
-                                  (actions/valid-setup-positions game-state my-team))
-                               [setup-mode selected-player-id game-state my-team])
+        valid-setup-positions                                                        (use-memo
+                                                                                      #(when (and setup-mode selected-player-id)
+                                                                                         (actions/valid-setup-positions game-state my-team))
+                                                                                      [setup-mode selected-player-id game-state my-team])
 
-        setup-placed-count (use-memo
-                            #(when setup-mode
-                               (sel/setup-placed-count my-starters my-players))
-                            [setup-mode my-starters my-players])
+        setup-placed-count                                                           (use-memo
+                                                                                      #(when setup-mode
+                                                                                         (sel/setup-placed-count my-starters my-players))
+                                                                                      [setup-mode my-starters my-players])
 
         ;; Action loading state
-        action-loading (:loading actions)
+        action-loading                                                               (:loading actions)
 
         ;; Additional extracted values for callbacks
-        discard-active (:active discard)
-        discard-cards  (:cards discard)
-        selected-card  (:selected-card selection)
+        discard-active                                                               (:active discard)
+        discard-cards                                                                (:cards discard)
+        selected-card                                                                (:selected-card selection)
 
         ;; Event handlers using pure handler functions
-        handle-hex-click (use-callback
-                          (fn [q r]
-                            (when-let [action (h/hex-click-action
-                                               {:setup-mode            setup-mode
-                                                :is-my-turn            is-my-turn
-                                                :selected-player       selected-player-id
-                                                :valid-setup-positions valid-setup-positions
-                                                :valid-moves           valid-moves}
-                                               q r)]
-                              (-> ((:move-player actions) (:player-id action) (first (:position action)) (second (:position action)))
-                                  (.then #(js/console.log "Move result:" %))
-                                  (.catch #(js/console.error "Move error:" %)))
-                              ((:set-selected-player selection) nil)))
-                          [setup-mode is-my-turn selected-player-id
-                           valid-setup-positions valid-moves actions selection])
+        handle-hex-click                                                             (use-callback
+                                                                                      (fn [q r]
+                                                                                        (when-let [action (h/hex-click-action
+                                                                                                           {:setup-mode            setup-mode
+                                                                                                            :is-my-turn            is-my-turn
+                                                                                                            :selected-player       selected-player-id
+                                                                                                            :valid-setup-positions valid-setup-positions
+                                                                                                            :valid-moves           valid-moves}
+                                                                                                           q r)]
+                                                                                          (-> ((:move-player actions) (:player-id action) (first (:position action)) (second (:position action)))
+                                                                                              (.then #(js/console.log "Move result:" %))
+                                                                                              (.catch #(js/console.error "Move error:" %)))
+                                                                                          ((:set-selected-player selection) nil)))
+                                                                                      [setup-mode is-my-turn selected-player-id
+                                                                                       valid-setup-positions valid-moves actions selection])
 
-        handle-player-click (use-callback
-                             (fn [player-id]
-                               (let [action (h/player-click-action
-                                             {:pass-mode            pass-active
-                                              :valid-pass-targets   valid-pass-targets
-                                              :ball-holder-position (actions/get-ball-holder-position game-state)
-                                              :selected-player      selected-player-id}
-                                             player-id)]
-                                 (case (:action action)
-                                   :pass (do
-                                           ((:pass-ball actions) (:origin action) (:target-player-id action))
-                                           ((:cancel pass))
-                                           ((:set-selected-player selection) nil))
-                                   :toggle-selection ((:toggle-player selection) player-id))))
-                             [selected-player-id pass-active valid-pass-targets game-state actions pass selection])
+        handle-player-click                                                          (use-callback
+                                                                                      (fn [player-id]
+                                                                                        (let [action (h/player-click-action
+                                                                                                      {:pass-mode            pass-active
+                                                                                                       :valid-pass-targets   valid-pass-targets
+                                                                                                       :ball-holder-position (actions/get-ball-holder-position game-state)
+                                                                                                       :selected-player      selected-player-id}
+                                                                                                      player-id)]
+                                                                                          (case (:action action)
+                                                                                            :pass (do
+                                                                                                    ((:pass-ball actions) (:origin action) (:target-player-id action))
+                                                                                                    ((:cancel pass))
+                                                                                                    ((:set-selected-player selection) nil))
+                                                                                            :toggle-selection ((:toggle-player selection) player-id))))
+                                                                                      [selected-player-id pass-active valid-pass-targets game-state actions pass selection])
 
-        handle-card-click (use-callback
-                           (fn [card-slug]
-                             (let [action (h/card-click-action
-                                           {:discard-mode  discard-active
-                                            :discard-cards discard-cards
-                                            :selected-card selected-card}
-                                           card-slug)]
-                               (case (:action action)
-                                 :toggle-discard ((:toggle-card discard) card-slug)
-                                 :toggle-card-selection ((:toggle-card selection) card-slug))))
-                           [discard-active discard-cards selected-card discard selection])
+        handle-card-click                                                            (use-callback
+                                                                                      (fn [card-slug]
+                                                                                        (let [action (h/card-click-action
+                                                                                                      {:discard-mode  discard-active
+                                                                                                       :discard-cards discard-cards
+                                                                                                       :selected-card selected-card}
+                                                                                                      card-slug)]
+                                                                                          (case (:action action)
+                                                                                            :toggle-discard ((:toggle-card discard) card-slug)
+                                                                                            :toggle-card-selection ((:toggle-card selection) card-slug))))
+                                                                                      [discard-active discard-cards selected-card discard selection])
 
-        handle-end-turn (use-callback
-                         (fn []
-                           ((:end-turn actions))
-                           ((:clear selection)))
-                         [actions selection])
+        handle-end-turn                                                              (use-callback
+                                                                                      (fn []
+                                                                                        ((:end-turn actions))
+                                                                                        ((:clear selection)))
+                                                                                      [actions selection])
 
-        handle-shoot (use-callback
-                      (fn []
-                        (when-let [origin (actions/get-ball-holder-position game-state)]
-                          (let [target (sel/target-basket my-team)]
-                            ((:shoot-ball actions) origin target)
-                            ((:set-selected-player selection) nil))))
-                      [game-state my-team actions selection])
+        handle-shoot                                                                 (use-callback
+                                                                                      (fn []
+                                                                                        (when-let [origin (actions/get-ball-holder-position game-state)]
+                                                                                          (let [target (sel/target-basket my-team)]
+                                                                                            ((:shoot-ball actions) origin target)
+                                                                                            ((:set-selected-player selection) nil))))
+                                                                                      [game-state my-team actions selection])
 
-        handle-play-card (use-callback
-                          (fn []
-                            (when selected-card
-                              ((:submit actions) {:type      "bashketball/play-card"
-                                                  :card-slug selected-card
-                                                  :player    (name my-team)})
-                              ((:set-selected-card selection) nil)))
-                          [selected-card my-team actions selection])
+        handle-play-card                                                             (use-callback
+                                                                                      (fn []
+                                                                                        (when selected-card
+                                                                                          ((:submit actions) {:type      "bashketball/play-card"
+                                                                                                              :card-slug selected-card
+                                                                                                              :player    (name my-team)})
+                                                                                          ((:set-selected-card selection) nil)))
+                                                                                      [selected-card my-team actions selection])
 
-        handle-draw (use-callback
-                     (fn []
-                       ((:draw-cards actions) my-team 1))
-                     [my-team actions])
+        handle-draw                                                                  (use-callback
+                                                                                      (fn []
+                                                                                        ((:draw-cards actions) my-team 1))
+                                                                                      [my-team actions])
 
-        handle-start-game (use-callback
-                           (fn []
-                             ((:set-phase actions) "UPKEEP"))
-                           [actions])
+        handle-start-game                                                            (use-callback
+                                                                                      (fn []
+                                                                                        ((:set-phase actions) "UPKEEP"))
+                                                                                      [actions])
 
-        handle-submit-discard (use-callback
-                               (fn []
-                                 (when (pos? (:count discard))
-                                   (let [cards ((:get-cards-and-exit discard))]
-                                     ((:discard-cards actions) my-team (vec cards)))))
-                               [discard my-team actions])]
+        handle-next-phase                                                            (use-callback
+                                                                                      (fn []
+                                                                                        (when-let [next (sel/next-phase phase)]
+                                                                                          ((:set-phase actions) (name next))))
+                                                                                      [phase actions])
+
+        handle-submit-discard                                                        (use-callback
+                                                                                      (fn []
+                                                                                        (when (pos? (:count discard))
+                                                                                          (let [cards ((:get-cards-and-exit discard))]
+                                                                                            ((:discard-cards actions) my-team (vec cards)))))
+                                                                                      [discard my-team actions])]
 
     (cond
       loading
@@ -251,6 +257,7 @@
                 :on-cancel-discard  (:cancel discard)
                 :on-submit-discard  handle-submit-discard
                 :on-start-game      handle-start-game
+                :on-next-phase      handle-next-phase
                 :loading            action-loading}))
 
          ;; Card detail modal

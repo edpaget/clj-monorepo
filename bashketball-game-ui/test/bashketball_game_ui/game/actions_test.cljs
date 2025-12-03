@@ -100,7 +100,7 @@
 (t/deftest valid-move-positions-returns-set-test
   (let [moves (actions/valid-move-positions sample-game-state "player-1")]
     (t/is (set? moves))
-    (t/is (not (empty? moves)))))
+    (t/is (seq moves))))
 
 (t/deftest valid-move-positions-excludes-occupied-test
   (let [moves (actions/valid-move-positions sample-game-state "player-1")]
@@ -190,7 +190,7 @@
 (t/deftest valid-setup-positions-home-test
   (let [positions (actions/valid-setup-positions setup-game-state :home)]
     (t/is (set? positions))
-    (t/is (not (empty? positions)))
+    (t/is (seq positions))
     ;; Home team should only have positions in rows 0-6
     (t/is (every? (fn [[_q r]] (<= r 6)) positions))
     ;; Should not include hoops
@@ -199,7 +199,7 @@
 (t/deftest valid-setup-positions-away-test
   (let [positions (actions/valid-setup-positions setup-game-state :away)]
     (t/is (set? positions))
-    (t/is (not (empty? positions)))
+    (t/is (seq positions))
     ;; Away team should only have positions in rows 7-13
     (t/is (every? (fn [[_q r]] (>= r 7)) positions))
     ;; Should not include hoops

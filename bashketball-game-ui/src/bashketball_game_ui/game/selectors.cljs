@@ -66,3 +66,41 @@
   [game-state]
   {:home-players (get-in game-state [:players :home :team :players])
    :away-players (get-in game-state [:players :away :team :players])})
+
+(def phase-labels
+  {:SETUP       "Setup"
+   :UPKEEP      "Upkeep"
+   :DRAW        "Draw"
+   :ACTIONS     "Actions"
+   :RESOLUTION  "Resolution"
+   :END_OF_TURN "End of Turn"
+   :GAME_OVER   "Game Over"})
+
+(defn phase-label
+  "Returns human-readable label for a phase."
+  [phase]
+  (get phase-labels (keyword phase) (str phase)))
+
+(defn next-phase
+  "Returns the next phase in sequence, or nil if at terminal state.
+
+  Phase flow: UPKEEP → ACTIONS → RESOLUTION → END_OF_TURN → UPKEEP (loop)
+  SETUP uses Start Game button instead.
+  GAME_OVER is terminal."
+  [current-phase]
+  (let [phase-kw (if (keyword? current-phase)
+                   current-phase
+                   (keyword current-phase))]
+    (case phase-kw
+      :UPKEEP      :ACTIONS
+      :ACTIONS     :RESOLUTION
+      :RESOLUTION  :END_OF_TURN
+      :END_OF_TURN :UPKEEP
+      :SETUP       nil
+      :GAME_OVER   nil
+      nil)))
+
+(defn can-advance-phase?
+  "Returns true if the phase can be advanced via Next Phase button."
+  [phase]
+  (some? (next-phase phase)))

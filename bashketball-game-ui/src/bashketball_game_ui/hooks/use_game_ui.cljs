@@ -3,7 +3,7 @@
 
   Groups related state into reusable hooks that encapsulate state
   and state transitions for common UI patterns."
-  (:require [uix.core :refer [use-state use-callback]]))
+  (:require [uix.core :refer [use-state use-callback use-memo]]))
 
 (defn use-selection
   "Hook for managing player and card selection state.
@@ -18,30 +18,33 @@
   - :clear - clears both selections"
   []
   (let [[selected-player set-selected-player] (use-state nil)
-        [selected-card set-selected-card] (use-state nil)
+        [selected-card set-selected-card]     (use-state nil)
 
-        toggle-player (use-callback
-                       (fn [id]
-                         (set-selected-player #(if (= % id) nil id)))
-                       [])
+        toggle-player                         (use-callback
+                                               (fn [id]
+                                                 (set-selected-player #(if (= % id) nil id)))
+                                               [])
 
-        toggle-card (use-callback
-                     (fn [slug]
-                       (set-selected-card #(if (= % slug) nil slug)))
-                     [])
+        toggle-card                           (use-callback
+                                               (fn [slug]
+                                                 (set-selected-card #(if (= % slug) nil slug)))
+                                               [])
 
-        clear (use-callback
-               (fn []
-                 (set-selected-player nil)
-                 (set-selected-card nil))
-               [])]
-    {:selected-player     selected-player
-     :selected-card       selected-card
-     :set-selected-player set-selected-player
-     :set-selected-card   set-selected-card
-     :toggle-player       toggle-player
-     :toggle-card         toggle-card
-     :clear               clear}))
+        clear                                 (use-callback
+                                               (fn []
+                                                 (set-selected-player nil)
+                                                 (set-selected-card nil))
+                                               [])]
+    (use-memo
+     (fn []
+       {:selected-player     selected-player
+        :selected-card       selected-card
+        :set-selected-player set-selected-player
+        :set-selected-card   set-selected-card
+        :toggle-player       toggle-player
+        :toggle-card         toggle-card
+        :clear               clear})
+     [selected-player selected-card toggle-player toggle-card clear])))
 
 (defn use-pass-mode
   "Hook for managing pass mode state.
@@ -51,10 +54,15 @@
   - :start - function to enter pass mode
   - :cancel - function to exit pass mode"
   []
-  (let [[active set-active] (use-state false)]
-    {:active active
-     :start  (use-callback #(set-active true) [])
-     :cancel (use-callback #(set-active false) [])}))
+  (let [[active set-active] (use-state false)
+        start               (use-callback #(set-active true) [])
+        cancel              (use-callback #(set-active false) [])]
+    (use-memo
+     (fn []
+       {:active active
+        :start  start
+        :cancel cancel})
+     [active start cancel])))
 
 (defn use-discard-mode
   "Hook for managing discard mode and selected cards.
@@ -69,33 +77,40 @@
   - :get-cards-and-exit - function that returns selected cards and exits mode"
   []
   (let [[active set-active] (use-state false)
-        [cards set-cards] (use-state #{})]
-    {:active      active
-     :cards       cards
-     :count       (count cards)
-     :toggle-card (use-callback
-                   (fn [slug]
-                     (set-cards #(if (contains? % slug)
-                                   (disj % slug)
-                                   (conj % slug))))
-                   [])
-     :enter       (use-callback
-                   (fn []
-                     (set-active true)
-                     (set-cards #{}))
-                   [])
-     :cancel      (use-callback
-                   (fn []
-                     (set-active false)
-                     (set-cards #{}))
-                   [])
-     :get-cards-and-exit (use-callback
-                          (fn []
-                            (let [result cards]
-                              (set-active false)
-                              (set-cards #{})
-                              result))
-                          [cards])}))
+        [cards set-cards]   (use-state #{})
+        toggle-card         (use-callback
+                             (fn [slug]
+                               (set-cards #(if (contains? % slug)
+                                             (disj % slug)
+                                             (conj % slug))))
+                             [])
+        enter               (use-callback
+                             (fn []
+                               (set-active true)
+                               (set-cards #{}))
+                             [])
+        cancel              (use-callback
+                             (fn []
+                               (set-active false)
+                               (set-cards #{}))
+                             [])
+        get-cards-and-exit  (use-callback
+                             (fn []
+                               (let [result cards]
+                                 (set-active false)
+                                 (set-cards #{})
+                                 result))
+                             [cards])]
+    (use-memo
+     (fn []
+       {:active             active
+        :cards              cards
+        :count              (count cards)
+        :toggle-card        toggle-card
+        :enter              enter
+        :cancel             cancel
+        :get-cards-and-exit get-cards-and-exit})
+     [active cards toggle-card enter cancel get-cards-and-exit])))
 
 (defn use-detail-modal
   "Hook for managing card detail modal state.
@@ -106,8 +121,13 @@
   - :show - function to show modal for a card slug
   - :close - function to close modal"
   []
-  (let [[card-slug set-card-slug] (use-state nil)]
-    {:card-slug card-slug
-     :open?     (some? card-slug)
-     :show      (use-callback #(set-card-slug %) [])
-     :close     (use-callback #(set-card-slug nil) [])}))
+  (let [[card-slug set-card-slug] (use-state nil)
+        show                      (use-callback #(set-card-slug %) [])
+        close                     (use-callback #(set-card-slug nil) [])]
+    (use-memo
+     (fn []
+       {:card-slug card-slug
+        :open?     (some? card-slug)
+        :show      show
+        :close     close})
+     [card-slug show close])))

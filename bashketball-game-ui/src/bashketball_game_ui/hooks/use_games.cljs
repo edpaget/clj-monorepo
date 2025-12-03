@@ -2,13 +2,11 @@
   "React hooks for game data operations.
 
   Provides hooks for fetching game data via GraphQL, including real-time
-  updates via SSE subscriptions."
+  updates via SSE subscriptions. Uses automatic __typename-based decoding."
   (:require
-   ["@apollo/client" :refer [useQuery useSubscription]]
-   [bashketball-game-ui.graphql.decoder :as decoder]
+   [bashketball-game-ui.graphql.hooks :as gql]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.graphql.subscriptions :as subscriptions]
-   [bashketball-game-ui.schemas.game :as game-schema]
    [bashketball-ui.core]
    [uix.core :as uix]))
 
@@ -16,7 +14,7 @@
   "Fetches the current user's games with optional status filter and pagination.
 
   Returns a map with:
-  - `:games` - vector of game summaries
+  - `:games` - vector of game summaries (automatically decoded)
   - `:page-info` - {:total-count :has-next-page :has-previous-page}
   - `:loading` - boolean
   - `:error` - error object if any
@@ -28,24 +26,21 @@
   - `offset` - pagination offset (default 0)"
   ([] (use-my-games {}))
   ([opts]
-   (let [{:keys [status limit offset]} (if (string? opts)
-                                         {:status opts}
-                                         opts)
-         variables                     (cond-> #js {}
-                                         status (doto (aset "status" status))
-                                         limit  (doto (aset "limit" limit))
-                                         offset (doto (aset "offset" offset)))
-         result                        (useQuery queries/MY_GAMES_QUERY
-                                                 #js {:variables variables})]
-     {:games     (some->> result :data :myGames :data
-                          (decoder/decode-seq game-schema/GameSummary))
-      :page-info (when-let [pi (some-> result :data :myGames :pageInfo)]
-                   {:total-count       (:totalCount pi)
-                    :has-next-page     (:hasNextPage pi)
-                    :has-previous-page (:hasPreviousPage pi)})
-      :loading   (:loading result)
-      :error     (:error result)
-      :refetch   (:refetch result)})))
+   (let [{:keys [status limit offset]}        (if (string? opts)
+                                                {:status opts}
+                                                opts)
+         variables                            (cond-> {}
+                                                status (assoc :status status)
+                                                limit  (assoc :limit limit)
+                                                offset (assoc :offset offset))
+         {:keys [data loading error refetch]} (gql/use-query
+                                               queries/MY_GAMES_QUERY
+                                               {:variables variables})]
+     {:games     (some-> data :my-games :data)
+      :page-info (some-> data :my-games :page-info)
+      :loading   loading
+      :error     error
+      :refetch   refetch})))
 
 (defn use-available-games
   "Fetches games waiting for an opponent.
@@ -54,41 +49,41 @@
   Use with [[use-lobby-subscription]] for real-time updates, or use
   [[use-available-games-live]] which combines both."
   []
-  (let [result (useQuery queries/AVAILABLE_GAMES_QUERY)]
-    {:games   (some->> result :data :availableGames
-                       (decoder/decode-seq game-schema/GameSummary))
-     :loading (:loading result)
-     :error   (:error result)
-     :refetch (:refetch result)}))
+  (let [{:keys [data loading error refetch]} (gql/use-query queries/AVAILABLE_GAMES_QUERY)]
+    {:games   (some-> data :available-games)
+     :loading loading
+     :error   error
+     :refetch refetch}))
 
 (defn use-game
   "Fetches a single game by ID.
 
   Returns a map with `:game`, `:loading`, `:error`, and `:refetch`."
   [game-id]
-  (let [result (useQuery queries/GAME_QUERY
-                         #js {:variables #js {:id game-id}
-                              :skip (nil? game-id)})]
-    {:game    (some->> result :data :game
-                       (decoder/decode game-schema/Game))
-     :loading (:loading result)
-     :error   (:error result)
-     :refetch (:refetch result)}))
+  (let [{:keys [data loading error refetch]}
+        (gql/use-query queries/GAME_QUERY
+                       {:variables {:id game-id}
+                        :skip      (nil? game-id)})]
+    {:game    (some-> data :game)
+     :loading loading
+     :error   error
+     :refetch refetch}))
 
 (defn use-lobby-subscription
   "Subscribes to real-time lobby updates via SSE.
 
   Returns a map with:
   - `:connected` - true when subscription is established
-  - `:event` - the last event received (type, gameId, userId)
+  - `:event` - the last event received (type, game-id, user-id)
   - `:loading` - true while connecting
   - `:error` - error object if subscription failed"
   []
-  (let [result (useSubscription subscriptions/LOBBY_UPDATED_SUBSCRIPTION)]
-    {:connected (= "connected" (some-> result :data :lobbyUpdated :type))
-     :event     (some-> result :data :lobbyUpdated)
-     :loading   (:loading result)
-     :error     (:error result)}))
+  (let [{:keys [data loading error]} (gql/use-subscription
+                                      subscriptions/LOBBY_UPDATED_SUBSCRIPTION)]
+    {:connected (= "connected" (some-> data :lobby-updated :type))
+     :event     (some-> data :lobby-updated)
+     :loading   loading
+     :error     error}))
 
 (defn use-available-games-live
   "Fetches available games with real-time SSE updates.
@@ -108,11 +103,11 @@
         {:keys [event] :as subscription}      (use-lobby-subscription)
         event-type                            (:type event)]
     (uix/use-effect
-      (fn []
-        (when (contains? #{"GAME_CREATED" "GAME_STARTED" "GAME_CANCELLED"} event-type)
-          (refetch))
-        js/undefined)
-      [event-type refetch])
+     (fn []
+       (when (contains? #{"GAME_CREATED" "GAME_STARTED" "GAME_CANCELLED"} event-type)
+         (refetch))
+       js/undefined)
+     [event-type refetch])
     {:games        games
      :loading      loading
      :error        error

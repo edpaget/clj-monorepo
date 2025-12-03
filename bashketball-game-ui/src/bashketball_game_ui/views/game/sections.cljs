@@ -131,7 +131,7 @@
            on-end-turn on-shoot on-pass on-cancel-pass
            on-play-card on-draw
            on-enter-discard on-cancel-discard on-submit-discard
-           on-start-game loading]}]
+           on-start-game on-next-phase loading]}]
   ($ :div {:class "px-4 py-3"}
      ($ action-bar {:game-state         game-state
                     :my-team            my-team
@@ -153,4 +153,5 @@
                     :on-cancel-discard  on-cancel-discard
                     :on-submit-discard  on-submit-discard
                     :on-start-game      on-start-game
+                    :on-next-phase      on-next-phase
                     :loading            loading})))

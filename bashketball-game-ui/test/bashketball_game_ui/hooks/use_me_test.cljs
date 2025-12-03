@@ -2,7 +2,7 @@
   "Tests for the use-me hook."
   (:require
    ["@apollo/client" :refer [InMemoryCache]]
-   ["@apollo/client/testing" :refer [MockedProvider]]
+   ["@apollo/client/testing/react" :refer [MockedProvider]]
    ["@testing-library/react" :as rtl]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.hooks.use-me :as use-me]
@@ -34,7 +34,7 @@
 (defn create-test-cache
   "Creates an InMemoryCache configured for testing."
   []
-  (InMemoryCache. #js {}))
+  (InMemoryCache. #js {:addTypename false}))
 
 (defn with-mocked-provider
   "Wraps hook rendering with MockedProvider."
@@ -43,7 +43,8 @@
    hook-fn
    {:wrapper (fn [props]
                ($ MockedProvider {:mocks (clj->js mocks)
-                                  :cache (create-test-cache)}
+                                  :cache (create-test-cache)
+                                  :addTypename false}
                   (.-children props)))}))
 
 (defn get-result

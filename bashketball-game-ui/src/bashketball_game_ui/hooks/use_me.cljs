@@ -1,10 +1,10 @@
 (ns bashketball-game-ui.hooks.use-me
-  "Hook for fetching the current authenticated user."
+  "Hook for fetching the current authenticated user.
+
+  Uses automatic __typename-based decoding."
   (:require
-   ["@apollo/client" :refer [useQuery]]
-   [bashketball-game-ui.graphql.decoder :as decoder]
-   [bashketball-game-ui.graphql.queries :as queries]
-   [bashketball-schemas.user :as user-schema]))
+   [bashketball-game-ui.graphql.hooks :as gql]
+   [bashketball-game-ui.graphql.queries :as queries]))
 
 (defn use-me
   "Fetches the current user via the me query.
@@ -16,10 +16,11 @@
   - `:logged-in?` - Whether the user is logged in
   - `:refetch` - Function to refetch the query"
   []
-  (let [result (useQuery queries/ME_QUERY #js {:fetchPolicy "network-only"})
-        user   (some->> result .-data .-me (decoder/decode user-schema/User))]
+  (let [{:keys [data loading error refetch]}
+        (gql/use-query queries/ME_QUERY {:fetch-policy "network-only"})
+        user                                                            (some-> data :me)]
     {:user       user
-     :loading?   (.-loading result)
-     :error      (.-error result)
+     :loading?   loading
+     :error      error
      :logged-in? (boolean user)
-     :refetch    (.-refetch result)}))
+     :refetch    refetch}))

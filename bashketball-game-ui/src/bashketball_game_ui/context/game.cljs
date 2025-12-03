@@ -2,17 +2,15 @@
   "Game state context for active games.
 
   Provides real-time game state via SSE subscription and action
-  dispatch functions to child components."
+  dispatch functions to child components.
+  Uses automatic __typename-based decoding."
   (:require
-   ["@apollo/client" :refer [useSubscription useQuery]]
-   [bashketball-game-ui.graphql.decoder :as decoder]
+   [bashketball-game-ui.graphql.hooks :as gql]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.graphql.subscriptions :as subscriptions]
    [bashketball-game-ui.hooks.use-game-actions :refer [use-game-actions]]
-   [bashketball-game-ui.schemas.game :as game-schema]
    [bashketball-ui.core]
-   [clojure.string :as str]
-   [uix.core :refer [$ defui create-context use-context use-state use-effect use-memo]]))
+   [uix.core :refer [$ defui create-context use-context use-state use-effect use-memo use-ref]]))
 
 (def game-context
   "React context for game state."
@@ -37,8 +35,8 @@
   "Determines which team the user is playing as."
   [game user-id]
   (cond
-    (= user-id (:player-1-id game)) :home
-    (= user-id (:player-2-id game)) :away
+    (= user-id (:player-1-id game)) :HOME
+    (= user-id (:player-2-id game)) :AWAY
     :else nil))
 
 (defn- is-my-turn?
@@ -48,19 +46,6 @@
     (let [active-player (:active-player game-state)
           active-kw     (some-> active-player name keyword)]
       (= active-kw my-team))))
-
-(defn- parse-game-state
-  "Parses game state from server format to client format.
-
-  The server returns game state as a JSON blob with string keys.
-  This converts it to keyword keys for easier access."
-  [game-state]
-  (when game-state
-    (prn game-state)
-    (.log js/console game-state)
-    (if (map? game-state)
-      game-state
-      (js->clj game-state :keywordize-keys true))))
 
 (defui game-provider
   "Provides game state context to children.
@@ -73,50 +58,65 @@
   - `user-id` - UUID of the current user
   - `children` - Child components"
   [{:keys [game-id user-id children]}]
-  (let [;; Initial game fetch
-        query-result              (useQuery queries/GAME_QUERY
-                                            #js {:variables #js {:id game-id}
-                                                 :skip (nil? game-id)})
+  (let [;; Initial game fetch (automatically decoded)
+        {:keys [data loading error refetch] :as query-result}
+        (gql/use-query queries/GAME_QUERY
+                       {:variables {:id game-id}
+                        :skip      (nil? game-id)})
 
-        ;; Subscribe to real-time updates
-        subscription-result       (useSubscription subscriptions/GAME_UPDATED_SUBSCRIPTION
-                                                   #js {:variables #js {:gameId game-id}
-                                                        :skip (nil? game-id)})
+        ;; Subscribe to real-time updates (automatically decoded)
+        ;; NOTE: Do not destructure :data here - it would shadow the query's data binding
+        subscription-result
+        (gql/use-subscription subscriptions/GAME_UPDATED_SUBSCRIPTION
+                              {:variables {:game-id game-id}
+                               :skip      (nil? game-id)})
 
         ;; Local state for merged game data
-        [game set-game]           (use-state nil)
-        [connected set-connected] (use-state false)
+        [game set-game]                                               (use-state nil)
+        [connected set-connected]                                     (use-state false)
 
         ;; Decode initial game from query
-        initial-game              (use-memo
-                                   (fn []
-                                     (some->> query-result :data :game
-                                              (decoder/decode game-schema/Game)))
-                                   [query-result (:data query-result)])
+        initial-game                                                  (use-memo
+                                                                       (fn [] (some-> data :game))
+                                                                       [data])
+
+        ;; Store in ref so we can access latest value without triggering effect
+        initial-game-ref                                              (use-ref nil)
+        _                                                             (do (reset! initial-game-ref initial-game) nil)
+
+        ;; Extract phase and turn for stable comparison
+        initial-phase                                                 (get-in initial-game [:game-state :phase])
+        initial-turn                                                  (get-in initial-game [:game-state :turn-number])
+        current-phase                                                 (get-in game [:game-state :phase])
+        current-turn                                                  (get-in game [:game-state :turn-number])
 
         ;; Actions hook
-        actions                   (use-game-actions game-id)
+        actions                                                       (use-game-actions game-id)
 
         ;; Derived values
-        my-team                   (when game (determine-my-team game user-id))
-        game-state                (parse-game-state (:game-state game))
-        is-turn                   (is-my-turn? game-state my-team)]
+        my-team                                                       (when game (determine-my-team game user-id))
+        game-state                                                    (:game-state game)
+        is-turn                                                       (is-my-turn? game-state my-team)]
 
     ;; Set initial game from query
+    ;; Compare phase and turn to detect actual game state changes
     (use-effect
      (fn []
-       (when initial-game
-         (set-game initial-game))
+       (when-let [latest-game @initial-game-ref]
+         ;; Update if game doesn't exist or if phase/turn changed
+         (when (or (nil? game)
+                   (not= initial-phase current-phase)
+                   (not= initial-turn current-turn))
+           (set-game latest-game)))
        js/undefined)
-     [initial-game])
+     [game initial-phase initial-turn current-phase current-turn])
 
     ;; Handle subscription events
     (use-effect
      (fn []
-       (when-let [event (some-> subscription-result :data :gameUpdated)]
-         (prn event)
-         (let [event-type (or (:type event) (get event "type"))]
-           ;; Mark as connected on first message
+       (when-let [event (some-> subscription-result :data :game-updated)]
+         (let [event-type (:type event)]
+           ;; Mark as connected on first message (guard prevents infinite loop)
            (when-not connected
              (set-connected true))
            ;; Refetch game data when state changes
@@ -125,10 +125,10 @@
                               "game-started" "GAME_STARTED"
                               "game-ended" "GAME_ENDED"}
                             event-type)
-             (when-let [refetch (:refetch query-result)]
+             (when refetch
                (refetch)))))
        js/undefined)
-     [connected subscription-result (:data subscription-result) query-result])
+     [connected subscription-result refetch])
 
     ;; Provide context value
     ($ (.-Provider game-context)

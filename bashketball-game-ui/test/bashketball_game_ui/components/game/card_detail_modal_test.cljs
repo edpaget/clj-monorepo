@@ -1,7 +1,7 @@
 (ns bashketball-game-ui.components.game.card-detail-modal-test
   (:require
    ["@apollo/client" :refer [InMemoryCache]]
-   ["@apollo/client/testing" :refer [MockedProvider]]
+   ["@apollo/client/testing/react" :refer [MockedProvider]]
    [bashketball-game-ui.components.game.card-detail-modal :refer [card-detail-modal]]
    [bashketball-game-ui.graphql.queries :as queries]
    [cljs-tlr.fixtures :as fixtures]
@@ -29,7 +29,8 @@
                       "CoachingCard" "TeamAssetCard"]})
 
 (defn create-test-cache []
-  (InMemoryCache. #js {:possibleTypes game-card-possible-types}))
+  (InMemoryCache. #js {:possibleTypes game-card-possible-types
+                       :addTypename false}))
 
 (def mock-card-query
   #js {:request #js {:query     queries/CARD_QUERY
@@ -43,7 +44,8 @@
 
 (defn with-apollo [component mocks]
   ($ MockedProvider {:mocks (clj->js mocks)
-                     :cache (create-test-cache)}
+                     :cache (create-test-cache)
+                     :addTypename false}
      component))
 
 (t/deftest card-detail-modal-renders-nothing-when-closed-test

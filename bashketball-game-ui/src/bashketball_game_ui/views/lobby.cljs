@@ -18,17 +18,19 @@
 
   Displays available games to join and active games to resume."
   []
-  (let [{:keys [user]}                                 (use-auth)
-        current-user-id                                (:id user)
-        {available-games :games :keys [loading refetch]}                (use-available-games-live)
-        {:keys [games active-games]}                   (use-my-games "ACTIVE")
-        [create-game {:keys [loading create-loading]}] (use-create-game)
-        [join-game {:keys [loading join-loading]}]     (use-join-game)
-        [leave-game _]                                 (use-leave-game)
-        navigate                                       (router/use-navigate)
+  (let [{:keys [user]}                                    (use-auth)
+        current-user-id                                   (:id user)
+        {available-games :games :keys [loading refetch]}  (use-available-games-live)
+        {:keys [games active-games]}                      (use-my-games "ACTIVE")
+        [create-game {:keys [loading] :as create-result}] (use-create-game)
+        create-loading                                    loading
+        [join-game {:keys [loading] :as join-result}]     (use-join-game)
+        join-loading                                      loading
+        [leave-game _]                                    (use-leave-game)
+        navigate                                          (router/use-navigate)
 
-        [show-create? set-show-create]                 (use-state false)
-        [game-to-join set-game-to-join]                (use-state nil)]
+        [show-create? set-show-create]                    (use-state false)
+        [game-to-join set-game-to-join]                   (use-state nil)]
 
     ($ :div {:class "space-y-8"}
        ;; Header
@@ -74,9 +76,9 @@
            :submitting? create-loading
            :on-submit (fn [deck-id]
                         (-> (create-game deck-id)
-                            (.then (fn [^js result]
+                            (.then (fn [result]
                                      (set-show-create false)
-                                     (when-let [game-id (some-> result .-data .-createGame .-id)]
+                                     (when-let [game-id (some-> result :data :create-game :id)]
                                        (navigate (str "/games/" game-id)))))))})
 
        ;; Join Game Dialog
@@ -90,7 +92,7 @@
            :on-submit (fn [deck-id]
                         (-> (join-game {:game-id (str (:id game-to-join))
                                         :deck-id deck-id})
-                            (.then (fn [^js result]
+                            (.then (fn [result]
                                      (set-game-to-join nil)
-                                     (when-let [game-id (some-> result .-data .-joinGame .-id)]
+                                     (when-let [game-id (some-> result :data :join-game :id)]
                                        (navigate (str "/games/" game-id)))))))}))))

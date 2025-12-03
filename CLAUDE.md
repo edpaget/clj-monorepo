@@ -345,13 +345,15 @@ clojure -X:format :paths '["bashketball-ui" "bashketball-editor-ui"]'
 ```
 
 ### Linting
+Lint warnings must be treated as errors. The lint must complete with 0 warnings and 0 errors.
+
 Lint uses clj-kondo with `--lint` flag:
 ```bash
 # Lint specific directories
-clojure -M:lint --lint bashketball-ui/src bashketball-editor-ui/src
+clj-kondo --lint bashketball-ui/src bashketball-editor-ui/src
 
 # Lint a project's src and test
-clojure -M:lint --lint oidc/src oidc/test
+clj-kondo --lint oidc/src oidc/test
 ```
 
 ### Shadow-cljs Builds

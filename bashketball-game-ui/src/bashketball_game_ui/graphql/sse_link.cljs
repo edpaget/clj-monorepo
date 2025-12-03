@@ -7,7 +7,7 @@
   (:require
    ["@apollo/client" :refer [ApolloLink]]
    ["graphql" :refer [print] :rename {print gql-print}]
-   ["zen-observable" :as Observable]
+   ["rxjs" :refer [Observable]]
    [bashketball-game-ui.config :as config]))
 
 (defn- graphql-subscription-url
@@ -16,11 +16,11 @@
   The endpoint expects the query as a URL parameter in the format:
   `/graphql/subscriptions?query=subscription {...}&variables={...}`"
   [query variables]
-  (let [base-url (str config/api-base-url "/graphql/subscriptions")
+  (let [base-url      (str config/api-base-url "/graphql/subscriptions")
         ;; Convert query AST to string using graphql's print function
-        query-str (gql-print query)
+        query-str     (gql-print query)
         encoded-query (js/encodeURIComponent query-str)
-        url (str base-url "?query=" encoded-query)]
+        url           (str base-url "?query=" encoded-query)]
     (if (and variables (pos? (count (js/Object.keys variables))))
       (str url "&variables=" (js/encodeURIComponent (js/JSON.stringify variables)))
       url)))

@@ -174,3 +174,106 @@
                                    clj-data)]
       (t/is (= :card-type/PLAYER_CARD (:card-type result)))
       (t/is (= "Already Clojure" (:name result))))))
+
+(t/deftest decode-js-response-preserves-typename
+  (t/testing "decode-js-response preserves __typename as :__typename"
+    (let [js-obj (clj->js {"__typename" "PlayerCard"
+                           "slug" "test-player"
+                           "name" "Test Player"})
+          result (decoder/decode-js-response js-obj)]
+      (t/is (= "PlayerCard" (:__typename result)))
+      (t/is (= "test-player" (:slug result))))))
+
+;; =============================================================================
+;; Board Position Decoding Tests
+;; =============================================================================
+;; These tests document the expected behavior for board position keys.
+;; Board tiles and occupants use coordinate strings like "0,1" as keys
+;; which should be decoded to vectors like [0 1].
+
+(t/deftest board-tiles-keys-should-be-vectors
+  (t/testing "Board tile keys should be decoded from strings to vectors"
+    (let [js-board (clj->js {"__typename" "Board"
+                             "width" 5
+                             "height" 14
+                             "tiles" {"0,1" {"__typename" "Tile" "terrain" "COURT"}
+                                      "2,3" {"__typename" "Tile" "terrain" "PAINT"}}
+                             "occupants" {}})
+          result   (decoder/decode-js-response js-board)
+          tile-keys (keys (:tiles result))]
+      ;; Keys should be vectors, not keywords
+      (t/is (every? vector? tile-keys)
+            (str "Expected tile keys to be vectors, got: " (pr-str tile-keys)))
+      (t/is (contains? (set tile-keys) [0 1])
+            "Should contain position [0 1]")
+      (t/is (contains? (set tile-keys) [2 3])
+            "Should contain position [2 3]"))))
+
+(t/deftest board-occupants-keys-should-be-vectors
+  (t/testing "Board occupant keys should be decoded from strings to vectors"
+    (let [js-board (clj->js {"__typename" "Board"
+                             "width" 5
+                             "height" 14
+                             "tiles" {}
+                             "occupants" {"1,5" {"__typename" "Occupant"
+                                                 "type" "BASKETBALL_PLAYER"
+                                                 "id" "player-1"}
+                                          "3,7" {"__typename" "Occupant"
+                                                 "type" "BALL"}}})
+          result       (decoder/decode-js-response js-board)
+          occupant-keys (keys (:occupants result))]
+      ;; Keys should be vectors, not keywords
+      (t/is (every? vector? occupant-keys)
+            (str "Expected occupant keys to be vectors, got: " (pr-str occupant-keys)))
+      (t/is (contains? (set occupant-keys) [1 5])
+            "Should contain position [1 5]")
+      (t/is (contains? (set occupant-keys) [3 7])
+            "Should contain position [3 7]"))))
+
+(t/deftest ball-loose-position-should-be-vector
+  (t/testing "BallLoose position should be decoded as a vector"
+    (let [js-ball (clj->js {"__typename" "BallLoose"
+                            "status" "LOOSE"
+                            "position" "2,6"})
+          result  (decoder/decode-js-response js-ball)]
+      (t/is (vector? (:position result))
+            (str "Expected position to be a vector, got: " (pr-str (:position result))))
+      (t/is (= [2 6] (:position result))))))
+
+(t/deftest ball-in-air-positions-should-be-vectors
+  (t/testing "BallInAir origin should be decoded as a vector"
+    (let [js-ball (clj->js {"__typename" "BallInAir"
+                            "status" "IN_AIR"
+                            "origin" "1,3"
+                            "target" "4,10"
+                            "actionType" "SHOT"})
+          result  (decoder/decode-js-response js-ball)]
+      (t/is (vector? (:origin result))
+            (str "Expected origin to be a vector, got: " (pr-str (:origin result))))
+      (t/is (= [1 3] (:origin result)))
+      ;; Target can be a position vector or a player ID string
+      (t/is (vector? (:target result))
+            (str "Expected target to be a vector, got: " (pr-str (:target result))))
+      (t/is (= [4 10] (:target result))))))
+
+(t/deftest basketball-player-position-should-be-vector
+  (t/testing "BasketballPlayer position should be decoded as a vector"
+    (let [js-player (clj->js {"__typename" "BasketballPlayer"
+                              "id" "player-1"
+                              "cardSlug" "star-player"
+                              "name" "Star Player"
+                              "position" "2,8"
+                              "exhausted" false
+                              "stats" {"__typename" "PlayerStats"
+                                       "size" "MD"
+                                       "speed" 5
+                                       "shooting" 7
+                                       "passing" 6
+                                       "dribbling" 5
+                                       "defense" 4}
+                              "abilities" []
+                              "modifiers" []})
+          result    (decoder/decode-js-response js-player)]
+      (t/is (vector? (:position result))
+            (str "Expected position to be a vector, got: " (pr-str (:position result))))
+      (t/is (= [2 8] (:position result))))))

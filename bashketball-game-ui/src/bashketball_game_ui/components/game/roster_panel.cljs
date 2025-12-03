@@ -16,9 +16,9 @@
   - placed: boolean (has position)
   - on-click: fn [player-id]"
   [{:keys [player team selected placed on-click]}]
-  (let [team-colors {:home "border-blue-500 bg-blue-50"
-                     :away "border-red-500 bg-red-50"}
-        stats       (:stats player)
+  (let [team-colors  {:home "border-blue-500 bg-blue-50"
+                      :away "border-red-500 bg-red-50"}
+        stats        (:stats player)
         ;; Display name with fallback to card-slug or id
         display-name (or (:name player)
                          (:card-slug player)

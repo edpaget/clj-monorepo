@@ -2,47 +2,13 @@
   "Hook for submitting game actions.
 
   Provides a convenient interface for submitting various game actions
-  to the API via the submitAction GraphQL mutation."
+  to the API via the submitAction GraphQL mutation.
+  Uses automatic variable key conversion (kebab-case → camelCase)."
   (:require
-   ["@apollo/client" :refer [useMutation]]
+   [bashketball-game-ui.graphql.hooks :as gql]
    [bashketball-game-ui.graphql.mutations :as mutations]
-   [bashketball-ui.core]))
-
-(defn- clj->action-input
-  "Converts a Clojure action map to GraphQL ActionInput format.
-
-  Transforms kebab-case keys to camelCase for GraphQL."
-  [action]
-  (let [key-map {:type        :type
-                 :phase       :phase
-                 :player      :player
-                 :amount      :amount
-                 :count       :count
-                 :card-slugs  :cardSlugs
-                 :player-id   :playerId
-                 :position    :position
-                 :modifier-id :modifierId
-                 :starter-id  :starterId
-                 :bench-id    :benchId
-                 :holder-id   :holderId
-                 :origin      :origin
-                 :target      :target
-                 :target-player-id :targetPlayerId
-                 :action-type :actionType
-                 :team        :team
-                 :points      :points
-                 :stat        :stat
-                 :base        :base
-                 :fate        :fate
-                 :modifiers   :modifiers
-                 :total       :total}]
-    (reduce-kv
-     (fn [acc k v]
-       (if-let [gql-key (get key-map k)]
-         (assoc acc gql-key v)
-         acc))
-     {}
-     action)))
+   [bashketball-ui.core]
+   [uix.core :refer [use-callback use-memo]]))
 
 (defn use-game-actions
   "Returns action submission functions for a game.
@@ -59,54 +25,73 @@
   - `:loading` - boolean
   - `:error` - error object or nil"
   [game-id]
-  (let [[submit-mutation result] (useMutation mutations/SUBMIT_ACTION_MUTATION)
+  (let [[mutate-fn {:keys [loading error]}]
+        (gql/use-mutation mutations/SUBMIT_ACTION_MUTATION)
 
-        submit                   (fn [action]
-                                   (submit-mutation
-                                    #js {:variables #js {:gameId game-id
-                                                         :action (clj->js (clj->action-input action))}}))
+        submit                                              (use-callback
+                                                             (fn [action]
+                                                               (mutate-fn {:variables {:game-id game-id
+                                                                                       :action  action}}))
+                                                             [mutate-fn game-id])
 
-        move-player              (fn [player-id q r]
-                                   (submit {:type "bashketball/move-player"
-                                            :player-id player-id
-                                            :position [q r]}))
+        move-player                                         (use-callback
+                                                             (fn [player-id q r]
+                                                               (submit {:type      "bashketball/move-player"
+                                                                        :player-id player-id
+                                                                        :position  [q r]}))
+                                                             [submit])
 
-        pass-ball                (fn [origin target]
-                                   (submit {:type "bashketball/set-ball-in-air"
-                                            :origin origin
-                                            :target target
-                                            :action-type "pass"}))
+        pass-ball                                           (use-callback
+                                                             (fn [origin target]
+                                                               (submit {:type        "bashketball/set-ball-in-air"
+                                                                        :origin      origin
+                                                                        :target      target
+                                                                        :action-type "pass"}))
+                                                             [submit])
 
-        shoot-ball               (fn [origin target]
-                                   (submit {:type "bashketball/set-ball-in-air"
-                                            :origin origin
-                                            :target target
-                                            :action-type "shot"}))
+        shoot-ball                                          (use-callback
+                                                             (fn [origin target]
+                                                               (submit {:type        "bashketball/set-ball-in-air"
+                                                                        :origin      origin
+                                                                        :target      target
+                                                                        :action-type "shot"}))
+                                                             [submit])
 
-        draw-cards               (fn [team count]
-                                   (submit {:type "bashketball/draw-cards"
-                                            :player (name team)
-                                            :count count}))
+        draw-cards                                          (use-callback
+                                                             (fn [team count]
+                                                               (submit {:type   "bashketball/draw-cards"
+                                                                        :player (name team)
+                                                                        :count  count}))
+                                                             [submit])
 
-        discard-cards            (fn [team card-slugs]
-                                   (submit {:type "bashketball/discard-cards"
-                                            :player (name team)
-                                            :card-slugs card-slugs}))
+        discard-cards                                       (use-callback
+                                                             (fn [team card-slugs]
+                                                               (submit {:type       "bashketball/discard-cards"
+                                                                        :player     (name team)
+                                                                        :card-slugs card-slugs}))
+                                                             [submit])
 
-        end-turn                 (fn []
-                                   (submit {:type "bashketball/advance-turn"}))
+        end-turn                                            (use-callback
+                                                             (fn []
+                                                               (submit {:type "bashketball/advance-turn"}))
+                                                             [submit])
 
-        set-phase                (fn [phase]
-                                   (submit {:type "bashketball/set-phase"
-                                            :phase (if (string? phase) phase (name phase))}))]
+        set-phase                                           (use-callback
+                                                             (fn [phase]
+                                                               (submit {:type  "bashketball/set-phase"
+                                                                        :phase (if (string? phase) phase (name phase))}))
+                                                             [submit])]
 
-    {:submit        submit
-     :move-player   move-player
-     :pass-ball     pass-ball
-     :shoot-ball    shoot-ball
-     :draw-cards    draw-cards
-     :discard-cards discard-cards
-     :end-turn      end-turn
-     :set-phase     set-phase
-     :loading       (:loading result)
-     :error         (:error result)}))
+    (use-memo
+     (fn []
+       {:submit        submit
+        :move-player   move-player
+        :pass-ball     pass-ball
+        :shoot-ball    shoot-ball
+        :draw-cards    draw-cards
+        :discard-cards discard-cards
+        :end-turn      end-turn
+        :set-phase     set-phase
+        :loading       loading
+        :error         error})
+     [submit move-player pass-ball shoot-ball draw-cards discard-cards end-turn set-phase loading error])))

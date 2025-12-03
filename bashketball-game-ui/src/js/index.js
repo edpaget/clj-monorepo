@@ -5,7 +5,9 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import * as ApolloClient from "@apollo/client";
+import * as ApolloClientReact from "@apollo/client/react";
 import * as ApolloClientTesting from "@apollo/client/testing";
+import * as ApolloClientTestingReact from "@apollo/client/testing/react";
 import { print as gqlPrint } from "graphql";
 import * as RadixDialog from "@radix-ui/react-dialog";
 import * as RadixDropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -19,7 +21,7 @@ import * as LucideReact from "lucide-react";
 import { cva } from "class-variance-authority";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import Observable from "zen-observable";
+import { Observable } from "rxjs";
 
 // Export for shadow-cljs external provider
 window.React = React;
@@ -29,8 +31,10 @@ const modules = {
   "react": React,
   "react-dom": ReactDOM,
   "react-dom/client": { createRoot, hydrateRoot },
-  "@apollo/client": ApolloClient,
-  "@apollo/client/testing": ApolloClientTesting,
+  "@apollo/client": { ...ApolloClient, ...ApolloClientReact },
+  "@apollo/client/react": ApolloClientReact,
+  "@apollo/client/testing": { ...ApolloClientTesting, ...ApolloClientTestingReact },
+  "@apollo/client/testing/react": ApolloClientTestingReact,
   "graphql": { print: gqlPrint },
   "@radix-ui/react-dialog": RadixDialog,
   "@radix-ui/react-dropdown-menu": RadixDropdownMenu,
@@ -44,7 +48,7 @@ const modules = {
   "class-variance-authority": { cva },
   "clsx": { clsx },
   "tailwind-merge": { twMerge },
-  "zen-observable": Observable,
+  "rxjs": { Observable },
 };
 
 globalThis.shadow$bridge = function(name) {

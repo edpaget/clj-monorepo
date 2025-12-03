@@ -46,16 +46,16 @@
 (defui in-air-ball
   "Renders a ball in flight with trajectory line."
   [{:keys [origin target action-type]}]
-  (let [[ox oy]    (board/hex->pixel origin)
-        [tx ty]    (if (vector? target)
-                     (board/hex->pixel target)
+  (let [[ox oy]  (board/hex->pixel origin)
+        [tx ty]  (if (vector? target)
+                   (board/hex->pixel target)
                      ;; Target is a player ID - we'd need position lookup
                      ;; For now, just don't render trajectory
-                     [ox oy])
+                   [ox oy])
         ;; Ball position along trajectory (animate to middle for visual)
-        mid-x      (/ (+ ox tx) 2)
-        mid-y      (- (/ (+ oy ty) 2) 20) ;; Arc upward
-        is-shot?   (= action-type :shot)]
+        mid-x    (/ (+ ox tx) 2)
+        mid-y    (- (/ (+ oy ty) 2) 20) ;; Arc upward
+        is-shot? (= action-type :shot)]
 
     ($ :g
        ;; Trajectory line

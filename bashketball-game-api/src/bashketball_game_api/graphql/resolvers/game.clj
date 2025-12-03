@@ -113,20 +113,45 @@
   (and (keyword? k)
        (not (re-find #"\d" (name k)))))
 
-(defn- kebab->camel-keys
-  "Recursively converts field-name keyword keys to camelCase.
+(defn- hex-position-key?
+  "Returns true if the key is a HexPosition tuple (vector of 2 ints)."
+  [k]
+  (and (vector? k)
+       (= 2 (count k))
+       (every? int? k)))
 
-  Only converts keys that look like field names (no numbers). Keys that appear
-  to be data values (like player IDs with numbers) are preserved as-is.
+(defn- stringify-hex-key
+  "Converts a HexPosition vector key to comma-separated string.
+  [0 1] -> \"0,1\""
+  [k]
+  (str/join "," k))
+
+(defn- transform-map-key
+  "Transforms a map key for GraphQL JSON output.
+  - Field-name keywords -> camelCase keywords
+  - HexPosition vectors -> comma-separated strings
+  - Other keys -> unchanged"
+  [k]
+  (cond
+    (hex-position-key? k) (stringify-hex-key k)
+    (field-name? k)       (csk/->camelCaseKeyword k)
+    :else                 k))
+
+(defn- kebab->camel-keys
+  "Recursively transforms map keys for GraphQL JSON output.
+
+  Converts:
+  - Field-name keyword keys to camelCase
+  - HexPosition vector keys [0 1] to comma-separated strings \"0,1\"
+
+  Keys that appear to be data values (like player IDs with numbers) are preserved.
   Required because map-of types become Json blobs in GraphQL, and the encoding
   transformer doesn't recurse into Json content to transform keys."
   [x]
   (cond
     (map? x) (into {}
                    (map (fn [[k v]]
-                          [(if (field-name? k)
-                             (csk/->camelCaseKeyword k)
-                             k)
+                          [(transform-map-key k)
                            (kebab->camel-keys v)])
                         x))
     (vector? x) (mapv kebab->camel-keys x)

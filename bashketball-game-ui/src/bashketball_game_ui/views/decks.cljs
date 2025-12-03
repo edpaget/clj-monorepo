@@ -84,12 +84,14 @@
 
   Displays the user's deck collection with options to create, edit, and delete."
   []
-  (let [{:keys [decks loading error refetch]}            (use-my-decks)
-        [create-deck {:keys [loading creating-loading]}] (use-create-deck)
-        [delete-deck {:keys [loading deleting-loading]}] (use-delete-deck)
-        navigate                                         (router/use-navigate)
-        [show-create? set-show-create]                   (use-state false)
-        [deck-to-delete set-deck-to-delete]              (use-state nil)]
+  (let [{:keys [decks loading error refetch]}             (use-my-decks)
+        [create-deck {:keys [loading] :as create-result}] (use-create-deck)
+        creating-loading                                  loading
+        [delete-deck {:keys [loading] :as delete-result}] (use-delete-deck)
+        deleting-loading                                  loading
+        navigate                                          (router/use-navigate)
+        [show-create? set-show-create]                    (use-state false)
+        [deck-to-delete set-deck-to-delete]               (use-state nil)]
     ($ :div {:class "space-y-6"}
        ($ :div {:class "flex justify-between items-center"}
           ($ :h1 {:class "text-2xl font-bold text-gray-900"} "My Decks")
@@ -114,9 +116,9 @@
            :creating? creating-loading
            :on-create (fn [name]
                         (-> (create-deck name)
-                            (.then (fn [^js result]
+                            (.then (fn [result]
                                      (set-show-create false)
-                                     (let [deck-id (-> result .-data .-createDeck :id)]
+                                     (when-let [deck-id (some-> result :data :create-deck :id)]
                                        (navigate (str "/decks/" deck-id)))))))})
 
        ($ delete-confirm-dialog
