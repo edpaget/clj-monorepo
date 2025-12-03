@@ -42,16 +42,11 @@
     :else nil))
 
 (defn- is-my-turn?
-  "Returns true if it's the user's turn to act.
-
-  Handles both lowercase and SCREAMING_SNAKE_CASE team values from the server."
+  "Returns true if it's the user's turn to act."
   [game-state my-team]
   (when (and game-state my-team)
-    (let [active-player (or (:active-player game-state)
-                            (get game-state "activePlayer"))
-          ;; Normalize to lowercase keyword for comparison
-          active-kw     (when active-player
-                          (-> active-player name str/lower-case keyword))]
+    (let [active-player (:active-player game-state)
+          active-kw     (some-> active-player name keyword)]
       (= active-kw my-team))))
 
 (defn- parse-game-state
@@ -61,6 +56,8 @@
   This converts it to keyword keys for easier access."
   [game-state]
   (when game-state
+    (prn game-state)
+    (.log js/console game-state)
     (if (map? game-state)
       game-state
       (js->clj game-state :keywordize-keys true))))

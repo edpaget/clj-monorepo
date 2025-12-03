@@ -119,7 +119,8 @@
            ($ :div {:class "grid grid-cols-1 lg:grid-cols-2 gap-4 h-[calc(100vh-200px)]"}
               ($ card-selector
                  {:deck-slugs deck-slugs
-                  :on-add-card handle-add-card})
+                  :on-add-card handle-add-card
+                  :on-remove-card handle-remove-card})
               ($ deck-builder
                  {:deck {:name deck-name
                          :card-slugs deck-slugs

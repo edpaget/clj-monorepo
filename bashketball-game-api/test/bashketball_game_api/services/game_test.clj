@@ -99,13 +99,17 @@
             joined       (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))
             state        (:game-state joined)]
         ;; DB layer uses jsonista with :decode-key-fn keyword for keys,
-        ;; but values remain as strings since JSON has no keyword type
-        (is (= "setup" (:phase state)))
+        ;; but values remain as strings since JSON has no keyword type.
+        ;; Game engine uses UPPERCASE enum values.
+        ;; Keys like HOME/AWAY become keywords :HOME/:AWAY
+        (is (= "SETUP" (:phase state)))
         (is (= 1 (:turn-number state)))
-        (is (= "home" (:active-player state)))
-        (is (= {:home 0 :away 0} (:score state)))
-        (is (some? (get-in state [:players :home])))
-        (is (some? (get-in state [:players :away])))))))
+        (is (= "HOME" (:active-player state)))
+        ;; Score keys are keywords after JSON roundtrip
+        (is (= {:HOME 0 :AWAY 0} (:score state)))
+        ;; Player keys are uppercase keywords
+        (is (some? (get-in state [:players :HOME])))
+        (is (some? (get-in state [:players :AWAY])))))))
 
 (deftest join-own-game-fails-test
   (testing "Cannot join your own game"
@@ -206,11 +210,12 @@
             game-service (test-game-service)
             game         (game-svc/create-game! game-service (:id user1) (:id deck1))
             joined       (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))
-            action       {:type :bashketball/set-phase :phase :actions}
+            ;; Game engine uses UPPERCASE enum values
+            action       {:type :bashketball/set-phase :phase :ACTIONS}
             result       (game-svc/submit-action! game-service (:id joined) (:id user1) action)]
         (is (:success result) (str "Expected success but got: " (:error result)))
         ;; DB returns game state with string values since JSON has no keyword type
-        (is (= "actions" (get-in result [:game :game-state :phase])))))))
+        (is (= "ACTIONS" (get-in result [:game :game-state :phase])))))))
 
 (deftest submit-action-wrong-turn-test
   (testing "Action fails if not your turn"
@@ -222,7 +227,8 @@
             game-service (test-game-service)
             game         (game-svc/create-game! game-service (:id user1) (:id deck1))
             joined       (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))
-            action       {:type :bashketball/set-phase :phase :actions}
+            ;; Game engine uses UPPERCASE enum values
+            action       {:type :bashketball/set-phase :phase :ACTIONS}
             result       (game-svc/submit-action! game-service (:id joined) (:id user2) action)]
         (is (false? (:success result)))
         (is (= "Not your turn" (:error result)))))))

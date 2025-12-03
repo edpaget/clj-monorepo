@@ -16,7 +16,7 @@
 
 (deftest action-schema-test
   (testing "set-phase action"
-    (is (schema/valid-action? {:type :bashketball/set-phase :phase :actions}))
+    (is (schema/valid-action? {:type :bashketball/set-phase :phase :ACTIONS}))
     (is (not (schema/valid-action? {:type :bashketball/set-phase :phase :invalid}))))
 
   (testing "move-player action"
@@ -28,37 +28,37 @@
                                     :position [10 10]}))))
 
   (testing "draw-cards action"
-    (is (schema/valid-action? {:type :bashketball/draw-cards :player :home :count 5}))
-    (is (not (schema/valid-action? {:type :bashketball/draw-cards :player :home :count 0}))))
+    (is (schema/valid-action? {:type :bashketball/draw-cards :player :HOME :count 5}))
+    (is (not (schema/valid-action? {:type :bashketball/draw-cards :player :HOME :count 0}))))
 
   (testing "add-score action"
-    (is (schema/valid-action? {:type :bashketball/add-score :team :home :points 2}))
-    (is (not (schema/valid-action? {:type :bashketball/add-score :team :home :points 0})))))
+    (is (schema/valid-action? {:type :bashketball/add-score :team :HOME :points 2}))
+    (is (not (schema/valid-action? {:type :bashketball/add-score :team :HOME :points 0})))))
 
 (deftest ball-schema-test
   (testing "possessed ball"
-    (is (m/validate schema/Ball {:status :possessed :holder-id "player-1"})))
+    (is (m/validate schema/Ball {:status :POSSESSED :holder-id "player-1"})))
 
   (testing "loose ball"
-    (is (m/validate schema/Ball {:status :loose :position [2 7]})))
+    (is (m/validate schema/Ball {:status :LOOSE :position [2 7]})))
 
   (testing "in-air ball"
-    (is (m/validate schema/Ball {:status :in-air
+    (is (m/validate schema/Ball {:status :IN_AIR
                                  :origin [2 3]
                                  :target [2 13]
-                                 :action-type :shot}))))
+                                 :action-type :SHOT}))))
 
 (deftest modifier-schema-test
   (testing "valid modifier"
     (is (m/validate schema/Modifier
                     {:id "buff-1"
-                     :stat :shooting
+                     :stat :SHOOTING
                      :amount 2})))
 
   (testing "modifier with optional fields"
     (is (m/validate schema/Modifier
                     {:id "buff-1"
-                     :stat :defense
+                     :stat :DEFENSE
                      :amount -1
                      :source "foul"
                      :expires-at 5}))))

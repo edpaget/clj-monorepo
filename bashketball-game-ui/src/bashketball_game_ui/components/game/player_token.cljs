@@ -12,6 +12,14 @@
 
 (def ^:private token-radius 22)
 
+(defn- valid-position?
+  "Returns true if position is a valid [q r] vector."
+  [pos]
+  (and (vector? pos)
+       (= 2 (count pos))
+       (number? (first pos))
+       (number? (second pos))))
+
 (defui player-token
   "Basketball player token on the board.
 
@@ -20,10 +28,14 @@
   - team: :home or :away
   - selected: boolean
   - has-ball: boolean
+  - pass-target: boolean, true when this player can receive a pass
   - on-click: fn [player-id]"
-  [{:keys [player team selected has-ball on-click]}]
+  [{:keys [player team selected has-ball pass-target on-click]}]
   (let [position     (:position player)
-        [cx cy]      (board/hex->pixel position)
+        ;; Defensive: ensure position is a valid [q r] vector
+        [cx cy]      (if (valid-position? position)
+                       (board/hex->pixel position)
+                       [0 0])
         colors       (get team-colors team (:home team-colors))
         exhausted?   (:exhausted? player)
         jersey-num   (or (some-> (:name player) first str) "?")
@@ -56,6 +68,16 @@
                      :stroke       "#f97316"
                      :stroke-width 2
                      :stroke-dasharray "4 2"}))
+
+       ;; Pass target indicator ring
+       (when pass-target
+         ($ :circle {:cx           cx
+                     :cy           cy
+                     :r            (+ token-radius 8)
+                     :fill         "none"
+                     :stroke       "#22c55e"
+                     :stroke-width 3
+                     :class        "animate-pulse"}))
 
        ;; Main player circle
        ($ :circle {:cx           cx

@@ -112,3 +112,36 @@
   {:type "bashketball/discard-cards"
    :player (name team)
    :card-slugs card-slugs})
+
+(defn valid-setup-positions
+  "Returns set of valid positions for placing a player during setup.
+
+  Home team places on rows 0-6 (their half), away on rows 7-13.
+  Cannot place on occupied hexes or hoop hexes [2,0] and [2,13]."
+  [game-state team]
+  (let [board     (:board game-state)
+        row-range (if (= team :home) (range 0 7) (range 7 14))
+        hoops     #{[2 0] [2 13]}]
+    (->> (for [q (range 5) r row-range] [q r])
+         (filter board/valid-position?)
+         (remove hoops)
+         (remove #(board/occupant-at board %))
+         set)))
+
+(defn unplaced-starters
+  "Returns map of player-id -> player for starters without positions."
+  [game-state team]
+  (let [starters   (get-in game-state [:players team :team :starters])
+        player-map (get-in game-state [:players team :team :players])]
+    (->> starters
+         (map #(get player-map %))
+         (remove :position)
+         (map (juxt :id identity))
+         (into {}))))
+
+(defn all-starters-placed?
+  "Returns true if all starters for the team have positions."
+  [game-state team]
+  (let [starters   (get-in game-state [:players team :team :starters])
+        player-map (get-in game-state [:players team :team :players])]
+    (every? #(:position (get player-map %)) starters)))

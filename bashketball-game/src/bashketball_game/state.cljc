@@ -3,7 +3,8 @@
 
   Provides functions to create initial game state and access components
   of the game state."
-  (:require [bashketball-game.board :as board]))
+  (:require [bashketball-game.board :as board]
+            [clojure.string :as str]))
 
 (defn- generate-id
   "Generates a random UUID string."
@@ -15,9 +16,11 @@
   "Creates a basketball player from a player spec.
 
   The spec should contain :card-slug, :name, and :stats. The player ID is
-  derived from the team and card slug with an index."
+  derived from the team and card slug with an index. Uses lowercase team prefix
+  for consistency with GraphQL decoder which lowercases keys."
   [team-id index {:keys [card-slug name stats abilities] :or {abilities []}}]
-  (let [id (str (clojure.core/name team-id) "-" card-slug "-" index)]
+  (let [team-prefix (-> team-id clojure.core/name str/lower-case)
+        id          (str team-prefix "-" card-slug "-" index)]
     {:id id
      :card-slug card-slug
      :name name
@@ -69,44 +72,55 @@
     {:home {:deck [\"drive-rebound\" \"shoot-check\" ...]
             :players [{:card-slug \"orc-center\"
                        :name \"Grukk\"
-                       :stats {:size :big :speed 2 :shooting 2
+                       :stats {:size :BIG :speed 2 :shooting 2
                                :passing 1 :dribbling 1 :defense 4}}
                       ...]}
      :away {...}})
   ```"
   [config]
   {:game-id (generate-id)
-   :phase :setup
+   :phase :SETUP
    :turn-number 1
-   :active-player :home
-   :score {:home 0 :away 0}
+   :active-player :HOME
+   :score {:HOME 0 :AWAY 0}
    :board (board/create-board)
-   :ball {:status :loose :position [2 7]}
-   :players {:home (create-game-player :home (:home config))
-             :away (create-game-player :away (:away config))}
+   :ball {:status :LOOSE :position [2 7]}
+   :players {:HOME (create-game-player :HOME (:home config))
+             :AWAY (create-game-player :AWAY (:away config))}
    :stack []
    :events []
    :metadata {}})
 
 (defn get-game-player
-  "Returns the game player for the given team (:home or :away)."
+  "Returns the game player for the given team (:HOME or :AWAY)."
   [state team]
   (get-in state [:players team]))
+
+(defn- get-player-from-team
+  "Gets a player from a team's player map, trying both string and keyword keys."
+  [state team player-id]
+  (let [players (get-in state [:players team :team :players])]
+    (or (get players player-id)
+        (get players (keyword player-id))
+        (get players (name player-id)))))
 
 (defn get-basketball-player
   "Returns the basketball player with the given ID.
 
-  Searches both teams for the player."
+  Searches both teams for the player. Handles both string and keyword player IDs
+  since JSON serialization may convert keys."
   [state player-id]
-  (or (get-in state [:players :home :team :players player-id])
-      (get-in state [:players :away :team :players player-id])))
+  (or (get-player-from-team state :HOME player-id)
+      (get-player-from-team state :AWAY player-id)))
 
 (defn get-basketball-player-team
-  "Returns the team (:home or :away) that the basketball player belongs to."
+  "Returns the team (:HOME or :AWAY) that the basketball player belongs to.
+
+  Handles both string and keyword player IDs since JSON serialization may convert keys."
   [state player-id]
   (cond
-    (get-in state [:players :home :team :players player-id]) :home
-    (get-in state [:players :away :team :players player-id]) :away
+    (get-player-from-team state :HOME player-id) :HOME
+    (get-player-from-team state :AWAY player-id) :AWAY
     :else nil))
 
 (defn get-ball
@@ -154,9 +168,25 @@
   [state team]
   (get-in state [:players team :deck :discard]))
 
+(defn- find-player-key
+  "Finds the actual key used for a player in the team's player map.
+
+  Returns the key (string or keyword) that matches the player-id, or nil."
+  [state team player-id]
+  (let [players (get-in state [:players team :team :players])]
+    (cond
+      (contains? players player-id) player-id
+      (contains? players (keyword player-id)) (keyword player-id)
+      (contains? players (name player-id)) (name player-id)
+      :else nil)))
+
 (defn update-basketball-player
-  "Updates a basketball player by applying f to the player map."
+  "Updates a basketball player by applying f to the player map.
+
+  Handles both string and keyword player IDs since JSON serialization may convert keys."
   [state player-id f & args]
   (if-let [team (get-basketball-player-team state player-id)]
-    (apply update-in state [:players team :team :players player-id] f args)
+    (if-let [actual-key (find-player-key state team player-id)]
+      (apply update-in state [:players team :team :players actual-key] f args)
+      state)
     state))

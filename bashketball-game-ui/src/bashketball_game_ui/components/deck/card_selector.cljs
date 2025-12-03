@@ -3,7 +3,7 @@
 
   Displays available cards with filtering and allows adding to deck."
   (:require
-   ["lucide-react" :refer [Plus Search]]
+   ["lucide-react" :refer [Minus Plus Search]]
    [bashketball-game-ui.hooks.use-cards :refer [use-cards use-sets]]
    [bashketball-game-ui.schemas.deck :as deck-schema]
    [bashketball-ui.cards.card-list-item :refer [card-list-item card-list-item-skeleton]]
@@ -37,10 +37,17 @@
       (keyword (subs v 1))
       v)))
 
+(defn- standard-action-card?
+  "Returns true if the card is a STANDARD_ACTION_CARD (unlimited copies allowed)."
+  [card]
+  (= (:card-type card) :card-type/STANDARD_ACTION_CARD))
+
 (defui card-selector-item
-  "A card item in the selector with add button."
-  [{:keys [card on-add copies-in-deck max-copies]}]
-  (let [at-max? (>= copies-in-deck max-copies)]
+  "A card item in the selector with add and remove buttons."
+  [{:keys [card on-add on-remove copies-in-deck max-copies]}]
+  (let [unlimited?  (standard-action-card? card)
+        at-max?     (and (not unlimited?) (>= copies-in-deck max-copies))
+        can-remove? (pos? copies-in-deck)]
     ($ :div {:class "flex items-center border-b border-gray-100 hover:bg-gray-50"}
        ($ :div {:class "flex-1"}
           ($ card-list-item
@@ -48,8 +55,19 @@
               :on-click nil}))
        ($ :div {:class "flex items-center gap-2 px-4 shrink-0"}
           ($ :span {:class (cn "text-sm text-gray-500 min-w-[2.5rem] text-right"
-                               (when-not (pos? copies-in-deck) "invisible"))}
-             (str copies-in-deck "/" max-copies))
+                               (when-not can-remove? "invisible"))}
+             (if unlimited?
+               (str copies-in-deck "/∞")
+               (str copies-in-deck "/" max-copies)))
+          ($ :button
+             {:class (cn "w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                         (if can-remove?
+                           "bg-red-100 text-red-600 hover:bg-red-200"
+                           "bg-gray-100 text-gray-400 cursor-not-allowed"))
+              :disabled (not can-remove?)
+              :on-click #(when can-remove? (on-remove card))
+              :title (if can-remove? "Remove from deck" "Not in deck")}
+             ($ Minus {:className "w-4 h-4"}))
           ($ :button
              {:class (cn "w-8 h-8 rounded-full flex items-center justify-center transition-colors"
                          (if at-max?
@@ -61,13 +79,14 @@
              ($ Plus {:className "w-4 h-4"}))))))
 
 (defui card-selector
-  "Card catalog browser for adding cards to a deck.
+  "Card catalog browser for adding and removing cards from a deck.
 
   Props:
   - `:deck-slugs` - Vector of card slugs currently in the deck
   - `:on-add-card` - Callback when a card is added (receives card)
+  - `:on-remove-card` - Callback when a card is removed (receives card)
   - `:class` - Additional CSS classes"
-  [{:keys [deck-slugs on-add-card class]}]
+  [{:keys [deck-slugs on-add-card on-remove-card class]}]
   (let [[search set-search]           (use-state "")
         [set-filter set-set-filter]   (use-state all-value)
         [type-filter set-type-filter] (use-state all-value)
@@ -129,6 +148,7 @@
                     :card card
                     :copies-in-deck (get slug-counts (:slug card) 0)
                     :max-copies (:max-copies-per-card deck-schema/deck-rules)
-                    :on-add on-add-card}))
+                    :on-add on-add-card
+                    :on-remove on-remove-card}))
               ($ :div {:class "p-8 text-center text-gray-500"}
                  "No cards match your filters")))))))

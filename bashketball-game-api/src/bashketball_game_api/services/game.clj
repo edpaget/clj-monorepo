@@ -53,11 +53,13 @@
                     players)}))
 
 (defn- user-team
-  "Returns the team (:home or :away) for a user in a game, or nil."
+  "Returns the team (:HOME or :AWAY) for a user in a game, or nil.
+
+  Uses uppercase to match the game engine's Team enum values."
   [game user-id]
   (cond
-    (= user-id (:player-1-id game)) :home
-    (= user-id (:player-2-id game)) :away
+    (= user-id (:player-1-id game)) :HOME
+    (= user-id (:player-2-id game)) :AWAY
     :else nil))
 
 (defn- user-can-act?
@@ -78,25 +80,31 @@
   "Returns true if the game state indicates game over."
   [game-state]
   (let [phase (or (:phase game-state) (get game-state "phase"))]
-    (= :game-over (if (string? phase) (keyword phase) phase))))
+    (= :GAME_OVER (if (string? phase) (keyword phase) phase))))
 
 (def ^:private keyword-values
-  "String values that should be converted to keywords when reading game state from JSON."
-  #{"home" "away"                                          ; Team
-    "setup" "upkeep" "actions" "resolution" "end-of-turn" "game-over" ; Phase
-    "small" "mid" "big"                                    ; Size
-    "speed" "shooting" "passing" "dribbling" "defense"     ; Stat
-    "shot" "pass"                                          ; BallActionType
-    "court" "three-point-line" "paint" "hoop"              ; Terrain
-    "possessed" "loose" "in-air"                           ; Ball status
-    "basketball-player" "ball"})                           ; OccupantType
+  "String values that should be converted to keywords when reading game state from JSON.
+
+  Uses uppercase values to match game engine enums. GraphQL schema field names are
+  lowercase, but enum values are uppercase."
+  #{"HOME" "AWAY"                                          ; Team
+    "SETUP" "UPKEEP" "ACTIONS" "RESOLUTION" "END_OF_TURN" "GAME_OVER" ; Phase
+    "SMALL" "MID" "BIG"                                    ; Size
+    "SPEED" "SHOOTING" "PASSING" "DRIBBLING" "DEFENSE"     ; Stat
+    "SHOT" "PASS"                                          ; BallActionType
+    "COURT" "THREE_POINT_LINE" "PAINT" "HOOP"              ; Terrain
+    "POSSESSED" "LOOSE" "IN_AIR"                           ; Ball status
+    "BASKETBALL_PLAYER" "BALL"})                           ; OccupantType
 
 (defn keywordize-game-state
   "Recursively converts string keys and known enum values to keywords in game state from JSON.
 
   When game state is stored as JSON in PostgreSQL, keywords become strings.
   This function converts them back to keywords so they work correctly with
-  Malli schemas and the graphql-server type tagging transformer."
+  Malli schemas and the graphql-server type tagging transformer.
+
+  Keys are converted to keywords preserving case (e.g., 'HOME' → :HOME) since
+  the game engine uses uppercase team identifiers internally."
   [m]
   (cond
     (map? m) (into {} (map (fn [[k v]]

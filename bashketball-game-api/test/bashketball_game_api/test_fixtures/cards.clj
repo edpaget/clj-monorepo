@@ -147,6 +147,13 @@
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 2
     :offense "Pass to a teammate"
+    :defense nil}
+   {:slug "special-play"
+    :name "Special Play"
+    :set-slug "base"
+    :card-type :card-type/PLAY_CARD
+    :fate 5
+    :offense "Execute a special play"
     :defense nil}])
 
 (def test-sets

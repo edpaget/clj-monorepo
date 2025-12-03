@@ -354,6 +354,14 @@ clojure -M:lint --lint bashketball-ui/src bashketball-editor-ui/src
 clojure -M:lint --lint oidc/src oidc/test
 ```
 
+### Shadow-cljs Builds
+Shadow-cljs warnings must be treated as errors. The build must complete with 0 warnings.
+
+Common issues:
+- Use `($ :<> ...)` for React fragments, not `(:<> ...)` - the `$` macro is required
+- Ensure all imports are used
+- Check for arity mismatches in function calls
+
 ## Context Maintenance
 - Use `clojure_eval` with `:reload` to ensure you're working with the latest code
 - always switch into `(in-ns ...)` the namespace that you are working on

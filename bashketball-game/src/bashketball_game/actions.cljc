@@ -50,7 +50,7 @@
   [state _action]
   (-> state
       (update :turn-number inc)
-      (update :active-player {:home :away :away :home})))
+      (update :active-player {:HOME :AWAY :AWAY :HOME})))
 
 (defmethod -apply-action :bashketball/set-active-player
   [state {:keys [player]}]
@@ -116,7 +116,7 @@
         (state/update-basketball-player player-id assoc :position position)
         (cond->
          old-position (update :board board/remove-occupant old-position))
-        (update :board board/set-occupant position {:type :basketball-player :id player-id}))))
+        (update :board board/set-occupant position {:type :BASKETBALL_PLAYER :id player-id}))))
 
 (defmethod -apply-action :bashketball/exhaust-player
   [state {:keys [player-id]}]
@@ -166,7 +166,7 @@
         (state/update-basketball-player bench-id assoc :position starter-pos)
         (cond->
          starter-pos
-          (update :board board/set-occupant starter-pos {:type :basketball-player :id bench-id})))))
+          (update :board board/set-occupant starter-pos {:type :BASKETBALL_PLAYER :id bench-id})))))
 
 ;; -----------------------------------------------------------------------------
 ;; Ball Actions
@@ -174,31 +174,31 @@
 (defmethod -apply-action :bashketball/set-ball-possessed
   [state {:keys [holder-id]}]
   (let [old-ball     (:ball state)
-        old-position (when (= (:status old-ball) :loose)
+        old-position (when (= (:status old-ball) :LOOSE)
                        (:position old-ball))]
     (-> state
-        (assoc :ball {:status :possessed :holder-id holder-id})
+        (assoc :ball {:status :POSSESSED :holder-id holder-id})
         (cond->
          old-position (update :board board/remove-occupant old-position)))))
 
 (defmethod -apply-action :bashketball/set-ball-loose
   [state {:keys [position]}]
   (let [old-ball     (:ball state)
-        old-position (when (= (:status old-ball) :loose)
+        old-position (when (= (:status old-ball) :LOOSE)
                        (:position old-ball))]
     (-> state
-        (assoc :ball {:status :loose :position position})
+        (assoc :ball {:status :LOOSE :position position})
         (cond->
          old-position (update :board board/remove-occupant old-position))
-        (update :board board/set-occupant position {:type :ball}))))
+        (update :board board/set-occupant position {:type :BALL}))))
 
 (defmethod -apply-action :bashketball/set-ball-in-air
   [state {:keys [origin target action-type]}]
   (let [old-ball     (:ball state)
-        old-position (when (= (:status old-ball) :loose)
+        old-position (when (= (:status old-ball) :LOOSE)
                        (:position old-ball))]
     (-> state
-        (assoc :ball {:status :in-air
+        (assoc :ball {:status :IN_AIR
                       :origin origin
                       :target target
                       :action-type action-type})

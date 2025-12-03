@@ -26,10 +26,11 @@
   Props:
   - card-slug: String identifier for the card
   - selected: boolean if this card is selected
+  - discard-selected: boolean if this card is selected for discard
   - disabled: boolean to prevent interaction
   - on-click: fn [card-slug] called when clicked
   - on-detail-click: fn [card-slug] called when info icon clicked"
-  [{:keys [card-slug selected disabled on-click on-detail-click]}]
+  [{:keys [card-slug selected discard-selected disabled on-click on-detail-click]}]
   (let [display-name (-> card-slug
                          (clojure.string/replace #"-" " ")
                          (clojure.string/replace #"_" " "))]
@@ -37,9 +38,10 @@
        ($ :button
           {:class    (cn "px-3 py-2 rounded-lg border-2 text-sm font-medium"
                          "transition-all hover:scale-105"
-                         (if selected
-                           "border-cyan-500 bg-cyan-50 text-cyan-800"
-                           "border-slate-300 bg-white text-slate-700 hover:border-slate-400")
+                         (cond
+                           discard-selected "border-red-500 bg-red-50 text-red-800"
+                           selected         "border-cyan-500 bg-cyan-50 text-cyan-800"
+                           :else            "border-slate-300 bg-white text-slate-700 hover:border-slate-400")
                          (when disabled "opacity-50 cursor-not-allowed hover:scale-100"))
            :disabled disabled
            :on-click (fn [_] (when on-click (on-click card-slug)))}
@@ -54,18 +56,21 @@
   Props:
   - hand: Vector of card slugs
   - selected-card: Currently selected card slug or nil
+  - discard-mode: boolean, true when in discard selection mode
+  - discard-cards: Set of card slugs selected for discard
   - on-card-click: fn [card-slug] called when card clicked
   - on-detail-click: fn [card-slug] called when info icon clicked
   - disabled: boolean to prevent all interaction"
-  [{:keys [hand selected-card on-card-click on-detail-click disabled]}]
+  [{:keys [hand selected-card discard-mode discard-cards on-card-click on-detail-click disabled]}]
   (if (empty? hand)
     ($ :div {:class "text-sm text-slate-400 italic py-2"}
        "No cards in hand")
     ($ :div {:class "flex gap-2 overflow-x-auto py-2 px-1"}
        (for [card-slug hand]
-         ($ hand-card {:key             card-slug
-                       :card-slug       card-slug
-                       :selected        (= card-slug selected-card)
-                       :disabled        disabled
-                       :on-click        on-card-click
-                       :on-detail-click on-detail-click})))))
+         ($ hand-card {:key              card-slug
+                       :card-slug        card-slug
+                       :selected         (and (not discard-mode) (= card-slug selected-card))
+                       :discard-selected (and discard-mode (contains? discard-cards card-slug))
+                       :disabled         disabled
+                       :on-click         on-card-click
+                       :on-detail-click  on-detail-click})))))

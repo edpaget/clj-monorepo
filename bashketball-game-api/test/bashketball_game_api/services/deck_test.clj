@@ -55,13 +55,22 @@
       (is (some #(re-find #"Maximum 5 player cards" %) (:validation-errors result))))))
 
 (deftest validate-deck-duplicate-cards-test
-  (testing "Cards over copy limit cause validation errors"
+  (testing "Cards over copy limit cause validation errors (non-STANDARD_ACTION_CARD)"
+    (let [card-catalog (test-card-catalog)
+          ;; Use PLAY_CARD type which has copy limits (unlike STANDARD_ACTION_CARD)
+          deck         {:card-slugs (vec (repeat 10 "special-play"))}
+          rules        (assoc deck-svc/default-validation-rules :max-copies-per-card 4)
+          result       (deck-svc/validate-deck card-catalog deck rules)]
+      (is (false? (:is-valid result)))
+      (is (some #(re-find #"copy limit" %) (:validation-errors result)))))
+
+  (testing "STANDARD_ACTION_CARD is exempt from copy limit"
     (let [card-catalog (test-card-catalog)
           deck         {:card-slugs (vec (repeat 10 "basic-shot"))}
           rules        (assoc deck-svc/default-validation-rules :max-copies-per-card 4)
           result       (deck-svc/validate-deck card-catalog deck rules)]
-      (is (false? (:is-valid result)))
-      (is (some #(re-find #"copy limit" %) (:validation-errors result))))))
+      ;; Should not have copy limit error for STANDARD_ACTION_CARD
+      (is (not (some #(re-find #"copy limit" %) (:validation-errors result)))))))
 
 ;; ---------------------------------------------------------------------------
 ;; CRUD Tests

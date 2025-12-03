@@ -47,7 +47,8 @@
 
     :bashketball/set-phase
     (let [{:keys [phase]} data]
-      (str "Phase: " (name phase)))
+      (prn phase)
+      (some->> phase name (str "Phase: ")))
 
     :bashketball/shot-result
     (let [{:keys [made]} data]

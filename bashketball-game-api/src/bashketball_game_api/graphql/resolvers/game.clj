@@ -7,6 +7,8 @@
    [bashketball-game-api.services.game :as game-svc]
    [bashketball-game.schema :as game-schema]
    [bashketball-schemas.enums :as enums]
+   [camel-snake-kebab.core :as csk]
+   [clojure.string :as str]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
 (defn- keywordize-game-state
@@ -102,19 +104,91 @@
   (when-not (authenticated? ctx)
     (throw (ex-info "Authentication required" {:type :unauthorized}))))
 
+(defn- field-name?
+  "Returns true if the keyword looks like a field name rather than a data value.
+
+  Field names are pure alphabetic kebab-case (e.g., :actions-remaining).
+  Data values like player IDs contain numbers (e.g., :home-michael-jordan-0)."
+  [k]
+  (and (keyword? k)
+       (not (re-find #"\d" (name k)))))
+
+(defn- kebab->camel-keys
+  "Recursively converts field-name keyword keys to camelCase.
+
+  Only converts keys that look like field names (no numbers). Keys that appear
+  to be data values (like player IDs with numbers) are preserved as-is.
+  Required because map-of types become Json blobs in GraphQL, and the encoding
+  transformer doesn't recurse into Json content to transform keys."
+  [x]
+  (cond
+    (map? x) (into {}
+                   (map (fn [[k v]]
+                          [(if (field-name? k)
+                             (csk/->camelCaseKeyword k)
+                             k)
+                           (kebab->camel-keys v)])
+                        x))
+    (vector? x) (mapv kebab->camel-keys x)
+    :else x))
+
+(defn- normalize-event
+  "Transforms an event to GraphQL format by moving action data into :data field.
+
+  The game engine logs events with action fields at the top level. GraphQL Event
+  schema expects :type, :timestamp at top level and other fields in :data."
+  [event]
+  (let [standard-keys #{:type :timestamp}
+        event-data    (apply dissoc event standard-keys)]
+    {:type      (:type event)
+     :timestamp (:timestamp event)
+     :data      (when (seq event-data) event-data)}))
+
+(defn- normalize-events
+  "Transforms all events in game state to GraphQL format."
+  [game-state]
+  (if-let [events (:events game-state)]
+    (assoc game-state :events (mapv normalize-event events))
+    game-state))
+
+(defn- lowercase-team-keys
+  "Converts :HOME/:AWAY keys to :home/:away in :players and :score maps.
+
+  The game engine uses uppercase team identifiers internally, but the GraphQL
+  schema defines Players and Score types with lowercase field names."
+  [game-state]
+  (when game-state
+    (-> game-state
+        (update :players (fn [players]
+                           (when players
+                             (into {}
+                                   (map (fn [[k v]]
+                                          [(keyword (str/lower-case (name k))) v])
+                                        players)))))
+        (update :score (fn [score]
+                         (when score
+                           (into {}
+                                 (map (fn [[k v]]
+                                        [(keyword (str/lower-case (name k))) v])
+                                      score))))))))
+
 (defn- game->graphql
   "Transforms a game record to GraphQL response format.
 
   Returns kebab-case keys; graphql-server converts to camelCase for GraphQL.
   Returns nil for game-state when empty (waiting games have no state yet).
   Keywordizes game-state to ensure enum values (like Ball status) are keywords
-  for proper GraphQL union type tagging."
+  for proper GraphQL union type tagging. Team keys are lowercased for GraphQL."
   [game]
   {:id           (:id game)
    :player-1-id  (:player-1-id game)
    :player-2-id  (:player-2-id game)
    :status       (name (:status game))
-   :game-state   (keywordize-game-state (not-empty (:game-state game)))
+   :game-state   (-> (not-empty (:game-state game))
+                     keywordize-game-state
+                     lowercase-team-keys
+                     normalize-events
+                     kebab->camel-keys)
    :winner-id    (:winner-id game)
    :created-at   (str (:created-at game))
    :started-at   (some-> (:started-at game) str)})
@@ -199,18 +273,26 @@
     (when-let [game (game-svc/join-game! game-service game-id user-id deck-id)]
       (game->graphql game))))
 
+(defn- uppercase-keyword
+  "Converts a string to an uppercase keyword for enum values.
+
+  The game engine uses uppercase enum values like :ACTIONS, :HOME, :SHOT."
+  [s]
+  (when s
+    (keyword (str/upper-case (name s)))))
+
 (defn- input->action
   "Converts GraphQL ActionInput to bashketball-game action format.
 
   Lacinia sends args with kebab-case keys. This function converts string
-  enum values to keywords where needed for the game engine."
+  enum values to uppercase keywords to match the game engine's enums."
   [{:keys [type phase player amount count card-slugs player-id position
            modifier-id starter-id bench-id holder-id origin target target-player-id
            action-type team points stat base fate modifiers total]}]
   (let [action-type-kw (keyword type)]
     (cond-> {:type action-type-kw}
-      phase            (assoc :phase (keyword phase))
-      player           (assoc :player (keyword player))
+      phase            (assoc :phase (uppercase-keyword phase))
+      player           (assoc :player (uppercase-keyword player))
       amount           (assoc :amount amount)
       count            (assoc :count count)
       card-slugs       (assoc :card-slugs card-slugs)
@@ -223,10 +305,10 @@
       origin           (assoc :origin (vec origin))
       target           (assoc :target (vec target))
       target-player-id (assoc :target target-player-id)
-      action-type      (assoc :action-type (keyword action-type))
-      team             (assoc :team (keyword team))
+      action-type      (assoc :action-type (uppercase-keyword action-type))
+      team             (assoc :team (uppercase-keyword team))
       points           (assoc :points points)
-      stat             (assoc :stat (keyword stat))
+      stat             (assoc :stat (uppercase-keyword stat))
       base             (assoc :base base)
       fate             (assoc :fate fate)
       modifiers        (assoc :modifiers (vec modifiers))

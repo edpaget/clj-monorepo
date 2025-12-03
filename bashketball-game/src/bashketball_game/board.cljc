@@ -94,11 +94,11 @@
   "Determines the terrain type for a given position."
   [[q r]]
   (cond
-    (and (= q 2) (= r 0)) {:terrain :hoop :side :home}
-    (and (= q 2) (= r 13)) {:terrain :hoop :side :away}
-    (or (<= r 2) (>= r 11)) {:terrain :paint}
-    (or (= r 3) (= r 10)) {:terrain :three-point-line}
-    :else {:terrain :court}))
+    (and (= q 2) (= r 0)) {:terrain :HOOP :side :HOME}
+    (and (= q 2) (= r 13)) {:terrain :HOOP :side :AWAY}
+    (or (<= r 2) (>= r 11)) {:terrain :PAINT}
+    (or (= r 3) (= r 10)) {:terrain :THREE_POINT_LINE}
+    :else {:terrain :COURT}))
 
 (defn create-board
   "Creates a new 5x14 hex board with terrain."

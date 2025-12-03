@@ -98,7 +98,7 @@
 
         set-phase                (fn [phase]
                                    (submit {:type "bashketball/set-phase"
-                                            :phase (name phase)}))]
+                                            :phase (if (string? phase) phase (name phase))}))]
 
     {:submit        submit
      :move-player   move-player

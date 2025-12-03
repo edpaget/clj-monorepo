@@ -27,12 +27,23 @@
    :max-action-cards 50
    :max-copies-per-card 4})
 
+(defn- standard-action-card?
+  "Returns true if the card is a STANDARD_ACTION_CARD."
+  [card]
+  (= :card-type/STANDARD_ACTION_CARD (:card-type card)))
+
 (defn- count-duplicates
-  "Returns a map of card-slug -> count for slugs that exceed the limit."
-  [card-slugs max-copies]
+  "Returns a map of card-slug -> count for slugs that exceed the limit.
+
+  Takes a card catalog to look up card types. STANDARD_ACTION_CARD types
+  are exempt from the copy limit and can have unlimited copies."
+  [card-catalog card-slugs max-copies]
   (->> card-slugs
        frequencies
-       (filter (fn [[_ count]] (> count max-copies)))
+       (filter (fn [[slug count]]
+                 (let [card (catalog/get-card card-catalog slug)]
+                   (and (> count max-copies)
+                        (not (standard-action-card? card))))))
        (into {})))
 
 (defn- player-card?
@@ -68,7 +79,7 @@
          actions                                   (remove player-card? valid-cards)
          player-count                              (count players)
          action-count                              (count actions)
-         over-limit-cards                          (count-duplicates card-slugs max-copies-per-card)
+         over-limit-cards                          (count-duplicates card-catalog card-slugs max-copies-per-card)
          errors                                    (cond-> []
                                                      (seq invalid-slugs)
                                                      (conj (str "Unknown cards: " (pr-str invalid-slugs)))

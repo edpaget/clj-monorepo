@@ -236,3 +236,122 @@
                       :variables {:gameId (str (:id game))
                                   :action {:type "bashketball/set-phase" :phase "actions"}})]
         (is (seq (tu/graphql-errors response)))))))
+
+(deftest query-game-state-test
+  (testing "game state can be queried via GraphQL without errors"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            response   (tu/graphql-request
+                        "query GetGame($id: Uuid!) {
+                         game(id: $id) {
+                           id
+                           status
+                           gameState {
+                             phase
+                             turnNumber
+                             activePlayer
+                             score { home away }
+                             ball {
+                               ... on BallLoose { position }
+                               ... on BallPossessed { holderId }
+                               ... on BallInAir { origin target actionType }
+                             }
+                             players {
+                               home {
+                                 id
+                                 actionsRemaining
+                                 team {
+                                   starters
+                                   players
+                                 }
+                               }
+                               away {
+                                 id
+                                 actionsRemaining
+                                 team {
+                                   starters
+                                   players
+                                 }
+                               }
+                             }
+                           }
+                         }
+                       }"
+                        :variables {:id (str (:id game))}
+                        :session-id session-id)
+            errors     (tu/graphql-errors response)
+            game-data  (get-in (tu/graphql-data response) [:game])]
+        (is (empty? errors) (str "GraphQL errors: " (pr-str errors)))
+        (is (some? (:gameState game-data)) "gameState should not be null")
+        (is (some? (get-in game-data [:gameState :players :home :actionsRemaining]))
+            "home.actionsRemaining should not be null")
+        (is (some? (get-in game-data [:gameState :players :away :actionsRemaining]))
+            "away.actionsRemaining should not be null")))))
+
+(deftest submit-move-player-action-test
+  (testing "move-player action sets player position correctly"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            joined     (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            ;; Get a player ID from the home team starters
+            game-state (:game-state joined)
+            player-id  (first (get-in game-state [:players :HOME :team :starters]))]
+
+        (testing "player position is initially nil"
+          (let [player (get-in game-state [:players :HOME :team :players (keyword player-id)])]
+            (is (nil? (:position player)))))
+
+        (testing "submit move-player action"
+          (let [response (tu/graphql-request
+                          "mutation SubmitAction($gameId: Uuid!, $action: ActionInput!) {
+                           submitAction(gameId: $gameId, action: $action) {
+                             success
+                             error
+                             gameId
+                           }
+                         }"
+                          :variables {:gameId   (str (:id game))
+                                      :action   {:type      "bashketball/move-player"
+                                                 :playerId  player-id
+                                                 :position  [2 3]}}
+                          :session-id session-id)
+                result   (get-in (tu/graphql-data response) [:submitAction])]
+            (is (true? (:success result)) (str "Expected success but got error: " (:error result)))))
+
+        (testing "player position is updated after move"
+          (let [response   (tu/graphql-request
+                            "query GetGame($id: Uuid!) {
+                             game(id: $id) {
+                               gameState {
+                                 players {
+                                   home {
+                                     team {
+                                       starters
+                                       players
+                                     }
+                                   }
+                                 }
+                               }
+                             }
+                           }"
+                            :variables {:id (str (:id game))}
+                            :session-id session-id)
+                errors     (tu/graphql-errors response)
+                _          (is (empty? errors) (str "GraphQL errors: " (pr-str errors)))
+                game-data  (get-in (tu/graphql-data response) [:game :gameState])
+                players    (get-in game-data [:players :home :team :players])
+                player     (get players (keyword player-id))]
+            (is (some? player) (str "Could not find player with id: " player-id))
+            (is (= [2 3] (:position player))
+                (str "Expected position [2 3] but got: " (:position player)))))))))

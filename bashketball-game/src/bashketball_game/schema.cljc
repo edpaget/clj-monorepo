@@ -14,27 +14,27 @@
 
 (def Team
   "Game player identifier (the human controlling a team)."
-  [:enum {:graphql/type :Team} :home :away])
+  [:enum {:graphql/type :Team} :HOME :AWAY])
 
 (def Phase
   "Game phase."
-  [:enum {:graphql/type :Phase} :setup :upkeep :actions :resolution :end-of-turn :game-over])
+  [:enum {:graphql/type :Phase} :SETUP :UPKEEP :ACTIONS :RESOLUTION :END_OF_TURN :GAME_OVER])
 
 (def Size
   "Basketball player size category."
-  [:enum {:graphql/type :Size} :small :mid :big])
+  [:enum {:graphql/type :Size} :SMALL :MID :BIG])
 
 (def Stat
   "Basketball player stat names."
-  [:enum {:graphql/type :Stat} :speed :shooting :passing :dribbling :defense])
+  [:enum {:graphql/type :Stat} :SPEED :SHOOTING :PASSING :DRIBBLING :DEFENSE])
 
 (def BallActionType
   "Type of ball action when in-air."
-  [:enum {:graphql/type :BallActionType} :shot :pass])
+  [:enum {:graphql/type :BallActionType} :SHOT :PASS])
 
 (def Terrain
   "Board tile terrain types."
-  [:enum {:graphql/type :Terrain} :court :three-point-line :paint :hoop])
+  [:enum {:graphql/type :Terrain} :COURT :THREE_POINT_LINE :PAINT :HOOP])
 
 ;; -----------------------------------------------------------------------------
 ;; Component Schemas
@@ -102,7 +102,7 @@
 
 (def OccupantType
   "Type of occupant on a board tile."
-  [:enum {:graphql/type :OccupantType} :basketball-player :ball])
+  [:enum {:graphql/type :OccupantType} :BASKETBALL_PLAYER :BALL])
 
 (def Occupant
   "An occupant of a board tile."
@@ -121,13 +121,13 @@
 (def BallPossessed
   "Ball state when held by a player."
   [:map {:graphql/type :BallPossessed}
-   [:status [:= :possessed]]
+   [:status [:= :POSSESSED]]
    [:holder-id :string]])
 
 (def BallLoose
   "Ball state when on the ground."
   [:map {:graphql/type :BallLoose}
-   [:status [:= :loose]]
+   [:status [:= :LOOSE]]
    [:position HexPosition]])
 
 (def BallTarget
@@ -137,7 +137,7 @@
 (def BallInAir
   "Ball state when in flight."
   [:map {:graphql/type :BallInAir}
-   [:status [:= :in-air]]
+   [:status [:= :IN_AIR]]
    [:origin HexPosition]
    [:target BallTarget]
    [:action-type BallActionType]])
@@ -145,9 +145,9 @@
 (def Ball
   "Ball state (one of three states)."
   [:multi {:dispatch :status :graphql/type :Ball}
-   [:possessed BallPossessed]
-   [:loose BallLoose]
-   [:in-air BallInAir]])
+   [:POSSESSED BallPossessed]
+   [:LOOSE BallLoose]
+   [:IN_AIR BallInAir]])
 
 (def StackEffect
   "An effect on the resolution stack."

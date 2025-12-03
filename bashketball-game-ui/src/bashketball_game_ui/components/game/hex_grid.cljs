@@ -10,13 +10,6 @@
    [bashketball-game-ui.game.board-utils :as board]
    [uix.core :refer [$ defui use-memo]]))
 
-(defn- player-at-position
-  "Finds the player at a given position from the players map."
-  [players position]
-  (->> (vals players)
-       (filter #(= (:position %) position))
-       first))
-
 (defn- ball-holder-id
   "Returns the player ID holding the ball, or nil if not possessed."
   [ball]
@@ -33,15 +26,19 @@
   - away-players: Away team players map (id -> BasketballPlayer)
   - selected-player: Currently selected player ID
   - valid-moves: Set of valid move positions [[q r] ...]
+  - setup-highlights: Set of valid setup placement positions [[q r] ...]
+  - pass-mode: boolean, true when in pass target selection mode
+  - valid-pass-targets: Set of player IDs that are valid pass targets
   - on-hex-click: fn [q r] called when hex clicked
   - on-player-click: fn [player-id] called when player clicked"
   [{:keys [board ball home-players away-players
-           selected-player valid-moves
+           selected-player valid-moves setup-highlights pass-mode valid-pass-targets
            on-hex-click on-player-click]}]
   (let [[width height padding] (board/board-dimensions)
-        all-pos        (use-memo #(board/all-positions) [])
-        holder-id      (ball-holder-id ball)
-        valid-set      (set valid-moves)]
+        all-pos                (use-memo #(board/all-positions) [])
+        holder-id              (ball-holder-id ball)
+        valid-set              (set valid-moves)
+        setup-set              (set setup-highlights)]
 
     ($ :svg {:viewBox (str "0 0 " width " " height)
              :class   "w-full h-full"
@@ -53,28 +50,34 @@
           ;; Layer 1: Hex tiles
           (for [[q r] all-pos
                 :let  [{:keys [terrain side]} (board/terrain-at [q r])
-                       highlighted?           (contains? valid-set [q r])]]
-            ($ hex-tile {:key         (str q "-" r)
-                         :q           q
-                         :r           r
-                         :terrain     terrain
-                         :side        side
-                         :highlighted highlighted?
-                         :selected    false
-                         :on-click    on-hex-click}))
+                       highlighted?           (contains? valid-set [q r])
+                       setup-highlight?       (contains? setup-set [q r])]]
+            ($ hex-tile {:key             (str q "-" r)
+                         :q               q
+                         :r               r
+                         :terrain         terrain
+                         :side            side
+                         :highlighted     highlighted?
+                         :setup-highlight setup-highlight?
+                         :selected        false
+                         :on-click        on-hex-click}))
 
           ;; Layer 2: Player tokens
           (for [[id player] (concat (seq home-players) (seq away-players))
-                :when       (:position player)
-                :let        [team     (if (contains? home-players id) :home :away)
-                             selected (= id selected-player)
-                             has-ball (= id holder-id)]]
-            ($ player-token {:key      id
-                             :player   player
-                             :team     team
-                             :selected selected
-                             :has-ball has-ball
-                             :on-click on-player-click}))
+                :let        [pos (:position player)]
+                ;; Only render players with valid [q r] positions
+                :when       (and (vector? pos) (= 2 (count pos)))
+                :let        [team        (if (contains? home-players id) :home :away)
+                             selected    (= id selected-player)
+                             has-ball    (= id holder-id)
+                             pass-target (and pass-mode (contains? valid-pass-targets id))]]
+            ($ player-token {:key         id
+                             :player      player
+                             :team        team
+                             :selected    selected
+                             :has-ball    has-ball
+                             :pass-target pass-target
+                             :on-click    on-player-click}))
 
           ;; Layer 3: Ball indicator (loose or in-air only)
           (when (and ball (not= (:status ball) :possessed))

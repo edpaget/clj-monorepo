@@ -33,6 +33,11 @@
   [card]
   (= (:card-type card) :card-type/PLAYER_CARD))
 
+(defn standard-action-card?
+  "Returns true if the card is a STANDARD_ACTION_CARD (unlimited copies allowed)."
+  [card]
+  (= (:card-type card) :card-type/STANDARD_ACTION_CARD))
+
 (defn action-card?
   "Returns true if the card is an action-type card (non-player)."
   [card]
@@ -46,7 +51,8 @@
 (defn validate-deck-client
   "Performs client-side validation of a deck.
 
-  Returns a vector of validation error strings, empty if valid."
+  Returns a vector of validation error strings, empty if valid.
+  STANDARD_ACTION_CARD types are exempt from the copy limit."
   [deck cards-by-slug]
   (let [card-slugs   (:card-slugs deck)
         cards        (keep #(get cards-by-slug %) card-slugs)
@@ -63,8 +69,10 @@
     (when (> (count action-cards) (:max-action-cards deck-rules))
       (conj! errors (str "Maximum " (:max-action-cards deck-rules) " action cards allowed")))
     (doseq [[slug count] copy-counts]
-      (when (> count (:max-copies-per-card deck-rules))
-        (conj! errors (str "Maximum " (:max-copies-per-card deck-rules) " copies of " slug " allowed"))))
+      (let [card (get cards-by-slug slug)]
+        (when (and (> count (:max-copies-per-card deck-rules))
+                   (not (standard-action-card? card)))
+          (conj! errors (str "Maximum " (:max-copies-per-card deck-rules) " copies of " slug " allowed")))))
     (persistent! errors)))
 
 (def card-type-labels

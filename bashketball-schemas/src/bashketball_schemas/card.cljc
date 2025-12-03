@@ -134,6 +134,9 @@
    Validates cards against their type-specific schema based on the
    `:card-type` field value. Exposed as `GameCard` union in GraphQL."
   [:multi {:dispatch :card-type
+           :decode/json #(->> (get % "cardType")
+                              (keyword "card-type")
+                              (assoc % :card-type))
            :graphql/type :GameCard}
    [:card-type/PLAYER_CARD PlayerCard]
    [:card-type/ABILITY_CARD AbilityCard]

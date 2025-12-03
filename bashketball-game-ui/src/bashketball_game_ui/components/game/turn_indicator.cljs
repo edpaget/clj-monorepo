@@ -8,11 +8,13 @@
    [uix.core :refer [$ defui]]))
 
 (def ^:private phase-labels
-  {:setup      "Setup"
-   :draw       "Draw"
-   :actions    "Actions"
-   :end        "End Phase"
-   :game-over  "Game Over"})
+  {:SETUP       "Setup"
+   :UPKEEP      "Upkeep"
+   :DRAW        "Draw"
+   :ACTIONS     "Actions"
+   :RESOLUTION  "Resolution"
+   :END_OF_TURN "End of Turn"
+   :GAME_OVER   "Game Over"})
 
 (defn- phase-label
   "Returns human-readable label for a phase."

@@ -53,8 +53,8 @@
 
   (testing "hoops are placed correctly"
     (let [b (board/create-board)]
-      (is (= {:terrain :hoop :side :home} (get-in b [:tiles [2 0]])))
-      (is (= {:terrain :hoop :side :away} (get-in b [:tiles [2 13]])))))
+      (is (= {:terrain :HOOP :side :HOME} (get-in b [:tiles [2 0]])))
+      (is (= {:terrain :HOOP :side :AWAY} (get-in b [:tiles [2 13]])))))
 
   (testing "occupants start empty"
     (let [b (board/create-board)]
@@ -62,7 +62,7 @@
 
 (deftest occupant-operations-test
   (let [b   (board/create-board)
-        occ {:type :basketball-player :id "player-1"}]
+        occ {:type :BASKETBALL_PLAYER :id "player-1"}]
 
     (testing "set and get occupant"
       (let [b2 (board/set-occupant b [2 7] occ)]
@@ -98,7 +98,7 @@
 
 (deftest path-clear-test
   (let [b   (board/create-board)
-        occ {:type :basketball-player :id "blocker"}]
+        occ {:type :BASKETBALL_PLAYER :id "blocker"}]
 
     (testing "empty path is clear"
       (is (board/path-clear? b [0 0] [0 5])))
