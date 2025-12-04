@@ -427,10 +427,22 @@
               id
               actionsRemaining
               deck {
-                drawPile
-                hand
-                discard
-                removed
+                drawPile {
+                  instanceId
+                  cardSlug
+                }
+                hand {
+                  instanceId
+                  cardSlug
+                }
+                discard {
+                  instanceId
+                  cardSlug
+                }
+                removed {
+                  instanceId
+                  cardSlug
+                }
               }
               team {
                 starters
@@ -443,10 +455,22 @@
               id
               actionsRemaining
               deck {
-                drawPile
-                hand
-                discard
-                removed
+                drawPile {
+                  instanceId
+                  cardSlug
+                }
+                hand {
+                  instanceId
+                  cardSlug
+                }
+                discard {
+                  instanceId
+                  cardSlug
+                }
+                removed {
+                  instanceId
+                  cardSlug
+                }
               }
               team {
                 starters

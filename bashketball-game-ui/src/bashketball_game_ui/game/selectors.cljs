@@ -47,6 +47,20 @@
          (filter :position)
          count)))
 
+(defn team-setup-complete?
+  "Returns true if all starters for a team have been placed."
+  [game-state team]
+  (let [starters (get-in game-state [:players team :team :starters])
+        players  (get-in game-state [:players team :team :players])]
+    (when starters
+      (every? #(:position (get-player-by-id players %)) starters))))
+
+(defn both-teams-setup-complete?
+  "Returns true if both HOME and AWAY teams have placed all their starters."
+  [game-state]
+  (and (team-setup-complete? game-state :HOME)
+       (team-setup-complete? game-state :AWAY)))
+
 (defn target-basket
   "Returns the target basket position for shooting based on team."
   [my-team]

@@ -20,14 +20,27 @@
 ;; ---------------------------------------------------------------------------
 ;; Setup Phase Tests
 
-(t/deftest action-bar-shows-start-game-when-all-placed-test
+(t/deftest action-bar-shows-start-game-when-both-teams-ready-test
   (uix-tlr/render ($ action-bar {:game-state         sample-game-state
                                  :my-team            :home
                                  :is-my-turn         true
                                  :phase              "SETUP"
                                  :setup-placed-count 3
+                                 :my-setup-complete  true
+                                 :both-teams-ready   true
                                  :on-start-game      identity}))
   (t/is (some? (screen/get-by-role "button" {:name "Start Game"}))))
+
+(t/deftest action-bar-shows-done-when-my-setup-complete-but-not-both-test
+  (uix-tlr/render ($ action-bar {:game-state         sample-game-state
+                                 :my-team            :home
+                                 :is-my-turn         true
+                                 :phase              "SETUP"
+                                 :setup-placed-count 3
+                                 :my-setup-complete  true
+                                 :both-teams-ready   false
+                                 :on-setup-done      identity}))
+  (t/is (some? (screen/get-by-role "button" {:name "Done"}))))
 
 (t/deftest action-bar-shows-place-players-when-not-all-placed-test
   (uix-tlr/render ($ action-bar {:game-state         sample-game-state
@@ -35,7 +48,8 @@
                                  :is-my-turn         true
                                  :phase              "SETUP"
                                  :setup-placed-count 1
-                                 :on-start-game      identity}))
+                                 :my-setup-complete  false
+                                 :both-teams-ready   false}))
   (t/is (some? (screen/get-by-role "button" {:name "Place Players (1/3)"}))))
 
 (t/deftest action-bar-shows-select-player-message-in-setup-test
@@ -44,7 +58,8 @@
                                  :is-my-turn         true
                                  :phase              "SETUP"
                                  :setup-placed-count 2
-                                 :on-start-game      identity}))
+                                 :my-setup-complete  false
+                                 :both-teams-ready   false}))
   (t/is (some? (screen/get-by-text #"Select a player to place"))))
 
 (t/deftest action-bar-disables-button-when-not-all-placed-test
@@ -53,9 +68,20 @@
                                  :is-my-turn         true
                                  :phase              "SETUP"
                                  :setup-placed-count 2
-                                 :on-start-game      identity}))
+                                 :my-setup-complete  false
+                                 :both-teams-ready   false}))
   (let [btn (screen/get-by-role "button" {:name "Place Players (2/3)"})]
     (t/is (.-disabled btn))))
+
+(t/deftest action-bar-shows-waiting-in-setup-when-not-my-turn-test
+  (uix-tlr/render ($ action-bar {:game-state         sample-game-state
+                                 :my-team            :home
+                                 :is-my-turn         false
+                                 :phase              "SETUP"
+                                 :setup-placed-count 0
+                                 :my-setup-complete  false
+                                 :both-teams-ready   false}))
+  (t/is (some? (screen/get-by-text "Waiting for opponent to place players..."))))
 
 (t/deftest action-bar-hides-end-turn-in-setup-phase-test
   (uix-tlr/render ($ action-bar {:game-state         sample-game-state
@@ -63,6 +89,8 @@
                                  :is-my-turn         true
                                  :phase              "SETUP"
                                  :setup-placed-count 3
+                                 :my-setup-complete  true
+                                 :both-teams-ready   true
                                  :on-start-game      identity
                                  :on-end-turn        identity}))
   (t/is (nil? (screen/query-by-role "button" {:name "End Turn"}))))
@@ -75,9 +103,32 @@
                                                         :is-my-turn         true
                                                         :phase              "SETUP"
                                                         :setup-placed-count 3
+                                                        :my-setup-complete  true
+                                                        :both-teams-ready   true
                                                         :on-start-game      #(reset! clicked true)}))
                  usr     (user/setup)
                  btn     (screen/get-by-role "button" {:name "Start Game"})]
+             (-> (user/click usr btn)
+                 (.then (fn []
+                          (t/is @clicked)
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
+
+(t/deftest action-bar-setup-done-calls-handler-test
+  (t/async done
+           (let [clicked (atom false)
+                 _       (uix-tlr/render ($ action-bar {:game-state         sample-game-state
+                                                        :my-team            :home
+                                                        :is-my-turn         true
+                                                        :phase              "SETUP"
+                                                        :setup-placed-count 3
+                                                        :my-setup-complete  true
+                                                        :both-teams-ready   false
+                                                        :on-setup-done      #(reset! clicked true)}))
+                 usr     (user/setup)
+                 btn     (screen/get-by-role "button" {:name "Done"})]
              (-> (user/click usr btn)
                  (.then (fn []
                           (t/is @clicked)
@@ -196,6 +247,8 @@
                                  :is-my-turn         true
                                  :phase              "SETUP"
                                  :setup-placed-count 3
+                                 :my-setup-complete  true
+                                 :both-teams-ready   true
                                  :on-next-phase      identity
                                  :on-start-game      identity}))
   (t/is (nil? (screen/query-by-role "button" {:name #"Next Phase"}))))

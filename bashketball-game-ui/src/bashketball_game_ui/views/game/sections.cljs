@@ -128,10 +128,11 @@
   [{:keys [game-state my-team is-my-turn phase
            selected-player selected-card
            pass-mode discard-mode discard-count setup-placed-count
+           my-setup-complete both-teams-ready
            on-end-turn on-shoot on-pass on-cancel-pass
            on-play-card on-draw
            on-enter-discard on-cancel-discard on-submit-discard
-           on-start-game on-next-phase loading]}]
+           on-start-game on-setup-done on-next-phase loading]}]
   ($ :div {:class "px-4 py-3"}
      ($ action-bar {:game-state         game-state
                     :my-team            my-team
@@ -143,6 +144,8 @@
                     :discard-mode       discard-mode
                     :discard-count      discard-count
                     :setup-placed-count setup-placed-count
+                    :my-setup-complete  my-setup-complete
+                    :both-teams-ready   both-teams-ready
                     :on-end-turn        on-end-turn
                     :on-shoot           on-shoot
                     :on-pass            on-pass
@@ -153,5 +156,6 @@
                     :on-cancel-discard  on-cancel-discard
                     :on-submit-discard  on-submit-discard
                     :on-start-game      on-start-game
+                    :on-setup-done      on-setup-done
                     :on-next-phase      on-next-phase
                     :loading            loading})))

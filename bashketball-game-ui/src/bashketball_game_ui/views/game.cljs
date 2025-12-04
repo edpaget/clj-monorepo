@@ -69,6 +69,16 @@
                                                                                          (sel/setup-placed-count my-starters my-players))
                                                                                       [setup-mode my-starters my-players])
 
+        my-setup-complete                                                            (use-memo
+                                                                                      #(when setup-mode
+                                                                                         (sel/team-setup-complete? game-state my-team))
+                                                                                      [setup-mode game-state my-team])
+
+        both-teams-ready                                                             (use-memo
+                                                                                      #(when setup-mode
+                                                                                         (sel/both-teams-setup-complete? game-state))
+                                                                                      [setup-mode game-state])
+
         ;; Action loading state
         action-loading                                                               (:loading actions)
 
@@ -154,6 +164,12 @@
                                                                                       (fn []
                                                                                         ((:set-phase actions) "UPKEEP"))
                                                                                       [actions])
+
+        handle-setup-done                                                            (use-callback
+                                                                                      (fn []
+                                                                                        ((:end-turn actions))
+                                                                                        ((:clear selection)))
+                                                                                      [actions selection])
 
         handle-next-phase                                                            (use-callback
                                                                                       (fn []
@@ -247,6 +263,8 @@
                 :discard-mode       discard-active
                 :discard-count      (:count discard)
                 :setup-placed-count (or setup-placed-count 0)
+                :my-setup-complete  my-setup-complete
+                :both-teams-ready   both-teams-ready
                 :on-end-turn        handle-end-turn
                 :on-shoot           handle-shoot
                 :on-pass            (:start pass)
@@ -257,6 +275,7 @@
                 :on-cancel-discard  (:cancel discard)
                 :on-submit-discard  handle-submit-discard
                 :on-start-game      handle-start-game
+                :on-setup-done      handle-setup-done
                 :on-next-phase      handle-next-phase
                 :loading            action-loading}))
 

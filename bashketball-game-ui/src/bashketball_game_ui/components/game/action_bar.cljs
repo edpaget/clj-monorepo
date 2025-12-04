@@ -23,6 +23,8 @@
   - discard-mode: boolean, true when in discard selection mode
   - discard-count: Number of cards selected for discard
   - setup-placed-count: Number of starters placed during setup (0-3)
+  - my-setup-complete: boolean, true if current player has placed all 3 starters
+  - both-teams-ready: boolean, true if both teams have placed all starters
   - on-end-turn: fn [] called when End Turn clicked
   - on-shoot: fn [] called when Shoot clicked
   - on-pass: fn [] called when Pass clicked (enters pass mode)
@@ -33,12 +35,14 @@
   - on-cancel-discard: fn [] called to cancel discard mode
   - on-submit-discard: fn [] called to submit selected cards for discard
   - on-start-game: fn [] called when Start Game clicked (setup phase)
+  - on-setup-done: fn [] called when Done clicked during setup (pass turn)
   - on-next-phase: fn [] called when Next Phase clicked
   - loading: boolean to disable all buttons"
   [{:keys [game-state my-team is-my-turn phase selected-player selected-card
            pass-mode discard-mode discard-count setup-placed-count
+           my-setup-complete both-teams-ready
            on-end-turn on-shoot on-pass on-cancel-pass on-play-card on-draw
-           on-enter-discard on-cancel-discard on-submit-discard on-start-game on-next-phase loading]}]
+           on-enter-discard on-cancel-discard on-submit-discard on-start-game on-setup-done on-next-phase loading]}]
   (let [can-shoot        (and is-my-turn
                               selected-player
                               (actions/player-has-ball? game-state selected-player)
@@ -51,7 +55,6 @@
                               selected-player
                               (seq (actions/valid-move-positions game-state selected-player)))
         setup-mode       (sel/setup-mode? phase)
-        setup-ready      (= setup-placed-count 3)
         next-phase-value (sel/next-phase phase)
         can-advance      (and is-my-turn (sel/can-advance-phase? phase))]
 
@@ -59,9 +62,11 @@
        ;; Left side: status text
        ($ :div {:class "text-sm text-slate-600"}
           (cond
-            setup-mode           (if selected-player
-                                   "Click a teal hex to place player"
-                                   (str "Select a player to place (" setup-placed-count "/3)"))
+            setup-mode           (cond
+                                   (not is-my-turn)     "Waiting for opponent to place players..."
+                                   my-setup-complete    "Waiting for opponent to finish setup"
+                                   selected-player      "Click a teal hex to place player"
+                                   :else                (str "Select a player to place (" setup-placed-count "/3)"))
             (not is-my-turn)     "Waiting for opponent..."
             loading              "Submitting action..."
             discard-mode         "Click cards to select for discard"
@@ -97,16 +102,38 @@
                        :disabled loading}
                "Cancel")
 
-            ;; Setup phase - show Start Game when all starters placed
+            ;; Setup phase buttons
             setup-mode
-            ($ button {:variant  :default
-                       :size     :sm
-                       :on-click on-start-game
-                       :disabled (or loading (not setup-ready))
-                       :class    (if setup-ready
-                                   "bg-green-600 hover:bg-green-700"
-                                   "bg-slate-400")}
-               (if setup-ready "Start Game" (str "Place Players (" setup-placed-count "/3)")))
+            (cond
+              ;; Not my turn - no buttons
+              (not is-my-turn)
+              nil
+
+              ;; Both teams ready - show Start Game
+              both-teams-ready
+              ($ button {:variant  :default
+                         :size     :sm
+                         :on-click on-start-game
+                         :disabled loading
+                         :class    "bg-green-600 hover:bg-green-700"}
+                 "Start Game")
+
+              ;; My setup complete but opponent not done - show Done to pass turn
+              my-setup-complete
+              ($ button {:variant  :default
+                         :size     :sm
+                         :on-click on-setup-done
+                         :disabled loading
+                         :class    "bg-blue-600 hover:bg-blue-700"}
+                 "Done")
+
+              ;; Still placing players
+              :else
+              ($ button {:variant  :default
+                         :size     :sm
+                         :disabled true
+                         :class    "bg-slate-400"}
+                 (str "Place Players (" setup-placed-count "/3)")))
 
             ;; Normal action buttons
             :else
