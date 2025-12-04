@@ -11,7 +11,7 @@
 
 (set! *warn-on-reflection* true)
 
-(def ^:private mapper (json/object-mapper {:decode-key-fn keyword}))
+(def ^:private mapper (json/object-mapper {}))
 (def ^:private ->json json/write-value-as-string)
 (def ^:private <-json #(json/read-value % mapper))
 

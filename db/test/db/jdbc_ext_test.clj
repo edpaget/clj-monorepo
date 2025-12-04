@@ -132,7 +132,8 @@
         result    (db/execute-one! (-> (h/select :metadata)
                                        (h/from :entity)
                                        (h/where [:= :id entity-id])))]
-    (is (= {:user-id 123 :role "admin"} (:metadata result)))))
+    ;; JSON is returned with string keys - use db.transform to keywordize if needed
+    (is (= {"user-id" 123 "role" "admin"} (:metadata result)))))
 
 (deftest insert-json-map
   (let [entity-id (random-id)
@@ -145,7 +146,8 @@
         result    (db/execute-one! (-> (h/select :settings)
                                        (h/from :entity)
                                        (h/where [:= :id entity-id])))]
-    (is (= {:theme "dark" :notifications true} (:settings result)))))
+    ;; JSON is returned with string keys - use db.transform to keywordize if needed
+    (is (= {"theme" "dark" "notifications" true} (:settings result)))))
 
 (deftest insert-jsonb-vector
   (let [entity-id (random-id)
@@ -186,7 +188,11 @@
         result    (db/execute-one! (-> (h/select :metadata)
                                        (h/from :entity)
                                        (h/where [:= :id entity-id])))]
-    (is (= metadata (:metadata result)))))
+    ;; JSON is returned with string keys - use db.transform to keywordize if needed
+    (is (= {"user" {"id" 123 "name" "Alice"}
+            "permissions" ["read" "write"]
+            "active" true}
+           (:metadata result)))))
 
 (deftest json-null-values-handled-correctly
   (let [entity-id (random-id)

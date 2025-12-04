@@ -188,7 +188,7 @@
 ;; Board Position Decoding Tests
 ;; =============================================================================
 ;; These tests document the expected behavior for board position keys.
-;; Board tiles and occupants use coordinate strings like "0,1" as keys
+;; Board tiles and occupants use EDN coordinate strings like "[0 1]" as keys
 ;; which should be decoded to vectors like [0 1].
 
 (t/deftest board-tiles-keys-should-be-vectors
@@ -196,8 +196,8 @@
     (let [js-board  (clj->js {"__typename" "Board"
                               "width" 5
                               "height" 14
-                              "tiles" {"0,1" {"__typename" "Tile" "terrain" "COURT"}
-                                       "2,3" {"__typename" "Tile" "terrain" "PAINT"}}
+                              "tiles" {"[0 1]" {"__typename" "Tile" "terrain" "COURT"}
+                                       "[2 3]" {"__typename" "Tile" "terrain" "PAINT"}}
                               "occupants" {}})
           result    (decoder/decode-js-response js-board)
           tile-keys (keys (:tiles result))]
@@ -215,11 +215,11 @@
                                   "width" 5
                                   "height" 14
                                   "tiles" {}
-                                  "occupants" {"1,5" {"__typename" "Occupant"
-                                                      "type" "BASKETBALL_PLAYER"
-                                                      "id" "player-1"}
-                                               "3,7" {"__typename" "Occupant"
-                                                      "type" "BALL"}}})
+                                  "occupants" {"[1 5]" {"__typename" "Occupant"
+                                                        "type" "BASKETBALL_PLAYER"
+                                                        "id" "player-1"}
+                                               "[3 7]" {"__typename" "Occupant"
+                                                        "type" "BALL"}}})
           result        (decoder/decode-js-response js-board)
           occupant-keys (keys (:occupants result))]
       ;; Keys should be vectors, not keywords
@@ -234,7 +234,7 @@
   (t/testing "BallLoose position should be decoded as a vector"
     (let [js-ball (clj->js {"__typename" "BallLoose"
                             "status" "LOOSE"
-                            "position" "2,6"})
+                            "position" "[2 6]"})
           result  (decoder/decode-js-response js-ball)]
       (t/is (vector? (:position result))
             (str "Expected position to be a vector, got: " (pr-str (:position result))))
@@ -244,8 +244,8 @@
   (t/testing "BallInAir origin should be decoded as a vector"
     (let [js-ball (clj->js {"__typename" "BallInAir"
                             "status" "IN_AIR"
-                            "origin" "1,3"
-                            "target" "4,10"
+                            "origin" "[1 3]"
+                            "target" "[4 10]"
                             "actionType" "SHOT"})
           result  (decoder/decode-js-response js-ball)]
       (t/is (vector? (:origin result))
@@ -262,7 +262,7 @@
                               "id" "player-1"
                               "cardSlug" "star-player"
                               "name" "Star Player"
-                              "position" "2,8"
+                              "position" "[2 8]"
                               "exhausted" false
                               "stats" {"__typename" "PlayerStats"
                                        "size" "MD"

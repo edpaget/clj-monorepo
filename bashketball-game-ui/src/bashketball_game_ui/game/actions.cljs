@@ -57,6 +57,8 @@
   "Returns set of valid positions the player can move to."
   [game-state player-id]
   (when-let [current-pos (board/find-occupant (:board game-state) player-id)]
+    (prn current-pos)
+    (prn (player-exhausted? game-state player-id))
     (when-not (player-exhausted? game-state player-id)
       (->> (board/hex-range current-pos 2)
            (remove #(board/occupant-at (:board game-state) %))

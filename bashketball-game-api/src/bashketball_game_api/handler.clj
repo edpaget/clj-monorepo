@@ -7,6 +7,7 @@
    [authn.middleware :as authn-mw]
    [bashketball-game-api.auth.google :as google-auth]
    [cheshire.core :as json]
+   [clojure.edn :as edn]
    [clojure.string :as str]
    [db.core :as db]
    [graphql-server.ring :as gql-ring]
@@ -132,10 +133,15 @@
           :enable-graphiql? true
           :enable-subscriptions? true
           :subscription-path "/graphql/subscriptions"
-          ;; HexPosition tuples are serialized as comma-separated strings for consistent
-          ;; encoding as both values and map keys. Client parses "0,1" back to [0 1].
-          :scalars {:HexPosition {:parse     #(mapv parse-long (str/split % #","))
-                                  :serialize #(when % (str/join "," %))}}})
+          ;; HexPosition tuples are serialized as EDN strings.
+          ;; Client parses "[0 1]" back to [0 1] via edn/read-string.
+          ;; Note: graphql-server converts tuples to Java int arrays, so we
+          ;; must convert back to vector before pr-str.
+          :scalars {:HexPosition {:parse     edn/read-string
+                                  :serialize (fn [v]
+                                               (pr-str (if (.isArray (class v))
+                                                         (vec v)
+                                                         v)))}}})
         ;; Authentication middleware
         (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)

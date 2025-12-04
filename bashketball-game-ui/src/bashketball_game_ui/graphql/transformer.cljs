@@ -4,22 +4,23 @@
   Provides composable transformers for:
   - camelCase → kebab-case key conversion
   - GraphQL enum strings → namespaced keywords
-  - HexPosition string parsing (\"0,1\" → [0 1])
+  - HexPosition EDN string parsing (\"[0 1]\" → [0 1])
   - Default value application
 
   Uses Malli's transformer compilation for efficient schema-driven decoding."
   (:require
    [camel-snake-kebab.core :as csk]
+   [clojure.edn :as edn]
    [clojure.string :as str]
    [malli.core :as m]
    [malli.transform :as mt]))
 
 (defn- parse-hex-position
-  "Parses comma-separated string to vector of integers.
-  \"0,1\" → [0 1]"
+  "Parses EDN string to vector of integers.
+  \"[0 1]\" → [0 1]"
   [s]
   (when (string? s)
-    (mapv js/parseInt (str/split s #","))))
+    (edn/read-string s)))
 
 (def ^:private enum-transformer
   "Malli transformer for enum values.
@@ -80,7 +81,7 @@
 (def ^:private tuple-transformer
   "Malli transformer for tuple types with :graphql/scalar property.
 
-  Decodes HexPosition strings (\"0,1\") back to vectors ([0 1])."
+  Decodes HexPosition EDN strings (\"[0 1]\") back to vectors ([0 1])."
   (mt/transformer
    {:decoders
     {:tuple
@@ -96,7 +97,7 @@
   "Malli transformer for map-of types with tuple keys.
 
   When a schema is [:map-of [:tuple :int :int] ValueSchema], the keys
-  arrive as comma-separated strings and need to be parsed back to vectors."
+  arrive as EDN strings (\"[0 1]\") and need to be parsed back to vectors."
   (mt/transformer
    {:decoders
     {:map-of

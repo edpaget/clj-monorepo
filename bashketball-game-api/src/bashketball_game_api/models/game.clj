@@ -5,8 +5,10 @@
   Games go through status transitions: WAITING -> ACTIVE -> COMPLETED/ABANDONED."
   (:require
    [bashketball-game-api.models.protocol :as proto]
+   [bashketball-game.schema :as game-schema]
    [bashketball-schemas.enums :as enums]
    [db.core :as db]
+   [db.transform :as db-transform]
    [malli.core :as m]))
 
 (def GameStatus
@@ -40,6 +42,45 @@
    [:sequence-num :int]
    [:created-at {:optional true} inst?]])
 
+(defn- transform-game-state
+  "Transforms game-state JSON from DB format to application format.
+
+  Uses Malli schema-driven decoding to handle nested structures,
+  multi dispatch values, and enum values."
+  [game-state]
+  (when game-state
+    (db-transform/decode game-state game-schema/GameState)))
+
+(defn- transform-game
+  "Transforms a game record from DB format to application format.
+
+  Applies Malli schema transforms to the game-state JSON column."
+  [game]
+  (when game
+    (if (:game-state game)
+      (update game :game-state transform-game-state)
+      game)))
+
+(defn- transform-games
+  "Transforms a collection of game records from DB format."
+  [games]
+  (mapv transform-game games))
+
+(defn- transform-event
+  "Transforms a game event record from DB format to application format.
+
+  Keywordizes the event-data JSON column."
+  [event]
+  (when event
+    (if (:event-data event)
+      (update event :event-data db-transform/keywordize-keys)
+      event)))
+
+(defn- transform-events
+  "Transforms a collection of event records from DB format."
+  [events]
+  (mapv transform-event events))
+
 (defn- build-where-clause
   "Builds a HoneySQL where clause from a criteria map.
    Maps input keys (with hyphens before numbers) to DB column names (without)."
@@ -64,10 +105,11 @@
   proto/Repository
   (find-by [_this criteria]
     (when-let [where-clause (build-where-clause criteria)]
-      (db/execute-one!
-       {:select [:*]
-        :from [:games]
-        :where where-clause})))
+      (-> (db/execute-one!
+           {:select [:*]
+            :from [:games]
+            :where where-clause})
+          transform-game)))
 
   (find-all [_this opts]
     (let [query (cond-> {:select [:*]
@@ -81,7 +123,7 @@
 
                   (:offset opts)
                   (assoc :offset (:offset opts)))]
-      (vec (db/execute! query))))
+      (transform-games (db/execute! query))))
 
   (create! [_this data]
     {:pre [(m/validate Game data)]}
@@ -92,10 +134,11 @@
                      :status [:lift (or (:status data) :game-status/WAITING)]
                      :game-state [:lift (or (:game-state data) {})]
                      :created-at now}]
-      (db/execute-one!
-       {:insert-into :games
-        :values [game-data]
-        :returning [:*]})))
+      (-> (db/execute-one!
+           {:insert-into :games
+            :values [game-data]
+            :returning [:*]})
+          transform-game)))
 
   (update! [_this id data]
     ;; Use :player2-id (no hyphen before 2) for HoneySQL column names
@@ -124,11 +167,12 @@
                      (:ended-at data)
                      (assoc :ended-at (:ended-at data)))]
       (when (seq set-data)
-        (db/execute-one!
-         {:update :games
-          :set set-data
-          :where [:= :id [:cast id :uuid]]
-          :returning [:*]}))))
+        (-> (db/execute-one!
+             {:update :games
+              :set set-data
+              :where [:= :id [:cast id :uuid]]
+              :returning [:*]})
+            transform-game))))
 
   (delete! [_this id]
     (pos? (:next.jdbc/update-count
@@ -144,11 +188,12 @@
 (defn find-waiting-games
   "Returns games in 'waiting' status, available to join."
   [_repo]
-  (vec (db/execute!
-        {:select [:*]
-         :from [:games]
-         :where [:= :status [:lift :game-status/WAITING]]
-         :order-by [[:created-at :desc]]})))
+  (transform-games
+   (db/execute!
+    {:select [:*]
+     :from [:games]
+     :where [:= :status [:lift :game-status/WAITING]]
+     :order-by [[:created-at :desc]]})))
 
 (defn find-by-player
   "Returns games where the user is either player1 or player2.
@@ -169,7 +214,7 @@
                                :order-by [[:created-at :desc]]}
                         limit (assoc :limit limit)
                         offset (assoc :offset offset))]
-     (vec (db/execute! query)))))
+     (transform-games (db/execute! query)))))
 
 (defn count-by-player
   "Returns count of games where the user is either player1 or player2.
@@ -192,24 +237,26 @@
 (defn find-active-by-player
   "Returns active games where the user is either player1 or player2."
   [_repo user-id]
-  (vec (db/execute!
-        {:select [:*]
-         :from [:games]
-         :where [:and
-                 [:= :status [:lift :game-status/ACTIVE]]
-                 [:or
-                  [:= :player1-id [:cast user-id :uuid]]
-                  [:= :player2-id [:cast user-id :uuid]]]]
-         :order-by [[:created-at :desc]]})))
+  (transform-games
+   (db/execute!
+    {:select [:*]
+     :from [:games]
+     :where [:and
+             [:= :status [:lift :game-status/ACTIVE]]
+             [:or
+              [:= :player1-id [:cast user-id :uuid]]
+              [:= :player2-id [:cast user-id :uuid]]]]
+     :order-by [[:created-at :desc]]})))
 
 (defn update-game-state!
   "Updates only the game state JSON field."
   [_repo game-id game-state]
-  (db/execute-one!
-   {:update :games
-    :set {:game-state [:lift game-state]}
-    :where [:= :id [:cast game-id :uuid]]
-    :returning [:*]}))
+  (-> (db/execute-one!
+       {:update :games
+        :set {:game-state [:lift game-state]}
+        :where [:= :id [:cast game-id :uuid]]
+        :returning [:*]})
+      transform-game))
 
 (defn start-game!
   "Transitions a game to 'active' status with player2 joining."
@@ -238,36 +285,39 @@
                                 :event-type event-type
                                 :event-data event-data
                                 :sequence-num sequence-num})]}
-  (db/execute-one!
-   {:insert-into :game-events
-    :values [(cond-> {:game-id game-id
-                      :event-type event-type
-                      :event-data [:lift (or event-data {})]
-                      :sequence-num sequence-num
-                      :created-at (java.time.Instant/now)}
-               player-id
-               (assoc :player-id player-id))]
-    :returning [:*]}))
+  (-> (db/execute-one!
+       {:insert-into :game-events
+        :values [(cond-> {:game-id game-id
+                          :event-type event-type
+                          :event-data [:lift (or event-data {})]
+                          :sequence-num sequence-num
+                          :created-at (java.time.Instant/now)}
+                   player-id
+                   (assoc :player-id player-id))]
+        :returning [:*]})
+      transform-event))
 
 (defn find-events-by-game
   "Returns all events for a game, ordered by sequence number."
   [game-id]
-  (vec (db/execute!
-        {:select [:*]
-         :from [:game-events]
-         :where [:= :game-id [:cast game-id :uuid]]
-         :order-by [[:sequence-num :asc]]})))
+  (transform-events
+   (db/execute!
+    {:select [:*]
+     :from [:game-events]
+     :where [:= :game-id [:cast game-id :uuid]]
+     :order-by [[:sequence-num :asc]]})))
 
 (defn find-events-since
   "Returns events for a game after a given sequence number."
   [game-id since-sequence]
-  (vec (db/execute!
-        {:select [:*]
-         :from [:game-events]
-         :where [:and
-                 [:= :game-id [:cast game-id :uuid]]
-                 [:> :sequence-num since-sequence]]
-         :order-by [[:sequence-num :asc]]})))
+  (transform-events
+   (db/execute!
+    {:select [:*]
+     :from [:game-events]
+     :where [:and
+             [:= :game-id [:cast game-id :uuid]]
+             [:> :sequence-num since-sequence]]
+     :order-by [[:sequence-num :asc]]})))
 
 (defn get-next-sequence-num
   "Returns the next sequence number for a game's events."

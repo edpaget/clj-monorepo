@@ -5,7 +5,8 @@
   are stored in PostgreSQL with JSON claims and expiration timestamps."
   (:require
    [authn.protocol :as proto]
-   [db.core :as db]))
+   [db.core :as db]
+   [db.transform :as db-transform]))
 
 (defrecord SessionRepository [ttl-ms]
   proto/SessionStore
@@ -30,7 +31,7 @@
                                  [:= :session-id session-id]
                                  [:> :expires-at [:now]]]})]
       {:user-id (str (:user-id session))
-       :claims (:claims session)
+       :claims (db-transform/keywordize-keys (:claims session))
        :created-at (.toEpochMilli (.toInstant (:created-at session)))
        :expires-at (.toEpochMilli (.toInstant (:expires-at session)))}))
 

@@ -43,6 +43,13 @@
            my-setup-complete both-teams-ready
            on-end-turn on-shoot on-pass on-cancel-pass on-play-card on-draw
            on-enter-discard on-cancel-discard on-submit-discard on-start-game on-setup-done on-next-phase loading]}]
+  (prn "SHOOT" is-my-turn
+       selected-player
+       (actions/player-has-ball? game-state selected-player)
+       (actions/can-shoot? game-state my-team))
+  (prn "MOVE" is-my-turn
+       selected-player
+       (seq (actions/valid-move-positions game-state selected-player)))
   (let [can-shoot        (and is-my-turn
                               selected-player
                               (actions/player-has-ball? game-state selected-player)

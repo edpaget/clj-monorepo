@@ -11,12 +11,6 @@
    [clojure.string :as str]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
-(defn- keywordize-game-state
-  "Wrapper for [[game-svc/keywordize-game-state]] for use in resolvers."
-  [game-state]
-  (when game-state
-    (game-svc/keywordize-game-state game-state)))
-
 (def GameStatus
   "GraphQL enum for game status. Re-exported from [[bashketball-schemas.enums]]."
   enums/GameStatus)
@@ -121,10 +115,10 @@
        (every? int? k)))
 
 (defn- stringify-hex-key
-  "Converts a HexPosition vector key to comma-separated string.
-  [0 1] -> \"0,1\""
+  "Converts a HexPosition vector key to an edn string.
+  [0 1] -> \"[0 1]\""
   [k]
-  (str/join "," k))
+  (pr-str k))
 
 (defn- uppercase-keyword?
   "Returns true if keyword is all uppercase (e.g., :HOME, :AWAY)."
@@ -186,22 +180,39 @@
     (assoc game-state :events (mapv normalize-event events))
     game-state))
 
+(defn- stringify-board-hex-keys
+  "Stringifies HexPosition tuple keys in board tiles and occupants.
+
+  GraphQL map-of types with tuple keys become Json blobs, and tuple keys
+  need to be stringified for JSON serialization."
+  [game-state]
+  (if-let [board (:board game-state)]
+    (assoc game-state :board
+           (cond-> board
+             (:tiles board)
+             (update :tiles
+                     (fn [tiles]
+                       (into {} (map (fn [[k v]] [(stringify-hex-key k) v]) tiles))))
+             (:occupants board)
+             (update :occupants
+                     (fn [occupants]
+                       (into {} (map (fn [[k v]] [(stringify-hex-key k) v]) occupants))))))
+    game-state))
+
 (defn- game->graphql
   "Transforms a game record to GraphQL response format.
 
-  Returns kebab-case keys; graphql-server converts to camelCase for GraphQL.
+  Returns kebab-case keys; graphql-server's encoder converts to camelCase.
   Returns nil for game-state when empty (waiting games have no state yet).
-  Keywordizes game-state to ensure enum values (like Ball status) are keywords
-  for proper GraphQL union type tagging."
+  Enum values and union types are handled by the graphql-server encoder."
   [game]
   {:id           (:id game)
    :player-1-id  (:player-1-id game)
    :player-2-id  (:player-2-id game)
    :status       (name (:status game))
    :game-state   (-> (not-empty (:game-state game))
-                     keywordize-game-state
                      normalize-events
-                     kebab->camel-keys)
+                     stringify-board-hex-keys)
    :winner-id    (:winner-id game)
    :created-at   (str (:created-at game))
    :started-at   (some-> (:started-at game) str)})

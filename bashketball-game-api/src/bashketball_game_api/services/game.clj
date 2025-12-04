@@ -96,25 +96,6 @@
     "POSSESSED" "LOOSE" "IN_AIR"                           ; Ball status
     "BASKETBALL_PLAYER" "BALL"})                           ; OccupantType
 
-(defn keywordize-game-state
-  "Recursively converts string keys and known enum values to keywords in game state from JSON.
-
-  When game state is stored as JSON in PostgreSQL, keywords become strings.
-  This function converts them back to keywords so they work correctly with
-  Malli schemas and the graphql-server type tagging transformer.
-
-  Keys are converted to keywords preserving case (e.g., 'HOME' → :HOME) since
-  the game engine uses uppercase team identifiers internally."
-  [m]
-  (cond
-    (map? m) (into {} (map (fn [[k v]]
-                             [(if (string? k) (keyword k) k)
-                              (keywordize-game-state v)])
-                           m))
-    (vector? m) (mapv keywordize-game-state m)
-    (and (string? m) (keyword-values m)) (keyword m)
-    :else m))
-
 (defprotocol GameService
   "Protocol for game management operations."
 
@@ -236,8 +217,7 @@
           {:success false :error (str "Invalid action: "
                                       (pr-str (game-schema/explain-action action)))}
           (try
-            (let [;; Convert JSON state (string keys) to Clojure state (keyword keys)
-                  current-state (keywordize-game-state (:game-state game))
+            (let [current-state (:game-state game)
                   new-state     (game-actions/apply-action current-state action)
                   seq-num       (game-model/get-next-sequence-num game-id)
                   _event        (game-model/create-event! game-id
