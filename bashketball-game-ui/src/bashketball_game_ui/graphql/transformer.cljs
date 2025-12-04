@@ -49,13 +49,26 @@
               :else
               value))))}}}))
 
+(defn- uppercase-key?
+  "Returns true if key is all uppercase (e.g., \"HOME\", \"AWAY\", :HOME, :AWAY).
+
+  Used to preserve keys that have explicit :graphql/name overrides in the schema."
+  [k]
+  (let [key-str (if (keyword? k) (name k) (str k))]
+    (and (not (str/blank? key-str))
+         (= key-str (str/upper-case key-str)))))
+
 (defn- preserve-typename-kebab
-  "Converts key to kebab-case keyword, preserving __typename."
+  "Converts key to kebab-case keyword, preserving __typename and uppercase keys.
+
+  Uppercase keys (e.g., HOME, AWAY) are preserved as-is to match GraphQL schema
+  fields with :graphql/name overrides."
   [k]
   (let [key-name (if (keyword? k) (name k) k)]
-    (if (= key-name "__typename")
-      :__typename
-      (csk/->kebab-case-keyword k))))
+    (cond
+      (= key-name "__typename") :__typename
+      (uppercase-key? key-name) (keyword key-name)
+      :else                     (csk/->kebab-case-keyword k))))
 
 (def ^:private kebab-key-transformer
   "Malli transformer for map keys.

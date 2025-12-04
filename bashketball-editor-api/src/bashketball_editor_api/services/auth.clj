@@ -40,7 +40,6 @@
 (defrecord GitHubCredentialValidator [client-id client-secret]
   proto/CredentialValidator
   (validate-credentials [_this credentials _client-id]
-    (prn "CREDS" credentials)
     (cond
       ;; If access token provided, validate it by calling GitHub API
       (:access-token credentials)

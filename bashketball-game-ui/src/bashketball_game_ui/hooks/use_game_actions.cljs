@@ -19,7 +19,7 @@
   - `:pass-ball` - fn [origin target] -> Promise (target can be position or player-id)
   - `:shoot-ball` - fn [origin target] -> Promise
   - `:draw-cards` - fn [team count] -> Promise
-  - `:discard-cards` - fn [team card-slugs] -> Promise
+  - `:discard-cards` - fn [team instance-ids] -> Promise
   - `:end-turn` - fn [] -> Promise
   - `:set-phase` - fn [phase] -> Promise
   - `:loading` - boolean
@@ -65,10 +65,10 @@
                                                              [submit])
 
         discard-cards                                       (use-callback
-                                                             (fn [team card-slugs]
-                                                               (submit {:type       "bashketball/discard-cards"
-                                                                        :player     (name team)
-                                                                        :card-slugs card-slugs}))
+                                                             (fn [team instance-ids]
+                                                               (submit {:type         "bashketball/discard-cards"
+                                                                        :player       (name team)
+                                                                        :instance-ids instance-ids}))
                                                              [submit])
 
         end-turn                                            (use-callback

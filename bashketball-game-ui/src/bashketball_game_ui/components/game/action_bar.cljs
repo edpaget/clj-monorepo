@@ -50,7 +50,7 @@
         has-moves        (and is-my-turn
                               selected-player
                               (seq (actions/valid-move-positions game-state selected-player)))
-        setup-mode       (or (= phase :setup) (= phase "SETUP"))
+        setup-mode       (sel/setup-mode? phase)
         setup-ready      (= setup-placed-count 3)
         next-phase-value (sel/next-phase phase)
         can-advance      (and is-my-turn (sel/can-advance-phase? phase))]
@@ -137,8 +137,7 @@
                             :class    "bg-purple-600 hover:bg-purple-700"}
                     "Play Card"))
 
-               ;; Draw Card button (visible during draw phase)
-               (when (and is-my-turn (= phase "DRAW"))
+               (when (and is-my-turn (= (keyword phase) :UPKEEP))
                  ($ button {:variant  :outline
                             :size     :sm
                             :on-click on-draw

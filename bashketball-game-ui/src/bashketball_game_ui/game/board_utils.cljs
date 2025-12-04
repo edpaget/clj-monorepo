@@ -70,21 +70,21 @@
   "Returns terrain info for a position.
 
   Returns map with :terrain (:hoop, :paint, :three-point-line, :court)
-  and optional :side (:home or :away) for hoops."
+  and optional :side (:HOME or :AWAY) for hoops."
   [[q r]]
   (cond
-    (and (= q 2) (= r 0))        {:terrain :hoop :side :home}
-    (and (= q 2) (= r 13))       {:terrain :hoop :side :away}
-    (or (<= r 2) (>= r 11))      {:terrain :paint :side (if (<= r 2) :home :away)}
-    (or (= r 3) (= r 10))        {:terrain :three-point-line :side (if (= r 3) :home :away)}
+    (and (= q 2) (= r 0))        {:terrain :hoop :side :HOME}
+    (and (= q 2) (= r 13))       {:terrain :hoop :side :AWAY}
+    (or (<= r 2) (>= r 11))      {:terrain :paint :side (if (<= r 2) :HOME :AWAY)}
+    (or (= r 3) (= r 10))        {:terrain :three-point-line :side (if (= r 3) :HOME :AWAY)}
     :else                        {:terrain :court}))
 
 (defn terrain-side
-  "Returns :home or :away for position based on court half, or nil for center."
+  "Returns :HOME or :AWAY for position based on court half, or nil for center."
   [[_q r]]
   (cond
-    (<= r 6) :home
-    (>= r 7) :away
+    (<= r 6) :HOME
+    (>= r 7) :AWAY
     :else nil))
 
 (def hex-half-height

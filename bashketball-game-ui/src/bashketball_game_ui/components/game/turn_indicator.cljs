@@ -27,7 +27,7 @@
   Props:
   - turn-number: Current turn number
   - phase: Current phase keyword or string
-  - active-player: :home or :away (or string)
+  - active-player: :HOME or :AWAY (or string)
   - is-my-turn: boolean indicating if it's the user's turn"
   [{:keys [turn-number phase active-player is-my-turn]}]
   (let [active-team (if (string? active-player)
@@ -51,9 +51,9 @@
                              "bg-green-100 text-green-800"
                              "bg-slate-200 text-slate-600"))}
           ($ :span {:class (cn "w-2 h-2 rounded-full"
-                               (if (= active-team :home)
+                               (if (= active-team :HOME)
                                  "bg-blue-500"
                                  "bg-red-500"))})
           (if is-my-turn
             "Your Turn"
-            (str (if (= active-team :home) "Home" "Away") "'s Turn"))))))
+            (str (if (= active-team :HOME) "Home" "Away") "'s Turn"))))))

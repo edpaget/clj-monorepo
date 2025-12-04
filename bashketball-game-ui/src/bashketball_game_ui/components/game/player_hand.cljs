@@ -4,6 +4,7 @@
   Shows a horizontal scrollable list of cards from the player's hand."
   (:require
    [bashketball-ui.utils :refer [cn]]
+   [clojure.string :as str]
    [uix.core :refer [$ defui]]))
 
 (defui info-icon
@@ -24,16 +25,17 @@
   "A single card in the player's hand.
 
   Props:
-  - card-slug: String identifier for the card
+  - card: CardInstance map with :instance-id and :card-slug
   - selected: boolean if this card is selected
   - discard-selected: boolean if this card is selected for discard
   - disabled: boolean to prevent interaction
-  - on-click: fn [card-slug] called when clicked
+  - on-click: fn [instance-id] called when clicked
   - on-detail-click: fn [card-slug] called when info icon clicked"
-  [{:keys [card-slug selected discard-selected disabled on-click on-detail-click]}]
-  (let [display-name (-> card-slug
-                         (clojure.string/replace #"-" " ")
-                         (clojure.string/replace #"_" " "))]
+  [{:keys [card selected discard-selected disabled on-click on-detail-click]}]
+  (let [{:keys [instance-id card-slug]} card
+        display-name                    (-> card-slug
+                                            (str/replace #"-" " ")
+                                            (str/replace #"_" " "))]
     ($ :div {:class "flex items-center gap-1 flex-shrink-0"}
        ($ :button
           {:class    (cn "px-3 py-2 rounded-lg border-2 text-sm font-medium"
@@ -44,7 +46,7 @@
                            :else            "border-slate-300 bg-white text-slate-700 hover:border-slate-400")
                          (when disabled "opacity-50 cursor-not-allowed hover:scale-100"))
            :disabled disabled
-           :on-click (fn [_] (when on-click (on-click card-slug)))}
+           :on-click (fn [_] (when on-click (on-click instance-id)))}
           display-name)
        (when on-detail-click
          ($ info-icon {:on-click #(on-detail-click card-slug)
@@ -54,11 +56,11 @@
   "Displays cards in player's hand.
 
   Props:
-  - hand: Vector of card slugs
-  - selected-card: Currently selected card slug or nil
+  - hand: Vector of CardInstance maps with :instance-id and :card-slug
+  - selected-card: Currently selected instance-id or nil
   - discard-mode: boolean, true when in discard selection mode
-  - discard-cards: Set of card slugs selected for discard
-  - on-card-click: fn [card-slug] called when card clicked
+  - discard-cards: Set of instance-ids selected for discard
+  - on-card-click: fn [instance-id] called when card clicked
   - on-detail-click: fn [card-slug] called when info icon clicked
   - disabled: boolean to prevent all interaction"
   [{:keys [hand selected-card discard-mode discard-cards on-card-click on-detail-click disabled]}]
@@ -66,11 +68,11 @@
     ($ :div {:class "text-sm text-slate-400 italic py-2"}
        "No cards in hand")
     ($ :div {:class "flex gap-2 overflow-x-auto py-2 px-1"}
-       (for [card-slug hand]
-         ($ hand-card {:key              card-slug
-                       :card-slug        card-slug
-                       :selected         (and (not discard-mode) (= card-slug selected-card))
-                       :discard-selected (and discard-mode (contains? discard-cards card-slug))
+       (for [card hand]
+         ($ hand-card {:key              (:instance-id card)
+                       :card             card
+                       :selected         (and (not discard-mode) (= (:instance-id card) selected-card))
+                       :discard-selected (and discard-mode (contains? discard-cards (:instance-id card)))
                        :disabled         disabled
                        :on-click         on-card-click
                        :on-detail-click  on-detail-click})))))

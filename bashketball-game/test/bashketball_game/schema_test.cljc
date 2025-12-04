@@ -21,10 +21,10 @@
 
   (testing "move-player action"
     (is (schema/valid-action? {:type :bashketball/move-player
-                               :player-id "home-orc-center-0"
+                               :player-id "HOME-orc-center-0"
                                :position [2 3]}))
     (is (not (schema/valid-action? {:type :bashketball/move-player
-                                    :player-id "home-orc-center-0"
+                                    :player-id "HOME-orc-center-0"
                                     :position [10 10]}))))
 
   (testing "draw-cards action"
@@ -34,6 +34,26 @@
   (testing "add-score action"
     (is (schema/valid-action? {:type :bashketball/add-score :team :HOME :points 2}))
     (is (not (schema/valid-action? {:type :bashketball/add-score :team :HOME :points 0})))))
+
+(deftest discard-cards-action-schema-test
+  (testing "valid discard-cards action"
+    (is (schema/valid-action? {:type :bashketball/discard-cards
+                               :player :HOME
+                               :instance-ids ["uuid-1" "uuid-2"]})))
+
+  (testing "invalid discard-cards action with old card-slugs key"
+    (is (not (schema/valid-action? {:type :bashketball/discard-cards
+                                    :player :HOME
+                                    :card-slugs ["card-1"]})))))
+
+(deftest card-instance-schema-test
+  (testing "valid card instance"
+    (is (m/validate schema/CardInstance
+                    {:instance-id "uuid-123"
+                     :card-slug "drive-rebound"})))
+
+  (testing "invalid card instance missing instance-id"
+    (is (not (m/validate schema/CardInstance {:card-slug "drive-rebound"})))))
 
 (deftest ball-schema-test
   (testing "possessed ball"

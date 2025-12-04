@@ -275,17 +275,17 @@
   The :data value is parsed as JSON if possible."
   [^BufferedReader reader]
   (loop [event nil
-         data nil]
+         data  nil]
     (let [line (.readLine reader)]
       (cond
         (nil? line) nil
         ;; Blank line ends an event block - but only return if we have content
         (str/blank? line) (if (or event data)
-                           {:event event
-                            :data  (when data
-                                     (try (json/parse-string data true)
-                                          (catch Exception _ data)))}
-                           (recur nil nil))
+                            {:event event
+                             :data  (when data
+                                      (try (json/parse-string data true)
+                                           (catch Exception _ data)))}
+                            (recur nil nil))
         (str/starts-with? line "event: ") (recur (subs line 7) data)
         (str/starts-with? line "data: ") (recur event (subs line 6))
         ;; Comments are skipped

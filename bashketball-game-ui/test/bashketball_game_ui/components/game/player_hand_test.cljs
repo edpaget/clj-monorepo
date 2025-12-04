@@ -10,7 +10,10 @@
 
 (t/use-fixtures :each fixtures/cleanup-fixture)
 
-(def sample-hand ["fast-break" "slam-dunk" "zone-defense"])
+(def sample-hand
+  [{:instance-id "uuid-1" :card-slug "fast-break"}
+   {:instance-id "uuid-2" :card-slug "slam-dunk"}
+   {:instance-id "uuid-3" :card-slug "zone-defense"}])
 
 (t/deftest player-hand-renders-cards-test
   (uix-tlr/render ($ player-hand {:hand sample-hand}))
@@ -22,7 +25,7 @@
   (uix-tlr/render ($ player-hand {:hand []}))
   (t/is (some? (screen/get-by-text "No cards in hand"))))
 
-(t/deftest player-hand-card-click-calls-handler-test
+(t/deftest player-hand-card-click-calls-handler-with-instance-id-test
   (t/async done
            (let [clicked (atom nil)
                  _       (uix-tlr/render ($ player-hand {:hand          sample-hand
@@ -31,7 +34,7 @@
                  btn     (screen/get-by-text "fast break")]
              (-> (user/click usr btn)
                  (.then (fn []
-                          (t/is (= "fast-break" @clicked))
+                          (t/is (= "uuid-1" @clicked))
                           (done)))
                  (.catch (fn [e]
                            (t/is false (str e))
@@ -39,6 +42,6 @@
 
 (t/deftest player-hand-disabled-prevents-clicks-test
   (uix-tlr/render ($ player-hand {:hand     sample-hand
-                                   :disabled true}))
+                                  :disabled true}))
   (let [btn (screen/get-by-text "fast break")]
     (t/is (.-disabled btn))))

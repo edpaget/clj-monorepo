@@ -49,16 +49,16 @@
   (let [game (state/create-game test-config)]
 
     (testing "player IDs are derived from team and slug"
-      (is (state/get-basketball-player game "home-orc-center-0"))
-      (is (state/get-basketball-player game "home-elf-point-guard-1"))
-      (is (state/get-basketball-player game "away-troll-center-0")))))
+      (is (state/get-basketball-player game "HOME-orc-center-0"))
+      (is (state/get-basketball-player game "HOME-elf-point-guard-1"))
+      (is (state/get-basketball-player game "AWAY-troll-center-0")))))
 
 (deftest get-basketball-player-test
   (let [game   (state/create-game test-config)
-        player (state/get-basketball-player game "home-orc-center-0")]
+        player (state/get-basketball-player game "HOME-orc-center-0")]
 
     (testing "player has correct attributes"
-      (is (= "home-orc-center-0" (:id player)))
+      (is (= "HOME-orc-center-0" (:id player)))
       (is (= "orc-center" (:card-slug player)))
       (is (= "Grukk" (:name player)))
       (is (= {:size :BIG :speed 2 :shooting 2 :passing 1 :dribbling 1 :defense 4}
@@ -74,10 +74,10 @@
   (let [game (state/create-game test-config)]
 
     (testing "finds correct team for home player"
-      (is (= :HOME (state/get-basketball-player-team game "home-orc-center-0"))))
+      (is (= :HOME (state/get-basketball-player-team game "HOME-orc-center-0"))))
 
     (testing "finds correct team for away player"
-      (is (= :AWAY (state/get-basketball-player-team game "away-troll-center-0"))))
+      (is (= :AWAY (state/get-basketball-player-team game "AWAY-troll-center-0"))))
 
     (testing "returns nil for unknown player"
       (is (nil? (state/get-basketball-player-team game "unknown-player"))))))
@@ -89,7 +89,7 @@
       (is (= 3 (count (state/get-starters game :HOME)))))
 
     (testing "starters are first 3 players"
-      (is (= ["home-orc-center-0" "home-elf-point-guard-1" "home-dwarf-power-forward-2"]
+      (is (= ["HOME-orc-center-0" "HOME-elf-point-guard-1" "HOME-dwarf-power-forward-2"]
              (state/get-starters game :HOME))))))
 
 (deftest deck-accessors-test
@@ -104,10 +104,31 @@
     (testing "discard starts empty"
       (is (empty? (state/get-discard game :HOME))))))
 
+(deftest card-instance-test
+  (let [game      (state/create-game test-config)
+        draw-pile (state/get-draw-pile game :HOME)]
+
+    (testing "cards in draw pile are CardInstance maps"
+      (is (every? map? draw-pile)))
+
+    (testing "each card has instance-id"
+      (is (every? :instance-id draw-pile)))
+
+    (testing "each card has card-slug"
+      (is (every? :card-slug draw-pile)))
+
+    (testing "instance-ids are unique"
+      (let [ids (map :instance-id draw-pile)]
+        (is (= (count ids) (count (set ids))))))
+
+    (testing "card-slugs match original deck order"
+      (is (= ["drive-rebound" "shoot-check" "pass-steal" "drive-rebound" "shoot-check"]
+             (mapv :card-slug draw-pile))))))
+
 (deftest update-basketball-player-test
   (let [game    (state/create-game test-config)
-        updated (state/update-basketball-player game "home-orc-center-0" assoc :exhausted? true)
-        player  (state/get-basketball-player updated "home-orc-center-0")]
+        updated (state/update-basketball-player game "HOME-orc-center-0" assoc :exhausted? true)
+        player  (state/get-basketball-player updated "HOME-orc-center-0")]
 
     (testing "player is updated"
       (is (:exhausted? player)))))

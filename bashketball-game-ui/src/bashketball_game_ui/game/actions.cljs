@@ -44,7 +44,7 @@
   [game-state my-team]
   (and (ball-held-by-team? game-state my-team)
        (let [holder-pos  (get-ball-holder-position game-state)
-             target-hoop (if (= my-team :home) [2 13] [2 0])]
+             target-hoop (if (= my-team :HOME) [2 13] [2 0])]
          (and holder-pos
               (<= (board/hex-distance holder-pos target-hoop) 4)))))
 
@@ -108,10 +108,10 @@
 
 (defn make-discard-cards-action
   "Constructs a discard-cards action map."
-  [team card-slugs]
+  [team instance-ids]
   {:type "bashketball/discard-cards"
    :player (name team)
-   :card-slugs card-slugs})
+   :instance-ids instance-ids})
 
 (defn valid-setup-positions
   "Returns set of valid positions for placing a player during setup.
@@ -120,7 +120,7 @@
   Cannot place on occupied hexes or hoop hexes [2,0] and [2,13]."
   [game-state team]
   (let [board     (:board game-state)
-        row-range (if (= team :home) (range 0 7) (range 7 14))
+        row-range (if (= team :HOME) (range 0 7) (range 7 14))
         hoops     #{[2 0] [2 13]}]
     (->> (for [q (range 5) r row-range] [q r])
          (filter board/valid-position?)

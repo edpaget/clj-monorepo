@@ -399,8 +399,8 @@
           turnNumber
           activePlayer
           score {
-            home
-            away
+            HOME
+            AWAY
           }
           board {
             width
@@ -423,7 +423,7 @@
             }
           }
           players {
-            home {
+            HOME {
               id
               actionsRemaining
               deck {
@@ -439,7 +439,7 @@
               }
               assets
             }
-            away {
+            AWAY {
               id
               actionsRemaining
               deck {

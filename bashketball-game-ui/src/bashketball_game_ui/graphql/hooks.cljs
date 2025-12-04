@@ -119,9 +119,7 @@
          ([exec-options]
           (-> (mutate-fn (encode-options exec-options))
               (.then (fn [response]
-                       (-> response
-                           (js->clj :keywordize-keys true)
-                           (update :data decode-fn)))))))
+                       {:data (some-> response .-data decode-fn)})))))
        [mutate-fn decode-fn])
       {:data    (some-> result :data decode-fn)
        :loading (:loading result)

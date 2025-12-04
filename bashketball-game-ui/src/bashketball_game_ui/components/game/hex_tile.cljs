@@ -13,8 +13,8 @@
    :court           {:fill "#f1f5f9" :stroke "#cbd5e1"}})
 
 (def ^:private side-modifiers
-  {:home {:fill-opacity 1.0}
-   :away {:fill-opacity 0.85}})
+  {:HOME {:fill-opacity 1.0}
+   :AWAY {:fill-opacity 0.85}})
 
 (defui hex-tile
   "Single hex tile with terrain-based styling.
@@ -22,7 +22,7 @@
   Props:
   - q, r: Hex coordinates
   - terrain: :hoop, :paint, :three-point-line, :court
-  - side: :home, :away, or nil
+  - side: :HOME, :AWAY, or nil
   - highlighted: boolean for valid move indication
   - setup-highlight: boolean for valid setup placement indication
   - selected: boolean for current selection

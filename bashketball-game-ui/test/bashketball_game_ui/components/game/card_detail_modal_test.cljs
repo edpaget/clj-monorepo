@@ -50,18 +50,18 @@
 
 (t/deftest card-detail-modal-renders-nothing-when-closed-test
   (uix-tlr/render (with-apollo
-                   ($ card-detail-modal {:open?     false
+                    ($ card-detail-modal {:open?     false
                                           :card-slug "fast-break"
                                           :on-close  identity})
-                   [mock-card-query]))
+                    [mock-card-query]))
   (t/is (nil? (screen/query-by-text "×"))))
 
 (t/deftest card-detail-modal-renders-close-button-when-open-test
   (uix-tlr/render (with-apollo
-                   ($ card-detail-modal {:open?     true
+                    ($ card-detail-modal {:open?     true
                                           :card-slug nil
                                           :on-close  identity})
-                   []))
+                    []))
   (t/is (some? (screen/get-by-text "×"))))
 
 (t/deftest card-detail-modal-close-button-calls-handler-test
@@ -69,10 +69,10 @@
            (let [closed (atom false)
                  _      (uix-tlr/render
                          (with-apollo
-                          ($ card-detail-modal {:open?     true
+                           ($ card-detail-modal {:open?     true
                                                  :card-slug nil
                                                  :on-close  #(reset! closed true)})
-                          []))
+                           []))
                  usr    (user/setup)
                  btn    (screen/get-by-text "×")]
              (-> (user/click usr btn)
@@ -85,8 +85,8 @@
 
 (t/deftest card-detail-modal-shows-not-found-when-no-card-test
   (uix-tlr/render (with-apollo
-                   ($ card-detail-modal {:open?     true
+                    ($ card-detail-modal {:open?     true
                                           :card-slug nil
                                           :on-close  identity})
-                   []))
+                    []))
   (t/is (some? (screen/get-by-text "Card not found"))))

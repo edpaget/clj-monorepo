@@ -7,8 +7,8 @@
    [uix.core :refer [$ defui use-callback]]))
 
 (def ^:private team-colors
-  {:home {:fill "#3b82f6" :stroke "#1d4ed8" :text "#ffffff"}
-   :away {:fill "#ef4444" :stroke "#b91c1c" :text "#ffffff"}})
+  {:HOME {:fill "#3b82f6" :stroke "#1d4ed8" :text "#ffffff"}
+   :AWAY {:fill "#ef4444" :stroke "#b91c1c" :text "#ffffff"}})
 
 (def ^:private token-radius 22)
 
@@ -25,7 +25,7 @@
 
   Props:
   - player: BasketballPlayer map with :id, :name, :position, :exhausted?
-  - team: :home or :away
+  - team: :HOME or :AWAY
   - selected: boolean
   - has-ball: boolean
   - pass-target: boolean, true when this player can receive a pass
@@ -36,7 +36,7 @@
         [cx cy]      (if (valid-position? position)
                        (board/hex->pixel position)
                        [0 0])
-        colors       (get team-colors team (:home team-colors))
+        colors       (get team-colors team (:HOME team-colors))
         exhausted?   (:exhausted? player)
         jersey-num   (or (some-> (:name player) first str) "?")
 

@@ -193,13 +193,13 @@
 
 (t/deftest board-tiles-keys-should-be-vectors
   (t/testing "Board tile keys should be decoded from strings to vectors"
-    (let [js-board (clj->js {"__typename" "Board"
-                             "width" 5
-                             "height" 14
-                             "tiles" {"0,1" {"__typename" "Tile" "terrain" "COURT"}
-                                      "2,3" {"__typename" "Tile" "terrain" "PAINT"}}
-                             "occupants" {}})
-          result   (decoder/decode-js-response js-board)
+    (let [js-board  (clj->js {"__typename" "Board"
+                              "width" 5
+                              "height" 14
+                              "tiles" {"0,1" {"__typename" "Tile" "terrain" "COURT"}
+                                       "2,3" {"__typename" "Tile" "terrain" "PAINT"}}
+                              "occupants" {}})
+          result    (decoder/decode-js-response js-board)
           tile-keys (keys (:tiles result))]
       ;; Keys should be vectors, not keywords
       (t/is (every? vector? tile-keys)
@@ -211,16 +211,16 @@
 
 (t/deftest board-occupants-keys-should-be-vectors
   (t/testing "Board occupant keys should be decoded from strings to vectors"
-    (let [js-board (clj->js {"__typename" "Board"
-                             "width" 5
-                             "height" 14
-                             "tiles" {}
-                             "occupants" {"1,5" {"__typename" "Occupant"
-                                                 "type" "BASKETBALL_PLAYER"
-                                                 "id" "player-1"}
-                                          "3,7" {"__typename" "Occupant"
-                                                 "type" "BALL"}}})
-          result       (decoder/decode-js-response js-board)
+    (let [js-board      (clj->js {"__typename" "Board"
+                                  "width" 5
+                                  "height" 14
+                                  "tiles" {}
+                                  "occupants" {"1,5" {"__typename" "Occupant"
+                                                      "type" "BASKETBALL_PLAYER"
+                                                      "id" "player-1"}
+                                               "3,7" {"__typename" "Occupant"
+                                                      "type" "BALL"}}})
+          result        (decoder/decode-js-response js-board)
           occupant-keys (keys (:occupants result))]
       ;; Keys should be vectors, not keywords
       (t/is (every? vector? occupant-keys)

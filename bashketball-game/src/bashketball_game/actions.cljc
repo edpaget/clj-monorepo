@@ -74,24 +74,26 @@
         (update-in (conj deck-path :hand) into drawn))))
 
 (defmethod -apply-action :bashketball/discard-cards
-  [state {:keys [player card-slugs]}]
+  [state {:keys [player instance-ids]}]
   (let [deck-path [:players player :deck]
         hand      (get-in state (conj deck-path :hand))
-        card-set  (set card-slugs)
-        new-hand  (vec (remove card-set hand))]
+        id-set    (set instance-ids)
+        discarded (filterv #(id-set (:instance-id %)) hand)
+        new-hand  (filterv #(not (id-set (:instance-id %))) hand)]
     (-> state
         (assoc-in (conj deck-path :hand) new-hand)
-        (update-in (conj deck-path :discard) into card-slugs))))
+        (update-in (conj deck-path :discard) into discarded))))
 
 (defmethod -apply-action :bashketball/remove-cards
-  [state {:keys [player card-slugs]}]
+  [state {:keys [player instance-ids]}]
   (let [deck-path [:players player :deck]
         hand      (get-in state (conj deck-path :hand))
-        card-set  (set card-slugs)
-        new-hand  (vec (remove card-set hand))]
+        id-set    (set instance-ids)
+        removed   (filterv #(id-set (:instance-id %)) hand)
+        new-hand  (filterv #(not (id-set (:instance-id %))) hand)]
     (-> state
         (assoc-in (conj deck-path :hand) new-hand)
-        (update-in (conj deck-path :removed) into card-slugs))))
+        (update-in (conj deck-path :removed) into removed))))
 
 (defmethod -apply-action :bashketball/shuffle-deck
   [state {:keys [player]}]

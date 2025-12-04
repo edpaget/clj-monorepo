@@ -25,6 +25,7 @@
   Sent when game state changes occur (player joins, state changes, game ends)."
   [:map {:graphql/type :GameEvent}
    [:type SubscriptionEventType]
+   [:id {:optional true} [:maybe :string]]
    [:game-id {:optional true} [:maybe :string]]
    [:player-id {:optional true} [:maybe :string]]
    [:winner-id {:optional true} [:maybe :string]]
@@ -42,7 +43,7 @@
 
 (def ^:private game-event-defaults
   "Default nil values for all GameEvent fields."
-  {:type nil :game-id nil :player-id nil :winner-id nil :reason nil :user-id nil})
+  {:type nil :id nil :game-id nil :player-id nil :winner-id nil :reason nil :user-id nil})
 
 (def ^:private lobby-event-defaults
   "Default nil values for all LobbyEvent fields."
@@ -51,13 +52,17 @@
 (defn- wrap-channel-with-transform
   "Wraps a channel to transform raw {:type :data} events into flat events.
 
-  Merges with defaults to ensure all fields are present (Apollo requires this)."
+  Merges with defaults to ensure all fields are present (Apollo requires this).
+  Adds a unique :id to each event to ensure React detects changes."
   [raw-ch defaults]
   (let [out-ch (async/chan 10)]
     (async/go-loop []
       (if-let [msg (async/<! raw-ch)]
         (do
-          (async/>! out-ch (merge defaults {:type (:type msg)} (:data msg)))
+          (async/>! out-ch (merge defaults
+                                  {:type (:type msg)
+                                   :id   (str (random-uuid))}
+                                  (:data msg)))
           (recur))
         (async/close! out-ch)))
     out-ch))
@@ -75,6 +80,7 @@
         out-ch  (wrap-channel-with-transform raw-ch game-event-defaults)]
     (async/put! out-ch (merge game-event-defaults
                               {:type    :connected
+                               :id      (str (random-uuid))
                                :game-id (str game-id)
                                :user-id user-id}))
     out-ch))

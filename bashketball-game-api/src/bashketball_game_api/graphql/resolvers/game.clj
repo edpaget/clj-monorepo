@@ -48,7 +48,7 @@
    [:player {:optional true} :string]
    [:amount {:optional true} :int]
    [:count {:optional true} :int]
-   [:card-slugs {:optional true} [:vector :string]]
+   [:instance-ids {:optional true} [:vector :string]]
    [:player-id {:optional true} :string]
    [:position {:optional true} [:vector :int]]
    [:modifier-id {:optional true} :string]
@@ -126,16 +126,26 @@
   [k]
   (str/join "," k))
 
+(defn- uppercase-keyword?
+  "Returns true if keyword is all uppercase (e.g., :HOME, :AWAY)."
+  [k]
+  (and (keyword? k)
+       (let [n (name k)]
+         (and (not (str/blank? n))
+              (= n (str/upper-case n))))))
+
 (defn- transform-map-key
   "Transforms a map key for GraphQL JSON output.
+  - Uppercase keywords (e.g., :HOME, :AWAY) -> preserved as-is
   - Field-name keywords -> camelCase keywords
   - HexPosition vectors -> comma-separated strings
   - Other keys -> unchanged"
   [k]
   (cond
-    (hex-position-key? k) (stringify-hex-key k)
-    (field-name? k)       (csk/->camelCaseKeyword k)
-    :else                 k))
+    (uppercase-keyword? k) k
+    (hex-position-key? k)  (stringify-hex-key k)
+    (field-name? k)        (csk/->camelCaseKeyword k)
+    :else                  k))
 
 (defn- kebab->camel-keys
   "Recursively transforms map keys for GraphQL JSON output.
@@ -176,34 +186,13 @@
     (assoc game-state :events (mapv normalize-event events))
     game-state))
 
-(defn- lowercase-team-keys
-  "Converts :HOME/:AWAY keys to :home/:away in :players and :score maps.
-
-  The game engine uses uppercase team identifiers internally, but the GraphQL
-  schema defines Players and Score types with lowercase field names."
-  [game-state]
-  (when game-state
-    (-> game-state
-        (update :players (fn [players]
-                           (when players
-                             (into {}
-                                   (map (fn [[k v]]
-                                          [(keyword (str/lower-case (name k))) v])
-                                        players)))))
-        (update :score (fn [score]
-                         (when score
-                           (into {}
-                                 (map (fn [[k v]]
-                                        [(keyword (str/lower-case (name k))) v])
-                                      score))))))))
-
 (defn- game->graphql
   "Transforms a game record to GraphQL response format.
 
   Returns kebab-case keys; graphql-server converts to camelCase for GraphQL.
   Returns nil for game-state when empty (waiting games have no state yet).
   Keywordizes game-state to ensure enum values (like Ball status) are keywords
-  for proper GraphQL union type tagging. Team keys are lowercased for GraphQL."
+  for proper GraphQL union type tagging."
   [game]
   {:id           (:id game)
    :player-1-id  (:player-1-id game)
@@ -211,7 +200,6 @@
    :status       (name (:status game))
    :game-state   (-> (not-empty (:game-state game))
                      keywordize-game-state
-                     lowercase-team-keys
                      normalize-events
                      kebab->camel-keys)
    :winner-id    (:winner-id game)
@@ -311,7 +299,7 @@
 
   Lacinia sends args with kebab-case keys. This function converts string
   enum values to uppercase keywords to match the game engine's enums."
-  [{:keys [type phase player amount count card-slugs player-id position
+  [{:keys [type phase player amount count instance-ids player-id position
            modifier-id starter-id bench-id holder-id origin target target-player-id
            action-type team points stat base fate modifiers total]}]
   (let [action-type-kw (keyword type)]
@@ -320,7 +308,7 @@
       player           (assoc :player (uppercase-keyword player))
       amount           (assoc :amount amount)
       count            (assoc :count count)
-      card-slugs       (assoc :card-slugs card-slugs)
+      instance-ids     (assoc :instance-ids instance-ids)
       player-id        (assoc :player-id player-id)
       position         (assoc :position (vec position))
       modifier-id      (assoc :modifier-id modifier-id)

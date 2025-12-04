@@ -77,13 +77,19 @@
    [:bench [:vector :string]]
    [:players [:map-of :string BasketballPlayer]]])
 
+(def CardInstance
+  "A single instance of a card in a deck, with unique identifier."
+  [:map {:graphql/type :CardInstance}
+   [:instance-id :string]
+   [:card-slug :string]])
+
 (def DeckState
   "A game player's deck state during a game."
   [:map {:graphql/type :DeckState}
-   [:draw-pile [:vector :string]]
-   [:hand [:vector :string]]
-   [:discard [:vector :string]]
-   [:removed [:vector :string]]])
+   [:draw-pile [:vector CardInstance]]
+   [:hand [:vector CardInstance]]
+   [:discard [:vector CardInstance]]
+   [:removed [:vector CardInstance]]])
 
 (def GamePlayer
   "A game player (human/AI controlling a team)."
@@ -167,14 +173,14 @@
 (def Score
   "Game score for both teams."
   [:map {:graphql/type :Score}
-   [:home :int]
-   [:away :int]])
+   [:HOME {:graphql/name :HOME} :int]
+   [:AWAY {:graphql/name :AWAY} :int]])
 
 (def Players
   "Both players in a game."
   [:map {:graphql/type :Players}
-   [:home GamePlayer]
-   [:away GamePlayer]])
+   [:HOME {:graphql/name :HOME} GamePlayer]
+   [:AWAY {:graphql/name :AWAY} GamePlayer]])
 
 (def GameState
   "The complete game state."
@@ -224,13 +230,13 @@
   [:map
    [:type [:= :bashketball/discard-cards]]
    [:player Team]
-   [:card-slugs [:vector :string]]])
+   [:instance-ids [:vector :string]]])
 
 (def RemoveCardsAction
   [:map
    [:type [:= :bashketball/remove-cards]]
    [:player Team]
-   [:card-slugs [:vector :string]]])
+   [:instance-ids [:vector :string]]])
 
 (def ShuffleDeckAction
   [:map

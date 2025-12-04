@@ -67,7 +67,7 @@
                 :let        [pos (:position player)]
                 ;; Only render players with valid [q r] positions
                 :when       (and (vector? pos) (= 2 (count pos)))
-                :let        [team        (if (contains? home-players id) :home :away)
+                :let        [team        (if (contains? home-players id) :HOME :AWAY)
                              selected    (= id selected-player)
                              has-ball    (= id holder-id)
                              pass-target (and pass-mode (contains? valid-pass-targets id))]]

@@ -89,16 +89,16 @@
 ;; ---------------------------------------------------------------------------
 ;; Draw Phase Tests
 
-(t/deftest action-bar-shows-draw-card-in-draw-phase-test
+(t/deftest action-bar-shows-draw-card-in-upkeep-phase-test
   (uix-tlr/render ($ action-bar {:game-state sample-game-state
                                  :my-team    :home
                                  :is-my-turn true
-                                 :phase      "DRAW"
+                                 :phase      "UPKEEP"
                                  :on-draw    identity
                                  :on-end-turn identity}))
   (t/is (some? (screen/get-by-role "button" {:name "Draw Card"}))))
 
-(t/deftest action-bar-hides-draw-card-when-not-draw-phase-test
+(t/deftest action-bar-hides-draw-card-when-not-upkeep-phase-test
   (uix-tlr/render ($ action-bar {:game-state sample-game-state
                                  :my-team    :home
                                  :is-my-turn true
@@ -111,7 +111,7 @@
   (uix-tlr/render ($ action-bar {:game-state sample-game-state
                                  :my-team    :home
                                  :is-my-turn false
-                                 :phase      "DRAW"
+                                 :phase      "UPKEEP"
                                  :on-draw    identity
                                  :on-end-turn identity}))
   (t/is (nil? (screen/query-by-role "button" {:name "Draw Card"}))))

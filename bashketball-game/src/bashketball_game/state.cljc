@@ -3,8 +3,7 @@
 
   Provides functions to create initial game state and access components
   of the game state."
-  (:require [bashketball-game.board :as board]
-            [clojure.string :as str]))
+  (:require [bashketball-game.board :as board]))
 
 (defn- generate-id
   "Generates a random UUID string."
@@ -16,10 +15,9 @@
   "Creates a basketball player from a player spec.
 
   The spec should contain :card-slug, :name, and :stats. The player ID is
-  derived from the team and card slug with an index. Uses lowercase team prefix
-  for consistency with GraphQL decoder which lowercases keys."
+  derived from the team and card slug with an index (e.g., 'HOME-michael-jordan-0')."
   [team-id index {:keys [card-slug name stats abilities] :or {abilities []}}]
-  (let [team-prefix (-> team-id clojure.core/name str/lower-case)
+  (let [team-prefix (clojure.core/name team-id)
         id          (str team-prefix "-" card-slug "-" index)]
     {:id id
      :card-slug card-slug
@@ -42,10 +40,16 @@
      :bench (vec (drop 3 player-ids))
      :players player-map}))
 
+(defn- create-card-instance
+  "Creates a card instance with a unique identifier."
+  [card-slug]
+  {:instance-id (generate-id)
+   :card-slug card-slug})
+
 (defn- create-deck
-  "Creates a deck from a list of card slugs."
+  "Creates a deck from a list of card slugs, assigning unique instance IDs."
   [card-slugs]
-  {:draw-pile (vec card-slugs)
+  {:draw-pile (mapv create-card-instance card-slugs)
    :hand []
    :discard []
    :removed []})
@@ -154,17 +158,17 @@
   (get-in state [:players team :team :bench]))
 
 (defn get-hand
-  "Returns the hand (list of card slugs) for a team."
+  "Returns the hand (list of card instances) for a team."
   [state team]
   (get-in state [:players team :deck :hand]))
 
 (defn get-draw-pile
-  "Returns the draw pile (list of card slugs) for a team."
+  "Returns the draw pile (list of card instances) for a team."
   [state team]
   (get-in state [:players team :deck :draw-pile]))
 
 (defn get-discard
-  "Returns the discard pile (list of card slugs) for a team."
+  "Returns the discard pile (list of card instances) for a team."
   [state team]
   (get-in state [:players team :deck :discard]))
 

@@ -256,14 +256,14 @@
                              phase
                              turnNumber
                              activePlayer
-                             score { home away }
+                             score { HOME AWAY }
                              ball {
                                ... on BallLoose { position }
                                ... on BallPossessed { holderId }
                                ... on BallInAir { origin target actionType }
                              }
                              players {
-                               home {
+                               HOME {
                                  id
                                  actionsRemaining
                                  team {
@@ -271,7 +271,7 @@
                                    players
                                  }
                                }
-                               away {
+                               AWAY {
                                  id
                                  actionsRemaining
                                  team {
@@ -289,10 +289,10 @@
             game-data  (get-in (tu/graphql-data response) [:game])]
         (is (empty? errors) (str "GraphQL errors: " (pr-str errors)))
         (is (some? (:gameState game-data)) "gameState should not be null")
-        (is (some? (get-in game-data [:gameState :players :home :actionsRemaining]))
-            "home.actionsRemaining should not be null")
-        (is (some? (get-in game-data [:gameState :players :away :actionsRemaining]))
-            "away.actionsRemaining should not be null")))))
+        (is (some? (get-in game-data [:gameState :players :HOME :actionsRemaining]))
+            "HOME.actionsRemaining should not be null")
+        (is (some? (get-in game-data [:gameState :players :AWAY :actionsRemaining]))
+            "AWAY.actionsRemaining should not be null")))))
 
 (deftest submit-move-player-action-test
   (testing "move-player action sets player position correctly"
@@ -330,12 +330,12 @@
             (is (true? (:success result)) (str "Expected success but got error: " (:error result)))))
 
         (testing "player position is updated after move"
-          (let [response   (tu/graphql-request
-                            "query GetGame($id: Uuid!) {
+          (let [response  (tu/graphql-request
+                           "query GetGame($id: Uuid!) {
                              game(id: $id) {
                                gameState {
                                  players {
-                                   home {
+                                   HOME {
                                      team {
                                        starters
                                        players
@@ -345,13 +345,13 @@
                                }
                              }
                            }"
-                            :variables {:id (str (:id game))}
-                            :session-id session-id)
-                errors     (tu/graphql-errors response)
-                _          (is (empty? errors) (str "GraphQL errors: " (pr-str errors)))
-                game-data  (get-in (tu/graphql-data response) [:game :gameState])
-                players    (get-in game-data [:players :home :team :players])
-                player     (get players (keyword player-id))]
+                           :variables {:id (str (:id game))}
+                           :session-id session-id)
+                errors    (tu/graphql-errors response)
+                _         (is (empty? errors) (str "GraphQL errors: " (pr-str errors)))
+                game-data (get-in (tu/graphql-data response) [:game :gameState])
+                players   (get-in game-data [:players :HOME :team :players])
+                player    (get players (keyword player-id))]
             (is (some? player) (str "Could not find player with id: " player-id))
             (is (= [2 3] (:position player))
                 (str "Expected position [2 3] but got: " (:position player)))))))))

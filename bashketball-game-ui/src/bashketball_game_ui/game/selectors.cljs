@@ -7,12 +7,19 @@
 (defn opponent-team
   "Returns the opponent's team keyword given the player's team."
   [my-team]
-  (if (= my-team :home) :away :home))
+  (if (= my-team :HOME) :AWAY :HOME))
+
+(defn- phase->keyword
+  "Converts a phase value to keyword, handling both string and keyword inputs."
+  [phase]
+  (if (keyword? phase)
+    phase
+    (keyword phase)))
 
 (defn setup-mode?
   "Returns true if the game is in setup phase."
   [phase]
-  (or (= phase :setup) (= phase "SETUP")))
+  (= (phase->keyword phase) :SETUP))
 
 (defn get-player-by-id
   "Looks up a player by ID, handling both string and keyword keys."
@@ -43,7 +50,7 @@
 (defn target-basket
   "Returns the target basket position for shooting based on team."
   [my-team]
-  (if (= my-team :home) [2 13] [2 0]))
+  (if (= my-team :HOME) [2 13] [2 0]))
 
 (defn my-player-data
   "Extracts all player-related data from game state for the given team.
@@ -64,8 +71,8 @@
 (defn all-players
   "Returns home and away player maps for the hex grid."
   [game-state]
-  {:home-players (get-in game-state [:players :home :team :players])
-   :away-players (get-in game-state [:players :away :team :players])})
+  {:home-players (get-in game-state [:players :HOME :team :players])
+   :away-players (get-in game-state [:players :AWAY :team :players])})
 
 (def phase-labels
   {:SETUP       "Setup"

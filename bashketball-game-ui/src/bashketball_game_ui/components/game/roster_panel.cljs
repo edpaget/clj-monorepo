@@ -11,13 +11,13 @@
 
   Props:
   - player: Player map with :id, :name, :card-slug, :stats
-  - team: :home or :away
+  - team: :HOME or :AWAY
   - selected: boolean
   - placed: boolean (has position)
   - on-click: fn [player-id]"
   [{:keys [player team selected placed on-click]}]
-  (let [team-colors  {:home "border-blue-500 bg-blue-50"
-                      :away "border-red-500 bg-red-50"}
+  (let [team-colors  {:HOME "border-blue-500 bg-blue-50"
+                      :AWAY "border-red-500 bg-red-50"}
         stats        (:stats player)
         ;; Display name with fallback to card-slug or id
         display-name (or (:name player)
@@ -61,18 +61,11 @@
   Props:
   - players: Map of player-id -> player (all team players)
   - starters: Vector of starter player IDs
-  - team: :home or :away
+  - team: :HOME or :AWAY
   - selected-player: Currently selected player ID
   - on-player-select: fn [player-id]"
   [{:keys [players starters team selected-player on-player-select]}]
-  ;; Debug: log player data structure including position types
-  (js/console.log "roster-panel players:" (clj->js players))
-  (js/console.log "roster-panel starters:" (clj->js starters))
-  (doseq [[id player] players]
-    (let [pos (:position player)]
-      (when pos
-        (js/console.log "Player" id "position:" pos "type:" (type pos) "vector?" (vector? pos)))))
-  (let [team-label      (if (= team :home) "Home" "Away")
+  (let [team-label      (if (= team :HOME) "Home" "Away")
         ;; Get starter players, filtering out nils for missing entries
         starter-players (->> starters
                              (map #(get-player players %))

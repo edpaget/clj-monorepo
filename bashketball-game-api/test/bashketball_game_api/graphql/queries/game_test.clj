@@ -220,3 +220,58 @@
         (is (contains? #{"BallPossessed" "BallLoose" "BallInAir"}
                        (get-in game-data [:gameState :ball :__typename]))
             "ball __typename should be one of the Ball union types")))))
+
+(deftest game-state-uppercase-team-keys-test
+  (testing "game query returns gameState with uppercase team keys"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            query      "query GetGame($id: Uuid!) {
+                          game(id: $id) {
+                            id
+                            status
+                            gameState {
+                              score {
+                                HOME
+                                AWAY
+                              }
+                              players {
+                                HOME {
+                                  id
+                                  actionsRemaining
+                                }
+                                AWAY {
+                                  id
+                                  actionsRemaining
+                                }
+                              }
+                            }
+                          }
+                        }"
+            response   (tu/graphql-request query
+                                           :variables {:id (str (:id game))}
+                                           :session-id session-id)
+            result     (tu/graphql-data response)
+            game-data  (:game result)]
+        (is (= "ACTIVE" (:status game-data)))
+        (is (some? (:gameState game-data)) "gameState should be present")
+
+        ;; GraphQL now returns uppercase keys using :graphql/name
+        ;; Verify score map
+        (let [score (get-in game-data [:gameState :score])]
+          (is (contains? score :HOME) "score map should have :HOME key")
+          (is (contains? score :AWAY) "score map should have :AWAY key")
+          (is (= 0 (:HOME score)) "HOME score should be 0 initially")
+          (is (= 0 (:AWAY score)) "AWAY score should be 0 initially"))
+
+        ;; Verify players map
+        (let [players (get-in game-data [:gameState :players])]
+          (is (contains? players :HOME) "players map should have :HOME key")
+          (is (contains? players :AWAY) "players map should have :AWAY key")
+          (is (= "HOME" (get-in players [:HOME :id])) "HOME player id should be \"HOME\"")
+          (is (= "AWAY" (get-in players [:AWAY :id])) "AWAY player id should be \"AWAY\""))))))

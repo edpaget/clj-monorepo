@@ -20,6 +20,7 @@
   (apollo/gql "
     subscription GameUpdated($gameId: Uuid!) {
       gameUpdated(gameId: $gameId) {
+        id
         type
         gameId
         playerId

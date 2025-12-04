@@ -17,10 +17,10 @@
 (def sample-game-state
   {:board sample-board
    :ball {:status :possessed :holder-id "player-1"}
-   :players {:home {:id :home
+   :players {:HOME {:id :HOME
                     :team {:players {"player-1" {:id "player-1" :name "PG"}
                                      "player-2" {:id "player-2" :name "SG"}}}}
-             :away {:id :away
+             :AWAY {:id :AWAY
                     :team {:players {"player-3" {:id "player-3" :name "PG"}
                                      "player-4" {:id "player-4" :name "SG"}}}}}
    :exhausted-players #{}})
@@ -38,10 +38,10 @@
     (t/is (nil? (actions/get-ball-holder-position state)))))
 
 (t/deftest ball-held-by-team-home-test
-  (t/is (actions/ball-held-by-team? sample-game-state :home)))
+  (t/is (actions/ball-held-by-team? sample-game-state :HOME)))
 
 (t/deftest ball-held-by-team-away-test
-  (t/is (not (actions/ball-held-by-team? sample-game-state :away))))
+  (t/is (not (actions/ball-held-by-team? sample-game-state :AWAY))))
 
 (t/deftest player-has-ball-test
   (t/is (actions/player-has-ball? sample-game-state "player-1"))
@@ -80,18 +80,18 @@
 ;; =============================================================================
 
 (t/deftest can-pass-with-ball-test
-  (t/is (actions/can-pass? sample-game-state :home)))
+  (t/is (actions/can-pass? sample-game-state :HOME)))
 
 (t/deftest can-pass-without-ball-test
-  (t/is (not (actions/can-pass? sample-game-state :away))))
+  (t/is (not (actions/can-pass? sample-game-state :AWAY))))
 
 (t/deftest can-shoot-near-hoop-test
   (let [state (-> sample-game-state
                   (update :board board/move-occupant [2 5] [2 12]))]
-    (t/is (actions/can-shoot? state :home))))
+    (t/is (actions/can-shoot? state :HOME))))
 
 (t/deftest can-shoot-too-far-test
-  (t/is (not (actions/can-shoot? sample-game-state :home))))
+  (t/is (not (actions/can-shoot? sample-game-state :HOME))))
 
 ;; =============================================================================
 ;; Valid moves tests
@@ -153,16 +153,16 @@
     (t/is (= "actions" (:phase action)))))
 
 (t/deftest make-draw-cards-action-test
-  (let [action (actions/make-draw-cards-action :home 3)]
+  (let [action (actions/make-draw-cards-action :HOME 3)]
     (t/is (= "bashketball/draw-cards" (:type action)))
-    (t/is (= "home" (:player action)))
+    (t/is (= "HOME" (:player action)))
     (t/is (= 3 (:count action)))))
 
 (t/deftest make-discard-cards-action-test
-  (let [action (actions/make-discard-cards-action :away ["card-1" "card-2"])]
+  (let [action (actions/make-discard-cards-action :AWAY ["uuid-1" "uuid-2"])]
     (t/is (= "bashketball/discard-cards" (:type action)))
-    (t/is (= "away" (:player action)))
-    (t/is (= ["card-1" "card-2"] (:card-slugs action)))))
+    (t/is (= "AWAY" (:player action)))
+    (t/is (= ["uuid-1" "uuid-2"] (:instance-ids action)))))
 
 ;; =============================================================================
 ;; Setup mode tests
@@ -173,22 +173,22 @@
   {:board (board/create-board)
    :phase :setup
    :ball {:status :loose :position [2 7]}
-   :players {:home {:id :home
-                    :team {:starters ["home-pg-0" "home-sg-1" "home-c-2"]
-                           :bench ["home-pf-3"]
-                           :players {"home-pg-0" {:id "home-pg-0" :name "PG" :position nil}
-                                     "home-sg-1" {:id "home-sg-1" :name "SG" :position nil}
-                                     "home-c-2" {:id "home-c-2" :name "C" :position nil}
-                                     "home-pf-3" {:id "home-pf-3" :name "PF" :position nil}}}}
-             :away {:id :away
-                    :team {:starters ["away-pg-0" "away-sg-1" "away-c-2"]
+   :players {:HOME {:id :HOME
+                    :team {:starters ["HOME-pg-0" "HOME-sg-1" "HOME-c-2"]
+                           :bench ["HOME-pf-3"]
+                           :players {"HOME-pg-0" {:id "HOME-pg-0" :name "PG" :position nil}
+                                     "HOME-sg-1" {:id "HOME-sg-1" :name "SG" :position nil}
+                                     "HOME-c-2" {:id "HOME-c-2" :name "C" :position nil}
+                                     "HOME-pf-3" {:id "HOME-pf-3" :name "PF" :position nil}}}}
+             :AWAY {:id :AWAY
+                    :team {:starters ["AWAY-pg-0" "AWAY-sg-1" "AWAY-c-2"]
                            :bench []
-                           :players {"away-pg-0" {:id "away-pg-0" :name "PG" :position nil}
-                                     "away-sg-1" {:id "away-sg-1" :name "SG" :position nil}
-                                     "away-c-2" {:id "away-c-2" :name "C" :position nil}}}}}})
+                           :players {"AWAY-pg-0" {:id "AWAY-pg-0" :name "PG" :position nil}
+                                     "AWAY-sg-1" {:id "AWAY-sg-1" :name "SG" :position nil}
+                                     "AWAY-c-2" {:id "AWAY-c-2" :name "C" :position nil}}}}}})
 
 (t/deftest valid-setup-positions-home-test
-  (let [positions (actions/valid-setup-positions setup-game-state :home)]
+  (let [positions (actions/valid-setup-positions setup-game-state :HOME)]
     (t/is (set? positions))
     (t/is (seq positions))
     ;; Home team should only have positions in rows 0-6
@@ -197,7 +197,7 @@
     (t/is (not (contains? positions [2 0])))))
 
 (t/deftest valid-setup-positions-away-test
-  (let [positions (actions/valid-setup-positions setup-game-state :away)]
+  (let [positions (actions/valid-setup-positions setup-game-state :AWAY)]
     (t/is (set? positions))
     (t/is (seq positions))
     ;; Away team should only have positions in rows 7-13
@@ -206,36 +206,36 @@
     (t/is (not (contains? positions [2 13])))))
 
 (t/deftest valid-setup-positions-excludes-occupied-test
-  (let [state (update setup-game-state :board board/set-occupant [2 3] {:type :basketball-player :id "p1"})
-        positions (actions/valid-setup-positions state :home)]
+  (let [state     (update setup-game-state :board board/set-occupant [2 3] {:type :basketball-player :id "p1"})
+        positions (actions/valid-setup-positions state :HOME)]
     (t/is (not (contains? positions [2 3])))))
 
 (t/deftest unplaced-starters-all-unplaced-test
-  (let [unplaced (actions/unplaced-starters setup-game-state :home)]
+  (let [unplaced (actions/unplaced-starters setup-game-state :HOME)]
     (t/is (= 3 (count unplaced)))
-    (t/is (contains? unplaced "home-pg-0"))
-    (t/is (contains? unplaced "home-sg-1"))
-    (t/is (contains? unplaced "home-c-2"))))
+    (t/is (contains? unplaced "HOME-pg-0"))
+    (t/is (contains? unplaced "HOME-sg-1"))
+    (t/is (contains? unplaced "HOME-c-2"))))
 
 (t/deftest unplaced-starters-one-placed-test
-  (let [state (assoc-in setup-game-state [:players :home :team :players "home-pg-0" :position] [2 3])
-        unplaced (actions/unplaced-starters state :home)]
+  (let [state    (assoc-in setup-game-state [:players :HOME :team :players "HOME-pg-0" :position] [2 3])
+        unplaced (actions/unplaced-starters state :HOME)]
     (t/is (= 2 (count unplaced)))
-    (t/is (not (contains? unplaced "home-pg-0")))
-    (t/is (contains? unplaced "home-sg-1"))))
+    (t/is (not (contains? unplaced "HOME-pg-0")))
+    (t/is (contains? unplaced "HOME-sg-1"))))
 
 (t/deftest all-starters-placed-none-placed-test
-  (t/is (not (actions/all-starters-placed? setup-game-state :home))))
+  (t/is (not (actions/all-starters-placed? setup-game-state :HOME))))
 
 (t/deftest all-starters-placed-some-placed-test
   (let [state (-> setup-game-state
-                  (assoc-in [:players :home :team :players "home-pg-0" :position] [2 3])
-                  (assoc-in [:players :home :team :players "home-sg-1" :position] [3 3]))]
-    (t/is (not (actions/all-starters-placed? state :home)))))
+                  (assoc-in [:players :HOME :team :players "HOME-pg-0" :position] [2 3])
+                  (assoc-in [:players :HOME :team :players "HOME-sg-1" :position] [3 3]))]
+    (t/is (not (actions/all-starters-placed? state :HOME)))))
 
 (t/deftest all-starters-placed-all-placed-test
   (let [state (-> setup-game-state
-                  (assoc-in [:players :home :team :players "home-pg-0" :position] [2 3])
-                  (assoc-in [:players :home :team :players "home-sg-1" :position] [3 3])
-                  (assoc-in [:players :home :team :players "home-c-2" :position] [1 3]))]
-    (t/is (actions/all-starters-placed? state :home))))
+                  (assoc-in [:players :HOME :team :players "HOME-pg-0" :position] [2 3])
+                  (assoc-in [:players :HOME :team :players "HOME-sg-1" :position] [3 3])
+                  (assoc-in [:players :HOME :team :players "HOME-c-2" :position] [1 3]))]
+    (t/is (actions/all-starters-placed? state :HOME))))

@@ -11,7 +11,7 @@
 
   Props:
   - player: GamePlayer map with :actions-remaining, :deck, :team
-  - team: :home or :away
+  - team: :HOME or :AWAY
   - score: Integer score for this team
   - is-active: boolean if this is the active player
   - is-opponent: boolean if this is opponent (compact view)"
@@ -21,8 +21,8 @@
         hand-count        (count (:hand deck))
         discard-count     (count (:discard deck))
         actions-remaining (:actions-remaining player)
-        team-color        (if (= team :home) "blue" "red")
-        team-label        (if (= team :home) "Home" "Away")]
+        team-color        (if (= team :HOME) "blue" "red")
+        team-label        (if (= team :HOME) "Home" "Away")]
 
     ($ :div {:class (cn "flex items-center gap-4 p-3 rounded-lg"
                         (if is-active
@@ -30,7 +30,7 @@
                           "bg-slate-50"))}
 
        ($ :div {:class (cn "flex items-center justify-center w-10 h-10 rounded-full text-white font-bold"
-                           (if (= team :home) "bg-blue-500" "bg-red-500"))}
+                           (if (= team :HOME) "bg-blue-500" "bg-red-500"))}
           (first team-label))
 
        ($ :div {:class "flex-1"}
@@ -38,7 +38,7 @@
              ($ :span {:class "font-medium text-slate-900"} team-label)
              (when is-active
                ($ :span {:class (cn "px-2 py-0.5 text-xs rounded-full"
-                                    (if (= team :home)
+                                    (if (= team :HOME)
                                       "bg-blue-100 text-blue-700"
                                       "bg-red-100 text-red-700"))}
                   "Active")))

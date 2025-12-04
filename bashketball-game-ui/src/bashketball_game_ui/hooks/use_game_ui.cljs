@@ -10,11 +10,11 @@
 
   Returns a map with:
   - :selected-player - currently selected player ID or nil
-  - :selected-card - currently selected card slug or nil
+  - :selected-card - currently selected card instance-id or nil
   - :set-selected-player - setter function
   - :set-selected-card - setter function
   - :toggle-player - toggles player selection (select if different, deselect if same)
-  - :toggle-card - toggles card selection
+  - :toggle-card - toggles card selection (by instance-id)
   - :clear - clears both selections"
   []
   (let [[selected-player set-selected-player] (use-state nil)
@@ -26,8 +26,8 @@
                                                [])
 
         toggle-card                           (use-callback
-                                               (fn [slug]
-                                                 (set-selected-card #(if (= % slug) nil slug)))
+                                               (fn [instance-id]
+                                                 (set-selected-card #(if (= % instance-id) nil instance-id)))
                                                [])
 
         clear                                 (use-callback
@@ -69,20 +69,20 @@
 
   Returns a map with:
   - :active - boolean, true if discard mode is active
-  - :cards - set of selected card slugs for discard
+  - :cards - set of selected card instance-ids for discard
   - :count - number of cards selected
-  - :toggle-card - function to toggle a card in the discard set
+  - :toggle-card - function to toggle a card in the discard set (by instance-id)
   - :enter - function to enter discard mode (clears previous selections)
   - :cancel - function to exit discard mode and clear selections
-  - :get-cards-and-exit - function that returns selected cards and exits mode"
+  - :get-cards-and-exit - function that returns selected instance-ids and exits mode"
   []
   (let [[active set-active] (use-state false)
         [cards set-cards]   (use-state #{})
         toggle-card         (use-callback
-                             (fn [slug]
-                               (set-cards #(if (contains? % slug)
-                                             (disj % slug)
-                                             (conj % slug))))
+                             (fn [instance-id]
+                               (set-cards #(if (contains? % instance-id)
+                                             (disj % instance-id)
+                                             (conj % instance-id))))
                              [])
         enter               (use-callback
                              (fn []
