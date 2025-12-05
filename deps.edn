@@ -151,6 +151,35 @@
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
    :mvn/repos   {"github" {:url "https://maven.pkg.github.com/bashketball/cards"}}}
 
+  ;; === Coverage Aliases ===
+  :bashketball-game-coverage
+  {:extra-paths ["bashketball-game/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :extra-deps  {local/bashketball-game {:local/root "bashketball-game"}
+                 cloverage/cloverage {:mvn/version "1.2.4"}}
+   :main-opts   ["-m" "cloverage.coverage"
+                 "--src-ns-path" "bashketball-game/src"
+                 "--test-ns-path" "bashketball-game/test"
+                 "--ns-regex" "bashketball-game\\..*"
+                 "--codecov"
+                 "--html"
+                 "-o" "bashketball-game/target/coverage"]}
+
+  :bashketball-game-api-coverage
+  {:extra-paths ["bashketball-game-api/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :extra-deps  {local/bashketball-game-api {:local/root "bashketball-game-api"}
+                 cloverage/cloverage {:mvn/version "1.2.4"}
+                 hato/hato {:mvn/version "1.0.0"}}
+   :main-opts   ["-m" "cloverage.coverage"
+                 "--src-ns-path" "bashketball-game-api/src"
+                 "--test-ns-path" "bashketball-game-api/test"
+                 "--ns-regex" "bashketball-game-api\\..*"
+                 "--codecov"
+                 "--html"
+                 "-o" "bashketball-game-api/target/coverage"]
+   :mvn/repos   {"github" {:url "https://maven.pkg.github.com/bashketball/cards"}}}
+
   ;; === Aggregated Aliases ===
   ;; Work with all projects at once
   :dev-all

@@ -125,3 +125,13 @@
   "Returns true if the phase can be advanced via Next Phase button."
   [phase]
   (some? (next-phase phase)))
+
+(defn build-player-index-map
+  "Builds a map of player-id -> 1-based index for a team.
+
+  Sorts players by ID to ensure consistent ordering across components."
+  [players-map]
+  (->> (keys players-map)
+       sort
+       (map-indexed (fn [idx id] [id (inc idx)]))
+       (into {})))

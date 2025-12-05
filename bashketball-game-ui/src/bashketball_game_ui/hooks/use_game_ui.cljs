@@ -201,3 +201,24 @@
         :enter      enter
         :cancel     cancel})
      [active starter-id set-starter enter cancel])))
+
+(defn use-side-panel-mode
+  "Hook for managing side panel view mode.
+
+  Returns a map with:
+  - :mode - current mode (:log or :players)
+  - :show-log - fn to switch to log view
+  - :show-players - fn to switch to players view
+  - :toggle - fn to toggle between modes"
+  []
+  (let [[mode set-mode] (use-state :log)
+        show-log        (use-callback #(set-mode :log) [])
+        show-players    (use-callback #(set-mode :players) [])
+        toggle          (use-callback #(set-mode (fn [m] (if (= m :log) :players :log))) [])]
+    (use-memo
+     (fn []
+       {:mode         mode
+        :show-log     show-log
+        :show-players show-players
+        :toggle       toggle})
+     [mode show-log show-players toggle])))

@@ -9,7 +9,7 @@
     "dev": "npm run js:build && shadow-cljs watch app",
     "build": "npm run js:build && shadow-cljs release app",
     "build:prod": "npm run js:build:prod && shadow-cljs release app && npm run css:build && node scripts/update-html-hashes.js",
-    "test": "shadow-cljs compile test",
+    "test": "shadow-cljs compile test && node out/node-tests.js",
     "test:watch": "shadow-cljs watch test",
     "css:watch": "tailwindcss -i ./resources/public/css/input.css -o ./public/css/output.css --watch",
     "css:build": "tailwindcss -i ./resources/public/css/input.css -o ./public/css/output.css --minify"

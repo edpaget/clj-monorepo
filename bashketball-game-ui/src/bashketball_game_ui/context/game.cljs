@@ -9,6 +9,7 @@
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.graphql.subscriptions :as subscriptions]
    [bashketball-game-ui.hooks.use-game-actions :refer [use-game-actions]]
+   [bashketball-game-ui.hooks.use-game-ui :as ui]
    [bashketball-ui.core]
    [uix.core :refer [$ defui create-context use-context use-state use-effect]]))
 
@@ -24,10 +25,17 @@
   - `:game-state` - Inner game state from bashketball-game
   - `:my-team` - :home or :away for current user
   - `:is-my-turn` - boolean indicating if it's the user's turn
-  - `:actions` - Action dispatch functions from use-game-actions
+  - `:actions` - Action dispatch functions from [[use-game-actions]]
   - `:loading` - Initial load state
   - `:error` - Error object if any
-  - `:connected` - SSE connection status"
+  - `:connected` - SSE connection status
+  - `:selection` - Player/card selection state from [[ui/use-selection]]
+  - `:pass` - Pass mode state from [[ui/use-pass-mode]]
+  - `:discard` - Discard mode state from [[ui/use-discard-mode]]
+  - `:detail-modal` - Card detail modal state from [[ui/use-detail-modal]]
+  - `:ball-mode` - Ball selection state from [[ui/use-ball-mode]]
+  - `:fate-reveal` - Fate reveal modal state from [[ui/use-fate-reveal]]
+  - `:substitute-mode` - Substitution mode state from [[ui/use-substitute-mode]]"
   []
   (use-context game-context))
 
@@ -72,7 +80,16 @@
         game-state                                                    (:game-state game)
         actions                                                       (use-game-actions game-id)
         my-team                                                       (when game (determine-my-team game user-id))
-        is-turn                                                       (is-my-turn? game-state my-team)]
+        is-turn                                                       (is-my-turn? game-state my-team)
+
+        ;; UI state hooks
+        selection                                                     (ui/use-selection)
+        pass                                                          (ui/use-pass-mode)
+        discard                                                       (ui/use-discard-mode)
+        detail-modal                                                  (ui/use-detail-modal)
+        ball-mode                                                     (ui/use-ball-mode)
+        fate-reveal                                                   (ui/use-fate-reveal)
+        substitute-mode                                               (ui/use-substitute-mode)]
 
     (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
@@ -93,12 +110,19 @@
      [connected subscription-result refetch])
 
     ($ (:Provider game-context)
-       {:value {:game       game
-                :game-state game-state
-                :my-team    my-team
-                :is-my-turn is-turn
-                :actions    actions
-                :loading    (and loading (not connected))
-                :error      (or error (:error subscription-result))
-                :connected  connected}}
+       {:value {:game            game
+                :game-state      game-state
+                :my-team         my-team
+                :is-my-turn      is-turn
+                :actions         actions
+                :loading         (and loading (not connected))
+                :error           (or error (:error subscription-result))
+                :connected       connected
+                :selection       selection
+                :pass            pass
+                :discard         discard
+                :detail-modal    detail-modal
+                :ball-mode       ball-mode
+                :fate-reveal     fate-reveal
+                :substitute-mode substitute-mode}}
        children)))

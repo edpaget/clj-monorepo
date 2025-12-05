@@ -8,6 +8,7 @@
    [bashketball-game-ui.components.game.hex-tile :refer [hex-tile]]
    [bashketball-game-ui.components.game.player-token :refer [player-token]]
    [bashketball-game-ui.game.board-utils :as board]
+   [bashketball-game-ui.game.selectors :as sel]
    [uix.core :refer [$ defui use-memo]]))
 
 (defn- ball-holder-id
@@ -15,16 +16,6 @@
   [ball]
   (when (= (:__typename ball) "BallPossessed")
     (:holder-id ball)))
-
-(defn- build-player-index-map
-  "Builds a map of player-id -> 1-based index for a team.
-
-  Sorts players by ID to ensure consistent ordering."
-  [players-map]
-  (->> (keys players-map)
-       sort
-       (map-indexed (fn [idx id] [id (inc idx)]))
-       (into {})))
 
 (defui hex-grid
   "Renders the game board as an SVG hex grid.
@@ -51,8 +42,8 @@
         holder-id              (ball-holder-id ball)
         valid-set              (set valid-moves)
         setup-set              (set setup-highlights)
-        home-indices           (use-memo #(build-player-index-map home-players) [home-players])
-        away-indices           (use-memo #(build-player-index-map away-players) [away-players])]
+        home-indices           (use-memo #(sel/build-player-index-map home-players) [home-players])
+        away-indices           (use-memo #(sel/build-player-index-map away-players) [away-players])]
 
     ($ :svg {:viewBox (str "0 0 " width " " height)
              :class   "w-full h-full"
