@@ -40,13 +40,14 @@
   - on-reveal-fate: fn [] called when Reveal Fate clicked
   - on-shuffle: fn [] called when Shuffle clicked
   - on-return-discard: fn [] called when Return Discard clicked
+  - on-substitute: fn [] called when Substitute clicked (opens substitute modal)
   - loading: boolean to disable all buttons"
   [{:keys [game-state my-team is-my-turn phase selected-player selected-card
            pass-mode discard-mode discard-count setup-placed-count
            my-setup-complete both-teams-ready
            on-end-turn on-shoot on-pass on-cancel-pass on-play-card on-draw
            on-enter-discard on-cancel-discard on-submit-discard on-start-game on-setup-done on-next-phase
-           on-reveal-fate on-shuffle on-return-discard loading]}]
+           on-reveal-fate on-shuffle on-return-discard on-substitute loading]}]
   (let [can-shoot        (and is-my-turn
                               selected-player
                               (actions/player-has-ball? game-state selected-player)
@@ -210,6 +211,15 @@
                             :disabled loading
                             :class    "text-emerald-600 border-emerald-300 hover:bg-emerald-50"}
                     "Return Discard"))
+
+               ;; Substitute button
+               (when (and is-my-turn (actions/can-substitute? game-state my-team))
+                 ($ button {:variant  :outline
+                            :size     :sm
+                            :on-click on-substitute
+                            :disabled loading
+                            :class    "text-amber-600 border-amber-300 hover:bg-amber-50"}
+                    "Substitute"))
 
                ;; Next Phase button (visible in non-SETUP phases during your turn)
                (when can-advance

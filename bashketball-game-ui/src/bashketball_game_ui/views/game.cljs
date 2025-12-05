@@ -6,6 +6,7 @@
   (:require
    [bashketball-game-ui.components.game.card-detail-modal :refer [card-detail-modal]]
    [bashketball-game-ui.components.game.fate-reveal-modal :refer [fate-reveal-modal]]
+   [bashketball-game-ui.components.game.substitute-modal :refer [substitute-modal]]
    [bashketball-game-ui.context.auth :refer [use-auth]]
    [bashketball-game-ui.context.game :refer [game-provider use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
@@ -47,6 +48,7 @@
         detail-modal                                                                 (ui/use-detail-modal)
         ball-mode                                                                    (ui/use-ball-mode)
         fate-reveal                                                                  (ui/use-fate-reveal)
+        substitute-mode                                                              (ui/use-substitute-mode)
 
         ;; Computed values
         selected-player-id                                                           (:selected-player selection)
@@ -82,6 +84,23 @@
                                                                                       #(when setup-mode
                                                                                          (sel/both-teams-setup-complete? game-state))
                                                                                       [setup-mode game-state])
+
+        ;; Starters and bench for substitution modal
+        my-bench-ids                                                                 (get-in game-state [:players my-team :team :bench])
+        my-starter-players                                                           (use-memo
+                                                                                      #(when my-starters
+                                                                                         (->> my-starters
+                                                                                              (map (fn [id] (get my-players id)))
+                                                                                              (filter some?)
+                                                                                              vec))
+                                                                                      [my-starters my-players])
+        my-bench-players                                                             (use-memo
+                                                                                      #(when my-bench-ids
+                                                                                         (->> my-bench-ids
+                                                                                              (map (fn [id] (get my-players id)))
+                                                                                              (filter some?)
+                                                                                              vec))
+                                                                                      [my-bench-ids my-players])
 
         ;; Action loading state
         action-loading                                                               (:loading actions)
@@ -224,7 +243,16 @@
         handle-return-discard                                                        (use-callback
                                                                                       (fn []
                                                                                         ((:return-discard actions) my-team))
-                                                                                      [my-team actions])]
+                                                                                      [my-team actions])
+
+        handle-substitute                                                            (use-callback
+                                                                                      (fn [bench-id]
+                                                                                        (let [starter-id (:starter-id substitute-mode)]
+                                                                                          (-> ((:substitute actions) starter-id bench-id)
+                                                                                              (.then #(js/console.log "Substitute result:" %))
+                                                                                              (.catch #(js/console.error "Substitute error:" %)))
+                                                                                          ((:cancel substitute-mode))))
+                                                                                      [actions substitute-mode])]
 
     (cond
       loading
@@ -324,6 +352,7 @@
                 :on-reveal-fate     handle-reveal-fate
                 :on-shuffle         handle-shuffle
                 :on-return-discard  handle-return-discard
+                :on-substitute      (:enter substitute-mode)
                 :loading            action-loading}))
 
          ;; Card detail modal
@@ -334,7 +363,16 @@
          ;; Fate reveal modal
          ($ fate-reveal-modal {:open?    (:open? fate-reveal)
                                :fate     (:fate fate-reveal)
-                               :on-close (:close fate-reveal)})))))
+                               :on-close (:close fate-reveal)})
+
+         ;; Substitute modal
+         ($ substitute-modal {:open?             (:active substitute-mode)
+                              :starters          my-starter-players
+                              :bench             my-bench-players
+                              :selected-starter  (:starter-id substitute-mode)
+                              :on-starter-select (:set-starter substitute-mode)
+                              :on-bench-select   handle-substitute
+                              :on-close          (:cancel substitute-mode)})))))
 
 (defui game-view
   "Game page component.

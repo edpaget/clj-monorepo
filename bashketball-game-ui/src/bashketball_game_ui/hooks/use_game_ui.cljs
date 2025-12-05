@@ -169,3 +169,35 @@
         :show  show
         :close close})
      [fate show close])))
+
+(defn use-substitute-mode
+  "Hook for managing substitution mode state.
+
+  Returns a map with:
+  - :active - boolean, true when in substitution selection mode
+  - :starter-id - selected starter to substitute out, or nil
+  - :set-starter - fn [id] to select a starter
+  - :enter - function to enter substitution mode
+  - :cancel - function to exit substitution mode and clear selection"
+  []
+  (let [[active set-active]         (use-state false)
+        [starter-id set-starter-id] (use-state nil)
+        set-starter                 (use-callback #(set-starter-id %) [])
+        enter                       (use-callback
+                                     (fn []
+                                       (set-active true)
+                                       (set-starter-id nil))
+                                     [])
+        cancel                      (use-callback
+                                     (fn []
+                                       (set-active false)
+                                       (set-starter-id nil))
+                                     [])]
+    (use-memo
+     (fn []
+       {:active     active
+        :starter-id starter-id
+        :set-starter set-starter
+        :enter      enter
+        :cancel     cancel})
+     [active starter-id set-starter enter cancel])))

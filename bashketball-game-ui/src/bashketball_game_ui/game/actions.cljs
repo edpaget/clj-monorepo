@@ -153,3 +153,9 @@
   [game-state team]
   (let [draw-pile (get-in game-state [:players team :deck :draw-pile])]
     (and (sequential? draw-pile) (pos? (count draw-pile)))))
+
+(defn can-substitute?
+  "Returns true if the team has bench players available for substitution."
+  [game-state team]
+  (let [bench (get-in game-state [:players team :team :bench])]
+    (and (sequential? bench) (pos? (count bench)))))

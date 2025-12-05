@@ -27,6 +27,7 @@
   - `:set-phase` - fn [phase] -> Promise
   - `:shuffle-deck` - fn [team] -> Promise (shuffle draw pile)
   - `:return-discard` - fn [team] -> Promise (return discard pile to draw pile)
+  - `:substitute` - fn [starter-id bench-id] -> Promise (swap starter with bench player)
   - `:loading` - boolean
   - `:error` - error object or nil"
   [game-id]
@@ -115,6 +116,13 @@
                                                              (fn [team]
                                                                (submit {:type   "bashketball/return-discard"
                                                                         :player (name team)}))
+                                                             [submit])
+
+        substitute                                          (use-callback
+                                                             (fn [starter-id bench-id]
+                                                               (submit {:type       "bashketball/substitute"
+                                                                        :starter-id starter-id
+                                                                        :bench-id   bench-id}))
                                                              [submit])]
 
     (use-memo
@@ -132,8 +140,9 @@
         :set-phase          set-phase
         :shuffle-deck       shuffle-deck
         :return-discard     return-discard
+        :substitute         substitute
         :loading            loading
         :error              error})
      [submit move-player pass-ball shoot-ball set-ball-loose set-ball-possessed
       reveal-fate draw-cards discard-cards end-turn set-phase shuffle-deck
-      return-discard loading error])))
+      return-discard substitute loading error])))
