@@ -26,12 +26,12 @@
                :exhausted? false}})
 
 (def sample-ball-possessed
-  {:status    :possessed
-   :holder-id "player-1"})
+  {:__typename "BallPossessed"
+   :holder-id  "player-1"})
 
 (def sample-ball-loose
-  {:status   :loose
-   :position [3 5]})
+  {:__typename "BallLoose"
+   :position   [3 5]})
 
 (t/deftest hex-grid-renders-svg-test
   (let [{:keys [container]} (uix-tlr/render ($ hex-grid {:board        nil

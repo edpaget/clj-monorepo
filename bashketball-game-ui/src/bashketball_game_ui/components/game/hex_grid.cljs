@@ -13,7 +13,7 @@
 (defn- ball-holder-id
   "Returns the player ID holding the ball, or nil if not possessed."
   [ball]
-  (when (= (:status ball) :possessed)
+  (when (= (:__typename ball) "BallPossessed")
     (:holder-id ball)))
 
 (defui hex-grid
@@ -29,11 +29,13 @@
   - setup-highlights: Set of valid setup placement positions [[q r] ...]
   - pass-mode: boolean, true when in pass target selection mode
   - valid-pass-targets: Set of player IDs that are valid pass targets
+  - ball-selected: boolean, true when ball is selected for movement
   - on-hex-click: fn [q r] called when hex clicked
-  - on-player-click: fn [player-id] called when player clicked"
+  - on-player-click: fn [player-id] called when player clicked
+  - on-ball-click: fn [] called when loose ball clicked"
   [{:keys [board ball home-players away-players
            selected-player valid-moves setup-highlights pass-mode valid-pass-targets
-           on-hex-click on-player-click]}]
+           ball-selected on-hex-click on-player-click on-ball-click]}]
   (let [[width height padding] (board/board-dimensions)
         all-pos                (use-memo #(board/all-positions) [])
         holder-id              (ball-holder-id ball)
@@ -80,5 +82,7 @@
                              :on-click    on-player-click}))
 
           ;; Layer 3: Ball indicator (loose or in-air only)
-          (when (and ball (not= (:status ball) :possessed))
-            ($ ball-indicator {:ball ball}))))))
+          (when (and ball (not= (:__typename ball) "BallPossessed"))
+            ($ ball-indicator {:ball     ball
+                               :selected ball-selected
+                               :on-click on-ball-click}))))))

@@ -66,7 +66,8 @@
   [:map {:graphql/type :GameActionResult}
    [:success :boolean]
    [:game-id {:optional true} [:maybe :uuid]]
-   [:error {:optional true} [:maybe :string]]])
+   [:error {:optional true} [:maybe :string]]
+   [:revealed-fate {:optional true} [:maybe :int]]])
 
 (def PageInfo
   "GraphQL schema for pagination metadata."
@@ -349,9 +350,10 @@
         user-id      (get-user-id ctx)
         game-action  (input->action action)
         result       (game-svc/submit-action! game-service game-id user-id game-action)]
-    {:success (:success result)
-     :game-id (when (:game result) (:id (:game result)))
-     :error   (:error result)}))
+    (cond-> {:success (:success result)
+             :game-id (when (:game result) (:id (:game result)))
+             :error   (:error result)}
+      (:revealed-fate result) (assoc :revealed-fate (:revealed-fate result)))))
 
 (defresolver :Mutation :forfeitGame
   "Forfeits the game, opponent wins."

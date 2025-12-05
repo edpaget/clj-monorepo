@@ -147,3 +147,9 @@
   (let [starters   (get-in game-state [:players team :team :starters])
         player-map (get-in game-state [:players team :team :players])]
     (every? #(:position (get player-map %)) starters)))
+
+(defn can-reveal-fate?
+  "Returns true if the team has cards in their draw pile."
+  [game-state team]
+  (let [draw-pile (get-in game-state [:players team :deck :draw-pile])]
+    (and (sequential? draw-pile) (pos? (count draw-pile)))))

@@ -13,10 +13,24 @@
 (def ^:private ball-stroke "#ea580c")
 
 (defui loose-ball
-  "Renders a loose ball at a position on the ground."
-  [{:keys [position]}]
+  "Renders a loose ball at a position on the ground.
+
+  Props:
+  - position: [q r] hex position
+  - selected: boolean, true if ball is selected for movement
+  - on-click: optional click handler"
+  [{:keys [position selected on-click]}]
   (let [[cx cy] (board/hex->pixel position)]
-    ($ :g
+    ($ :g {:style    {:cursor (when on-click "pointer")}
+           :on-click (when on-click #(do (.stopPropagation %) (on-click)))}
+       ;; Selection ring (behind ball)
+       (when selected
+         ($ :circle {:cx           cx
+                     :cy           cy
+                     :r            (+ ball-radius 4)
+                     :fill         "none"
+                     :stroke       "#06b6d4"
+                     :stroke-width 2}))
        ;; Shadow
        ($ :ellipse {:cx      cx
                     :cy      (+ cy 4)
@@ -95,15 +109,19 @@
   "Ball visualization based on ball state.
 
   Props:
-  - ball: Ball state map with :status and state-specific fields
-    - :possessed - ball held by player (rendered via player-token)
-    - :loose - {:position [q r]}
-    - :in-air - {:origin [q r] :target [q r] or player-id :action-type :shot/:pass}"
-  [{:keys [ball]}]
-  (case (:status ball)
-    :loose  ($ loose-ball {:position (:position ball)})
-    :in-air ($ in-air-ball {:origin      (:origin ball)
-                            :target      (:target ball)
-                            :action-type (:action-type ball)})
-    ;; :possessed - handled by player-token's has-ball prop
+  - ball: Ball state map with __typename and state-specific fields
+    - BallPossessed - ball held by player (rendered via player-token)
+    - BallLoose - {:position [q r]}
+    - BallInAir - {:origin [q r] :target [q r] or player-id :action-type :shot/:pass}
+  - selected: boolean, true if ball is selected for movement
+  - on-click: optional click handler for loose ball"
+  [{:keys [ball selected on-click]}]
+  (case (:__typename ball)
+    "BallLoose"  ($ loose-ball {:position (:position ball)
+                                :selected selected
+                                :on-click on-click})
+    "BallInAir"  ($ in-air-ball {:origin      (:origin ball)
+                                 :target      (:target ball)
+                                 :action-type (:action-type ball)})
+    ;; BallPossessed - handled by player-token's has-ball prop
     nil))

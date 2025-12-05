@@ -9,7 +9,11 @@
   "Display a stat value with label."
   [{:keys [label value]}]
   ($ :div {:class "text-center"}
-     ($ :div {:class "text-sm font-bold text-gray-900"} (or value "-"))
+     ($ :div {:class "text-sm font-bold text-gray-900"}
+        (cond
+          (nil? value) "-"
+          (keyword? value) (name value)
+          :else value))
      ($ :div {:class "text-[10px] text-gray-500 uppercase"} label)))
 
 (defui text-block
@@ -37,7 +41,8 @@
 (defui card-type-badge
   "Display the card type as a badge."
   [{:keys [card-type]}]
-  (let [type-label (case card-type
+  (let [type-str   (if (keyword? card-type) (name card-type) card-type)
+        type-label (case type-str
                      "PlayerCard" "Player"
                      "PLAYER_CARD" "Player"
                      "PlayCard" "Play"
@@ -52,7 +57,7 @@
                      "TEAM_ASSET_CARD" "Team Asset"
                      "StandardActionCard" "Standard Action"
                      "STANDARD_ACTION_CARD" "Standard Action"
-                     (or card-type "Unknown"))]
+                     (or type-str "Unknown"))]
     ($ :span {:class "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-700 text-gray-100"}
        type-label)))
 
@@ -136,9 +141,10 @@
   - `:set-slug` - Set slug for footer (optional, uses :set-slug or :setSlug from card)
   - `:class` - Additional CSS classes for the container"
   [{:keys [card card-type set-slug class]}]
-  (let [resolved-type     (or card-type
+  (let [raw-type          (or card-type
                               (:card-type card)
                               (:__typename card))
+        resolved-type     (if (keyword? raw-type) (name raw-type) raw-type)
         resolved-set-slug (or set-slug
                               (:set-slug card)
                               (:setSlug card))

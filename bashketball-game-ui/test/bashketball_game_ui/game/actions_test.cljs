@@ -16,7 +16,7 @@
 
 (def sample-game-state
   {:board sample-board
-   :ball {:status :possessed :holder-id "player-1"}
+   :ball {:__typename "BallPossessed" :holder-id "player-1"}
    :players {:HOME {:id :HOME
                     :team {:players {"player-1" {:id "player-1" :name "PG"}
                                      "player-2" {:id "player-2" :name "SG"}}}}
@@ -34,7 +34,7 @@
     (t/is (= [2 5] pos))))
 
 (t/deftest get-ball-holder-position-loose-test
-  (let [state (assoc sample-game-state :ball {:status :loose :position [1 1]})]
+  (let [state (assoc sample-game-state :ball {:__typename "BallLoose" :position [1 1]})]
     (t/is (nil? (actions/get-ball-holder-position state)))))
 
 (t/deftest ball-held-by-team-home-test
@@ -172,7 +172,7 @@
   "Game state for setup phase testing with starters."
   {:board (board/create-board)
    :phase :setup
-   :ball {:status :loose :position [2 7]}
+   :ball {:__typename "BallLoose" :position [2 7]}
    :players {:HOME {:id :HOME
                     :team {:starters ["HOME-pg-0" "HOME-sg-1" "HOME-c-2"]
                            :bench ["HOME-pf-3"]

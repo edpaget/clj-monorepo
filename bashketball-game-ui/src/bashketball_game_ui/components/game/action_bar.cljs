@@ -37,19 +37,16 @@
   - on-start-game: fn [] called when Start Game clicked (setup phase)
   - on-setup-done: fn [] called when Done clicked during setup (pass turn)
   - on-next-phase: fn [] called when Next Phase clicked
+  - on-reveal-fate: fn [] called when Reveal Fate clicked
+  - on-shuffle: fn [] called when Shuffle clicked
+  - on-return-discard: fn [] called when Return Discard clicked
   - loading: boolean to disable all buttons"
   [{:keys [game-state my-team is-my-turn phase selected-player selected-card
            pass-mode discard-mode discard-count setup-placed-count
            my-setup-complete both-teams-ready
            on-end-turn on-shoot on-pass on-cancel-pass on-play-card on-draw
-           on-enter-discard on-cancel-discard on-submit-discard on-start-game on-setup-done on-next-phase loading]}]
-  (prn "SHOOT" is-my-turn
-       selected-player
-       (actions/player-has-ball? game-state selected-player)
-       (actions/can-shoot? game-state my-team))
-  (prn "MOVE" is-my-turn
-       selected-player
-       (seq (actions/valid-move-positions game-state selected-player)))
+           on-enter-discard on-cancel-discard on-submit-discard on-start-game on-setup-done on-next-phase
+           on-reveal-fate on-shuffle on-return-discard loading]}]
   (let [can-shoot        (and is-my-turn
                               selected-player
                               (actions/player-has-ball? game-state selected-player)
@@ -171,12 +168,21 @@
                             :class    "bg-purple-600 hover:bg-purple-700"}
                     "Play Card"))
 
-               (when (and is-my-turn (= (keyword phase) :UPKEEP))
+               (when is-my-turn
                  ($ button {:variant  :outline
                             :size     :sm
                             :on-click on-draw
                             :disabled loading}
                     "Draw Card"))
+
+               ;; Reveal Fate button
+               (when (and is-my-turn (actions/can-reveal-fate? game-state my-team))
+                 ($ button {:variant  :outline
+                            :size     :sm
+                            :on-click on-reveal-fate
+                            :disabled loading
+                            :class    "text-purple-600 border-purple-300 hover:bg-purple-50"}
+                    "Reveal Fate"))
 
                ;; Discard button (to enter discard mode)
                (when is-my-turn
@@ -186,6 +192,24 @@
                             :disabled loading
                             :class    "text-red-600 border-red-300 hover:bg-red-50"}
                     "Discard"))
+
+               ;; Shuffle button
+               (when is-my-turn
+                 ($ button {:variant  :outline
+                            :size     :sm
+                            :on-click on-shuffle
+                            :disabled loading
+                            :class    "text-emerald-600 border-emerald-300 hover:bg-emerald-50"}
+                    "Shuffle"))
+
+               ;; Return Discard button
+               (when is-my-turn
+                 ($ button {:variant  :outline
+                            :size     :sm
+                            :on-click on-return-discard
+                            :disabled loading
+                            :class    "text-emerald-600 border-emerald-300 hover:bg-emerald-50"}
+                    "Return Discard"))
 
                ;; Next Phase button (visible in non-SETUP phases during your turn)
                (when can-advance

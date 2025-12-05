@@ -218,6 +218,14 @@
                                       (pr-str (game-schema/explain-action action)))}
           (try
             (let [current-state (:game-state game)
+                  ;; For reveal-fate, capture the top card's fate before action
+                  revealed-fate (when (= :bashketball/reveal-fate (:type action))
+                                  (let [player    (:player action)
+                                        card-slug (get-in current-state
+                                                          [:players player :deck :draw-pile 0 :card-slug])
+                                        card      (when card-slug
+                                                    (catalog/get-card card-catalog card-slug))]
+                                    (:fate card)))
                   new-state     (game-actions/apply-action current-state action)
                   seq-num       (game-model/get-next-sequence-num game-id)
                   _event        (game-model/create-event! game-id
@@ -239,7 +247,8 @@
               (subs/publish! subscription-manager [:game game-id]
                              {:type :state-changed
                               :data {:game-id (str game-id)}})
-              {:success true :game updated-game})
+              (cond-> {:success true :game updated-game}
+                revealed-fate (assoc :revealed-fate revealed-fate)))
             (catch Exception e
               {:success false :error (ex-message e)}))))
       {:success false :error "Game not found or not a participant"}))

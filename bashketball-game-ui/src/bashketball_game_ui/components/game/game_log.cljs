@@ -22,6 +22,10 @@
     :bashketball/ball-caught      "Catch"
     :bashketball/ball-loose       "Loose"
     :bashketball/shot-result      "Shot"
+    :bashketball/set-ball-loose   "Manual Ball Move"
+    :bashketball/reveal-fate      "Fate"
+    :bashketball/shuffle-deck     "Shuffle"
+    :bashketball/return-discard   "Return"
     (name event-type)))
 
 (defn format-event-description
@@ -56,9 +60,21 @@
     :bashketball/ball-caught
     "Ball caught"
 
-    :bashketball/ball-loose
+    (:bashketball/ball-loose
+     :bashketball/set-ball-loose)
     (let [{:keys [position]} data]
       (str "Ball loose at " (pr-str position)))
+
+    :bashketball/reveal-fate
+    (str "Revealed " (get-in data [:revealed-card "card-slug"]))
+
+    :bashketball/shuffle-deck
+    (let [{:keys [player]} data]
+      (str (name player) " shuffled their deck"))
+
+    :bashketball/return-discard
+    (let [{:keys [player]} data]
+      (str (name player) " returned discard to deck"))
 
     ;; Default
     (str (name type))))
@@ -71,6 +87,8 @@
     :bashketball/shot-result     "text-orange-600"
     :bashketball/advance-turn    "text-blue-600"
     :bashketball/set-ball-in-air "text-purple-600"
+    :bashketball/shuffle-deck    "text-emerald-600"
+    :bashketball/return-discard  "text-emerald-600"
     "text-slate-600"))
 
 (defui event-item
@@ -88,11 +106,9 @@
   "Displays chronological game events.
 
   Props:
-  - events: Vector of event maps with :type, :timestamp, :data
-  - max-height: CSS max-height value (default 200px)"
-  [{:keys [events max-height]}]
-  (let [scroll-ref (use-ref nil)
-        height     (or max-height "200px")]
+  - events: Vector of event maps with :type, :timestamp, :data"
+  [{:keys [events]}]
+  (let [scroll-ref (use-ref nil)]
 
     ;; Auto-scroll to bottom when new events added
     (use-effect
@@ -103,11 +119,11 @@
      [(count events)])
 
     ($ :div {:class "flex flex-col h-full"}
-       ($ :div {:class "text-xs font-medium text-slate-500 px-2 py-1 border-b bg-slate-50"}
+       ($ :div {:class "text-xs font-medium text-slate-500 px-2 py-1 border-b bg-slate-50 flex-shrink-0"}
           "Game Log")
        ($ :div {:ref   scroll-ref
                 :class "overflow-y-auto px-2"
-                :style {:max-height height}}
+                :style {:max-height "calc(100vh - 300px)"}}
           (if (empty? events)
             ($ :div {:class "text-xs text-slate-400 italic py-4 text-center"}
                "No events yet")

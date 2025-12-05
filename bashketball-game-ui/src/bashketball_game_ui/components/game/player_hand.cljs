@@ -49,8 +49,7 @@
            :on-click (fn [_] (when on-click (on-click instance-id)))}
           display-name)
        (when on-detail-click
-         ($ info-icon {:on-click #(on-detail-click card-slug)
-                       :disabled disabled})))))
+         ($ info-icon {:on-click #(on-detail-click card-slug)})))))
 
 (defui player-hand
   "Displays cards in player's hand.

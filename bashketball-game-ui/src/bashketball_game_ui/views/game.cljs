@@ -5,6 +5,7 @@
   Uses the game context provider for real-time state updates."
   (:require
    [bashketball-game-ui.components.game.card-detail-modal :refer [card-detail-modal]]
+   [bashketball-game-ui.components.game.fate-reveal-modal :refer [fate-reveal-modal]]
    [bashketball-game-ui.context.auth :refer [use-auth]]
    [bashketball-game-ui.context.game :refer [game-provider use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
@@ -44,10 +45,13 @@
         pass                                                                         (ui/use-pass-mode)
         discard                                                                      (ui/use-discard-mode)
         detail-modal                                                                 (ui/use-detail-modal)
+        ball-mode                                                                    (ui/use-ball-mode)
+        fate-reveal                                                                  (ui/use-fate-reveal)
 
         ;; Computed values
         selected-player-id                                                           (:selected-player selection)
         pass-active                                                                  (:active pass)
+        ball-active                                                                  (:active ball-mode)
 
         valid-moves                                                                  (use-memo
                                                                                       #(when (and is-my-turn selected-player-id game-state)
@@ -90,19 +94,37 @@
         ;; Event handlers using pure handler functions
         handle-hex-click                                                             (use-callback
                                                                                       (fn [q r]
-                                                                                        (when-let [action (h/hex-click-action
-                                                                                                           {:setup-mode            setup-mode
-                                                                                                            :is-my-turn            is-my-turn
-                                                                                                            :selected-player       selected-player-id
-                                                                                                            :valid-setup-positions valid-setup-positions
-                                                                                                            :valid-moves           valid-moves}
-                                                                                                           q r)]
-                                                                                          (-> ((:move-player actions) (:player-id action) (first (:position action)) (second (:position action)))
-                                                                                              (.then #(js/console.log "Move result:" %))
-                                                                                              (.catch #(js/console.error "Move error:" %)))
-                                                                                          ((:set-selected-player selection) nil)))
-                                                                                      [setup-mode is-my-turn selected-player-id
+                                                                                        (cond
+                                                                                          ;; Ball mode: move ball to clicked hex
+                                                                                          ball-active
+                                                                                          (do
+                                                                                            (-> ((:set-ball-loose actions) q r)
+                                                                                                (.then #(js/console.log "Ball move result:" %))
+                                                                                                (.catch #(js/console.error "Ball move error:" %)))
+                                                                                            ((:cancel ball-mode)))
+
+                                                                                          ;; Normal player movement
+                                                                                          :else
+                                                                                          (when-let [action (h/hex-click-action
+                                                                                                             {:setup-mode            setup-mode
+                                                                                                              :is-my-turn            is-my-turn
+                                                                                                              :selected-player       selected-player-id
+                                                                                                              :valid-setup-positions valid-setup-positions
+                                                                                                              :valid-moves           valid-moves}
+                                                                                                             q r)]
+                                                                                            (-> ((:move-player actions) (:player-id action) (first (:position action)) (second (:position action)))
+                                                                                                (.then #(js/console.log "Move result:" %))
+                                                                                                (.catch #(js/console.error "Move error:" %)))
+                                                                                            ((:set-selected-player selection) nil))))
+                                                                                      [ball-active ball-mode setup-mode is-my-turn selected-player-id
                                                                                        valid-setup-positions valid-moves actions selection])
+
+        handle-ball-click                                                            (use-callback
+                                                                                      (fn []
+                                                                                        (if ball-active
+                                                                                          ((:cancel ball-mode))
+                                                                                          ((:select ball-mode))))
+                                                                                      [ball-active ball-mode])
 
         handle-player-click                                                          (use-callback
                                                                                       (fn [player-id]
@@ -182,7 +204,27 @@
                                                                                         (when (pos? (:count discard))
                                                                                           (let [cards ((:get-cards-and-exit discard))]
                                                                                             ((:discard-cards actions) my-team (vec cards)))))
-                                                                                      [discard my-team actions])]
+                                                                                      [discard my-team actions])
+
+        handle-reveal-fate                                                           (use-callback
+                                                                                      (fn []
+                                                                                        (-> ((:reveal-fate actions) my-team)
+                                                                                            (.then (fn [result]
+                                                                                                     (prn result)
+                                                                                                     (when-let [fate (-> result :data :submit-action :revealed-fate)]
+                                                                                                       ((:show fate-reveal) fate))))
+                                                                                            (.catch #(js/console.error "Reveal fate error:" %))))
+                                                                                      [my-team actions fate-reveal])
+
+        handle-shuffle                                                               (use-callback
+                                                                                      (fn []
+                                                                                        ((:shuffle-deck actions) my-team))
+                                                                                      [my-team actions])
+
+        handle-return-discard                                                        (use-callback
+                                                                                      (fn []
+                                                                                        ((:return-discard actions) my-team))
+                                                                                      [my-team actions])]
 
     (cond
       loading
@@ -207,7 +249,7 @@
                                   :is-my-turn    is-my-turn})
 
          ;; Main content area
-         ($ :div {:class "flex-1 flex p-4 bg-slate-100 gap-4 min-h-0"}
+         ($ :div {:class "flex-1 flex p-4 bg-slate-100 gap-4 min-h-0 overflow-hidden"}
             ;; Left: Board and player info
             ($ sections/board-section
                {:opponent              opponent
@@ -225,8 +267,10 @@
                 :valid-setup-positions valid-setup-positions
                 :pass-mode             pass-active
                 :valid-pass-targets    valid-pass-targets
+                :ball-selected         ball-active
                 :on-hex-click          handle-hex-click
-                :on-player-click       handle-player-click})
+                :on-player-click       handle-player-click
+                :on-ball-click         handle-ball-click})
 
             ;; Right: Game log or roster panel during setup
             ($ sections/side-panel
@@ -277,12 +321,20 @@
                 :on-start-game      handle-start-game
                 :on-setup-done      handle-setup-done
                 :on-next-phase      handle-next-phase
+                :on-reveal-fate     handle-reveal-fate
+                :on-shuffle         handle-shuffle
+                :on-return-discard  handle-return-discard
                 :loading            action-loading}))
 
          ;; Card detail modal
          ($ card-detail-modal {:open?     (:open? detail-modal)
                                :card-slug (:card-slug detail-modal)
-                               :on-close  (:close detail-modal)})))))
+                               :on-close  (:close detail-modal)})
+
+         ;; Fate reveal modal
+         ($ fate-reveal-modal {:open?    (:open? fate-reveal)
+                               :fate     (:fate fate-reveal)
+                               :on-close (:close fate-reveal)})))))
 
 (defui game-view
   "Game page component.

@@ -111,6 +111,7 @@
         success
         gameId
         error
+        revealedFate
       }
     }
   "))

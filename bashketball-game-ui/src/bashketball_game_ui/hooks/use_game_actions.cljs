@@ -18,10 +18,15 @@
   - `:move-player` - fn [player-id q r] -> Promise
   - `:pass-ball` - fn [origin target] -> Promise (target can be position or player-id)
   - `:shoot-ball` - fn [origin target] -> Promise
+  - `:set-ball-loose` - fn [q r] -> Promise (move ball to position)
+  - `:set-ball-possessed` - fn [player-id] -> Promise (give ball to player)
+  - `:reveal-fate` - fn [team] -> Promise (reveal top card's fate, returns revealedFate)
   - `:draw-cards` - fn [team count] -> Promise
   - `:discard-cards` - fn [team instance-ids] -> Promise
   - `:end-turn` - fn [] -> Promise
   - `:set-phase` - fn [phase] -> Promise
+  - `:shuffle-deck` - fn [team] -> Promise (shuffle draw pile)
+  - `:return-discard` - fn [team] -> Promise (return discard pile to draw pile)
   - `:loading` - boolean
   - `:error` - error object or nil"
   [game-id]
@@ -57,6 +62,24 @@
                                                                         :action-type "shot"}))
                                                              [submit])
 
+        set-ball-loose                                      (use-callback
+                                                             (fn [q r]
+                                                               (submit {:type     "bashketball/set-ball-loose"
+                                                                        :position [q r]}))
+                                                             [submit])
+
+        set-ball-possessed                                  (use-callback
+                                                             (fn [player-id]
+                                                               (submit {:type      "bashketball/set-ball-possessed"
+                                                                        :holder-id player-id}))
+                                                             [submit])
+
+        reveal-fate                                         (use-callback
+                                                             (fn [team]
+                                                               (submit {:type   "bashketball/reveal-fate"
+                                                                        :player (name team)}))
+                                                             [submit])
+
         draw-cards                                          (use-callback
                                                              (fn [team count]
                                                                (submit {:type   "bashketball/draw-cards"
@@ -80,18 +103,37 @@
                                                              (fn [phase]
                                                                (submit {:type  "bashketball/set-phase"
                                                                         :phase (if (string? phase) phase (name phase))}))
+                                                             [submit])
+
+        shuffle-deck                                        (use-callback
+                                                             (fn [team]
+                                                               (submit {:type   "bashketball/shuffle-deck"
+                                                                        :player (name team)}))
+                                                             [submit])
+
+        return-discard                                      (use-callback
+                                                             (fn [team]
+                                                               (submit {:type   "bashketball/return-discard"
+                                                                        :player (name team)}))
                                                              [submit])]
 
     (use-memo
      (fn []
-       {:submit        submit
-        :move-player   move-player
-        :pass-ball     pass-ball
-        :shoot-ball    shoot-ball
-        :draw-cards    draw-cards
-        :discard-cards discard-cards
-        :end-turn      end-turn
-        :set-phase     set-phase
-        :loading       loading
-        :error         error})
-     [submit move-player pass-ball shoot-ball draw-cards discard-cards end-turn set-phase loading error])))
+       {:submit             submit
+        :move-player        move-player
+        :pass-ball          pass-ball
+        :shoot-ball         shoot-ball
+        :set-ball-loose     set-ball-loose
+        :set-ball-possessed set-ball-possessed
+        :reveal-fate        reveal-fate
+        :draw-cards         draw-cards
+        :discard-cards      discard-cards
+        :end-turn           end-turn
+        :set-phase          set-phase
+        :shuffle-deck       shuffle-deck
+        :return-discard     return-discard
+        :loading            loading
+        :error              error})
+     [submit move-player pass-ball shoot-ball set-ball-loose set-ball-possessed
+      reveal-fate draw-cards discard-cards end-turn set-phase shuffle-deck
+      return-discard loading error])))

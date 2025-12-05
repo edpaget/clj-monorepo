@@ -131,3 +131,41 @@
         :show      show
         :close     close})
      [card-slug show close])))
+
+(defn use-ball-mode
+  "Hook for managing ball selection/movement mode.
+
+  Returns a map with:
+  - :active - boolean, true when ball is selected for movement
+  - :select - function to enter ball mode (ball selected)
+  - :cancel - function to exit ball mode"
+  []
+  (let [[active set-active] (use-state false)
+        select              (use-callback #(set-active true) [])
+        cancel              (use-callback #(set-active false) [])]
+    (use-memo
+     (fn []
+       {:active active
+        :select select
+        :cancel cancel})
+     [active select cancel])))
+
+(defn use-fate-reveal
+  "Hook for managing fate reveal modal state.
+
+  Returns a map with:
+  - :fate - the revealed fate value, or nil
+  - :open? - boolean, true if modal should be shown
+  - :show - fn [fate] to show the modal with a fate value
+  - :close - fn [] to close the modal"
+  []
+  (let [[fate set-fate] (use-state nil)
+        show            (use-callback #(set-fate %) [])
+        close           (use-callback #(set-fate nil) [])]
+    (use-memo
+     (fn []
+       {:fate  fate
+        :open? (some? fate)
+        :show  show
+        :close close})
+     [fate show close])))

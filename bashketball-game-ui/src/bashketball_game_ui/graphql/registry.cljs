@@ -49,7 +49,8 @@
   [:map {:graphql/type :GameActionResult}
    [:success :boolean]
    [:game-id {:optional true} [:maybe :uuid]]
-   [:error {:optional true} [:maybe :string]]])
+   [:error {:optional true} [:maybe :string]]
+   [:revealed-fate {:optional true} [:maybe :int]]])
 
 (def GameEvent
   "SSE game subscription event schema."
@@ -108,6 +109,7 @@
    game-schema/Modifier
    game-schema/PlayerStats
    game-schema/DeckState
+   game-schema/CardInstance
    game-schema/StackEffect
    game-schema/Event
    game-schema/Team

@@ -220,8 +220,9 @@
       (is (= 5 (count (state/get-draw-pile updated :HOME)))))))
 
 (deftest reveal-fate-action-test
-  (let [game    (state/create-game test-config)
-        updated (actions/apply-action game {:type :bashketball/reveal-fate :player :HOME})]
+  (let [game         (state/create-game test-config)
+        original-top (-> game (state/get-draw-pile :HOME) first)
+        updated      (actions/apply-action game {:type :bashketball/reveal-fate :player :HOME})]
 
     (testing "top card moved to discard"
       (is (= ["card-1"] (mapv :card-slug (state/get-discard updated :HOME)))))
@@ -230,9 +231,13 @@
       (is (= 4 (count (state/get-draw-pile updated :HOME)))))
 
     (testing "revealed card retains instance-id"
-      (let [original-top-id (-> game (state/get-draw-pile :HOME) first :instance-id)
-            discard-id      (-> updated (state/get-discard :HOME) first :instance-id)]
-        (is (= original-top-id discard-id))))))
+      (let [discard-id (-> updated (state/get-discard :HOME) first :instance-id)]
+        (is (= (:instance-id original-top) discard-id))))
+
+    (testing "event includes revealed card"
+      (let [event (last (:events updated))]
+        (is (= :bashketball/reveal-fate (:type event)))
+        (is (= original-top (:revealed-card event)))))))
 
 (deftest stack-actions-test
   (let [game   (state/create-game test-config)

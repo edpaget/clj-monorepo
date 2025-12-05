@@ -11,7 +11,7 @@
 (t/use-fixtures :each fixtures/cleanup-fixture)
 
 (def sample-game-state
-  {:ball    {:status :possessed :holder-id "player-1"}
+  {:ball    {:__typename "BallPossessed" :holder-id "player-1"}
    :players {:home {:team {:players {"player-1" {:id         "player-1"
                                                  :position   [2 5]
                                                  :exhausted? false}}}}}
@@ -149,14 +149,14 @@
                                  :on-end-turn identity}))
   (t/is (some? (screen/get-by-role "button" {:name "Draw Card"}))))
 
-(t/deftest action-bar-hides-draw-card-when-not-upkeep-phase-test
+(t/deftest action-bar-shows-draw-card-in-actions-phase-test
   (uix-tlr/render ($ action-bar {:game-state sample-game-state
                                  :my-team    :home
                                  :is-my-turn true
                                  :phase      "ACTIONS"
                                  :on-draw    identity
                                  :on-end-turn identity}))
-  (t/is (nil? (screen/query-by-role "button" {:name "Draw Card"}))))
+  (t/is (some? (screen/get-by-role "button" {:name "Draw Card"}))))
 
 (t/deftest action-bar-hides-draw-card-when-not-my-turn-test
   (uix-tlr/render ($ action-bar {:game-state sample-game-state
@@ -280,3 +280,49 @@
                  (.catch (fn [e]
                            (t/is false (str e))
                            (done)))))))
+
+;; ---------------------------------------------------------------------------
+;; Shuffle Button Tests
+
+(t/deftest action-bar-shows-shuffle-when-my-turn-test
+  (uix-tlr/render ($ action-bar {:game-state        sample-game-state
+                                 :my-team           :home
+                                 :is-my-turn        true
+                                 :phase             "ACTIONS"
+                                 :on-shuffle        identity
+                                 :on-return-discard identity
+                                 :on-end-turn       identity}))
+  (t/is (some? (screen/get-by-role "button" {:name "Shuffle"}))))
+
+(t/deftest action-bar-hides-shuffle-when-not-my-turn-test
+  (uix-tlr/render ($ action-bar {:game-state        sample-game-state
+                                 :my-team           :home
+                                 :is-my-turn        false
+                                 :phase             "ACTIONS"
+                                 :on-shuffle        identity
+                                 :on-return-discard identity
+                                 :on-end-turn       identity}))
+  (t/is (nil? (screen/query-by-role "button" {:name "Shuffle"}))))
+
+;; ---------------------------------------------------------------------------
+;; Return Discard Button Tests
+
+(t/deftest action-bar-shows-return-discard-when-my-turn-test
+  (uix-tlr/render ($ action-bar {:game-state        sample-game-state
+                                 :my-team           :home
+                                 :is-my-turn        true
+                                 :phase             "ACTIONS"
+                                 :on-shuffle        identity
+                                 :on-return-discard identity
+                                 :on-end-turn       identity}))
+  (t/is (some? (screen/get-by-role "button" {:name "Return Discard"}))))
+
+(t/deftest action-bar-hides-return-discard-when-not-my-turn-test
+  (uix-tlr/render ($ action-bar {:game-state        sample-game-state
+                                 :my-team           :home
+                                 :is-my-turn        false
+                                 :phase             "ACTIONS"
+                                 :on-shuffle        identity
+                                 :on-return-discard identity
+                                 :on-end-turn       identity}))
+  (t/is (nil? (screen/query-by-role "button" {:name "Return Discard"}))))

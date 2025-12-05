@@ -26,8 +26,11 @@
   Handles common bookkeeping:
   1. Validates action against schema
   2. Dispatches to -apply-action multimethod
-  3. Appends action to event log with timestamp
+  3. Appends action to event log with timestamp (merging any :event-data from state)
   4. Returns new state
+
+  Actions can store additional event data by assoc'ing :event-data onto the state.
+  This data is merged into the logged event and removed from the final state.
 
   Throws an exception if the action is invalid."
   [game-state action]
@@ -35,9 +38,13 @@
     (throw (ex-info "Invalid action"
                     {:action action
                      :explanation (m/explain schema/Action action)})))
-  (-> game-state
-      (-apply-action action)
-      (update :events conj (assoc action :timestamp (now)))))
+  (let [new-state  (-apply-action game-state action)
+        event-data (:event-data new-state)
+        event      (cond-> (assoc action :timestamp (now))
+                     event-data (merge event-data))]
+    (-> new-state
+        (dissoc :event-data)
+        (update :events conj event))))
 
 ;; -----------------------------------------------------------------------------
 ;; Game Flow Actions
@@ -239,7 +246,8 @@
         revealed  (first draw-pile)]
     (-> state
         (update-in (conj deck-path :draw-pile) (comp vec rest))
-        (update-in (conj deck-path :discard) conj revealed))))
+        (update-in (conj deck-path :discard) conj revealed)
+        (assoc :event-data {:revealed-card revealed}))))
 
 (defmethod -apply-action :bashketball/record-skill-test
   [state _action]

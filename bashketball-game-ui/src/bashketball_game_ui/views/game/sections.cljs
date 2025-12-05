@@ -59,8 +59,8 @@
   [{:keys [opponent opponent-team my-player my-team score active-player
            board ball home-players away-players
            selected-player valid-moves valid-setup-positions
-           pass-mode valid-pass-targets
-           on-hex-click on-player-click]}]
+           pass-mode valid-pass-targets ball-selected
+           on-hex-click on-player-click on-ball-click]}]
   ($ :div {:class "flex-1 flex flex-col min-h-0"}
      ;; Opponent info
      ($ :div {:class "mb-2"}
@@ -81,8 +81,10 @@
                      :setup-highlights   valid-setup-positions
                      :pass-mode          pass-mode
                      :valid-pass-targets valid-pass-targets
+                     :ball-selected      ball-selected
                      :on-hex-click       on-hex-click
-                     :on-player-click    on-player-click}))
+                     :on-player-click    on-player-click
+                     :on-ball-click      on-ball-click}))
 
      ;; My info
      ($ :div {:class "mt-2"}
@@ -102,9 +104,8 @@
                         :team             my-team
                         :selected-player  selected-player
                         :on-player-select on-player-select}))
-    ($ :div {:class "w-64 bg-white rounded-lg border border-slate-200 overflow-hidden"}
-       ($ game-log {:events     events
-                    :max-height "100%"}))))
+    ($ :div {:class "w-64 h-full min-h-0 flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden"}
+       ($ game-log {:events events}))))
 
 (defui hand-section
   "Player's hand display with mode-aware label."
@@ -125,37 +126,6 @@
 
 (defui action-section
   "Action bar with all game actions."
-  [{:keys [game-state my-team is-my-turn phase
-           selected-player selected-card
-           pass-mode discard-mode discard-count setup-placed-count
-           my-setup-complete both-teams-ready
-           on-end-turn on-shoot on-pass on-cancel-pass
-           on-play-card on-draw
-           on-enter-discard on-cancel-discard on-submit-discard
-           on-start-game on-setup-done on-next-phase loading]}]
+  [action-state]
   ($ :div {:class "px-4 py-3"}
-     ($ action-bar {:game-state         game-state
-                    :my-team            my-team
-                    :is-my-turn         is-my-turn
-                    :phase              phase
-                    :selected-player    selected-player
-                    :selected-card      selected-card
-                    :pass-mode          pass-mode
-                    :discard-mode       discard-mode
-                    :discard-count      discard-count
-                    :setup-placed-count setup-placed-count
-                    :my-setup-complete  my-setup-complete
-                    :both-teams-ready   both-teams-ready
-                    :on-end-turn        on-end-turn
-                    :on-shoot           on-shoot
-                    :on-pass            on-pass
-                    :on-cancel-pass     on-cancel-pass
-                    :on-play-card       on-play-card
-                    :on-draw            on-draw
-                    :on-enter-discard   on-enter-discard
-                    :on-cancel-discard  on-cancel-discard
-                    :on-submit-discard  on-submit-discard
-                    :on-start-game      on-start-game
-                    :on-setup-done      on-setup-done
-                    :on-next-phase      on-next-phase
-                    :loading            loading})))
+     ($ action-bar action-state)))
