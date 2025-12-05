@@ -19,23 +19,23 @@
 
 (t/deftest player-roster-item-renders-token-label-test
   (uix-tlr/render ($ player-roster-item {:player     sample-player
-                                          :player-num 1
-                                          :team       :HOME
-                                          :on-field?  true}))
+                                         :player-num 1
+                                         :team       :HOME
+                                         :on-field?  true}))
   (t/is (some? (screen/get-by-text "O1"))))
 
 (t/deftest player-roster-item-renders-player-name-test
   (uix-tlr/render ($ player-roster-item {:player     sample-player
-                                          :player-num 1
-                                          :team       :HOME
-                                          :on-field?  true}))
+                                         :player-num 1
+                                         :team       :HOME
+                                         :on-field?  true}))
   (t/is (some? (screen/get-by-text "Orc Center"))))
 
 (t/deftest player-roster-item-renders-stats-test
   (uix-tlr/render ($ player-roster-item {:player     sample-player
-                                          :player-num 1
-                                          :team       :HOME
-                                          :on-field?  true}))
+                                         :player-num 1
+                                         :team       :HOME
+                                         :on-field?  true}))
   (t/is (some? (screen/get-by-text "S:8")))
   (t/is (some? (screen/get-by-text "D:6")))
   (t/is (some? (screen/get-by-text "P:4"))))
@@ -61,7 +61,7 @@
 
 (t/deftest player-roster-item-different-team-token-test
   (uix-tlr/render ($ player-roster-item {:player     (assoc sample-player :name "Elf Guard")
-                                          :player-num 2
-                                          :team       :AWAY
-                                          :on-field?  false}))
+                                         :player-num 2
+                                         :team       :AWAY
+                                         :on-field?  false}))
   (t/is (some? (screen/get-by-text "E2"))))

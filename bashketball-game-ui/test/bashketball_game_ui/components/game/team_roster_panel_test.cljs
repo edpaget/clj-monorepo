@@ -25,65 +25,65 @@
 
 (t/deftest team-roster-panel-renders-team-label-test
   (uix-tlr/render ($ team-roster-panel {:team           :HOME
-                                         :team-label     "HOME"
-                                         :players        sample-players
-                                         :starters       sample-starters
-                                         :bench          sample-bench
-                                         :player-indices sample-indices}))
+                                        :team-label     "HOME"
+                                        :players        sample-players
+                                        :starters       sample-starters
+                                        :bench          sample-bench
+                                        :player-indices sample-indices}))
   (t/is (some? (screen/get-by-text "HOME"))))
 
 (t/deftest team-roster-panel-shows-on-court-section-test
   (uix-tlr/render ($ team-roster-panel {:team           :HOME
-                                         :team-label     "HOME"
-                                         :players        sample-players
-                                         :starters       sample-starters
-                                         :bench          sample-bench
-                                         :player-indices sample-indices}))
+                                        :team-label     "HOME"
+                                        :players        sample-players
+                                        :starters       sample-starters
+                                        :bench          sample-bench
+                                        :player-indices sample-indices}))
   (t/is (some? (screen/get-by-text "On Court (2)"))))
 
 (t/deftest team-roster-panel-shows-bench-section-test
   (uix-tlr/render ($ team-roster-panel {:team           :HOME
-                                         :team-label     "HOME"
-                                         :players        sample-players
-                                         :starters       sample-starters
-                                         :bench          sample-bench
-                                         :player-indices sample-indices}))
+                                        :team-label     "HOME"
+                                        :players        sample-players
+                                        :starters       sample-starters
+                                        :bench          sample-bench
+                                        :player-indices sample-indices}))
   (t/is (some? (screen/get-by-text "Bench (2)"))))
 
 (t/deftest team-roster-panel-renders-starter-players-test
   (uix-tlr/render ($ team-roster-panel {:team           :HOME
-                                         :team-label     "HOME"
-                                         :players        sample-players
-                                         :starters       sample-starters
-                                         :bench          sample-bench
-                                         :player-indices sample-indices}))
+                                        :team-label     "HOME"
+                                        :players        sample-players
+                                        :starters       sample-starters
+                                        :bench          sample-bench
+                                        :player-indices sample-indices}))
   (t/is (some? (screen/get-by-text "Orc Center")))
   (t/is (some? (screen/get-by-text "Elf Guard"))))
 
 (t/deftest team-roster-panel-renders-bench-players-test
   (uix-tlr/render ($ team-roster-panel {:team           :HOME
-                                         :team-label     "HOME"
-                                         :players        sample-players
-                                         :starters       sample-starters
-                                         :bench          sample-bench
-                                         :player-indices sample-indices}))
+                                        :team-label     "HOME"
+                                        :players        sample-players
+                                        :starters       sample-starters
+                                        :bench          sample-bench
+                                        :player-indices sample-indices}))
   (t/is (some? (screen/get-by-text "Dwarf Forward")))
   (t/is (some? (screen/get-by-text "Goblin Runner"))))
 
 (t/deftest team-roster-panel-empty-starters-shows-message-test
   (uix-tlr/render ($ team-roster-panel {:team           :HOME
-                                         :team-label     "HOME"
-                                         :players        sample-players
-                                         :starters       []
-                                         :bench          sample-bench
-                                         :player-indices sample-indices}))
+                                        :team-label     "HOME"
+                                        :players        sample-players
+                                        :starters       []
+                                        :bench          sample-bench
+                                        :player-indices sample-indices}))
   (t/is (some? (screen/get-by-text "No players on court"))))
 
 (t/deftest team-roster-panel-empty-bench-shows-message-test
   (uix-tlr/render ($ team-roster-panel {:team           :HOME
-                                         :team-label     "HOME"
-                                         :players        sample-players
-                                         :starters       sample-starters
-                                         :bench          []
-                                         :player-indices sample-indices}))
+                                        :team-label     "HOME"
+                                        :players        sample-players
+                                        :starters       sample-starters
+                                        :bench          []
+                                        :player-indices sample-indices}))
   (t/is (some? (screen/get-by-text "No players on bench"))))

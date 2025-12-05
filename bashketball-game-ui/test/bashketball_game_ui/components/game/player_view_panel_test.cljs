@@ -23,40 +23,40 @@
 
 (t/deftest player-view-panel-renders-both-teams-test
   (uix-tlr/render ($ player-view-panel {:home-players  home-players
-                                         :away-players  away-players
-                                         :home-starters ["home-orc-0"]
-                                         :away-starters ["away-human-0"]
-                                         :home-bench    ["home-elf-1"]
-                                         :away-bench    ["away-dwarf-1"]}))
+                                        :away-players  away-players
+                                        :home-starters ["home-orc-0"]
+                                        :away-starters ["away-human-0"]
+                                        :home-bench    ["home-elf-1"]
+                                        :away-bench    ["away-dwarf-1"]}))
   (t/is (some? (screen/get-by-text "HOME")))
   (t/is (some? (screen/get-by-text "AWAY"))))
 
 (t/deftest player-view-panel-renders-home-players-test
   (uix-tlr/render ($ player-view-panel {:home-players  home-players
-                                         :away-players  away-players
-                                         :home-starters ["home-orc-0"]
-                                         :away-starters ["away-human-0"]
-                                         :home-bench    ["home-elf-1"]
-                                         :away-bench    ["away-dwarf-1"]}))
+                                        :away-players  away-players
+                                        :home-starters ["home-orc-0"]
+                                        :away-starters ["away-human-0"]
+                                        :home-bench    ["home-elf-1"]
+                                        :away-bench    ["away-dwarf-1"]}))
   (t/is (some? (screen/get-by-text "Orc Center")))
   (t/is (some? (screen/get-by-text "Elf Guard"))))
 
 (t/deftest player-view-panel-renders-away-players-test
   (uix-tlr/render ($ player-view-panel {:home-players  home-players
-                                         :away-players  away-players
-                                         :home-starters ["home-orc-0"]
-                                         :away-starters ["away-human-0"]
-                                         :home-bench    ["home-elf-1"]
-                                         :away-bench    ["away-dwarf-1"]}))
+                                        :away-players  away-players
+                                        :home-starters ["home-orc-0"]
+                                        :away-starters ["away-human-0"]
+                                        :home-bench    ["home-elf-1"]
+                                        :away-bench    ["away-dwarf-1"]}))
   (t/is (some? (screen/get-by-text "Human Forward")))
   (t/is (some? (screen/get-by-text "Dwarf Tank"))))
 
 (t/deftest player-view-panel-empty-rosters-test
   (uix-tlr/render ($ player-view-panel {:home-players  {}
-                                         :away-players  {}
-                                         :home-starters []
-                                         :away-starters []
-                                         :home-bench    []
-                                         :away-bench    []}))
+                                        :away-players  {}
+                                        :home-starters []
+                                        :away-starters []
+                                        :home-bench    []
+                                        :away-bench    []}))
   (t/is (some? (screen/get-by-text "HOME")))
   (t/is (some? (screen/get-by-text "AWAY"))))
