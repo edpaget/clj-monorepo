@@ -26,11 +26,12 @@
   Props:
   - player: BasketballPlayer map with :id, :name, :position, :exhausted?
   - team: :HOME or :AWAY
+  - player-num: 1-based index of player on their team
   - selected: boolean
   - has-ball: boolean
   - pass-target: boolean, true when this player can receive a pass
   - on-click: fn [player-id]"
-  [{:keys [player team selected has-ball pass-target on-click]}]
+  [{:keys [player team player-num selected has-ball pass-target on-click]}]
   (let [position     (:position player)
         ;; Defensive: ensure position is a valid [q r] vector
         [cx cy]      (if (valid-position? position)
@@ -38,7 +39,8 @@
                        [0 0])
         colors       (get team-colors team (:HOME team-colors))
         exhausted?   (:exhausted? player)
-        jersey-num   (or (some-> (:name player) first str) "?")
+        first-letter (or (some-> (:name player) first str) "?")
+        jersey-num   (str first-letter player-num)
 
         handle-click (use-callback
                       (fn [e]

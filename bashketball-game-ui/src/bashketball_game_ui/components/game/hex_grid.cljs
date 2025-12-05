@@ -16,6 +16,16 @@
   (when (= (:__typename ball) "BallPossessed")
     (:holder-id ball)))
 
+(defn- build-player-index-map
+  "Builds a map of player-id -> 1-based index for a team.
+
+  Sorts players by ID to ensure consistent ordering."
+  [players-map]
+  (->> (keys players-map)
+       sort
+       (map-indexed (fn [idx id] [id (inc idx)]))
+       (into {})))
+
 (defui hex-grid
   "Renders the game board as an SVG hex grid.
 
@@ -40,7 +50,9 @@
         all-pos                (use-memo #(board/all-positions) [])
         holder-id              (ball-holder-id ball)
         valid-set              (set valid-moves)
-        setup-set              (set setup-highlights)]
+        setup-set              (set setup-highlights)
+        home-indices           (use-memo #(build-player-index-map home-players) [home-players])
+        away-indices           (use-memo #(build-player-index-map away-players) [away-players])]
 
     ($ :svg {:viewBox (str "0 0 " width " " height)
              :class   "w-full h-full"
@@ -69,13 +81,16 @@
                 :let        [pos (:position player)]
                 ;; Only render players with valid [q r] positions
                 :when       (and (vector? pos) (= 2 (count pos)))
-                :let        [team        (if (contains? home-players id) :HOME :AWAY)
+                :let        [is-home     (contains? home-players id)
+                             team        (if is-home :HOME :AWAY)
+                             player-num  (get (if is-home home-indices away-indices) id)
                              selected    (= id selected-player)
                              has-ball    (= id holder-id)
                              pass-target (and pass-mode (contains? valid-pass-targets id))]]
             ($ player-token {:key         id
                              :player      player
                              :team        team
+                             :player-num  player-num
                              :selected    selected
                              :has-ball    has-ball
                              :pass-target pass-target
