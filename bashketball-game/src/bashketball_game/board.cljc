@@ -176,7 +176,7 @@
   Checks that no occupant ID appears in multiple positions.
   Returns nil if valid, or a map with :error and :details if invalid."
   [board]
-  (let [occupants   (:occupants board)
+  (let [occupants    (:occupants board)
         id-positions (->> occupants
                           (filter #(:id (val %)))
                           (group-by #(:id (val %))))]

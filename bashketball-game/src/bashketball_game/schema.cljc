@@ -113,7 +113,7 @@
 
 (def OccupantType
   "Type of occupant on a board tile."
-  [:enum {:graphql/type :OccupantType} :BASKETBALL_PLAYER :BALL])
+  [:enum {:graphql/type :OccupantType} :BASKETBALL_PLAYER])
 
 (def Occupant
   "An occupant of a board tile."

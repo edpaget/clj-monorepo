@@ -81,19 +81,26 @@
         on-player-click
         (use-callback
          (fn [player-id]
-           (let [action (h/player-click-action
-                         {:pass-mode            pass-active
-                          :valid-pass-targets   valid-pass-targets
-                          :ball-holder-position (actions/get-ball-holder-position game-state)
-                          :selected-player      selected-player-id}
-                         player-id)]
-             (case (:action action)
-               :pass (do
-                       ((:pass-ball actions) (:origin action) (:target-player-id action))
-                       ((:cancel pass))
-                       ((:set-selected-player selection) nil))
-               :toggle-selection ((:toggle-player selection) player-id))))
-         [selected-player-id pass-active valid-pass-targets game-state actions pass selection])
+           (cond
+             ball-active
+             (do
+               ((:set-ball-possessed actions) player-id)
+               ((:cancel ball-mode)))
+
+             :else
+             (let [action (h/player-click-action
+                           {:pass-mode            pass-active
+                            :valid-pass-targets   valid-pass-targets
+                            :ball-holder-position (actions/get-ball-holder-position game-state)
+                            :selected-player      selected-player-id}
+                           player-id)]
+               (case (:action action)
+                 :pass (do
+                         ((:pass-ball actions) (:origin action) (:target-player-id action))
+                         ((:cancel pass))
+                         ((:set-selected-player selection) nil))
+                 :toggle-selection ((:toggle-player selection) player-id)))))
+         [selected-player-id pass-active valid-pass-targets game-state actions pass selection ball-active ball-mode])
 
         on-card-click
         (use-callback

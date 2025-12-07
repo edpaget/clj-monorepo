@@ -5,14 +5,9 @@
   [[use-game-handlers]] directly to access game state and actions,
   eliminating prop drilling from the parent component."
   (:require
-   [bashketball-game-ui.components.game.action-bar :refer [action-bar]]
    [bashketball-game-ui.components.game.bottom-bar :as bottom-bar]
    [bashketball-game-ui.components.game.game-header :as header]
-   [bashketball-game-ui.components.game.game-log :refer [game-log]]
    [bashketball-game-ui.components.game.hex-grid :refer [hex-grid]]
-   [bashketball-game-ui.components.game.player-hand :refer [player-hand]]
-   [bashketball-game-ui.components.game.player-view-panel :refer [player-view-panel]]
-   [bashketball-game-ui.components.game.roster-panel :refer [roster-panel]]
    [bashketball-game-ui.components.game.team-column :refer [team-column]]
    [bashketball-game-ui.context.game :refer [use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
@@ -93,124 +88,8 @@
                     :on-player-click    on-player-click
                     :on-ball-click      on-ball-click}))))
 
-(defui side-panel-tabs
-  "Tab buttons for switching between log and players views."
-  [{:keys [mode on-toggle]}]
-  ($ :div {:class "flex border-b border-slate-200"}
-     ($ :button
-        {:class    (cn "flex-1 px-3 py-2 text-xs font-medium"
-                       (if (= mode :log)
-                         "text-slate-800 bg-white border-b-2 border-blue-500"
-                         "text-slate-500 bg-slate-50 hover:bg-slate-100"))
-         :on-click #(when (not= mode :log) (on-toggle))}
-        "Game Log")
-     ($ :button
-        {:class    (cn "flex-1 px-3 py-2 text-xs font-medium"
-                       (if (= mode :players)
-                         "text-slate-800 bg-white border-b-2 border-blue-500"
-                         "text-slate-500 bg-slate-50 hover:bg-slate-100"))
-         :on-click #(when (not= mode :players) (on-toggle))}
-        "Players")))
-
-(defui side-panel
-  "Right side panel - roster panel during setup, tabbed log/players otherwise.
-
-  Props:
-  - side-panel-mode: map from use-side-panel-mode hook
-  - on-info-click: fn [card-slug] for viewing player cards"
-  [{:keys [side-panel-mode on-info-click]}]
-  (let [{:keys [my-team selection]}                                 (use-game-context)
-        {:keys [setup-mode my-players my-starters events
-                selected-player-id home-players away-players
-                home-starters away-starters home-bench away-bench]} (use-game-derived)
-        {:keys [mode toggle]}                                       side-panel-mode]
-    (if setup-mode
-      ($ :div {:class "w-64 flex flex-col gap-2"}
-         ($ roster-panel {:players          my-players
-                          :starters         my-starters
-                          :team             my-team
-                          :selected-player  selected-player-id
-                          :on-player-select (:set-selected-player selection)}))
-      ($ :div {:class "w-64 h-full min-h-0 flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden"}
-         ($ side-panel-tabs {:mode mode :on-toggle toggle})
-         ($ :div {:class "flex-1 min-h-0 overflow-hidden"}
-            (if (= mode :players)
-              ($ player-view-panel {:home-players   home-players
-                                    :away-players   away-players
-                                    :home-starters  home-starters
-                                    :away-starters  away-starters
-                                    :home-bench     home-bench
-                                    :away-bench     away-bench
-                                    :on-info-click  on-info-click})
-              ($ game-log {:events events})))))))
-
-(defui hand-section
-  "Player's hand display with mode-aware label."
-  []
-  (let [{:keys [is-my-turn discard detail-modal]}                    (use-game-context)
-        {:keys [my-hand selected-card discard-active discard-cards]} (use-game-derived)
-        {:keys [on-card-click]}                                      (use-game-handlers)
-        discard-count                                                (count discard-cards)]
-    ($ :div {:class "px-4 pt-3 pb-1 border-b"}
-       ($ :div {:class "text-xs font-medium text-slate-500 mb-1"}
-          (if discard-active
-            (str "Select cards to discard (" discard-count " selected)")
-            "Your Hand"))
-       ($ player-hand {:hand            my-hand
-                       :selected-card   selected-card
-                       :discard-mode    discard-active
-                       :discard-cards   discard-cards
-                       :on-card-click   on-card-click
-                       :on-detail-click (:show detail-modal)
-                       :disabled        (not is-my-turn)}))))
-
-(defui action-section
-  "Action bar with all game actions."
-  []
-  (let [{:keys [game-state my-team is-my-turn actions pass discard substitute-mode]}
-        (use-game-context)
-
-        {:keys [phase selected-player-id selected-card pass-active discard-active
-                setup-placed-count my-setup-complete both-teams-ready]}
-        (use-game-derived)
-
-        {:keys [on-end-turn on-shoot on-play-card on-draw on-start-game
-                on-setup-done on-next-phase on-submit-discard on-reveal-fate
-                on-shuffle on-return-discard]}
-        (use-game-handlers)]
-    ($ :div {:class "px-4 py-3"}
-       ($ action-bar {:game-state         game-state
-                      :my-team            my-team
-                      :is-my-turn         is-my-turn
-                      :phase              phase
-                      :selected-player    selected-player-id
-                      :selected-card      selected-card
-                      :pass-mode          pass-active
-                      :discard-mode       discard-active
-                      :discard-count      (count (:cards discard))
-                      :setup-placed-count (or setup-placed-count 0)
-                      :my-setup-complete  my-setup-complete
-                      :both-teams-ready   both-teams-ready
-                      :on-end-turn        on-end-turn
-                      :on-shoot           on-shoot
-                      :on-pass            (:start pass)
-                      :on-cancel-pass     (:cancel pass)
-                      :on-play-card       on-play-card
-                      :on-draw            on-draw
-                      :on-enter-discard   (:enter discard)
-                      :on-cancel-discard  (:cancel discard)
-                      :on-submit-discard  on-submit-discard
-                      :on-start-game      on-start-game
-                      :on-setup-done      on-setup-done
-                      :on-next-phase      on-next-phase
-                      :on-reveal-fate     on-reveal-fate
-                      :on-shuffle         on-shuffle
-                      :on-return-discard  on-return-discard
-                      :on-substitute      (:enter substitute-mode)
-                      :loading            (:loading actions)}))))
-
 ;; -----------------------------------------------------------------------------
-;; New Three-Column Layout Sections
+;; Three-Column Layout Sections
 
 (defui team-column-section
   "Team column for the three-column layout.
@@ -292,9 +171,9 @@
         can-advance     (and is-my-turn (sel/can-advance-phase? phase))
         next-phase-val  (sel/next-phase phase)
         ;; Away player sees Start Game when both teams ready during setup
-        _ (prn setup-mode both-teams-ready my-team)
+        _               (prn setup-mode both-teams-ready my-team)
         show-start-game (and setup-mode both-teams-ready (= my-team :AWAY))
-        _ (prn show-start-game)
+        _               (prn show-start-game)
         ;; Show End Turn unless it's setup with both teams ready and we're away
         show-end-turn   (and is-my-turn
                              (not discard-active)

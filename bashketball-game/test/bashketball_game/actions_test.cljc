@@ -185,7 +185,7 @@
                                            :position [1 7]})]
 
     (testing "only one occupant entry for player after multiple moves"
-      (let [occupants (:occupants (:board move3))
+      (let [occupants      (:occupants (:board move3))
             player-entries (filter #(= "HOME-orc-center-0" (:id (val %))) occupants)]
         (is (= 1 (count player-entries)))))
 
@@ -193,7 +193,7 @@
       (is (= [1 7] (board/find-occupant (:board move3) "HOME-orc-center-0"))))))
 
 (deftest move-multiple-players-test
-  (let [game   (state/create-game test-config)
+  (let [game    (state/create-game test-config)
         move-p1 (actions/apply-action game {:type :bashketball/move-player
                                             :player-id "HOME-orc-center-0"
                                             :position [2 3]})
@@ -229,7 +229,7 @@
       (is (board/valid-occupants? (:board move3))))))
 
 (deftest apply-action-throws-on-invariant-violation-test
-  (let [game (state/create-game test-config)
+  (let [game      (state/create-game test-config)
         ;; Manually corrupt the board by adding duplicate occupant
         corrupted (-> game
                       (update :board board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"})

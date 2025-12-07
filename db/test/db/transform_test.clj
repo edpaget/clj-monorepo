@@ -258,15 +258,15 @@
 
 (deftest decode-game-state-move-scenario-test
   (testing "player position and occupant keys are both vectors after decode"
-    (let [result (transform/decode
-                  {"board" {"width" 5
-                            "height" 14
-                            "tiles" {}
-                            "occupants" {"[2 3]" {"type" "BASKETBALL_PLAYER" "id" "player-1"}}}
-                   "players" {"HOME" {"team" {"players" {"player-1" {"id" "player-1"
-                                                                      "position" [2 3]}}}}}}
-                  GameStateWithBoardSchema)
-          occupant-key (first (keys (get-in result [:board :occupants])))
+    (let [result          (transform/decode
+                           {"board" {"width" 5
+                                     "height" 14
+                                     "tiles" {}
+                                     "occupants" {"[2 3]" {"type" "BASKETBALL_PLAYER" "id" "player-1"}}}
+                            "players" {"HOME" {"team" {"players" {"player-1" {"id" "player-1"
+                                                                              "position" [2 3]}}}}}}
+                           GameStateWithBoardSchema)
+          occupant-key    (first (keys (get-in result [:board :occupants])))
           player-position (get-in result [:players :HOME :team :players "player-1" :position])]
       (is (vector? occupant-key))
       (is (vector? player-position))
@@ -275,14 +275,14 @@
       (is (= [2 3] player-position))))
 
   (testing "dissoc works correctly after decode"
-    (let [result (transform/decode
-                  {"board" {"width" 5
-                            "height" 14
-                            "tiles" {}
-                            "occupants" {"[2 3]" {"type" "BASKETBALL_PLAYER" "id" "player-1"}}}
-                   "players" {"HOME" {"team" {"players" {"player-1" {"id" "player-1"
-                                                                      "position" [2 3]}}}}}}
-                  GameStateWithBoardSchema)
-          player-position (get-in result [:players :HOME :team :players "player-1" :position])
+    (let [result                 (transform/decode
+                                  {"board" {"width" 5
+                                            "height" 14
+                                            "tiles" {}
+                                            "occupants" {"[2 3]" {"type" "BASKETBALL_PLAYER" "id" "player-1"}}}
+                                   "players" {"HOME" {"team" {"players" {"player-1" {"id" "player-1"
+                                                                                     "position" [2 3]}}}}}}
+                                  GameStateWithBoardSchema)
+          player-position        (get-in result [:players :HOME :team :players "player-1" :position])
           occupants-after-dissoc (dissoc (get-in result [:board :occupants]) player-position)]
       (is (empty? occupants-after-dissoc)))))

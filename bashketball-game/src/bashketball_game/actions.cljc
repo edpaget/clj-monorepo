@@ -187,37 +187,18 @@
 
 (defmethod -apply-action :bashketball/set-ball-possessed
   [state {:keys [holder-id]}]
-  (let [old-ball     (:ball state)
-        old-position (when (= (:status old-ball) :LOOSE)
-                       (:position old-ball))]
-    (-> state
-        (assoc :ball {:status :POSSESSED :holder-id holder-id})
-        (cond->
-         old-position (update :board board/remove-occupant old-position)))))
+  (assoc state :ball {:status :POSSESSED :holder-id holder-id}))
 
 (defmethod -apply-action :bashketball/set-ball-loose
   [state {:keys [position]}]
-  (let [old-ball     (:ball state)
-        old-position (when (= (:status old-ball) :LOOSE)
-                       (:position old-ball))]
-    (-> state
-        (assoc :ball {:status :LOOSE :position position})
-        (cond->
-         old-position (update :board board/remove-occupant old-position))
-        (update :board board/set-occupant position {:type :BALL}))))
+  (assoc state :ball {:status :LOOSE :position position}))
 
 (defmethod -apply-action :bashketball/set-ball-in-air
   [state {:keys [origin target action-type]}]
-  (let [old-ball     (:ball state)
-        old-position (when (= (:status old-ball) :LOOSE)
-                       (:position old-ball))]
-    (-> state
-        (assoc :ball {:status :IN_AIR
+  (assoc state :ball {:status :IN_AIR
                       :origin origin
                       :target target
-                      :action-type action-type})
-        (cond->
-         old-position (update :board board/remove-occupant old-position)))))
+                      :action-type action-type}))
 
 ;; -----------------------------------------------------------------------------
 ;; Scoring Actions

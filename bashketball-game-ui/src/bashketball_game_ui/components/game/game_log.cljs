@@ -119,8 +119,6 @@
      [(count events)])
 
     ($ :div {:class "flex flex-col h-full"}
-       ($ :div {:class "text-xs font-medium text-slate-500 px-2 py-1 border-b bg-slate-50 flex-shrink-0"}
-          "Game Log")
        ($ :div {:ref   scroll-ref
                 :class "overflow-y-auto px-2"
                 :style {:max-height "calc(100vh - 300px)"}}
