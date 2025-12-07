@@ -36,8 +36,10 @@
                     ($ router/route {:path "lobby" :element ($ lobby/lobby-view)})
                     ($ router/route {:path "decks" :element ($ decks/decks-view)})
                     ($ router/route {:path "decks/:id" :element ($ deck-editor/deck-editor-view)})
-                    ($ router/route {:path "games" :element ($ games/games-view)})
-                    ($ router/route {:path "games/:id" :element ($ game/game-view)}))))))))
+                    ($ router/route {:path "games" :element ($ games/games-view)})))
+              ;; Game view - full width, outside main layout
+              ($ router/route {:element ($ protected-route)}
+                 ($ router/route {:path "games/:id" :element ($ game/game-view)})))))))
 
 (defn render!
   "Renders the application to the root."

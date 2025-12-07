@@ -135,3 +135,12 @@
        sort
        (map-indexed (fn [idx id] [id (inc idx)]))
        (into {})))
+
+(defn deck-stats
+  "Returns deck statistics for a team: draw pile, hand, discard, and removed counts."
+  [game-state team]
+  (let [deck (get-in game-state [:players team :deck])]
+    {:draw-pile-count (count (:draw-pile deck))
+     :hand-count      (count (:hand deck))
+     :discard-count   (count (:discard deck))
+     :removed-count   (count (:removed deck))}))

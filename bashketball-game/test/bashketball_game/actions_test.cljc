@@ -119,6 +119,128 @@
       (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
              (board/occupant-at (:board updated) [2 3]))))))
 
+(deftest move-player-initial-state-test
+  (let [game (state/create-game test-config)]
+
+    (testing "player starts with nil position"
+      (is (nil? (:position (state/get-basketball-player game "HOME-orc-center-0")))))
+
+    (testing "board occupants start empty"
+      (is (empty? (:occupants (:board game)))))))
+
+(deftest move-player-first-move-test
+  (let [game  (state/create-game test-config)
+        move1 (actions/apply-action game {:type :bashketball/move-player
+                                          :player-id "HOME-orc-center-0"
+                                          :position [2 3]})]
+
+    (testing "player position updated"
+      (is (= [2 3] (:position (state/get-basketball-player move1 "HOME-orc-center-0")))))
+
+    (testing "board has exactly one occupant"
+      (is (= 1 (count (:occupants (:board move1))))))
+
+    (testing "occupant set at new position"
+      (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
+             (board/occupant-at (:board move1) [2 3]))))
+
+    (testing "find-occupant returns new position"
+      (is (= [2 3] (board/find-occupant (:board move1) "HOME-orc-center-0"))))))
+
+(deftest move-player-consecutive-moves-test
+  (let [game  (state/create-game test-config)
+        move1 (actions/apply-action game {:type :bashketball/move-player
+                                          :player-id "HOME-orc-center-0"
+                                          :position [2 3]})
+        move2 (actions/apply-action move1 {:type :bashketball/move-player
+                                           :player-id "HOME-orc-center-0"
+                                           :position [2 5]})]
+
+    (testing "player position updated to new position"
+      (is (= [2 5] (:position (state/get-basketball-player move2 "HOME-orc-center-0")))))
+
+    (testing "board still has exactly one occupant"
+      (is (= 1 (count (:occupants (:board move2))))))
+
+    (testing "old position is cleared from board"
+      (is (nil? (board/occupant-at (:board move2) [2 3]))))
+
+    (testing "new position has occupant on board"
+      (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
+             (board/occupant-at (:board move2) [2 5]))))
+
+    (testing "player position matches board find-occupant"
+      (is (= [2 5] (board/find-occupant (:board move2) "HOME-orc-center-0"))))))
+
+(deftest move-player-no-duplicate-occupants-test
+  (let [game  (state/create-game test-config)
+        move1 (actions/apply-action game {:type :bashketball/move-player
+                                          :player-id "HOME-orc-center-0"
+                                          :position [2 3]})
+        move2 (actions/apply-action move1 {:type :bashketball/move-player
+                                           :player-id "HOME-orc-center-0"
+                                           :position [2 5]})
+        move3 (actions/apply-action move2 {:type :bashketball/move-player
+                                           :player-id "HOME-orc-center-0"
+                                           :position [1 7]})]
+
+    (testing "only one occupant entry for player after multiple moves"
+      (let [occupants (:occupants (:board move3))
+            player-entries (filter #(= "HOME-orc-center-0" (:id (val %))) occupants)]
+        (is (= 1 (count player-entries)))))
+
+    (testing "find-occupant returns current position"
+      (is (= [1 7] (board/find-occupant (:board move3) "HOME-orc-center-0"))))))
+
+(deftest move-multiple-players-test
+  (let [game   (state/create-game test-config)
+        move-p1 (actions/apply-action game {:type :bashketball/move-player
+                                            :player-id "HOME-orc-center-0"
+                                            :position [2 3]})
+        move-p2 (actions/apply-action move-p1 {:type :bashketball/move-player
+                                               :player-id "HOME-elf-point-guard-1"
+                                               :position [3 4]})]
+
+    (testing "both players have correct positions"
+      (is (= [2 3] (:position (state/get-basketball-player move-p2 "HOME-orc-center-0"))))
+      (is (= [3 4] (:position (state/get-basketball-player move-p2 "HOME-elf-point-guard-1")))))
+
+    (testing "both players on board"
+      (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
+             (board/occupant-at (:board move-p2) [2 3])))
+      (is (= {:type :BASKETBALL_PLAYER :id "HOME-elf-point-guard-1"}
+             (board/occupant-at (:board move-p2) [3 4]))))))
+
+(deftest move-player-invariants-test
+  (let [game  (state/create-game test-config)
+        move1 (actions/apply-action game {:type :bashketball/move-player
+                                          :player-id "HOME-orc-center-0"
+                                          :position [2 3]})
+        move2 (actions/apply-action move1 {:type :bashketball/move-player
+                                           :player-id "HOME-orc-center-0"
+                                           :position [2 5]})
+        move3 (actions/apply-action move2 {:type :bashketball/move-player
+                                           :player-id "HOME-elf-point-guard-1"
+                                           :position [3 4]})]
+
+    (testing "board satisfies invariants after moves"
+      (is (board/valid-occupants? (:board move1)))
+      (is (board/valid-occupants? (:board move2)))
+      (is (board/valid-occupants? (:board move3))))))
+
+(deftest apply-action-throws-on-invariant-violation-test
+  (let [game (state/create-game test-config)
+        ;; Manually corrupt the board by adding duplicate occupant
+        corrupted (-> game
+                      (update :board board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"})
+                      (update :board board/set-occupant [4 5] {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}))]
+
+    (testing "apply-action throws when invariant would be violated"
+      (is (thrown-with-msg?
+           #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+           #"Board invariant violation"
+           (actions/apply-action corrupted {:type :bashketball/set-phase :phase :ACTIONS}))))))
+
 (deftest exhaust-refresh-player-test
   (let [game      (state/create-game test-config)
         exhausted (actions/apply-action game {:type :bashketball/exhaust-player

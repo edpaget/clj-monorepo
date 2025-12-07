@@ -221,6 +221,59 @@
                        (get-in game-data [:gameState :ball :__typename]))
             "ball __typename should be one of the Ball union types")))))
 
+(deftest game-state-deck-cards-hydration-test
+  (testing "game query returns hydrated cards in deck"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            query      "query GetGame($id: Uuid!) {
+                          game(id: $id) {
+                            gameState {
+                              players {
+                                HOME {
+                                  deck {
+                                    drawPile { cardSlug }
+                                    cards {
+                                      __typename
+                                      ... on PlayerCard {
+                                        slug
+                                        name
+                                        speed
+                                        size
+                                      }
+                                      ... on StandardActionCard {
+                                        slug
+                                        name
+                                        fate
+                                      }
+                                      ... on PlayCard {
+                                        slug
+                                        name
+                                        fate
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }"
+            response   (tu/graphql-request query
+                                           :variables {:id (str (:id game))}
+                                           :session-id session-id)
+            result     (tu/graphql-data response)
+            deck       (get-in result [:game :gameState :players :HOME :deck])
+            cards      (:cards deck)]
+        (is (seq cards) "cards should be populated")
+        (is (every? :slug cards) "each card should have a slug")
+        (is (every? :name cards) "each card should have a name")
+        (is (every? :__typename cards) "each card should have a __typename")))))
+
 (deftest game-state-uppercase-team-keys-test
   (testing "game query returns gameState with uppercase team keys"
     (tu/with-db

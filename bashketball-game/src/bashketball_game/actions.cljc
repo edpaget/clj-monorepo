@@ -26,13 +26,14 @@
   Handles common bookkeeping:
   1. Validates action against schema
   2. Dispatches to -apply-action multimethod
-  3. Appends action to event log with timestamp (merging any :event-data from state)
-  4. Returns new state
+  3. Validates board invariants (no duplicate occupant IDs)
+  4. Appends action to event log with timestamp (merging any :event-data from state)
+  5. Returns new state
 
   Actions can store additional event data by assoc'ing :event-data onto the state.
   This data is merged into the logged event and removed from the final state.
 
-  Throws an exception if the action is invalid."
+  Throws an exception if the action is invalid or if board invariants are violated."
   [game-state action]
   (when-not (m/validate schema/Action action)
     (throw (ex-info "Invalid action"
@@ -42,6 +43,10 @@
         event-data (:event-data new-state)
         event      (cond-> (assoc action :timestamp (now))
                      event-data (merge event-data))]
+    (when-let [invariant-error (board/check-occupant-invariants (:board new-state))]
+      (throw (ex-info "Board invariant violation: duplicate occupant IDs"
+                      {:action action
+                       :error invariant-error})))
     (-> new-state
         (dissoc :event-data)
         (update :events conj event))))

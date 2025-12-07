@@ -28,8 +28,8 @@
   - selected: boolean for current selection
   - on-click: fn called when clicked"
   [{:keys [q r terrain side highlighted setup-highlight selected on-click]}]
-  (let [center        (board/hex->pixel [q r])
-        points-str    (board/hex-points-str center)
+  (let [[cx cy]       (board/hex->pixel [q r])
+        points-str    (board/hex-points-str [cx cy])
         base-colors   (get terrain-colors terrain (:court terrain-colors))
         fill-opacity  (get-in side-modifiers [side :fill-opacity] 1.0)
         any-highlight (or highlighted setup-highlight)
@@ -40,19 +40,27 @@
                            (on-click q r)))
                        [on-click q r])]
 
-    ($ :polygon
-       {:points   points-str
-        :fill     (cond
-                    selected        "#a5f3fc"
-                    setup-highlight "#99f6e4"
-                    highlighted     "#bbf7d0"
-                    :else           (:fill base-colors))
-        :fill-opacity fill-opacity
-        :stroke   (cond
-                    selected        "#06b6d4"
-                    setup-highlight "#14b8a6"
-                    highlighted     "#22c55e"
-                    :else           (:stroke base-colors))
-        :stroke-width (if (or selected any-highlight) 2 1)
-        :class    "cursor-pointer transition-colors hover:brightness-95"
-        :on-click handle-click})))
+    ($ :<>
+       ($ :polygon
+          {:points   points-str
+           :fill     (cond
+                       selected        "#a5f3fc"
+                       setup-highlight "#99f6e4"
+                       highlighted     "#bbf7d0"
+                       :else           (:fill base-colors))
+           :fill-opacity fill-opacity
+           :stroke   (cond
+                       selected        "#06b6d4"
+                       setup-highlight "#14b8a6"
+                       highlighted     "#22c55e"
+                       :else           (:stroke base-colors))
+           :stroke-width (if (or selected any-highlight) 2 1)
+           :class    "cursor-pointer transition-colors hover:brightness-95"
+           :on-click handle-click})
+       ($ :text
+          {:x           cx
+           :y           (- cy 20)
+           :text-anchor "middle"
+           :font-size   "10"
+           :fill        "#666"}
+          (str q "," r)))))

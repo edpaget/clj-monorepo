@@ -84,12 +84,17 @@
    [:card-slug :string]])
 
 (def DeckState
-  "A game player's deck state during a game."
+  "A game player's deck state during a game.
+
+  The optional `:cards` field contains hydrated card data for all cards
+  referenced in the deck. This is populated at the API layer, not by the
+  game engine."
   [:map {:graphql/type :DeckState}
    [:draw-pile [:vector CardInstance]]
    [:hand [:vector CardInstance]]
    [:discard [:vector CardInstance]]
-   [:removed [:vector CardInstance]]])
+   [:removed [:vector CardInstance]]
+   [:cards {:optional true} [:vector :any]]])
 
 (def GamePlayer
   "A game player (human/AI controlling a team)."

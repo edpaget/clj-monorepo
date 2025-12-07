@@ -169,3 +169,120 @@
                   BallSchema)]
       (is (= :LOOSE (:status result)))
       (is (= [1 2] (:position result))))))
+
+;; =============================================================================
+;; Map-of with tuple keys tests
+;; =============================================================================
+
+(def OccupantType
+  [:enum :PLAYER :BALL :BASKETBALL_PLAYER])
+
+(def MapOfTupleKeySchema
+  "Schema with map-of using [:tuple :int :int] keys (like board occupants)."
+  [:map
+   [:occupants [:map-of [:tuple :int :int] [:map [:type OccupantType] [:id :string]]]]])
+
+(deftest decode-map-of-tuple-keys-test
+  (testing "decodes stringified tuple keys to vectors"
+    (let [result (transform/decode
+                  {"occupants" {"[2 3]" {"type" "PLAYER" "id" "p1"}}}
+                  MapOfTupleKeySchema)]
+      (is (= [2 3] (first (keys (:occupants result)))))
+      (is (vector? (first (keys (:occupants result)))))
+      (is (= {:type :PLAYER :id "p1"} (get (:occupants result) [2 3])))))
+
+  (testing "decodes tuple keys with comma separator"
+    (let [result (transform/decode
+                  {"occupants" {"[2, 3]" {"type" "PLAYER" "id" "p1"}}}
+                  MapOfTupleKeySchema)]
+      (is (= [2 3] (first (keys (:occupants result)))))))
+
+  (testing "decodes multiple tuple keys"
+    (let [result (transform/decode
+                  {"occupants" {"[2 3]" {"type" "PLAYER" "id" "p1"}
+                                "[4 5]" {"type" "BALL" "id" "b1"}}}
+                  MapOfTupleKeySchema)]
+      (is (= 2 (count (:occupants result))))
+      (is (contains? (:occupants result) [2 3]))
+      (is (contains? (:occupants result) [4 5]))))
+
+  (testing "handles negative coordinates"
+    (let [result (transform/decode
+                  {"occupants" {"[-1 3]" {"type" "PLAYER" "id" "p1"}}}
+                  MapOfTupleKeySchema)]
+      (is (= [-1 3] (first (keys (:occupants result)))))))
+
+  (testing "handles empty occupants map"
+    (let [result (transform/decode
+                  {"occupants" {}}
+                  MapOfTupleKeySchema)]
+      (is (= {} (:occupants result))))))
+
+(def TerrainType
+  [:enum :COURT :HOOP :PAINT :THREE_POINT_LINE])
+
+(def BoardSchema
+  "Schema matching the game board structure."
+  [:map
+   [:width :int]
+   [:height :int]
+   [:tiles [:map-of [:tuple :int :int] [:map [:terrain TerrainType]]]]
+   [:occupants [:map-of [:tuple :int :int] [:map [:type OccupantType] [:id {:optional true} :string]]]]])
+
+(deftest decode-board-schema-test
+  (testing "decodes full board with tiles and occupants"
+    (let [result (transform/decode
+                  {"width" 5
+                   "height" 14
+                   "tiles" {"[0 0]" {"terrain" "COURT"}
+                            "[2 0]" {"terrain" "HOOP"}}
+                   "occupants" {"[2 3]" {"type" "BASKETBALL_PLAYER" "id" "player-1"}}}
+                  BoardSchema)]
+      (is (= 5 (:width result)))
+      (is (= 14 (:height result)))
+      (is (= :COURT (:terrain (get (:tiles result) [0 0]))))
+      (is (= :HOOP (:terrain (get (:tiles result) [2 0]))))
+      (is (= :BASKETBALL_PLAYER (:type (get (:occupants result) [2 3]))))
+      (is (= "player-1" (:id (get (:occupants result) [2 3])))))))
+
+(def GameStateWithBoardSchema
+  "Simplified game state schema for testing board occupants."
+  [:map
+   [:board BoardSchema]
+   [:players [:map
+              [:HOME [:map
+                      [:team [:map
+                              [:players [:map-of :string [:map
+                                                          [:id :string]
+                                                          [:position {:optional true} [:tuple :int :int]]]]]]]]]]]])
+
+(deftest decode-game-state-move-scenario-test
+  (testing "player position and occupant keys are both vectors after decode"
+    (let [result (transform/decode
+                  {"board" {"width" 5
+                            "height" 14
+                            "tiles" {}
+                            "occupants" {"[2 3]" {"type" "BASKETBALL_PLAYER" "id" "player-1"}}}
+                   "players" {"HOME" {"team" {"players" {"player-1" {"id" "player-1"
+                                                                      "position" [2 3]}}}}}}
+                  GameStateWithBoardSchema)
+          occupant-key (first (keys (get-in result [:board :occupants])))
+          player-position (get-in result [:players :HOME :team :players "player-1" :position])]
+      (is (vector? occupant-key))
+      (is (vector? player-position))
+      (is (= occupant-key player-position))
+      (is (= [2 3] occupant-key))
+      (is (= [2 3] player-position))))
+
+  (testing "dissoc works correctly after decode"
+    (let [result (transform/decode
+                  {"board" {"width" 5
+                            "height" 14
+                            "tiles" {}
+                            "occupants" {"[2 3]" {"type" "BASKETBALL_PLAYER" "id" "player-1"}}}
+                   "players" {"HOME" {"team" {"players" {"player-1" {"id" "player-1"
+                                                                      "position" [2 3]}}}}}}
+                  GameStateWithBoardSchema)
+          player-position (get-in result [:players :HOME :team :players "player-1" :position])
+          occupants-after-dissoc (dissoc (get-in result [:board :occupants]) player-position)]
+      (is (empty? occupants-after-dissoc)))))

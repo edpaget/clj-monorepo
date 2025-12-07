@@ -8,7 +8,13 @@
    [uix.core :refer [$ defui]]))
 
 (def button-variants
-  "CVA configuration for button variants and sizes."
+  "CVA configuration for button variants and sizes.
+
+  Sizes:
+  - sm: Compact size for dense UIs
+  - default: Standard size
+  - lg: Touch-friendly size (44px min height per Apple HIG)
+  - icon: Square icon button"
   (cva
    "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50"
    #js {:variants
@@ -22,7 +28,7 @@
              :size
              #js {:default "h-9 px-4 py-2"
                   :sm "h-8 rounded-md px-3 text-xs"
-                  :lg "h-10 rounded-md px-8"
+                  :lg "min-h-[44px] h-11 rounded-md px-5 text-base"
                   :icon "h-9 w-9"}}
         :defaultVariants
         #js {:variant "default"

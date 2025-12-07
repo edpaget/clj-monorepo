@@ -4,7 +4,8 @@
   Provides functions for constructing action maps and validating
   whether actions are available given the current game state."
   (:require
-   [bashketball-game.board :as board]))
+   [bashketball-game.board :as board]
+   [bashketball-game.movement :as movement]))
 
 (defn get-ball-holder-position
   "Returns the position of the ball holder, or nil if ball is not held."
@@ -32,12 +33,8 @@
 (defn can-move-player?
   "Returns true if player can move to the given position."
   [game-state player-id position]
-  (and (board/valid-position? position)
-       (not (player-exhausted? game-state player-id))
-       (nil? (board/occupant-at (:board game-state) position))
-       (let [current-pos (board/find-occupant (:board game-state) player-id)]
-         (and current-pos
-              (<= (board/hex-distance current-pos position) 2)))))
+  (and (not (player-exhausted? game-state player-id))
+       (movement/can-move-to? game-state player-id position)))
 
 (defn can-shoot?
   "Returns true if the current team can attempt a shot."
@@ -56,14 +53,8 @@
 (defn valid-move-positions
   "Returns set of valid positions the player can move to."
   [game-state player-id]
-  (when-let [current-pos (board/find-occupant (:board game-state) player-id)]
-    (prn current-pos)
-    (prn (player-exhausted? game-state player-id))
-    (when-not (player-exhausted? game-state player-id)
-      (->> (board/hex-range current-pos 2)
-           (remove #(board/occupant-at (:board game-state) %))
-           (remove #(= % current-pos))
-           set))))
+  (when-not (player-exhausted? game-state player-id)
+    (movement/valid-move-positions game-state player-id)))
 
 (defn make-move-action
   "Constructs a move-player action map."

@@ -1,8 +1,9 @@
 (ns bashketball-game.board
   "Hex grid utilities for the Bashketball court.
 
-  Uses axial coordinates (q, r) for the 5x14 hex grid. The court is oriented
-  with hoops at r=0 (home) and r=13 (away).")
+  Uses odd-column offset coordinates [q, r] where q is row (0-4) and r is
+  column (0-13). Odd columns are visually offset down by half a hex height.
+  The court is oriented with hoops at r=0 (home) and r=13 (away).")
 
 (def width 5)
 (def height 14)
@@ -13,32 +14,55 @@
   (and (>= q 0) (< q width)
        (>= r 0) (< r height)))
 
-(def ^:private axial-directions
-  "The six directions in axial coordinates."
-  [[1 0] [1 -1] [0 -1] [-1 0] [-1 1] [0 1]])
+(defn- offset->cube
+  "Converts odd-column offset coordinates [q r] to cube coordinates [x y z]."
+  [[q r]]
+  (let [x r
+        z (- q (quot (- r (bit-and r 1)) 2))
+        y (- (- x) z)]
+    [x y z]))
+
+(defn- cube->offset
+  "Converts cube coordinates [x y z] to odd-column offset coordinates [q r]."
+  [[x _y z]]
+  (let [r x
+        q (+ z (quot (- x (bit-and x 1)) 2))]
+    [q r]))
+
+(def ^:private offset-directions-even
+  "Neighbor offsets for even columns (r % 2 == 0)."
+  [[-1 1] [0 1] [1 0] [0 -1] [-1 -1] [-1 0]])
+
+(def ^:private offset-directions-odd
+  "Neighbor offsets for odd columns (r % 2 == 1)."
+  [[0 1] [1 1] [1 0] [1 -1] [0 -1] [-1 0]])
 
 (defn hex-neighbors
-  "Returns all valid neighboring hex positions."
+  "Returns all valid neighboring hex positions using offset coordinates."
   [[q r]]
-  (->> axial-directions
-       (map (fn [[dq dr]] [(+ q dq) (+ r dr)]))
-       (filter valid-position?)))
+  (let [directions (if (even? r) offset-directions-even offset-directions-odd)]
+    (->> directions
+         (map (fn [[dq dr]] [(+ q dq) (+ r dr)]))
+         (filter valid-position?))))
 
 (defn hex-distance
-  "Calculates the distance between two hex positions using axial coordinates."
+  "Calculates the distance between two hex positions using offset coordinates."
   [[q1 r1] [q2 r2]]
-  (let [dq (- q1 q2)
-        dr (- r1 r2)]
-    (/ (+ (abs dq) (abs (+ dq dr)) (abs dr)) 2)))
+  (let [[x1 y1 z1] (offset->cube [q1 r1])
+        [x2 y2 z2] (offset->cube [q2 r2])]
+    (/ (+ (abs (- x1 x2)) (abs (- y1 y2)) (abs (- z1 z2))) 2)))
 
 (defn hex-range
   "Returns all hex positions within distance n of the center position."
   [[q r] n]
-  (for [dq    (range (- n) (inc n))
-        dr    (range (max (- n) (- (- n) dq)) (inc (min n (- n dq))))
-        :let  [pos [(+ q dq) (+ r dr)]]
-        :when (valid-position? pos)]
-    pos))
+  (let [[cx cy cz] (offset->cube [q r])]
+    (for [dx    (range (- n) (inc n))
+          dy    (range (max (- n) (- (- n) dx)) (inc (min n (- n dx))))
+          :let  [dz (- (- dx) dy)
+                 cube [(+ cx dx) (+ cy dy) (+ cz dz)]
+                 pos (cube->offset cube)]
+          :when (valid-position? pos)]
+      pos)))
 
 (defn- lerp
   "Linear interpolation between a and b."
@@ -64,22 +88,12 @@
       :else
       [rx ry (- (- rx) ry)])))
 
-(defn- axial->cube
-  "Converts axial coordinates to cube coordinates."
-  [[q r]]
-  [q r (- (- q) r)])
-
-(defn- cube->axial
-  "Converts cube coordinates to axial coordinates."
-  [[x y _z]]
-  [x y])
-
 (defn hex-line
   "Returns all hex positions along a line from start to end (inclusive)."
   [start end]
   (let [n          (hex-distance start end)
-        [x1 y1 z1] (axial->cube start)
-        [x2 y2 z2] (axial->cube end)]
+        [x1 y1 z1] (offset->cube start)
+        [x2 y2 z2] (offset->cube end)]
     (if (zero? n)
       [start]
       (for [i    (range (inc n))
@@ -88,7 +102,7 @@
                   y (lerp y1 y2 t)
                   z (lerp z1 z2 t)
                   [rx ry rz] (cube-round x y z)]]
-        (cube->axial [rx ry rz])))))
+        (cube->offset [rx ry rz])))))
 
 (defn- terrain-at
   "Determines the terrain type for a given position."
@@ -155,3 +169,29 @@
   (let [path   (hex-line start end)
         middle (butlast (rest path))]
     (every? #(nil? (occupant-at board %)) middle)))
+
+(defn check-occupant-invariants
+  "Validates occupant invariants on the board.
+
+  Checks that no occupant ID appears in multiple positions.
+  Returns nil if valid, or a map with :error and :details if invalid."
+  [board]
+  (let [occupants   (:occupants board)
+        id-positions (->> occupants
+                          (filter #(:id (val %)))
+                          (group-by #(:id (val %))))]
+    (when-let [duplicates (->> id-positions
+                               (filter #(> (count (val %)) 1))
+                               seq)]
+      {:error :duplicate-occupant-ids
+       :details (into {}
+                      (map (fn [[id entries]]
+                             [id (mapv first entries)])
+                           duplicates))})))
+
+(defn valid-occupants?
+  "Returns true if the board's occupants satisfy all invariants.
+
+  Currently checks that no occupant ID appears in multiple positions."
+  [board]
+  (nil? (check-occupant-invariants board)))

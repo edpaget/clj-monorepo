@@ -239,3 +239,71 @@
                   (assoc-in [:players :HOME :team :players "HOME-sg-1" :position] [3 3])
                   (assoc-in [:players :HOME :team :players "HOME-c-2" :position] [1 3]))]
     (t/is (actions/all-starters-placed? state :HOME))))
+
+;; =============================================================================
+;; Speed-based movement tests
+;; =============================================================================
+
+(def speed-test-board
+  (-> (board/create-board)
+      (board/set-occupant [2 7] {:type :basketball-player :id "fast-player"})
+      (board/set-occupant [2 5] {:type :basketball-player :id "slow-player"})))
+
+(def speed-test-state
+  {:board speed-test-board
+   :ball {:__typename "BallLoose" :position [0 7]}
+   :players {:HOME {:id :HOME
+                    :team {:players {"fast-player" {:id "fast-player"
+                                                    :name "Fast"
+                                                    :stats {:speed 4}}
+                                     "slow-player" {:id "slow-player"
+                                                    :name "Slow"
+                                                    :stats {:speed 1}}}}}}
+   :exhausted-players #{}})
+
+(t/deftest valid-move-positions-respects-high-speed-test
+  (let [moves (actions/valid-move-positions speed-test-state "fast-player")]
+    (t/is (contains? moves [2 11]))
+    (t/is (contains? moves [2 3]))))
+
+(t/deftest valid-move-positions-respects-low-speed-test
+  (let [moves (actions/valid-move-positions speed-test-state "slow-player")]
+    (t/is (contains? moves [2 6]))
+    (t/is (contains? moves [2 4]))
+    (t/is (not (contains? moves [2 7])))))
+
+(t/deftest can-move-player-respects-high-speed-test
+  (t/is (actions/can-move-player? speed-test-state "fast-player" [2 11])))
+
+(t/deftest can-move-player-respects-low-speed-test
+  (t/is (not (actions/can-move-player? speed-test-state "slow-player" [2 7]))))
+
+(t/deftest valid-move-positions-defaults-to-speed-2-test
+  (let [state (assoc-in speed-test-state
+                        [:players :HOME :team :players "no-stats"]
+                        {:id "no-stats" :name "NoStats"})
+        state (update state :board board/set-occupant [1 7] {:type :basketball-player :id "no-stats"})
+        moves (actions/valid-move-positions state "no-stats")]
+    (t/is (contains? moves [1 9]))
+    (t/is (not (contains? moves [1 10])))))
+
+(t/deftest valid-move-positions-boundary-check-test
+  (let [moves (actions/valid-move-positions speed-test-state "slow-player")]
+    (t/is (not (contains? moves [2 3])))
+    (t/is (not (contains? moves [2 7])))))
+
+(t/deftest valid-move-positions-exact-range-test
+  (let [board (-> (board/create-board)
+                  (board/set-occupant [2 7] {:type :basketball-player :id "test-player"}))
+        state {:board board
+               :players {:HOME {:id :HOME
+                                :team {:players {"test-player" {:id "test-player"
+                                                                :name "Test"
+                                                                :stats {:speed 2}}}}}}
+               :exhausted-players #{}}
+        moves (actions/valid-move-positions state "test-player")]
+    (t/is (contains? moves [2 5]))
+    (t/is (contains? moves [2 9]))
+    (t/is (not (contains? moves [2 4])))
+    (t/is (not (contains? moves [2 10])))
+    (t/is (not (contains? moves [2 11])))))

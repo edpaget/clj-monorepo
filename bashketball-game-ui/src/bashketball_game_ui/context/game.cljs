@@ -23,6 +23,7 @@
   Returns map with:
   - `:game` - Current game record (decoded)
   - `:game-state` - Inner game state from bashketball-game
+  - `:catalog` - Card catalog map `{slug -> card}` from [[build-catalog]]
   - `:my-team` - :home or :away for current user
   - `:is-my-turn` - boolean indicating if it's the user's turn
   - `:actions` - Action dispatch functions from [[use-game-actions]]
@@ -53,6 +54,18 @@
   (when (and game-state my-team)
     (= (:active-player game-state) my-team)))
 
+(defn build-catalog
+  "Builds a card catalog map from game state deck cards.
+
+  Merges cards from both HOME and AWAY decks into a single
+  `{slug -> card}` map for lookups."
+  [game-state]
+  (let [home-cards (get-in game-state [:players :HOME :deck :cards])
+        away-cards (get-in game-state [:players :AWAY :deck :cards])]
+    (into {}
+          (map (juxt :slug identity))
+          (concat home-cards away-cards))))
+
 (defui game-provider
   "Provides game state context to children.
 
@@ -78,6 +91,7 @@
 
         game                                                          (:game data)
         game-state                                                    (:game-state game)
+        catalog                                                       (build-catalog game-state)
         actions                                                       (use-game-actions game-id)
         my-team                                                       (when game (determine-my-team game user-id))
         is-turn                                                       (is-my-turn? game-state my-team)
@@ -112,6 +126,7 @@
     ($ (:Provider game-context)
        {:value {:game            game
                 :game-state      game-state
+                :catalog         catalog
                 :my-team         my-team
                 :is-my-turn      is-turn
                 :actions         actions

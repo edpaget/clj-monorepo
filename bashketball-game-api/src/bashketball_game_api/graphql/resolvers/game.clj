@@ -6,25 +6,49 @@
   (:require
    [bashketball-game-api.services.game :as game-svc]
    [bashketball-game.schema :as game-schema]
+   [bashketball-schemas.card :as card-schema]
    [bashketball-schemas.enums :as enums]
    [camel-snake-kebab.core :as csk]
    [clojure.string :as str]
-   [graphql-server.core :refer [defresolver def-resolver-map]]))
+   [graphql-server.core :refer [defresolver def-resolver-map]]
+   [malli.util :as mu]))
 
 (def GameStatus
   "GraphQL enum for game status. Re-exported from [[bashketball-schemas.enums]]."
   enums/GameStatus)
 
+(def DeckStateWithCards
+  "Extended DeckState schema with hydrated cards field.
+
+  Extends [[game-schema/DeckState]] to include the `:cards` field with proper
+  GraphQL typing via [[card-schema/Card]]."
+  (mu/assoc game-schema/DeckState :cards [:vector card-schema/Card]))
+
+(def GamePlayerWithCards
+  "Extended GamePlayer schema with hydrated deck cards."
+  (mu/assoc game-schema/GamePlayer :deck DeckStateWithCards))
+
+(def PlayersWithCards
+  "Extended Players schema with hydrated deck cards."
+  [:map {:graphql/type :Players}
+   [:HOME {:graphql/name :HOME} GamePlayerWithCards]
+   [:AWAY {:graphql/name :AWAY} GamePlayerWithCards]])
+
+(def GameStateWithCards
+  "Extended GameState schema with hydrated deck cards."
+  (mu/assoc game-schema/GameState :players PlayersWithCards))
+
 (def GameResponse
   "Schema for game data returned by resolvers.
 
-  Uses kebab-case keys; graphql-server converts to camelCase for GraphQL."
+  Uses kebab-case keys; graphql-server converts to camelCase for GraphQL.
+  Uses [[GameStateWithCards]] to include hydrated card data in deck responses."
   [:map {:graphql/type :Game}
    [:id :uuid]
    [:player-1-id :uuid]
    [:player-2-id {:optional true} [:maybe :uuid]]
    [:status GameStatus]
-   [:game-state {:optional true} [:maybe game-schema/GameState]]
+   [:game-state {:optional true} [:maybe GameStateWithCards]]
    [:winner-id {:optional true} [:maybe :uuid]]
    [:created-at :string]
    [:started-at {:optional true} [:maybe :string]]])
@@ -200,28 +224,69 @@
                        (into {} (map (fn [[k v]] [(stringify-hex-key k) v]) occupants))))))
     game-state))
 
+(defn- collect-deck-slugs
+  "Extracts all unique card slugs from a deck state."
+  [deck]
+  (->> (concat (:draw-pile deck)
+               (:hand deck)
+               (:discard deck)
+               (:removed deck))
+       (map :card-slug)
+       distinct))
+
+(defn- hydrate-deck
+  "Adds cards field to deck state with hydrated card data."
+  [deck catalog]
+  (let [slugs (collect-deck-slugs deck)
+        cards (if catalog
+                (->> slugs
+                     (map #(get catalog %))
+                     (filter some?)
+                     vec)
+                [])]
+    (assoc deck :cards cards)))
+
+(defn- hydrate-game-state
+  "Hydrates all deck cards in game state."
+  [game-state catalog]
+  (if game-state
+    (-> game-state
+        (update-in [:players :HOME :deck] hydrate-deck catalog)
+        (update-in [:players :AWAY :deck] hydrate-deck catalog))
+    game-state))
+
 (defn- game->graphql
   "Transforms a game record to GraphQL response format.
 
   Returns kebab-case keys; graphql-server's encoder converts to camelCase.
   Returns nil for game-state when empty (waiting games have no state yet).
-  Enum values and union types are handled by the graphql-server encoder."
-  [game]
-  {:id           (:id game)
-   :player-1-id  (:player-1-id game)
-   :player-2-id  (:player-2-id game)
-   :status       (name (:status game))
-   :game-state   (-> (not-empty (:game-state game))
-                     normalize-events
-                     stringify-board-hex-keys)
-   :winner-id    (:winner-id game)
-   :created-at   (str (:created-at game))
-   :started-at   (some-> (:started-at game) str)})
+  Enum values and union types are handled by the graphql-server encoder.
+  When a catalog is provided, hydrates deck cards with full card data."
+  ([game]
+   (game->graphql game nil))
+  ([game catalog]
+   {:id           (:id game)
+    :player-1-id  (:player-1-id game)
+    :player-2-id  (:player-2-id game)
+    :status       (name (:status game))
+    :game-state   (-> (not-empty (:game-state game))
+                      (hydrate-game-state catalog)
+                      normalize-events
+                      stringify-board-hex-keys)
+    :winner-id    (:winner-id game)
+    :created-at   (str (:created-at game))
+    :started-at   (some-> (:started-at game) str)}))
 
 (defn- get-game-service
   "Gets the game service from the request context."
   [ctx]
   (get-in ctx [:request :resolver-map :game-service]))
+
+(defn- get-card-catalog
+  "Gets the card catalog map from the request context."
+  [ctx]
+  (some-> (get-in ctx [:request :resolver-map :card-catalog])
+          :cards-by-slug))
 
 (def ^:private default-limit 20)
 (def ^:private max-limit 100)
@@ -262,9 +327,10 @@
   [ctx {:keys [id]} _value]
   (require-auth! ctx)
   (let [game-service (get-game-service ctx)
+        catalog      (get-card-catalog ctx)
         user-id      (get-user-id ctx)]
     (when-let [game (game-svc/get-game-for-player game-service id user-id)]
-      (game->graphql game))))
+      (game->graphql game catalog))))
 
 (defresolver :Query :availableGames
   "Returns games in WAITING status available for the authenticated user to join."

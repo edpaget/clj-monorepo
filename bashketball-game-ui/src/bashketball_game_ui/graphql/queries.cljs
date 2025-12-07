@@ -443,6 +443,9 @@
                   instanceId
                   cardSlug
                 }
+                cards {
+                  ...GameCardFields
+                }
               }
               team {
                 starters
@@ -471,6 +474,9 @@
                   instanceId
                   cardSlug
                 }
+                cards {
+                  ...GameCardFields
+                }
               }
               team {
                 starters
@@ -496,6 +502,71 @@
         winnerId
         createdAt
         startedAt
+      }
+    }
+    fragment GameCardFields on GameCard {
+      __typename
+      ... on PlayerCard {
+        slug
+        name
+        setSlug
+        cardType
+        sht
+        pss
+        def
+        speed
+        size
+        abilities
+        deckSize
+      }
+      ... on AbilityCard {
+        slug
+        name
+        setSlug
+        cardType
+        abilities
+      }
+      ... on PlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        play
+      }
+      ... on StandardActionCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on SplitPlayCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        offense
+        defense
+      }
+      ... on CoachingCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        coaching
+      }
+      ... on TeamAssetCard {
+        slug
+        name
+        setSlug
+        cardType
+        fate
+        assetPower
       }
     }
   "))

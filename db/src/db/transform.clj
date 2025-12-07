@@ -26,6 +26,24 @@
        (not (str/blank? s))
        (= s (str/upper-case s))))
 
+(defn- parse-tuple-key
+  "Parses a stringified tuple key back to a vector.
+
+  Handles keys like \"[2 3]\" or \"[2, 3]\" returning [2 3].
+  Returns nil if the string doesn't match the expected format."
+  [s]
+  (when (string? s)
+    (let [trimmed (str/trim s)]
+      (when (and (str/starts-with? trimmed "[")
+                 (str/ends-with? trimmed "]"))
+        (let [inner (-> trimmed
+                        (subs 1 (dec (count trimmed)))
+                        str/trim)]
+          (when-not (str/blank? inner)
+            (let [parts (str/split inner #"[,\s]+")]
+              (when (every? #(re-matches #"-?\d+" %) parts)
+                (mapv #(Long/parseLong %) parts)))))))))
+
 (defn- decode-key
   "Decodes a JSON string key to a keyword.
 
@@ -82,20 +100,55 @@
               expected
               :else value))))}}}))
 
+(defn- int-tuple-schema?
+  "Returns true if the schema is [:tuple :int :int]."
+  [schema]
+  (and (= :tuple (mc/type schema))
+       (let [children (mc/children schema)]
+         (and (= 2 (count children))
+              (every? #(= :int (mc/type %)) children)))))
+
+(defn- transform-tuple-keys
+  "Transforms string keys that look like tuples into vectors."
+  [m]
+  (if (map? m)
+    (into {}
+          (map (fn [[k v]]
+                 (if-let [parsed (parse-tuple-key k)]
+                   [parsed v]
+                   [k v]))
+               m))
+    m))
+
+(def ^:private map-of-tuple-key-transformer
+  "Transforms map-of keys from strings to vectors when key schema is [:tuple :int :int].
+
+  JSON serialization converts vector keys like [2 3] to strings \"[2 3]\".
+  This transformer parses them back to vectors during decode."
+  (mt/transformer
+   {:decoders
+    {:map-of
+     {:compile
+      (fn [schema _options]
+        (let [key-schema (first (mc/children schema))]
+          (when (int-tuple-schema? key-schema)
+            transform-tuple-keys)))}}}))
+
 (def db-decoding-transformer
   "Composite transformer for decoding DB JSON to application data.
 
   Transforms:
   - String keys in :map schemas to kebab-case keywords (via key-transformer)
   - String enum values to keywords (via enum-value-transformer)
+  - Stringified tuple keys in :map-of schemas back to vectors (via map-of-tuple-key-transformer)
 
-  Does NOT transform keys in :map-of schemas, preserving data value keys
-  like player IDs and hex positions as their original type.
+  Preserves other :map-of keys (like player IDs) as their original type.
 
   For multi schemas, use [[db-dispatch]] for the dispatch function."
   (mt/transformer
    (mt/key-transformer {:decode decode-key :types #{:map}})
-   enum-value-transformer))
+   enum-value-transformer
+   map-of-tuple-key-transformer))
 
 (def ^:private db-encode-key-transformer
   "Transforms kebab-case keyword keys to snake_case strings when encoding for DB."

@@ -112,3 +112,35 @@
                    (board/set-occupant [0 0] occ)
                    (board/set-occupant [0 5] occ))]
         (is (board/path-clear? b2 [0 0] [0 5]))))))
+
+(deftest valid-occupants-empty-board-test
+  (let [b (board/create-board)]
+    (is (board/valid-occupants? b))))
+
+(deftest valid-occupants-single-player-test
+  (let [b (-> (board/create-board)
+              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"}))]
+    (is (board/valid-occupants? b))))
+
+(deftest valid-occupants-multiple-players-test
+  (let [b (-> (board/create-board)
+              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"})
+              (board/set-occupant [3 4] {:type :BASKETBALL_PLAYER :id "player-2"}))]
+    (is (board/valid-occupants? b))))
+
+(deftest check-occupant-invariants-detects-duplicates-test
+  (let [b (-> (board/create-board)
+              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"})
+              (board/set-occupant [3 4] {:type :BASKETBALL_PLAYER :id "player-1"}))]
+    (is (not (board/valid-occupants? b)))
+    (let [result (board/check-occupant-invariants b)]
+      (is (= :duplicate-occupant-ids (:error result)))
+      (is (= {"player-1" [[2 3] [3 4]]} (:details result))))))
+
+(deftest move-occupant-maintains-invariants-test
+  (let [b (-> (board/create-board)
+              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"})
+              (board/move-occupant [2 3] [4 5]))]
+    (is (board/valid-occupants? b))
+    (is (nil? (board/occupant-at b [2 3])))
+    (is (= {:type :BASKETBALL_PLAYER :id "player-1"} (board/occupant-at b [4 5])))))
