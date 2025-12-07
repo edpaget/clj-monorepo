@@ -60,21 +60,21 @@
 
   Takes a context map with:
   - :discard-mode - boolean, true if selecting cards for discard
-  - :discard-cards - set of currently selected card slugs
-  - :selected-card - string or nil, currently selected card slug
+  - :discard-cards - set of currently selected instance-ids
+  - :selected-card - string or nil, currently selected instance-id
 
   Returns an action map:
-  - {:action :toggle-discard :card-slug ... :new-set ...}
-  - {:action :toggle-card-selection :card-slug ... :currently-selected ...}"
-  [{:keys [discard-mode discard-cards selected-card]} card-slug]
+  - {:action :toggle-discard :instance-id ... :new-set ...}
+  - {:action :toggle-card-selection :instance-id ... :currently-selected ...}"
+  [{:keys [discard-mode discard-cards selected-card]} instance-id]
   (if discard-mode
     {:action :toggle-discard
-     :card-slug card-slug
-     :new-set (if (contains? discard-cards card-slug)
-                (disj discard-cards card-slug)
-                (conj discard-cards card-slug))}
+     :instance-id instance-id
+     :new-set (if (contains? discard-cards instance-id)
+                (disj discard-cards instance-id)
+                (conj discard-cards instance-id))}
     {:action :toggle-card-selection
-     :card-slug card-slug
+     :instance-id instance-id
      :currently-selected selected-card}))
 
 (defn toggle-selection

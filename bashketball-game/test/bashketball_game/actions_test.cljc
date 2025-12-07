@@ -269,12 +269,20 @@
         (is (= {:status :LOOSE :position [3 5]}
                (state/get-ball updated)))))
 
-    (testing "set-ball-in-air"
+    (testing "set-ball-in-air with position target"
       (let [updated (actions/apply-action game {:type :bashketball/set-ball-in-air
                                                 :origin [2 3]
-                                                :target [2 13]
+                                                :target {:type :position :position [2 13]}
                                                 :action-type :SHOT})]
-        (is (= {:status :IN_AIR :origin [2 3] :target [2 13] :action-type :SHOT}
+        (is (= {:status :IN_AIR :origin [2 3] :target {:type :position :position [2 13]} :action-type :SHOT}
+               (state/get-ball updated)))))
+
+    (testing "set-ball-in-air with player target"
+      (let [updated (actions/apply-action game {:type :bashketball/set-ball-in-air
+                                                :origin [2 3]
+                                                :target {:type :player :player-id "HOME-1"}
+                                                :action-type :PASS})]
+        (is (= {:status :IN_AIR :origin [2 3] :target {:type :player :player-id "HOME-1"} :action-type :PASS}
                (state/get-ball updated)))))))
 
 (deftest add-score-action-test
@@ -381,3 +389,38 @@
                         (actions/apply-action {:type :bashketball/push-stack :effect effect})
                         (actions/apply-action {:type :bashketball/clear-stack}))]
         (is (empty? (:stack updated)))))))
+
+(deftest play-card-removes-from-hand-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
+        hand   (state/get-hand game :HOME)
+        card   (first hand)
+        result (actions/apply-action game {:type        :bashketball/play-card
+                                           :player      :HOME
+                                           :instance-id (:instance-id card)})]
+    (is (= 2 (count (state/get-hand result :HOME))))
+    (is (not (some #(= (:instance-id %) (:instance-id card))
+                   (state/get-hand result :HOME))))))
+
+(deftest play-card-adds-to-discard-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
+        hand   (state/get-hand game :HOME)
+        card   (first hand)
+        result (actions/apply-action game {:type        :bashketball/play-card
+                                           :player      :HOME
+                                           :instance-id (:instance-id card)})]
+    (is (= 1 (count (state/get-discard result :HOME))))
+    (is (= card (first (state/get-discard result :HOME))))))
+
+(deftest play-card-logs-event-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
+        hand   (state/get-hand game :HOME)
+        card   (first hand)
+        result (actions/apply-action game {:type        :bashketball/play-card
+                                           :player      :HOME
+                                           :instance-id (:instance-id card)})
+        event  (last (:events result))]
+    (is (= :bashketball/play-card (:type event)))
+    (is (= card (:played-card event)))))

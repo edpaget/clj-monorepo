@@ -20,9 +20,9 @@
     :timestamp "2024-01-01T10:02:00Z"
     :data {:team :home :points 2}}])
 
-(t/deftest game-log-renders-header-test
+(t/deftest game-log-renders-container-test
   (uix-tlr/render ($ game-log {:events []}))
-  (t/is (some? (screen/get-by-text "Game Log"))))
+  (t/is (some? (screen/get-by-text "No events yet"))))
 
 (t/deftest game-log-shows-empty-message-when-no-events-test
   (uix-tlr/render ($ game-log {:events []}))

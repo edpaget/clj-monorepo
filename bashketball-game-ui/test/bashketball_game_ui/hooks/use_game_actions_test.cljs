@@ -63,7 +63,8 @@
     (t/is (fn? (:draw-cards result)))
     (t/is (fn? (:discard-cards result)))
     (t/is (fn? (:end-turn result)))
-    (t/is (fn? (:set-phase result)))))
+    (t/is (fn? (:set-phase result)))
+    (t/is (fn? (:add-score result)))))
 
 (t/deftest use-game-actions-returns-loading-state-test
   (let [hook-result (with-mocked-provider

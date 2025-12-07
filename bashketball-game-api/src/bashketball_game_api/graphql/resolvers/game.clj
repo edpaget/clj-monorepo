@@ -53,6 +53,15 @@
    [:created-at :string]
    [:started-at {:optional true} [:maybe :string]]])
 
+(def TargetInput
+  "Input schema for ball target (position or player).
+
+  Uses `target-type` field to discriminate between position and player targets."
+  [:map {:graphql/type :TargetInput}
+   [:target-type :string]
+   [:position {:optional true} [:vector :int]]
+   [:player-id {:optional true} :string]])
+
 (def ActionInput
   "Merged input schema for all game action types.
 
@@ -66,6 +75,7 @@
    [:player {:optional true} :string]
    [:amount {:optional true} :int]
    [:count {:optional true} :int]
+   [:instance-id {:optional true} :string]
    [:instance-ids {:optional true} [:vector :string]]
    [:player-id {:optional true} :string]
    [:position {:optional true} [:vector :int]]
@@ -74,8 +84,7 @@
    [:bench-id {:optional true} :string]
    [:holder-id {:optional true} :string]
    [:origin {:optional true} [:vector :int]]
-   [:target {:optional true} [:vector :int]]
-   [:target-player-id {:optional true} :string]
+   [:target {:optional true} TargetInput]
    [:action-type {:optional true} :string]
    [:team {:optional true} :string]
    [:points {:optional true} :int]
@@ -377,33 +386,37 @@
 
   Lacinia sends args with kebab-case keys. This function converts string
   enum values to uppercase keywords to match the game engine's enums."
-  [{:keys [type phase player amount count instance-ids player-id position
-           modifier-id starter-id bench-id holder-id origin target target-player-id
+  [{:keys [type phase player amount count instance-id instance-ids player-id position
+           modifier-id starter-id bench-id holder-id origin target
            action-type team points stat base fate modifiers total]}]
   (let [action-type-kw (keyword type)]
     (cond-> {:type action-type-kw}
-      phase            (assoc :phase (uppercase-keyword phase))
-      player           (assoc :player (uppercase-keyword player))
-      amount           (assoc :amount amount)
-      count            (assoc :count count)
-      instance-ids     (assoc :instance-ids instance-ids)
-      player-id        (assoc :player-id player-id)
-      position         (assoc :position (vec position))
-      modifier-id      (assoc :modifier-id modifier-id)
-      starter-id       (assoc :starter-id starter-id)
-      bench-id         (assoc :bench-id bench-id)
-      holder-id        (assoc :holder-id holder-id)
-      origin           (assoc :origin (vec origin))
-      target           (assoc :target (vec target))
-      target-player-id (assoc :target target-player-id)
-      action-type      (assoc :action-type (uppercase-keyword action-type))
-      team             (assoc :team (uppercase-keyword team))
-      points           (assoc :points points)
-      stat             (assoc :stat (uppercase-keyword stat))
-      base             (assoc :base base)
-      fate             (assoc :fate fate)
-      modifiers        (assoc :modifiers (vec modifiers))
-      total            (assoc :total total))))
+      phase        (assoc :phase (uppercase-keyword phase))
+      player       (assoc :player (uppercase-keyword player))
+      amount       (assoc :amount amount)
+      count        (assoc :count count)
+      instance-id  (assoc :instance-id instance-id)
+      instance-ids (assoc :instance-ids instance-ids)
+      player-id    (assoc :player-id player-id)
+      position     (assoc :position (vec position))
+      modifier-id  (assoc :modifier-id modifier-id)
+      starter-id   (assoc :starter-id starter-id)
+      bench-id     (assoc :bench-id bench-id)
+      holder-id    (assoc :holder-id holder-id)
+      origin       (assoc :origin (vec origin))
+      target       (assoc :target (case (:target-type target)
+                                    "position" {:type :position
+                                                :position (vec (:position target))}
+                                    "player" {:type :player
+                                              :player-id (:player-id target)}))
+      action-type  (assoc :action-type (uppercase-keyword action-type))
+      team         (assoc :team (uppercase-keyword team))
+      points       (assoc :points points)
+      stat         (assoc :stat (uppercase-keyword stat))
+      base         (assoc :base base)
+      fate         (assoc :fate fate)
+      modifiers    (assoc :modifiers (vec modifiers))
+      total        (assoc :total total))))
 
 (defresolver :Mutation :submitAction
   "Submits a game action for the authenticated user.

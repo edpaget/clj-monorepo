@@ -64,6 +64,36 @@
           :when (valid-position? pos)]
       pos)))
 
+(defn reachable-positions
+  "Returns set of positions reachable from start within max-distance steps,
+   avoiding blocked-positions. Uses BFS to find actual paths.
+
+   The optional `contested-positions` set contains hexes adjacent to opposing
+   players - entering these costs 2 movement instead of 1."
+  ([start max-distance blocked-positions]
+   (reachable-positions start max-distance blocked-positions #{}))
+  ([start max-distance blocked-positions contested-positions]
+   (loop [queue   (conj #?(:clj clojure.lang.PersistentQueue/EMPTY
+                           :cljs #queue [])
+                        [start 0])
+          visited #{start}]
+     (if (empty? queue)
+       (disj visited start)
+       (let [[pos dist] (peek queue)
+             queue      (pop queue)]
+         (if (>= dist max-distance)
+           (recur queue visited)
+           (let [neighbors (->> (hex-neighbors pos)
+                                (remove blocked-positions)
+                                (remove visited))
+                 with-cost (map (fn [n]
+                                  (let [cost (if (contested-positions n) 2 1)]
+                                    [n (+ dist cost)]))
+                                neighbors)
+                 reachable (filter #(<= (second %) max-distance) with-cost)]
+             (recur (into queue reachable)
+                    (into visited (map first reachable))))))))))
+
 (defn- lerp
   "Linear interpolation between a and b."
   [a b t]

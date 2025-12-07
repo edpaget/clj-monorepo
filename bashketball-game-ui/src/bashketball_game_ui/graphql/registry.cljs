@@ -99,6 +99,8 @@
    game-schema/BallPossessed
    game-schema/BallLoose
    game-schema/BallInAir
+   game-schema/PositionTarget
+   game-schema/PlayerTarget
    game-schema/GamePlayer
    game-schema/TeamRoster
    game-schema/BasketballPlayer

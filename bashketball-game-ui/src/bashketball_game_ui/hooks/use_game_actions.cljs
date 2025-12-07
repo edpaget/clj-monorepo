@@ -28,6 +28,7 @@
   - `:shuffle-deck` - fn [team] -> Promise (shuffle draw pile)
   - `:return-discard` - fn [team] -> Promise (return discard pile to draw pile)
   - `:substitute` - fn [starter-id bench-id] -> Promise (swap starter with bench player)
+  - `:add-score` - fn [team points] -> Promise (add points to team, negative to decrement)
   - `:loading` - boolean
   - `:error` - error object or nil"
   [game-id]
@@ -51,7 +52,11 @@
                                                              (fn [origin target]
                                                                (submit {:type        "bashketball/set-ball-in-air"
                                                                         :origin      origin
-                                                                        :target      target
+                                                                        :target      (if (vector? target)
+                                                                                       {:target-type "position"
+                                                                                        :position    target}
+                                                                                       {:target-type "player"
+                                                                                        :player-id   target})
                                                                         :action-type "pass"}))
                                                              [submit])
 
@@ -59,7 +64,8 @@
                                                              (fn [origin target]
                                                                (submit {:type        "bashketball/set-ball-in-air"
                                                                         :origin      origin
-                                                                        :target      target
+                                                                        :target      {:target-type "position"
+                                                                                      :position    target}
                                                                         :action-type "shot"}))
                                                              [submit])
 
@@ -123,6 +129,13 @@
                                                                (submit {:type       "bashketball/substitute"
                                                                         :starter-id starter-id
                                                                         :bench-id   bench-id}))
+                                                             [submit])
+
+        add-score                                           (use-callback
+                                                             (fn [team points]
+                                                               (submit {:type   "bashketball/add-score"
+                                                                        :team   (name team)
+                                                                        :points points}))
                                                              [submit])]
 
     (use-memo
@@ -141,8 +154,9 @@
         :shuffle-deck       shuffle-deck
         :return-discard     return-discard
         :substitute         substitute
+        :add-score          add-score
         :loading            loading
         :error              error})
      [submit move-player pass-ball shoot-ball set-ball-loose set-ball-possessed
       reveal-fate draw-cards discard-cards end-turn set-phase shuffle-deck
-      return-discard substitute loading error])))
+      return-discard substitute add-score loading error])))

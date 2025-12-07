@@ -132,3 +132,56 @@
   (let [game (state/create-game test-config)]
     (testing "returns false for player not on board"
       (is (not (movement/can-move-to? game "HOME-slow-center-0" [2 7]))))))
+
+(deftest valid-move-positions-blocked-path-test
+  (let [game (-> (state/create-game test-config)
+                 (place-player "HOME-mid-forward-2" [2 7])
+                 (place-player "HOME-slow-center-0" [2 8])
+                 (place-player "HOME-fast-guard-1" [1 8])
+                 (place-player "AWAY-slow-center-0" [3 8]))]
+    (testing "cannot reach position behind wall of blockers"
+      (let [positions (movement/valid-move-positions game "HOME-mid-forward-2")]
+        (is (not (contains? positions [2 9])))))))
+
+(deftest valid-move-positions-around-obstacle-test
+  (let [game (-> (state/create-game test-config)
+                 (place-player "HOME-fast-guard-1" [2 7])
+                 (place-player "HOME-slow-center-0" [2 8]))]
+    (testing "can reach position via alternate path"
+      (let [positions (movement/valid-move-positions game "HOME-fast-guard-1")]
+        (is (contains? positions [2 9]))))))
+
+(deftest can-move-to-blocked-path-test
+  (let [game (-> (state/create-game test-config)
+                 (place-player "HOME-mid-forward-2" [2 7])
+                 (place-player "HOME-slow-center-0" [2 8])
+                 (place-player "HOME-fast-guard-1" [1 8])
+                 (place-player "AWAY-slow-center-0" [3 8]))]
+    (testing "cannot move to position blocked by wall"
+      (is (not (movement/can-move-to? game "HOME-mid-forward-2" [2 9]))))))
+
+(deftest valid-move-positions-contested-hex-test
+  (let [game (-> (state/create-game test-config)
+                 (place-player "HOME-slow-center-0" [2 7])
+                 (place-player "AWAY-slow-center-0" [2 8]))]
+    (testing "hex adjacent to opponent costs 2 movement - speed 2 can reach it"
+      (let [positions (movement/valid-move-positions game "HOME-slow-center-0")]
+        (is (contains? positions [2 6]))
+        (is (contains? positions [1 7]))
+        (is (not (contains? positions [2 9])))))))
+
+(deftest valid-move-positions-contested-with-speed-test
+  (let [game (-> (state/create-game test-config)
+                 (place-player "HOME-mid-forward-2" [2 7])
+                 (place-player "AWAY-slow-center-0" [2 9]))]
+    (testing "can reach contested hex with speed 3"
+      (let [positions (movement/valid-move-positions game "HOME-mid-forward-2")]
+        (is (contains? positions [2 8]))))))
+
+(deftest valid-move-positions-teammate-no-contest-test
+  (let [game (-> (state/create-game test-config)
+                 (place-player "HOME-slow-center-0" [2 7])
+                 (place-player "HOME-fast-guard-1" [2 9]))]
+    (testing "hex adjacent to teammate costs normal movement"
+      (let [positions (movement/valid-move-positions game "HOME-slow-center-0")]
+        (is (contains? positions [2 8]))))))

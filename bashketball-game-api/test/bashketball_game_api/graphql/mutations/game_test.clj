@@ -237,6 +237,52 @@
                                   :action {:type "bashketball/set-phase" :phase "actions"}})]
         (is (seq (tu/graphql-errors response)))))))
 
+(deftest submit-set-ball-in-air-position-target-test
+  (testing "submitAction with set-ball-in-air and position target works"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            response   (tu/graphql-request
+                        "mutation SubmitAction($gameId: Uuid!, $action: ActionInput!) {
+                         submitAction(gameId: $gameId, action: $action) { success error }
+                       }"
+                        :variables {:gameId (str (:id game))
+                                    :action {:type "bashketball/set-ball-in-air"
+                                             :origin [2 5]
+                                             :target {:targetType "position" :position [2 13]}
+                                             :actionType "shot"}}
+                        :session-id session-id)
+            result     (get-in (tu/graphql-data response) [:submitAction])]
+        (is (true? (:success result)) (str "Expected success, got error: " (:error result)))))))
+
+(deftest submit-set-ball-in-air-player-target-test
+  (testing "submitAction with set-ball-in-air and player target works"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            response   (tu/graphql-request
+                        "mutation SubmitAction($gameId: Uuid!, $action: ActionInput!) {
+                         submitAction(gameId: $gameId, action: $action) { success error }
+                       }"
+                        :variables {:gameId (str (:id game))
+                                    :action {:type "bashketball/set-ball-in-air"
+                                             :origin [2 5]
+                                             :target {:targetType "player" :playerId "HOME-1"}
+                                             :actionType "pass"}}
+                        :session-id session-id)
+            result     (get-in (tu/graphql-data response) [:submitAction])]
+        (is (true? (:success result)) (str "Expected success, got error: " (:error result)))))))
+
 (deftest query-game-state-test
   (testing "game state can be queried via GraphQL without errors"
     (tu/with-db
@@ -260,7 +306,15 @@
                              ball {
                                ... on BallLoose { position }
                                ... on BallPossessed { holderId }
-                               ... on BallInAir { origin target actionType }
+                               ... on BallInAir {
+                                origin
+                                actionType
+                                target {
+                                  __typename
+                                  ... on PositionTarget { position }
+                                  ... on PlayerTarget { playerId }
+                                }
+                              }
                              }
                              players {
                                HOME {

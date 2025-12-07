@@ -239,3 +239,14 @@
   [state _action]
   ;; This action only logs to events, no state change
   state)
+
+(defmethod -apply-action :bashketball/play-card
+  [state {:keys [player instance-id]}]
+  (let [deck-path [:players player :deck]
+        hand      (get-in state (conj deck-path :hand))
+        played    (first (filter #(= (:instance-id %) instance-id) hand))
+        new-hand  (filterv #(not= (:instance-id %) instance-id) hand)]
+    (-> state
+        (assoc-in (conj deck-path :hand) new-hand)
+        (update-in (conj deck-path :discard) conj played)
+        (assoc :event-data {:played-card played}))))

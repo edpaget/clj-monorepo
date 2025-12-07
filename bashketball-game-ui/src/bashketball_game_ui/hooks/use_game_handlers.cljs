@@ -33,7 +33,8 @@
   - `:on-reveal-fate` - Handler for revealing fate
   - `:on-shuffle` - Handler for shuffling deck
   - `:on-return-discard` - Handler for returning discard to deck
-  - `:on-substitute` - Handler for player substitution"
+  - `:on-substitute` - Handler for player substitution
+  - `:on-target-click` - Handler for clicking in-air ball target to resolve"
   []
   (let [{:keys [game-state my-team is-my-turn actions
                 selection pass discard ball-mode fate-reveal substitute-mode]}
@@ -44,10 +45,20 @@
                 discard-active discard-cards selected-card phase]}
         (use-game-derived)
 
+        ball-in-air
+        (= "BallInAir" (get-in game-state [:ball :__typename]))
+
         on-hex-click
         (use-callback
          (fn [q r]
            (cond
+             ;; Ball in air - redirect to different position (failed pass/shot)
+             ball-in-air
+             (-> ((:set-ball-loose actions) q r)
+                 (.then #(js/console.log "Ball redirected to:" %))
+                 (.catch #(js/console.error "Ball redirect error:" %)))
+
+             ;; Loose ball selected - move it
              ball-active
              (do
                (-> ((:set-ball-loose actions) q r)
@@ -67,7 +78,7 @@
                    (.then #(js/console.log "Move result:" %))
                    (.catch #(js/console.error "Move error:" %)))
                ((:set-selected-player selection) nil))))
-         [ball-active ball-mode setup-mode is-my-turn selected-player-id
+         [ball-in-air ball-active ball-mode setup-mode is-my-turn selected-player-id
           valid-setup-positions valid-moves actions selection])
 
         on-ball-click
@@ -82,6 +93,13 @@
         (use-callback
          (fn [player-id]
            (cond
+             ;; Ball in air - redirect to this player (successful catch)
+             ball-in-air
+             (-> ((:set-ball-possessed actions) player-id)
+                 (.then #(js/console.log "Ball caught by:" %))
+                 (.catch #(js/console.error "Ball catch error:" %)))
+
+             ;; Loose ball selected - give to player
              ball-active
              (do
                ((:set-ball-possessed actions) player-id)
@@ -100,19 +118,19 @@
                          ((:cancel pass))
                          ((:set-selected-player selection) nil))
                  :toggle-selection ((:toggle-player selection) player-id)))))
-         [selected-player-id pass-active valid-pass-targets game-state actions pass selection ball-active ball-mode])
+         [ball-in-air selected-player-id pass-active valid-pass-targets game-state actions pass selection ball-active ball-mode])
 
         on-card-click
         (use-callback
-         (fn [card-slug]
+         (fn [instance-id]
            (let [action (h/card-click-action
                          {:discard-mode  discard-active
                           :discard-cards discard-cards
                           :selected-card selected-card}
-                         card-slug)]
+                         instance-id)]
              (case (:action action)
-               :toggle-discard ((:toggle-card discard) card-slug)
-               :toggle-card-selection ((:toggle-card selection) card-slug))))
+               :toggle-discard ((:toggle-card discard) instance-id)
+               :toggle-card-selection ((:toggle-card selection) instance-id))))
          [discard-active discard-cards selected-card discard selection])
 
         on-end-turn
@@ -135,9 +153,9 @@
         (use-callback
          (fn []
            (when selected-card
-             ((:submit actions) {:type      "bashketball/play-card"
-                                 :card-slug selected-card
-                                 :player    (name my-team)})
+             ((:submit actions) {:type        "bashketball/play-card"
+                                 :instance-id selected-card
+                                 :player      (name my-team)})
              ((:set-selected-card selection) nil)))
          [selected-card my-team actions selection])
 
@@ -206,7 +224,25 @@
                  (.then #(js/console.log "Substitute result:" %))
                  (.catch #(js/console.error "Substitute error:" %)))
              ((:cancel substitute-mode))))
-         [actions substitute-mode])]
+         [actions substitute-mode])
+
+        on-target-click
+        (use-callback
+         (fn []
+           (let [ball   (:ball game-state)
+                 target (:target ball)]
+             (cond
+               (:position target)
+               (let [[q r] (:position target)]
+                 (-> ((:set-ball-loose actions) q r)
+                     (.then #(js/console.log "Resolve to position:" %))
+                     (.catch #(js/console.error "Resolve error:" %))))
+
+               (:player-id target)
+               (-> ((:set-ball-possessed actions) (:player-id target))
+                   (.then #(js/console.log "Resolve to player:" %))
+                   (.catch #(js/console.error "Resolve error:" %))))))
+         [game-state actions])]
 
     {:on-hex-click      on-hex-click
      :on-ball-click     on-ball-click
@@ -223,4 +259,5 @@
      :on-reveal-fate    on-reveal-fate
      :on-shuffle        on-shuffle
      :on-return-discard on-return-discard
-     :on-substitute     on-substitute}))
+     :on-substitute     on-substitute
+     :on-target-click   on-target-click}))

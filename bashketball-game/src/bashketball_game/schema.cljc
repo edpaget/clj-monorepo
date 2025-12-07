@@ -141,9 +141,23 @@
    [:status [:= :LOOSE]]
    [:position HexPosition]])
 
+(def PositionTarget
+  "Target specifying a hex position."
+  [:map {:graphql/type :PositionTarget}
+   [:type [:= :position]]
+   [:position HexPosition]])
+
+(def PlayerTarget
+  "Target specifying a player by ID."
+  [:map {:graphql/type :PlayerTarget}
+   [:type [:= :player]]
+   [:player-id :string]])
+
 (def BallTarget
   "Target for a ball in air - either a position or player ID."
-  [:or {:graphql/scalar :String} HexPosition :string])
+  [:multi {:dispatch :type :graphql/type :BallTarget}
+   [:position PositionTarget]
+   [:player PlayerTarget]])
 
 (def BallInAir
   "Ball state when in flight."
@@ -348,6 +362,13 @@
    [:modifiers [:vector :int]]
    [:total :int]])
 
+(def PlayCardAction
+  "Action to play a card from hand, moving it to discard."
+  [:map
+   [:type [:= :bashketball/play-card]]
+   [:player Team]
+   [:instance-id :string]])
+
 (def Action
   "Multi-schema for all action types, dispatching on :type."
   [:multi {:dispatch :type}
@@ -376,7 +397,8 @@
    [:bashketball/pop-stack PopStackAction]
    [:bashketball/clear-stack ClearStackAction]
    [:bashketball/reveal-fate RevealFateAction]
-   [:bashketball/record-skill-test RecordSkillTestAction]])
+   [:bashketball/record-skill-test RecordSkillTestAction]
+   [:bashketball/play-card PlayCardAction]])
 
 ;; -----------------------------------------------------------------------------
 ;; Validation Helpers

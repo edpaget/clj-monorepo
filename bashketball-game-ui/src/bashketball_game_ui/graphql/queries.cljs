@@ -418,7 +418,15 @@
             }
             ... on BallInAir {
               origin
-              target
+              target {
+                __typename
+                ... on PositionTarget {
+                  position
+                }
+                ... on PlayerTarget {
+                  playerId
+                }
+              }
               actionType
             }
           }

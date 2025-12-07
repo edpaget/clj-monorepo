@@ -5,6 +5,7 @@
   while actions overflow into a dropdown menu when space is limited."
   (:require
    [bashketball-game-ui.components.game.player-hand :refer [player-hand]]
+   [bashketball-game-ui.components.game.score-controls :as score]
    [bashketball-game-ui.components.ui.dropdown-menu :as dropdown]
    [bashketball-ui.components.button :refer [button]]
    [bashketball-ui.utils :refer [cn]]
@@ -65,15 +66,19 @@
   Props:
   - actions: vector of action maps with :id :label :on-click :disabled :class :variant
   - loading: boolean to disable all actions
-  - status-text: string to display on the left"
-  [{:keys [actions loading status-text]}]
-  (prn actions)
+  - status-text: string to display on the left
+  - on-add-score: fn [team points] for manual score adjustment"
+  [{:keys [actions loading status-text on-add-score]}]
   (let [primary   (filter #(primary-action-ids (:id %)) actions)
         secondary (filter #(secondary-action-ids (:id %)) actions)]
     ($ :div {:class "flex items-center justify-between gap-4"}
-       ;; Left: status text
-       ($ :div {:class "text-sm text-slate-600 truncate"}
-          status-text)
+       ;; Left: status text and score controls
+       ($ :div {:class "flex items-center gap-4 min-w-0"}
+          ($ :div {:class "text-sm text-slate-600 truncate"}
+             status-text)
+          (when on-add-score
+            ($ score/score-controls {:on-add-score on-add-score
+                                     :loading      loading})))
 
        ;; Right: action buttons
        ($ :div {:class "flex items-center gap-2 flex-shrink-0"}
@@ -107,10 +112,11 @@
   - disabled: boolean to disable hand interaction
   - actions: vector of action maps for action bar
   - loading: boolean
-  - status-text: string for status display"
+  - status-text: string for status display
+  - on-add-score: fn [team points] for manual score adjustment"
   [{:keys [hand catalog expanded on-expand-toggle selected-card discard-mode discard-cards
            on-card-click on-detail-click disabled
-           actions loading status-text]}]
+           actions loading status-text on-add-score]}]
   ($ :div {:class "border-t bg-white"}
      ;; Hand section - takes available space
      ($ :div {:class "px-3 py-2 border-b"}
@@ -137,6 +143,7 @@
 
      ;; Actions section
      ($ :div {:class "px-3 py-2"}
-        ($ action-bar {:actions     actions
-                       :loading     loading
-                       :status-text status-text}))))
+        ($ action-bar {:actions      actions
+                       :loading      loading
+                       :status-text  status-text
+                       :on-add-score on-add-score}))))

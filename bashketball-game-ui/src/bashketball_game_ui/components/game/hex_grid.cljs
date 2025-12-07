@@ -33,17 +33,25 @@
   - ball-selected: boolean, true when ball is selected for movement
   - on-hex-click: fn [q r] called when hex clicked
   - on-player-click: fn [player-id] called when player clicked
-  - on-ball-click: fn [] called when loose ball clicked"
+  - on-ball-click: fn [] called when loose ball clicked
+  - on-target-click: fn [] called when in-air ball target clicked"
   [{:keys [board ball home-players away-players
            selected-player valid-moves setup-highlights pass-mode valid-pass-targets
-           ball-selected on-hex-click on-player-click on-ball-click]}]
+           ball-selected on-hex-click on-player-click on-ball-click on-target-click]}]
   (let [[width height padding] (board/board-dimensions)
         all-pos                (use-memo #(board/all-positions) [])
         holder-id              (ball-holder-id ball)
         valid-set              (set valid-moves)
         setup-set              (set setup-highlights)
         home-indices           (use-memo #(sel/build-player-index-map home-players) [home-players])
-        away-indices           (use-memo #(sel/build-player-index-map away-players) [away-players])]
+        away-indices           (use-memo #(sel/build-player-index-map away-players) [away-players])
+        player-positions       (use-memo
+                                (fn []
+                                  (into {}
+                                        (comp (filter (fn [[_ p]] (vector? (:position p))))
+                                              (map (fn [[id p]] [id (:position p)])))
+                                        (concat (seq home-players) (seq away-players))))
+                                [home-players away-players])]
 
     ($ :svg {:viewBox (str "0 0 " width " " height)
              :class   "w-full h-full"
@@ -89,6 +97,8 @@
 
           ;; Layer 3: Ball indicator (loose or in-air only)
           (when (and ball (not= (:__typename ball) "BallPossessed"))
-            ($ ball-indicator {:ball     ball
-                               :selected ball-selected
-                               :on-click on-ball-click}))))))
+            ($ ball-indicator {:ball             ball
+                               :selected         ball-selected
+                               :on-click         on-ball-click
+                               :player-positions player-positions
+                               :on-target-click  on-target-click}))))))

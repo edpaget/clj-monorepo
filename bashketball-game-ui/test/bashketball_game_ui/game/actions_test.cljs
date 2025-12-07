@@ -129,19 +129,19 @@
   (let [action (actions/make-shoot-action [2 10] [2 13])]
     (t/is (= "bashketball/set-ball-in-air" (:type action)))
     (t/is (= [2 10] (:origin action)))
-    (t/is (= [2 13] (:target action)))
+    (t/is (= {:target-type "position" :position [2 13]} (:target action)))
     (t/is (= "shot" (:action-type action)))))
 
 (t/deftest make-pass-action-position-test
   (let [action (actions/make-pass-action [2 5] [3 5])]
     (t/is (= "bashketball/set-ball-in-air" (:type action)))
     (t/is (= [2 5] (:origin action)))
-    (t/is (= [3 5] (:target action)))
+    (t/is (= {:target-type "position" :position [3 5]} (:target action)))
     (t/is (= "pass" (:action-type action)))))
 
 (t/deftest make-pass-action-player-id-test
   (let [action (actions/make-pass-action [2 5] "player-2")]
-    (t/is (= "player-2" (:target action)))))
+    (t/is (= {:target-type "player" :player-id "player-2"} (:target action)))))
 
 (t/deftest make-end-turn-action-test
   (let [action (actions/make-end-turn-action)]

@@ -18,7 +18,8 @@
   [game-state team]
   (when-let [holder-id (get-in game-state [:ball :holder-id])]
     (let [team-players (get-in game-state [:players team :team :players])]
-      (some #(= (:id %) holder-id) (vals team-players)))))
+      (prn team-players)
+      (contains? team-players holder-id))))
 
 (defn player-has-ball?
   "Returns true if the player with given ID holds the ball."
@@ -41,9 +42,9 @@
   [game-state my-team]
   (and (ball-held-by-team? game-state my-team)
        (let [holder-pos  (get-ball-holder-position game-state)
-             target-hoop (if (= my-team :HOME) [2 13] [2 0])]
-         (and holder-pos
-              (<= (board/hex-distance holder-pos target-hoop) 4)))))
+               target-hoop (if (= my-team :HOME) [2 13] [2 0])]
+           (and holder-pos
+                (<= (board/hex-distance holder-pos target-hoop) 12)))))
 
 (defn can-pass?
   "Returns true if the ball holder can pass."
@@ -68,7 +69,7 @@
   [[origin-q origin-r] [target-q target-r]]
   {:type "bashketball/set-ball-in-air"
    :origin [origin-q origin-r]
-   :target [target-q target-r]
+   :target {:target-type "position" :position [target-q target-r]}
    :action-type "shot"})
 
 (defn make-pass-action
@@ -78,7 +79,9 @@
   [[origin-q origin-r] target]
   {:type "bashketball/set-ball-in-air"
    :origin [origin-q origin-r]
-   :target target
+   :target (if (vector? target)
+             {:target-type "position" :position target}
+             {:target-type "player" :player-id target})
    :action-type "pass"})
 
 (defn make-end-turn-action

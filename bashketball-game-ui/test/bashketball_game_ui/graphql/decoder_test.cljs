@@ -241,20 +241,31 @@
       (t/is (= [2 6] (:position result))))))
 
 (t/deftest ball-in-air-positions-should-be-vectors
-  (t/testing "BallInAir origin should be decoded as a vector"
+  (t/testing "BallInAir origin should be decoded with position target"
     (let [js-ball (clj->js {"__typename" "BallInAir"
                             "status" "IN_AIR"
                             "origin" "[1 3]"
-                            "target" "[4 10]"
+                            "target" {"__typename" "PositionTarget"
+                                      "position" "[4 10]"}
                             "actionType" "SHOT"})
           result  (decoder/decode-js-response js-ball)]
       (t/is (vector? (:origin result))
             (str "Expected origin to be a vector, got: " (pr-str (:origin result))))
       (t/is (= [1 3] (:origin result)))
-      ;; Target can be a position vector or a player ID string
-      (t/is (vector? (:target result))
-            (str "Expected target to be a vector, got: " (pr-str (:target result))))
-      (t/is (= [4 10] (:target result))))))
+      (t/is (= [4 10] (get-in result [:target :position])))
+      (t/is (= "PositionTarget" (get-in result [:target :__typename])))))
+
+  (t/testing "BallInAir should decode player target"
+    (let [js-ball (clj->js {"__typename" "BallInAir"
+                            "status" "IN_AIR"
+                            "origin" "[1 3]"
+                            "target" {"__typename" "PlayerTarget"
+                                      "playerId" "HOME-1"}
+                            "actionType" "PASS"})
+          result  (decoder/decode-js-response js-ball)]
+      (t/is (= [1 3] (:origin result)))
+      (t/is (= "HOME-1" (get-in result [:target :player-id])))
+      (t/is (= "PlayerTarget" (get-in result [:target :__typename]))))))
 
 (t/deftest basketball-player-position-should-be-vector
   (t/testing "BasketballPlayer position should be decoded as a vector"

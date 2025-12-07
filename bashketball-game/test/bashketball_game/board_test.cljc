@@ -144,3 +144,52 @@
     (is (board/valid-occupants? b))
     (is (nil? (board/occupant-at b [2 3])))
     (is (= {:type :BASKETBALL_PLAYER :id "player-1"} (board/occupant-at b [4 5])))))
+
+(deftest reachable-positions-no-obstacles-test
+  (let [result (board/reachable-positions [2 7] 2 #{})]
+    (testing "returns a set"
+      (is (set? result)))
+    (testing "excludes start position"
+      (is (not (contains? result [2 7]))))
+    (testing "all positions within range"
+      (is (every? #(<= (board/hex-distance [2 7] %) 2) result)))))
+
+(deftest reachable-positions-blocked-test
+  (let [result (board/reachable-positions [2 7] 1 #{[2 8]})]
+    (testing "blocked position not reachable"
+      (is (not (contains? result [2 8]))))))
+
+(deftest reachable-positions-partial-wall-test
+  (let [blocked #{[2 8] [1 8]}
+        result  (board/reachable-positions [2 7] 3 blocked)]
+    (testing "blocked positions not in result"
+      (is (not (contains? result [2 8])))
+      (is (not (contains? result [1 8]))))))
+
+(deftest reachable-positions-surrounded-test
+  (let [neighbors (board/hex-neighbors [2 7])
+        result    (board/reachable-positions [2 7] 5 (set neighbors))]
+    (testing "completely surrounded returns empty"
+      (is (empty? result)))))
+
+(deftest reachable-positions-respects-boundaries-test
+  (let [result (board/reachable-positions [0 0] 2 #{})]
+    (testing "all results are valid positions"
+      (is (every? board/valid-position? result)))))
+
+(deftest reachable-positions-contested-cost-test
+  (testing "contested hex costs 2 movement"
+    (let [contested #{[2 8]}
+          result    (board/reachable-positions [2 7] 1 #{} contested)]
+      (is (not (contains? result [2 8])))))
+  (testing "can reach contested hex with enough movement"
+    (let [contested #{[2 8]}
+          result    (board/reachable-positions [2 7] 2 #{} contested)]
+      (is (contains? result [2 8])))))
+
+(deftest reachable-positions-contested-ring-test
+  (testing "contested ring limits movement through zone"
+    (let [neighbors  (board/hex-neighbors [2 8])
+          contested  (set neighbors)
+          result     (board/reachable-positions [2 7] 2 #{} contested)]
+      (is (not (contains? result [2 9]))))))

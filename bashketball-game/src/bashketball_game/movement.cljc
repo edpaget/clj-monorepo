@@ -26,33 +26,53 @@
            (get-in catalog [(:card-slug player) :speed]))
          2))))
 
+(defn- opposing-team
+  "Returns the opposing team keyword."
+  [team]
+  (if (= team :HOME) :AWAY :HOME))
+
+(defn- get-opposing-player-positions
+  "Returns set of positions occupied by opposing team players."
+  [game-state player-id]
+  (let [team         (state/get-basketball-player-team game-state player-id)
+        opponent     (opposing-team team)
+        occupants    (get-in game-state [:board :occupants])]
+    (->> occupants
+         (filter (fn [[_pos occ]]
+                   (when-let [occ-id (:id occ)]
+                     (= opponent (state/get-basketball-player-team game-state occ-id)))))
+         (map first)
+         set)))
+
+(defn- contested-positions
+  "Returns set of hexes adjacent to opposing players (zone of control)."
+  [game-state player-id]
+  (->> (get-opposing-player-positions game-state player-id)
+       (mapcat board/hex-neighbors)
+       set))
+
 (defn valid-move-positions
   "Returns set of valid positions the player can move to.
 
-  Uses the player's speed stat to determine movement range. Excludes
-  occupied positions and the player's current position. Returns nil
-  if the player is not on the board."
+  Uses BFS pathfinding to find positions reachable within the player's
+  speed, accounting for obstacles. Players cannot move through occupied
+  hexes. Moving through hexes adjacent to opposing players costs 2 movement.
+  Returns nil if the player is not on the board."
   ([game-state player-id]
    (valid-move-positions game-state player-id nil))
   ([game-state player-id catalog]
    (when-let [current-pos (board/find-occupant (:board game-state) player-id)]
-     (let [speed (get-player-speed game-state player-id catalog)]
-       (->> (board/hex-range current-pos speed)
-            (remove #(board/occupant-at (:board game-state) %))
-            (remove #(= % current-pos))
-            set)))))
+     (let [speed     (get-player-speed game-state player-id catalog)
+           occupied  (set (keys (get-in game-state [:board :occupants])))
+           contested (contested-positions game-state player-id)]
+       (board/reachable-positions current-pos speed occupied contested)))))
 
 (defn can-move-to?
   "Returns true if player can move to the given position.
 
-  Validates that the position is on the board, not occupied, and within
-  the player's movement range. Returns false if the player is not on
-  the board."
+  Uses pathfinding to verify the position is actually reachable, not just
+  within distance. Returns false if the player is not on the board."
   ([game-state player-id position]
    (can-move-to? game-state player-id position nil))
   ([game-state player-id position catalog]
-   (and (board/valid-position? position)
-        (nil? (board/occupant-at (:board game-state) position))
-        (when-let [current-pos (board/find-occupant (:board game-state) player-id)]
-          (<= (board/hex-distance current-pos position)
-              (get-player-speed game-state player-id catalog))))))
+   (contains? (valid-move-positions game-state player-id catalog) position)))

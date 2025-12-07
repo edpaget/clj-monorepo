@@ -68,11 +68,11 @@
 (defui board-section
   "Main game board hex grid (player info moved to team columns)."
   []
-  (let [{:keys [game-state]}                                  (use-game-context)
+  (let [{:keys [game-state]}                                                 (use-game-context)
         {:keys [home-players away-players selected-player-id
                 valid-moves valid-setup-positions pass-active
-                valid-pass-targets ball-active]}              (use-game-derived)
-        {:keys [on-hex-click on-player-click on-ball-click]}  (use-game-handlers)]
+                valid-pass-targets ball-active]}                             (use-game-derived)
+        {:keys [on-hex-click on-player-click on-ball-click on-target-click]} (use-game-handlers)]
     ($ :div {:class "flex-1 bg-white rounded-lg border border-slate-200 p-2 min-h-0"}
        ($ hex-grid {:board              (:board game-state)
                     :ball               (:ball game-state)
@@ -86,7 +86,8 @@
                     :ball-selected      ball-active
                     :on-hex-click       on-hex-click
                     :on-player-click    on-player-click
-                    :on-ball-click      on-ball-click}))))
+                    :on-ball-click      on-ball-click
+                    :on-target-click    on-target-click}))))
 
 ;; -----------------------------------------------------------------------------
 ;; Three-Column Layout Sections
@@ -389,7 +390,8 @@
         :disabled         (not is-my-turn)
         :actions          action-list
         :loading          loading
-        :status-text      status-text})))
+        :status-text      status-text
+        :on-add-score     (:add-score actions)})))
 
 (defui compact-team-panel
   "Compact team panel for small screens (below board).

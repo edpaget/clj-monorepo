@@ -62,11 +62,17 @@
   (testing "loose ball"
     (is (m/validate schema/Ball {:status :LOOSE :position [2 7]})))
 
-  (testing "in-air ball"
+  (testing "in-air ball with position target"
     (is (m/validate schema/Ball {:status :IN_AIR
                                  :origin [2 3]
-                                 :target [2 13]
-                                 :action-type :SHOT}))))
+                                 :target {:type :position :position [2 13]}
+                                 :action-type :SHOT})))
+
+  (testing "in-air ball with player target"
+    (is (m/validate schema/Ball {:status :IN_AIR
+                                 :origin [2 3]
+                                 :target {:type :player :player-id "HOME-1"}
+                                 :action-type :PASS}))))
 
 (deftest modifier-schema-test
   (testing "valid modifier"
@@ -82,3 +88,20 @@
                      :amount -1
                      :source "foul"
                      :expires-at 5}))))
+
+(deftest play-card-action-schema-test
+  (testing "valid play-card action"
+    (is (schema/valid-action? {:type :bashketball/play-card
+                               :player :HOME
+                               :instance-id "card-1"}))
+    (is (schema/valid-action? {:type :bashketball/play-card
+                               :player :AWAY
+                               :instance-id "abc-123"})))
+
+  (testing "invalid play-card action missing instance-id"
+    (is (not (schema/valid-action? {:type :bashketball/play-card
+                                    :player :HOME}))))
+
+  (testing "invalid play-card action missing player"
+    (is (not (schema/valid-action? {:type :bashketball/play-card
+                                    :instance-id "card-1"})))))
