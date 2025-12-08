@@ -90,9 +90,6 @@
                   (update :board board/move-occupant [2 5] [2 12]))]
     (t/is (actions/can-shoot? state :HOME))))
 
-#_(t/deftest can-shoot-too-far-test
-    (t/is (not (actions/can-shoot? sample-game-state :HOME))))
-
 ;; =============================================================================
 ;; Valid moves tests
 ;; =============================================================================

@@ -166,26 +166,26 @@
            on-enter-discard on-cancel-discard on-submit-discard on-start-game
            on-start-from-tipoff on-setup-done on-next-phase on-reveal-fate
            on-shuffle on-return-discard on-substitute]}]
-  (let [setup-mode      (sel/setup-mode? phase)
-        tip-off-mode    (sel/tip-off-mode? phase)
-        can-shoot       (and is-my-turn
-                             selected-player-id
-                             (actions/player-has-ball? game-state selected-player-id)
-                             (actions/can-shoot? game-state my-team))
-        can-pass        (and is-my-turn
-                             selected-player-id
-                             (actions/player-has-ball? game-state selected-player-id)
-                             (actions/can-pass? game-state my-team))
-        can-advance     (and is-my-turn (sel/can-advance-phase? phase))
-        next-phase-val  (sel/next-phase phase)
+  (let [setup-mode       (sel/setup-mode? phase)
+        tip-off-mode     (sel/tip-off-mode? phase)
+        can-shoot        (and is-my-turn
+                              selected-player-id
+                              (actions/player-has-ball? game-state selected-player-id)
+                              (actions/can-shoot? game-state my-team))
+        can-pass         (and is-my-turn
+                              selected-player-id
+                              (actions/player-has-ball? game-state selected-player-id)
+                              (actions/can-pass? game-state my-team))
+        can-advance      (and is-my-turn (sel/can-advance-phase? phase))
+        next-phase-val   (sel/next-phase phase)
         ;; Away player sees Start Game when both teams ready during setup (transitions to TIP_OFF)
         show-setup-start (and setup-mode both-teams-ready (= my-team :AWAY))
         ;; Show End Turn unless it's setup with both teams ready and we're away, or tip-off
-        show-end-turn   (and is-my-turn
-                             (not discard-active)
-                             (not pass-active)
-                             (not show-setup-start)
-                             (not tip-off-mode))]
+        show-end-turn    (and is-my-turn
+                              (not discard-active)
+                              (not pass-active)
+                              (not show-setup-start)
+                              (not tip-off-mode))]
 
     (cond-> []
       ;; End turn (primary) - also available during setup to pass turn
@@ -433,23 +433,23 @@
         is-my-team                                     (= team my-team)
 
         ;; Filter to only on-court players
-        on-court                                   (use-memo
-                                                    #(into {}
-                                                           (filter (fn [[_id p]] (some? (:position p))))
-                                                           players)
-                                                    [players])
+        on-court                                       (use-memo
+                                                        #(into {}
+                                                               (filter (fn [[_id p]] (some? (:position p))))
+                                                               players)
+                                                        [players])
 
-        player-indices                             (use-memo
-                                                    #(sel/build-player-index-map on-court)
-                                                    [on-court])
+        player-indices                                 (use-memo
+                                                        #(sel/build-player-index-map on-court)
+                                                        [on-court])
 
-        player                                     (get-in game-state [:players team])
-        raw-assets                                 (or (:assets player) [])
-        assets                                     (use-memo
-                                                    #(mapv (fn [asset]
-                                                             (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
-                                                           raw-assets)
-                                                    [raw-assets catalog])]
+        player                                         (get-in game-state [:players team])
+        raw-assets                                     (or (:assets player) [])
+        assets                                         (use-memo
+                                                        #(mapv (fn [asset]
+                                                                 (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
+                                                               raw-assets)
+                                                        [raw-assets catalog])]
 
     ($ :div {:class (cn "flex-1 p-2 rounded-lg border"
                         (if is-active "bg-slate-50 border-slate-300" "bg-white border-slate-200"))}
