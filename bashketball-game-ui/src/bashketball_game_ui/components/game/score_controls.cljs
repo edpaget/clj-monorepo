@@ -11,9 +11,9 @@
   "Individual score adjustment button."
   [{:keys [label on-click disabled class]}]
   ($ :button {:class    (cn "px-2 py-1 text-xs font-medium rounded transition-colors"
-                             "border border-slate-200 bg-white hover:bg-slate-100"
-                             "disabled:opacity-50 disabled:cursor-not-allowed"
-                             class)
+                            "border border-slate-200 bg-white hover:bg-slate-100"
+                            "disabled:opacity-50 disabled:cursor-not-allowed"
+                            class)
               :disabled disabled
               :on-click on-click}
      label))

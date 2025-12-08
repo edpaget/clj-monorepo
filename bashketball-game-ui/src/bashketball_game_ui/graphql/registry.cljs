@@ -21,15 +21,21 @@
    [:avatar-url {:optional true} [:maybe :string]]])
 
 (def Deck
-  "UI schema for Deck type from GraphQL API."
+  "UI schema for Deck type from GraphQL API.
+
+  Fields like `user-id` and `created-at` are optional because mutation
+  responses may not include them. Validation fields are included for
+  both query and mutation responses."
   [:map {:graphql/type :Deck}
    [:id :uuid]
    [:name :string]
-   [:user-id :uuid]
+   [:user-id {:optional true} [:maybe :uuid]]
    [:card-slugs [:vector :string]]
    [:cards {:optional true} [:maybe [:vector :any]]]
-   [:created-at :string]
-   [:updated-at {:optional true} [:maybe :string]]])
+   [:created-at {:optional true} [:maybe :string]]
+   [:updated-at {:optional true} [:maybe :string]]
+   [:is-valid {:optional true} [:maybe :boolean]]
+   [:validation-errors {:optional true} [:maybe [:vector :string]]]])
 
 (def PageInfo
   "Pagination metadata schema."

@@ -90,7 +90,7 @@
 (defui split-play-card-display
   "Display split play card specific fields."
   [{:keys [card]}]
-  ($ :div {:class "grid grid-cols-2 gap-1"}
+  ($ :div {:class "flex flex-col gap-1"}
      ($ :div {:class "p-1 bg-green-100 rounded"}
         ($ text-block {:label "Offense" :value (:offense card)}))
      ($ :div {:class "p-1 bg-red-100 rounded"}
@@ -109,7 +109,7 @@
 (defui standard-action-card-display
   "Display standard action card specific fields."
   [{:keys [card]}]
-  ($ :div {:class "grid grid-cols-2 gap-1"}
+  ($ :div {:class "flex flex-col gap-1"}
      ($ :div {:class "p-1 bg-green-100 rounded"}
         ($ text-block {:label "Offense" :value (:offense card)}))
      ($ :div {:class "p-1 bg-red-100 rounded"}
@@ -166,7 +166,7 @@
        (when resolved-type
          ($ :div {:class "flex justify-center mt-1"}
             ($ card-type-badge {:card-type resolved-type})))
-       ($ :div {:class "flex-1 mx-3 my-2 bg-white/80 rounded p-2 overflow-y-auto text-xs"}
+       ($ :div {:class "flex-1 mx-3 my-2 bg-white/80 rounded p-2 overflow-y-auto text-sm"}
           (when display-component
             ($ display-component {:card card})))
        ($ :div {:class "bg-gray-800 px-3 py-1 text-gray-400 text-xs"}

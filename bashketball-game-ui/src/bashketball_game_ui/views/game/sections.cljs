@@ -99,7 +99,7 @@
   - team: :HOME or :AWAY
   - on-info-click: fn [card-slug] for card detail modal"
   [{:keys [team on-info-click]}]
-  (let [{:keys [game-state my-team selection]}              (use-game-context)
+  (let [{:keys [game-state catalog my-team selection]}      (use-game-context)
         {:keys [home-players away-players score
                 active-player selected-player-id setup-mode
                 home-starters away-starters]}               (use-game-derived)
@@ -132,11 +132,17 @@
         ;; Only show setup roster for user's own team
         show-setup                                          (and setup-mode (= team my-team))
 
-        ;; TODO: assets will come from game-state when implemented
-        assets                                              []]
+        player                                              (get-in game-state [:players team])
+        raw-assets                                          (or (:assets player) [])
+        assets                                              (use-memo
+                                                             #(mapv (fn [asset]
+                                                                      (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
+                                                                    raw-assets)
+                                                             [raw-assets catalog])]
     ($ team-column {:team               team
                     :score              (get score team 0)
                     :is-active          (= active-player team)
+                    :is-my-team         (= team my-team)
                     :deck-stats         deck-stats
                     :players            on-court
                     :player-indices     player-indices
@@ -158,9 +164,10 @@
            discard-count my-setup-complete both-teams-ready
            on-end-turn on-shoot on-pass on-cancel-pass on-play-card on-draw
            on-enter-discard on-cancel-discard on-submit-discard on-start-game
-           on-setup-done on-next-phase on-reveal-fate on-shuffle on-return-discard
-           on-substitute]}]
+           on-start-from-tipoff on-setup-done on-next-phase on-reveal-fate
+           on-shuffle on-return-discard on-substitute]}]
   (let [setup-mode      (sel/setup-mode? phase)
+        tip-off-mode    (sel/tip-off-mode? phase)
         can-shoot       (and is-my-turn
                              selected-player-id
                              (actions/player-has-ball? game-state selected-player-id)
@@ -171,15 +178,14 @@
                              (actions/can-pass? game-state my-team))
         can-advance     (and is-my-turn (sel/can-advance-phase? phase))
         next-phase-val  (sel/next-phase phase)
-        ;; Away player sees Start Game when both teams ready during setup
-        _               (prn setup-mode both-teams-ready my-team)
-        show-start-game (and setup-mode both-teams-ready (= my-team :AWAY))
-        _               (prn show-start-game)
-        ;; Show End Turn unless it's setup with both teams ready and we're away
+        ;; Away player sees Start Game when both teams ready during setup (transitions to TIP_OFF)
+        show-setup-start (and setup-mode both-teams-ready (= my-team :AWAY))
+        ;; Show End Turn unless it's setup with both teams ready and we're away, or tip-off
         show-end-turn   (and is-my-turn
                              (not discard-active)
                              (not pass-active)
-                             (not show-start-game))]
+                             (not show-setup-start)
+                             (not tip-off-mode))]
 
     (cond-> []
       ;; End turn (primary) - also available during setup to pass turn
@@ -222,8 +228,11 @@
              :label    "Draw Card"
              :on-click on-draw})
 
-      ;; Reveal Fate (secondary)
-      (and is-my-turn (actions/can-reveal-fate? game-state my-team) (not pass-active) (not discard-active))
+      ;; Reveal Fate (secondary) - available during tip-off for both players
+      (and (or is-my-turn tip-off-mode)
+           (actions/can-reveal-fate? game-state my-team)
+           (not pass-active)
+           (not discard-active))
       (conj {:id       :reveal-fate
              :label    "Reveal Fate"
              :on-click on-reveal-fate
@@ -279,11 +288,19 @@
              :on-click on-next-phase
              :class    "text-blue-600 border-blue-300 hover:bg-blue-50"})
 
-      ;; Setup: Start Game (away player starts the game when both teams ready)
-      show-start-game
+      ;; Setup: Start Game (away player transitions to TIP_OFF when both teams ready)
+      show-setup-start
       (conj {:id       :start-game
              :label    "Start Game"
              :on-click on-start-game
+             :variant  :default
+             :class    "bg-green-600 hover:bg-green-700"})
+
+      ;; Tip-off: Start Game (both players race to start, winner goes first)
+      tip-off-mode
+      (conj {:id       :start-from-tipoff
+             :label    "Start Game!"
+             :on-click on-start-from-tipoff
              :variant  :default
              :class    "bg-green-600 hover:bg-green-700"})
 
@@ -297,11 +314,12 @@
 
 (defn- build-status-text
   "Builds status text for the action bar."
-  [{:keys [is-my-turn setup-mode pass-active discard-active
+  [{:keys [is-my-turn setup-mode tip-off-mode pass-active discard-active
            selected-player-id setup-placed-count my-setup-complete
            has-moves loading]}]
   (cond
     loading              "Submitting action..."
+    tip-off-mode         "Tip-off! Reveal fate or start the game"
     setup-mode           (cond
                            (not is-my-turn)     "Waiting for opponent..."
                            my-setup-complete    "Waiting for opponent"
@@ -325,13 +343,14 @@
         (use-game-derived)
 
         {:keys [on-card-click on-end-turn on-shoot on-play-card on-draw on-start-game
-                on-setup-done on-next-phase on-submit-discard on-reveal-fate
-                on-shuffle on-return-discard]}
+                on-start-from-tipoff on-setup-done on-next-phase on-submit-discard
+                on-reveal-fate on-shuffle on-return-discard]}
         (use-game-handlers)
 
         [hand-expanded set-hand-expanded]                                                                 (use-state false)
 
         setup-mode                                                                                        (sel/setup-mode? phase)
+        tip-off-mode                                                                                      (sel/tip-off-mode? phase)
         has-moves                                                                                         (and is-my-turn
                                                                                                                selected-player-id
                                                                                                                (seq (actions/valid-move-positions game-state selected-player-id)))
@@ -359,6 +378,7 @@
                                                                                                             :on-cancel-discard  (:cancel discard)
                                                                                                             :on-submit-discard  on-submit-discard
                                                                                                             :on-start-game      on-start-game
+                                                                                                            :on-start-from-tipoff on-start-from-tipoff
                                                                                                             :on-setup-done      on-setup-done
                                                                                                             :on-next-phase      on-next-phase
                                                                                                             :on-reveal-fate     on-reveal-fate
@@ -369,6 +389,7 @@
         status-text                                                                                       (build-status-text
                                                                                                            {:is-my-turn         is-my-turn
                                                                                                             :setup-mode         setup-mode
+                                                                                                            :tip-off-mode       tip-off-mode
                                                                                                             :pass-active        pass-active
                                                                                                             :discard-active     discard-active
                                                                                                             :selected-player-id selected-player-id
@@ -400,15 +421,16 @@
   - team: :HOME or :AWAY
   - on-info-click: fn [card-slug] for card detail modal"
   [{:keys [team on-info-click]}]
-  (let [{:keys [selection]}                        (use-game-context)
+  (let [{:keys [game-state catalog my-team selection]} (use-game-context)
         {:keys [home-players away-players score
-                active-player selected-player-id]} (use-game-derived)
-        {:keys [on-player-click]}                  (use-game-handlers)
+                active-player selected-player-id]}     (use-game-derived)
+        {:keys [on-player-click]}                      (use-game-handlers)
 
-        players                                    (if (= team :HOME) home-players away-players)
-        team-label                                 (if (= team :HOME) "Home" "Away")
-        team-color                                 (if (= team :HOME) "bg-blue-500" "bg-red-500")
-        is-active                                  (= active-player team)
+        players                                        (if (= team :HOME) home-players away-players)
+        team-label                                     (if (= team :HOME) "Home" "Away")
+        team-color                                     (if (= team :HOME) "bg-blue-500" "bg-red-500")
+        is-active                                      (= active-player team)
+        is-my-team                                     (= team my-team)
 
         ;; Filter to only on-court players
         on-court                                   (use-memo
@@ -421,8 +443,13 @@
                                                     #(sel/build-player-index-map on-court)
                                                     [on-court])
 
-        ;; TODO: assets will come from game-state when implemented
-        assets                                     []]
+        player                                     (get-in game-state [:players team])
+        raw-assets                                 (or (:assets player) [])
+        assets                                     (use-memo
+                                                    #(mapv (fn [asset]
+                                                             (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
+                                                           raw-assets)
+                                                    [raw-assets catalog])]
 
     ($ :div {:class (cn "flex-1 p-2 rounded-lg border"
                         (if is-active "bg-slate-50 border-slate-300" "bg-white border-slate-200"))}
@@ -431,7 +458,10 @@
           ($ :div {:class "flex items-center gap-2"}
              ($ :div {:class (cn "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" team-color)}
                 (first team-label))
-             ($ :span {:class "text-sm font-medium"} team-label))
+             ($ :span {:class "text-sm font-medium"}
+                team-label
+                (when is-my-team
+                  ($ :span {:class "text-slate-400 ml-1"} "(me)"))))
           ($ :span {:class "text-lg font-bold"} (get score team 0)))
 
        ;; Players list (collapsed)

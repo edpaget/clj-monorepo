@@ -10,6 +10,7 @@
   (apollo/gql "
     mutation CreateDeck($name: String!) {
       createDeck(name: $name) {
+        __typename
         id
         name
         cardSlugs
@@ -24,6 +25,7 @@
   (apollo/gql "
     mutation UpdateDeck($id: Uuid!, $name: String, $cardSlugs: [String!]) {
       updateDeck(id: $id, name: $name, cardSlugs: $cardSlugs) {
+        __typename
         id
         name
         cardSlugs
@@ -46,6 +48,7 @@
   (apollo/gql "
     mutation ValidateDeck($id: Uuid!) {
       validateDeck(id: $id) {
+        __typename
         id
         isValid
         validationErrors

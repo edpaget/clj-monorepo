@@ -189,7 +189,7 @@
 
 (deftest reachable-positions-contested-ring-test
   (testing "contested ring limits movement through zone"
-    (let [neighbors  (board/hex-neighbors [2 8])
-          contested  (set neighbors)
-          result     (board/reachable-positions [2 7] 2 #{} contested)]
+    (let [neighbors (board/hex-neighbors [2 8])
+          contested (set neighbors)
+          result    (board/reachable-positions [2 7] 2 #{} contested)]
       (is (not (contains? result [2 9]))))))

@@ -68,6 +68,12 @@
   [state {:keys [player]}]
   (assoc state :active-player player))
 
+(defmethod -apply-action :bashketball/start-from-tipoff
+  [state {:keys [player]}]
+  (-> state
+      (assoc :phase :UPKEEP)
+      (assoc :active-player player)))
+
 ;; -----------------------------------------------------------------------------
 ;; Player Resource Actions
 
@@ -240,13 +246,30 @@
   ;; This action only logs to events, no state change
   state)
 
+(defn- get-card-type
+  "Looks up the card-type for a card instance from the deck's card catalog."
+  [state player card-slug]
+  (let [cards (get-in state [:players player :deck :cards])]
+    (some (fn [card]
+            (when (= (:slug card) card-slug)
+              (:card-type card)))
+          cards)))
+
+(defn- team-asset-card?
+  "Returns true if the card is a team asset card."
+  [state player card-slug]
+  (= (get-card-type state player card-slug) :card-type/TEAM_ASSET_CARD))
+
 (defmethod -apply-action :bashketball/play-card
   [state {:keys [player instance-id]}]
   (let [deck-path [:players player :deck]
         hand      (get-in state (conj deck-path :hand))
         played    (first (filter #(= (:instance-id %) instance-id) hand))
-        new-hand  (filterv #(not= (:instance-id %) instance-id) hand)]
+        new-hand  (filterv #(not= (:instance-id %) instance-id) hand)
+        is-asset  (team-asset-card? state player (:card-slug played))]
     (-> state
         (assoc-in (conj deck-path :hand) new-hand)
-        (update-in (conj deck-path :discard) conj played)
+        (cond->
+         is-asset       (update-in [:players player :assets] conj played)
+         (not is-asset) (update-in (conj deck-path :discard) conj played))
         (assoc :event-data {:played-card played}))))

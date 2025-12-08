@@ -62,19 +62,30 @@
     (= user-id (:player-2-id game)) :AWAY
     :else nil))
 
+(defn- get-phase
+  "Returns the current phase as a keyword."
+  [game-state]
+  (let [phase (or (:phase game-state) (get game-state "phase"))]
+    (if (string? phase) (keyword phase) phase)))
+
 (defn- user-can-act?
-  "Returns true if the user can submit actions for this game."
+  "Returns true if the user can submit actions for this game.
+
+  During TIP_OFF phase, both players can act simultaneously. In all other phases,
+  only the active player can act."
   [game user-id]
   (let [game-state    (:game-state game)
-        ;; Handle both keyword and string keys (JSON serialization)
-        active-player (or (:active-player game-state)
-                          (get game-state "active-player"))
-        active-kw     (if (string? active-player)
-                        (keyword active-player)
-                        active-player)
+        phase         (get-phase game-state)
         user-team-val (user-team game user-id)]
     (and (= :game-status/ACTIVE (:status game))
-         (= active-kw user-team-val))))
+         (some? user-team-val)
+         (or (= :TIP_OFF phase)
+             (let [active-player (or (:active-player game-state)
+                                     (get game-state "active-player"))
+                   active-kw     (if (string? active-player)
+                                   (keyword active-player)
+                                   active-player)]
+               (= active-kw user-team-val))))))
 
 (defn- game-over?
   "Returns true if the game state indicates game over."
@@ -82,13 +93,52 @@
   (let [phase (or (:phase game-state) (get game-state "phase"))]
     (= :GAME_OVER (if (string? phase) (keyword phase) phase))))
 
+(defn- collect-deck-slugs
+  "Extracts all unique card slugs from a deck state."
+  [deck]
+  (->> (concat (:draw-pile deck)
+               (:hand deck)
+               (:discard deck)
+               (:removed deck))
+       (map :card-slug)
+       distinct))
+
+(defn- hydrate-deck
+  "Adds cards field to deck state with full card data from catalog."
+  [deck card-catalog]
+  (let [slugs (collect-deck-slugs deck)
+        cards (->> slugs
+                   (map #(catalog/get-card card-catalog %))
+                   (filter some?)
+                   vec)]
+    (assoc deck :cards cards)))
+
+(defn- hydrate-game-state
+  "Hydrates deck cards in game state for action processing.
+
+  The game engine needs card data (including card-type) to determine
+  how to handle played cards (e.g., team assets vs regular cards)."
+  [game-state card-catalog]
+  (-> game-state
+      (update-in [:players :HOME :deck] hydrate-deck card-catalog)
+      (update-in [:players :AWAY :deck] hydrate-deck card-catalog)))
+
+(defn- strip-hydrated-cards
+  "Removes hydrated cards from game state before persisting.
+
+  Card data is stored in the catalog, not duplicated in game state."
+  [game-state]
+  (-> game-state
+      (update-in [:players :HOME :deck] dissoc :cards)
+      (update-in [:players :AWAY :deck] dissoc :cards)))
+
 (def ^:private keyword-values
   "String values that should be converted to keywords when reading game state from JSON.
 
   Uses uppercase values to match game engine enums. GraphQL schema field names are
   lowercase, but enum values are uppercase."
   #{"HOME" "AWAY"                                          ; Team
-    "SETUP" "UPKEEP" "ACTIONS" "RESOLUTION" "END_OF_TURN" "GAME_OVER" ; Phase
+    "SETUP" "TIP_OFF" "UPKEEP" "ACTIONS" "RESOLUTION" "END_OF_TURN" "GAME_OVER" ; Phase
     "SMALL" "MID" "BIG"                                    ; Size
     "SPEED" "SHOOTING" "PASSING" "DRIBBLING" "DEFENSE"     ; Stat
     "SHOT" "PASS"                                          ; BallActionType
@@ -217,33 +267,36 @@
           {:success false :error (str "Invalid action: "
                                       (pr-str (game-schema/explain-action action)))}
           (try
-            (let [current-state (:game-state game)
+            (let [current-state  (:game-state game)
+                  ;; Hydrate with card data for action processing (e.g., team asset detection)
+                  hydrated-state (hydrate-game-state current-state card-catalog)
                   ;; For reveal-fate, capture the top card's fate before action
-                  revealed-fate (when (= :bashketball/reveal-fate (:type action))
-                                  (let [player    (:player action)
-                                        card-slug (get-in current-state
-                                                          [:players player :deck :draw-pile 0 :card-slug])
-                                        card      (when card-slug
-                                                    (catalog/get-card card-catalog card-slug))]
-                                    (:fate card)))
-                  new-state     (game-actions/apply-action current-state action)
-                  seq-num       (game-model/get-next-sequence-num game-id)
-                  _event        (game-model/create-event! game-id
-                                                          user-id
-                                                          (name (:type action))
-                                                          action
-                                                          seq-num)
-                  updated-game  (if (game-over? new-state)
-                                  (let [winner-team (if (> (get-in new-state [:score :home])
-                                                           (get-in new-state [:score :away]))
-                                                      :home :away)
-                                        winner-id   (if (= winner-team :home)
-                                                      (:player-1-id game)
-                                                      (:player-2-id game))]
-                                    (game-model/update-game-state! game-repo game-id new-state)
-                                    (game-model/end-game! game-repo game-id
-                                                          :game-status/COMPLETED winner-id))
-                                  (game-model/update-game-state! game-repo game-id new-state))]
+                  revealed-fate  (when (= :bashketball/reveal-fate (:type action))
+                                   (let [player    (:player action)
+                                         card-slug (get-in current-state
+                                                           [:players player :deck :draw-pile 0 :card-slug])
+                                         card      (when card-slug
+                                                     (catalog/get-card card-catalog card-slug))]
+                                     (:fate card)))
+                  new-state      (-> (game-actions/apply-action hydrated-state action)
+                                     strip-hydrated-cards)
+                  seq-num        (game-model/get-next-sequence-num game-id)
+                  _event         (game-model/create-event! game-id
+                                                           user-id
+                                                           (name (:type action))
+                                                           action
+                                                           seq-num)
+                  updated-game   (if (game-over? new-state)
+                                   (let [winner-team (if (> (get-in new-state [:score :home])
+                                                            (get-in new-state [:score :away]))
+                                                       :home :away)
+                                         winner-id   (if (= winner-team :home)
+                                                       (:player-1-id game)
+                                                       (:player-2-id game))]
+                                     (game-model/update-game-state! game-repo game-id new-state)
+                                     (game-model/end-game! game-repo game-id
+                                                           :game-status/COMPLETED winner-id))
+                                   (game-model/update-game-state! game-repo game-id new-state))]
               (subs/publish! subscription-manager [:game game-id]
                              {:type :state-changed
                               :data {:game-id (str game-id)}})

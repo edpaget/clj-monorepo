@@ -56,6 +56,7 @@
   "Turn phase enumeration for game flow.
 
    - `:phase/SETUP` - Initial game setup
+   - `:phase/TIP_OFF` - Tip-off phase where both players reveal fate and race to start
    - `:phase/UPKEEP` - Start of turn maintenance
    - `:phase/ACTIONS` - Main action phase
    - `:phase/RESOLUTION` - Resolve pending effects
@@ -63,6 +64,7 @@
    - `:phase/GAME_OVER` - Game has ended"
   [:enum {:graphql/type :GamePhase}
    :phase/SETUP
+   :phase/TIP_OFF
    :phase/UPKEEP
    :phase/ACTIONS
    :phase/RESOLUTION

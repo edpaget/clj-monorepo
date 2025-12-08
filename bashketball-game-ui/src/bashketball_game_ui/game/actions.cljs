@@ -42,9 +42,9 @@
   [game-state my-team]
   (and (ball-held-by-team? game-state my-team)
        (let [holder-pos  (get-ball-holder-position game-state)
-               target-hoop (if (= my-team :HOME) [2 13] [2 0])]
-           (and holder-pos
-                (<= (board/hex-distance holder-pos target-hoop) 12)))))
+             target-hoop (if (= my-team :HOME) [2 13] [2 0])]
+         (and holder-pos
+              (<= (board/hex-distance holder-pos target-hoop) 12)))))
 
 (defn can-pass?
   "Returns true if the ball holder can pass."
@@ -153,3 +153,9 @@
   [game-state team]
   (let [bench (get-in game-state [:players team :team :bench])]
     (and (sequential? bench) (pos? (count bench)))))
+
+(defn make-start-from-tipoff-action
+  "Constructs a start-from-tipoff action map."
+  [team]
+  {:type "bashketball/start-from-tipoff"
+   :player (name team)})

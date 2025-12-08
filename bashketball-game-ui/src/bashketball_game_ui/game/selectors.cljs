@@ -21,6 +21,11 @@
   [phase]
   (= (phase->keyword phase) :SETUP))
 
+(defn tip-off-mode?
+  "Returns true if the game is in tip-off phase."
+  [phase]
+  (= (phase->keyword phase) :TIP_OFF))
+
 (defn get-player-by-id
   "Looks up a player by ID, handling both string and keyword keys."
   [players id]
@@ -90,6 +95,7 @@
 
 (def phase-labels
   {:SETUP       "Setup"
+   :TIP_OFF     "Tip-Off"
    :UPKEEP      "Upkeep"
    :DRAW        "Draw"
    :ACTIONS     "Actions"
@@ -106,7 +112,7 @@
   "Returns the next phase in sequence, or nil if at terminal state.
 
   Phase flow: UPKEEP → ACTIONS → RESOLUTION → END_OF_TURN → UPKEEP (loop)
-  SETUP uses Start Game button instead.
+  SETUP and TIP_OFF use special buttons instead.
   GAME_OVER is terminal."
   [current-phase]
   (let [phase-kw (if (keyword? current-phase)
@@ -118,6 +124,7 @@
       :RESOLUTION  :END_OF_TURN
       :END_OF_TURN :UPKEEP
       :SETUP       nil
+      :TIP_OFF     nil
       :GAME_OVER   nil
       nil)))
 

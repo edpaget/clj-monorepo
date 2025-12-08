@@ -22,3 +22,4 @@ package-lock.json
 !bashketball-game-ui/package-lock.json
 /bashketball-game-ui/public/js
 /bashketball-game-ui/public/css
+*.md

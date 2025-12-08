@@ -23,6 +23,7 @@
   (apollo/gql "
     query MyDecks {
       myDecks {
+        __typename
         id
         name
         cardSlugs
@@ -107,6 +108,7 @@
   (apollo/gql "
     query Deck($id: Uuid!) {
       deck(id: $id) {
+        __typename
         id
         name
         cardSlugs
@@ -460,7 +462,10 @@
                 bench
                 players
               }
-              assets
+              assets {
+                instanceId
+                cardSlug
+              }
             }
             AWAY {
               id
@@ -491,7 +496,10 @@
                 bench
                 players
               }
-              assets
+              assets {
+                instanceId
+                cardSlug
+              }
             }
           }
           stack {

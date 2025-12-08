@@ -14,7 +14,7 @@
 ;; Action priority groups - primary actions always visible, secondary in overflow
 (def ^:private primary-action-ids
   "Actions always shown as buttons."
-  #{:end-turn :pass :shoot :play-card :submit-discard :cancel-discard :start-game :draw :discard})
+  #{:end-turn :pass :shoot :play-card :submit-discard :cancel-discard :start-game :draw :discard :start-from-tipoff})
 
 (def ^:private secondary-action-ids
   "Actions shown in overflow menu."

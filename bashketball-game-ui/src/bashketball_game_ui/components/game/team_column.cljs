@@ -22,7 +22,7 @@
 
 (defui team-score-panel
   "Displays team name and score."
-  [{:keys [team score is-active]}]
+  [{:keys [team score is-active is-my-team]}]
   (let [colors     (get team-colors team (:HOME team-colors))
         team-label (if (= team :HOME) "Home" "Away")]
     ($ :div {:class (cn "p-2 rounded-lg"
@@ -35,7 +35,10 @@
                                  "text-xs font-bold"
                                  (:bg colors) (:text colors))}
                 (first team-label))
-             ($ :span {:class "text-sm font-medium text-slate-700"} team-label))
+             ($ :span {:class "text-sm font-medium text-slate-700"}
+                team-label
+                (when is-my-team
+                  ($ :span {:class "text-slate-400 ml-1"} "(me)"))))
           ($ :span {:class "text-xl font-bold text-slate-900"} (or score 0))))))
 
 (defui deck-stat-item
@@ -191,6 +194,7 @@
   - team: :HOME or :AWAY
   - score: team score
   - is-active: boolean if this team's turn
+  - is-my-team: boolean if this is the current user's team
   - deck-stats: map with :draw-pile-count, :hand-count, :discard-count, :removed-count
   - players: map of player-id -> BasketballPlayer for on-court players
   - player-indices: map of player-id -> display index (1, 2, 3)
@@ -204,13 +208,13 @@
   - starters: vector of starter player IDs (for setup roster)
   - selected-player-id: ID of selected player (for setup roster)
   - on-player-select: fn [player-id] for setup player selection"
-  [{:keys [team score is-active deck-stats players player-indices selected-player
+  [{:keys [team score is-active is-my-team deck-stats players player-indices selected-player
            assets on-select on-deselect on-info-click
            setup-mode all-players starters selected-player-id on-player-select]}]
   ($ :div {:class "w-40 h-full flex flex-col gap-2 bg-white rounded-lg border border-slate-200 p-2"}
      ;; Fixed header sections
      ($ :div {:class "flex-shrink-0"}
-        ($ team-score-panel {:team team :score score :is-active is-active}))
+        ($ team-score-panel {:team team :score score :is-active is-active :is-my-team is-my-team}))
      ($ :div {:class "flex-shrink-0"}
         ($ deck-stats-panel {:deck-stats deck-stats}))
 

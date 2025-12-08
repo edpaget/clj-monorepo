@@ -18,7 +18,7 @@
 
 (def Phase
   "Game phase."
-  [:enum {:graphql/type :Phase} :SETUP :UPKEEP :ACTIONS :RESOLUTION :END_OF_TURN :GAME_OVER])
+  [:enum {:graphql/type :Phase} :SETUP :TIP_OFF :UPKEEP :ACTIONS :RESOLUTION :END_OF_TURN :GAME_OVER])
 
 (def Size
   "Basketball player size category."
@@ -103,7 +103,7 @@
    [:actions-remaining :int]
    [:deck DeckState]
    [:team TeamRoster]
-   [:assets [:vector :string]]])
+   [:assets [:vector CardInstance]]])
 
 (def Tile
   "A board tile."
@@ -369,6 +369,12 @@
    [:player Team]
    [:instance-id :string]])
 
+(def StartFromTipOffAction
+  "Action to start the game from tip-off, setting the acting player as first to move."
+  [:map
+   [:type [:= :bashketball/start-from-tipoff]]
+   [:player Team]])
+
 (def Action
   "Multi-schema for all action types, dispatching on :type."
   [:multi {:dispatch :type}
@@ -398,7 +404,8 @@
    [:bashketball/clear-stack ClearStackAction]
    [:bashketball/reveal-fate RevealFateAction]
    [:bashketball/record-skill-test RecordSkillTestAction]
-   [:bashketball/play-card PlayCardAction]])
+   [:bashketball/play-card PlayCardAction]
+   [:bashketball/start-from-tipoff StartFromTipOffAction]])
 
 ;; -----------------------------------------------------------------------------
 ;; Validation Helpers

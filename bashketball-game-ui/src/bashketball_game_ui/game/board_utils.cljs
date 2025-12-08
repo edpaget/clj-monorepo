@@ -66,18 +66,22 @@
        (map (fn [[x y]] (str x "," y)))
        (str/join " ")))
 
+(def ^:private center-court-positions
+  #{[2 6] [3 6] [1 7] [2 7]})
+
 (defn terrain-at
   "Returns terrain info for a position.
 
-  Returns map with :terrain (:hoop, :paint, :three-point-line, :court)
+  Returns map with :terrain (:hoop, :paint, :three-point-line, :center-court, :court)
   and optional :side (:HOME or :AWAY) for hoops."
   [[q r]]
   (cond
-    (and (= q 2) (= r 0))        {:terrain :hoop :side :HOME}
-    (and (= q 2) (= r 13))       {:terrain :hoop :side :AWAY}
-    (or (<= r 2) (>= r 11))      {:terrain :paint :side (if (<= r 2) :HOME :AWAY)}
-    (or (= r 3) (= r 10))        {:terrain :three-point-line :side (if (= r 3) :HOME :AWAY)}
-    :else                        {:terrain :court}))
+    (and (= q 2) (= r 0))                  {:terrain :hoop :side :HOME}
+    (and (= q 2) (= r 13))                 {:terrain :hoop :side :AWAY}
+    (or (<= r 2) (>= r 11))                {:terrain :paint :side (if (<= r 2) :HOME :AWAY)}
+    (or (= r 3) (= r 10))                  {:terrain :three-point-line :side (if (= r 3) :HOME :AWAY)}
+    (contains? center-court-positions [q r]) {:terrain :center-court}
+    :else                                  {:terrain :court}))
 
 (defn terrain-side
   "Returns :HOME or :AWAY for position based on court half, or nil for center."

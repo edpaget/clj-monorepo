@@ -26,7 +26,8 @@
   - `:on-shoot` - Handler for shooting
   - `:on-play-card` - Handler for playing a card
   - `:on-draw` - Handler for drawing cards
-  - `:on-start-game` - Handler for starting game from setup
+  - `:on-start-game` - Handler for starting game from setup (transitions to TIP_OFF)
+  - `:on-start-from-tipoff` - Handler for starting game from tip-off (first to press wins)
   - `:on-setup-done` - Handler for completing setup
   - `:on-next-phase` - Handler for advancing phase
   - `:on-submit-discard` - Handler for submitting discard
@@ -168,8 +169,14 @@
         on-start-game
         (use-callback
          (fn []
-           ((:set-phase actions) "UPKEEP"))
+           ((:set-phase actions) "TIP_OFF"))
          [actions])
+
+        on-start-from-tipoff
+        (use-callback
+         (fn []
+           ((:submit actions) (actions/make-start-from-tipoff-action my-team)))
+         [my-team actions])
 
         on-setup-done
         (use-callback
@@ -244,20 +251,21 @@
                    (.catch #(js/console.error "Resolve error:" %))))))
          [game-state actions])]
 
-    {:on-hex-click      on-hex-click
-     :on-ball-click     on-ball-click
-     :on-player-click   on-player-click
-     :on-card-click     on-card-click
-     :on-end-turn       on-end-turn
-     :on-shoot          on-shoot
-     :on-play-card      on-play-card
-     :on-draw           on-draw
-     :on-start-game     on-start-game
-     :on-setup-done     on-setup-done
-     :on-next-phase     on-next-phase
-     :on-submit-discard on-submit-discard
-     :on-reveal-fate    on-reveal-fate
-     :on-shuffle        on-shuffle
-     :on-return-discard on-return-discard
-     :on-substitute     on-substitute
-     :on-target-click   on-target-click}))
+    {:on-hex-click         on-hex-click
+     :on-ball-click        on-ball-click
+     :on-player-click      on-player-click
+     :on-card-click        on-card-click
+     :on-end-turn          on-end-turn
+     :on-shoot             on-shoot
+     :on-play-card         on-play-card
+     :on-draw              on-draw
+     :on-start-game        on-start-game
+     :on-start-from-tipoff on-start-from-tipoff
+     :on-setup-done        on-setup-done
+     :on-next-phase        on-next-phase
+     :on-submit-discard    on-submit-discard
+     :on-reveal-fate       on-reveal-fate
+     :on-shuffle           on-shuffle
+     :on-return-discard    on-return-discard
+     :on-substitute        on-substitute
+     :on-target-click      on-target-click}))

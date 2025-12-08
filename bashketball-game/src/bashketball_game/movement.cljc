@@ -34,9 +34,9 @@
 (defn- get-opposing-player-positions
   "Returns set of positions occupied by opposing team players."
   [game-state player-id]
-  (let [team         (state/get-basketball-player-team game-state player-id)
-        opponent     (opposing-team team)
-        occupants    (get-in game-state [:board :occupants])]
+  (let [team      (state/get-basketball-player-team game-state player-id)
+        opponent  (opposing-team team)
+        occupants (get-in game-state [:board :occupants])]
     (->> occupants
          (filter (fn [[_pos occ]]
                    (when-let [occ-id (:id occ)]

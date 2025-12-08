@@ -5,6 +5,7 @@
   dispatch functions to child components.
   Uses automatic __typename-based decoding."
   (:require
+   [bashketball-game-ui.game.selectors :as sel]
    [bashketball-game-ui.graphql.hooks :as gql]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.graphql.subscriptions :as subscriptions]
@@ -49,10 +50,13 @@
     :else nil))
 
 (defn- is-my-turn?
-  "Returns true if it's the user's turn to act."
+  "Returns true if it's the user's turn to act.
+
+  During TIP_OFF phase, both players can act simultaneously."
   [game-state my-team]
   (when (and game-state my-team)
-    (= (:active-player game-state) my-team)))
+    (or (sel/tip-off-mode? (:phase game-state))
+        (= (:active-player game-state) my-team))))
 
 (defn build-catalog
   "Builds a card catalog map from game state deck cards.

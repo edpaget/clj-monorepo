@@ -7,10 +7,11 @@
    [uix.core :refer [$ defui use-callback]]))
 
 (def ^:private terrain-colors
-  {:hoop            {:fill "#f97316" :stroke "#ea580c"}
-   :paint           {:fill "#dbeafe" :stroke "#93c5fd"}
+  {:hoop             {:fill "#f97316" :stroke "#ea580c"}
+   :paint            {:fill "#dbeafe" :stroke "#93c5fd"}
    :three-point-line {:fill "#fef3c7" :stroke "#fcd34d"}
-   :court           {:fill "#f1f5f9" :stroke "#cbd5e1"}})
+   :center-court     {:fill "#e9d5ff" :stroke "#c084fc"}
+   :court            {:fill "#f1f5f9" :stroke "#cbd5e1"}})
 
 (def ^:private side-modifiers
   {:HOME {:fill-opacity 1.0}

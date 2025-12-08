@@ -424,3 +424,41 @@
         event  (last (:events result))]
     (is (= :bashketball/play-card (:type event)))
     (is (= card (:played-card event)))))
+
+(deftest play-card-team-asset-goes-to-assets-test
+  (let [card-instance {:instance-id "asset-1"
+                       :card-slug   "team-asset-speed"}
+        card-catalog  [{:slug      "team-asset-speed"
+                        :name      "Speed Boost"
+                        :card-type :card-type/TEAM_ASSET_CARD}]
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :HOME :deck :hand] [card-instance])
+                          (assoc-in [:players :HOME :deck :cards] card-catalog))
+        result        (actions/apply-action game {:type        :bashketball/play-card
+                                                  :player      :HOME
+                                                  :instance-id "asset-1"})]
+
+    (testing "team asset added to assets"
+      (is (= [card-instance] (get-in result [:players :HOME :assets]))))
+
+    (testing "team asset not in discard"
+      (is (empty? (state/get-discard result :HOME))))))
+
+(deftest play-card-non-asset-goes-to-discard-test
+  (let [card-instance {:instance-id "play-1"
+                       :card-slug   "fast-break"}
+        card-catalog  [{:slug      "fast-break"
+                        :name      "Fast Break"
+                        :card-type :card-type/PLAY_CARD}]
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :HOME :deck :hand] [card-instance])
+                          (assoc-in [:players :HOME :deck :cards] card-catalog))
+        result        (actions/apply-action game {:type        :bashketball/play-card
+                                                  :player      :HOME
+                                                  :instance-id "play-1"})]
+
+    (testing "non-asset card not in assets"
+      (is (empty? (get-in result [:players :HOME :assets]))))
+
+    (testing "non-asset card in discard"
+      (is (= [card-instance] (state/get-discard result :HOME))))))

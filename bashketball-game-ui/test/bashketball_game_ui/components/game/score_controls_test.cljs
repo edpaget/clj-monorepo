@@ -19,11 +19,11 @@
 
 (t/deftest score-controls-home-plus-one-calls-handler-test
   (t/async done
-           (let [calls   (atom [])
-                 handler (fn [team points] (swap! calls conj {:team team :points points}))
-                 _       (uix-tlr/render ($ score-controls {:on-add-score handler}))
-                 usr     (user/setup)
-                 btns    (screen/get-all-by-text "+1")
+           (let [calls    (atom [])
+                 handler  (fn [team points] (swap! calls conj {:team team :points points}))
+                 _        (uix-tlr/render ($ score-controls {:on-add-score handler}))
+                 usr      (user/setup)
+                 btns     (screen/get-all-by-text "+1")
                  home-btn (first btns)]
              (-> (user/click usr home-btn)
                  (.then (fn []
@@ -35,11 +35,11 @@
 
 (t/deftest score-controls-away-plus-one-calls-handler-test
   (t/async done
-           (let [calls   (atom [])
-                 handler (fn [team points] (swap! calls conj {:team team :points points}))
-                 _       (uix-tlr/render ($ score-controls {:on-add-score handler}))
-                 usr     (user/setup)
-                 btns    (screen/get-all-by-text "+1")
+           (let [calls    (atom [])
+                 handler  (fn [team points] (swap! calls conj {:team team :points points}))
+                 _        (uix-tlr/render ($ score-controls {:on-add-score handler}))
+                 usr      (user/setup)
+                 btns     (screen/get-all-by-text "+1")
                  away-btn (second btns)]
              (-> (user/click usr away-btn)
                  (.then (fn []
@@ -51,11 +51,11 @@
 
 (t/deftest score-controls-home-minus-one-calls-handler-test
   (t/async done
-           (let [calls   (atom [])
-                 handler (fn [team points] (swap! calls conj {:team team :points points}))
-                 _       (uix-tlr/render ($ score-controls {:on-add-score handler}))
-                 usr     (user/setup)
-                 btns    (screen/get-all-by-text "-1")
+           (let [calls    (atom [])
+                 handler  (fn [team points] (swap! calls conj {:team team :points points}))
+                 _        (uix-tlr/render ($ score-controls {:on-add-score handler}))
+                 usr      (user/setup)
+                 btns     (screen/get-all-by-text "-1")
                  home-btn (first btns)]
              (-> (user/click usr home-btn)
                  (.then (fn []
