@@ -72,9 +72,16 @@
   (repo/update! set-repo slug data))
 
 (defn delete-set!
-  "Deletes a card set."
-  [{:keys [set-repo]} slug]
-  (repo/delete! set-repo slug))
+  "Deletes a card set and all cards within it.
+
+  Performs cascade deletion: first deletes all cards in the set, then
+  deletes the set metadata. All deletions are staged in the Git working
+  tree and require a commit to persist."
+  [{:keys [set-repo card-repo]} slug]
+  (let [cards (repo/find-all card-repo {:where {:set-slug slug}})]
+    (doseq [card cards]
+      (repo/delete! card-repo {:slug (:slug card) :set-slug slug}))
+    (repo/delete! set-repo slug)))
 
 (defn create-set-service
   "Creates a set service instance."

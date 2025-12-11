@@ -91,8 +91,13 @@
     (t/is (= :AWAY (:side away-3pt)))))
 
 (t/deftest terrain-at-court-test
-  (let [terrain (board-utils/terrain-at [2 7])]
+  (let [terrain (board-utils/terrain-at [2 5])]
     (t/is (= :court (:terrain terrain)))
+    (t/is (nil? (:side terrain)))))
+
+(t/deftest terrain-at-center-court-test
+  (let [terrain (board-utils/terrain-at [2 7])]
+    (t/is (= :center-court (:terrain terrain)))
     (t/is (nil? (:side terrain)))))
 
 ;; =============================================================================

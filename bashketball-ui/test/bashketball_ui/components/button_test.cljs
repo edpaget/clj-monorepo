@@ -38,7 +38,7 @@
 (t/deftest button-renders-lg-size-test
   (uix-tlr/render ($ button {:size :lg} "Large"))
   (let [btn (screen/get-by-role "button")]
-    (t/is (str/includes? (.-className btn) "h-10"))))
+    (t/is (str/includes? (.-className btn) "h-11"))))
 
 (t/deftest button-disabled-state-test
   (uix-tlr/render ($ button {:disabled true} "Disabled"))

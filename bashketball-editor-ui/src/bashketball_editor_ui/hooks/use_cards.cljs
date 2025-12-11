@@ -18,8 +18,8 @@
                                                set-slug (assoc :setSlug set-slug)
                                                card-type (assoc :cardType card-type))
         {:keys [loading error data refetch]} (useQuery queries/CARDS_QUERY
-                                                       (clj->js (cond-> {:fetchPolicy "network-only"}
-                                                                  (seq variables) (assoc :variables variables))))
+                                                       (clj->js {:fetchPolicy "network-only"
+                                                                 :variables variables}))
         cards                                (when data (:data (:cards data)))]
     {:cards (when (seq cards)
               (mapv (fn [card]

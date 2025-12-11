@@ -8,16 +8,21 @@
    [bashketball-game-ui.graphql.queries :as queries]))
 
 (defn use-cards
-  "Fetches cards from the catalog with optional set filter.
+  "Fetches cards from the catalog with optional filters.
 
-  Takes an optional `set-slug` to filter cards by set.
+  Takes an optional map with `:set-slug` and `:card-type` to filter cards.
+  For backward compatibility, also accepts a single string argument as set-slug.
   Returns a map with `:cards`, `:loading`, `:error`, and `:refetch`."
   ([]
-   (use-cards nil))
-  ([set-slug]
-   (let [{:keys [data loading error refetch]}
+   (use-cards {}))
+  ([filters]
+   (let [filters                                (if (string? filters) {:set-slug filters} filters)
+         variables                              (cond-> {}
+                                                  (:set-slug filters) (assoc :set-slug (:set-slug filters))
+                                                  (:card-type filters) (assoc :card-type (:card-type filters)))
+         {:keys [data loading error refetch]}
          (gql/use-query queries/CARDS_QUERY
-                        {:variables (when set-slug {:set-slug set-slug})})]
+                        {:variables variables})]
      {:cards   (some-> data :cards)
       :loading loading
       :error   error

@@ -2,12 +2,13 @@
   "Card editor view for creating and editing cards."
   (:require
    ["@apollo/client" :refer [useApolloClient useQuery]]
-   ["lucide-react" :refer [ArrowLeft Save]]
+   ["lucide-react" :refer [ArrowLeft Save Trash2]]
    [bashketball-editor-ui.components.cards.card-type-selector :refer [card-types]]
    [bashketball-editor-ui.graphql.queries :as q]
    [bashketball-editor-ui.hooks.sets :refer [use-sets]]
    [bashketball-schemas.enums :as enums]
    [bashketball-ui.cards.card-preview :refer [card-preview]]
+   [bashketball-ui.components.alert-dialog :as alert]
    [bashketball-ui.components.button :refer [button]]
    [bashketball-ui.components.input :refer [input]]
    [bashketball-ui.components.label :refer [label]]
@@ -225,7 +226,8 @@
 
 (defui card-form
   "The main card editing form."
-  [{:keys [data update-fn card-type on-submit saving? is-new?]}]
+  [{:keys [data update-fn card-type on-submit saving? is-new?
+           delete-open? set-delete-open? deleting? on-delete]}]
   (let [type-fields (get card-type-fields card-type)]
     ($ :form {:on-submit (fn [e]
                            (.preventDefault e)
@@ -241,7 +243,24 @@
        ($ :div {:class "flex gap-4 pt-4"}
           ($ button {:type "submit" :disabled saving?}
              ($ Save {:className "w-4 h-4 mr-2"})
-             (if saving? "Saving..." (if is-new? "Create Card" "Save Changes")))))))
+             (if saving? "Saving..." (if is-new? "Create Card" "Save Changes")))
+          (when-not is-new?
+            ($ alert/alert-dialog {:open delete-open? :on-open-change set-delete-open?}
+               ($ alert/alert-dialog-trigger
+                  ($ button {:variant :destructive :type "button"}
+                     ($ Trash2 {:className "w-4 h-4 mr-2"})
+                     "Delete"))
+               ($ alert/alert-dialog-content
+                  ($ alert/alert-dialog-header
+                     ($ alert/alert-dialog-title "Delete Card")
+                     ($ alert/alert-dialog-description
+                        (str "Are you sure you want to delete \"" (:name data) "\"? "
+                             "This action will stage the deletion. You must commit to make it permanent.")))
+                  ($ alert/alert-dialog-footer
+                     ($ alert/alert-dialog-cancel)
+                     ($ alert/alert-dialog-action
+                        {:on-click on-delete :disabled deleting?}
+                        (if deleting? "Deleting..." "Delete"))))))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Type selector for new cards
@@ -268,63 +287,81 @@
 (defui card-editor-view
   "Main card editor view for creating and editing cards."
   []
-  (let [params                         (router/use-params)
-        [search-params]                (router/use-search-params)
-        navigate                       (router/use-navigate)
-        client                         (useApolloClient)
-        slug                           (:slug params)
-        set-slug-param                 (or (:setSlug params) (.get search-params "set"))
-        is-new?                        (nil? slug)
+  (let [params                          (router/use-params)
+        [search-params]                 (router/use-search-params)
+        navigate                        (router/use-navigate)
+        client                          (useApolloClient)
+        slug                            (:slug params)
+        set-slug-param                  (or (:setSlug params) (.get search-params "set"))
+        is-new?                         (nil? slug)
 
         ;; Form state
-        [card-type set-card-type]      (use-state nil)
-        [set-slug set-set-slug]        (use-state set-slug-param)
-        {:keys [data set-data update]} (form/use-form {})
-        [saving? set-saving?]          (use-state false)
-        [error set-error]              (use-state nil)
+        [card-type set-card-type]       (use-state nil)
+        [set-slug set-set-slug]         (use-state set-slug-param)
+        {:keys [data set-data update]}  (form/use-form {})
+        [saving? set-saving?]           (use-state false)
+        [error set-error]               (use-state nil)
+        [delete-open? set-delete-open?] (use-state false)
+        [deleting? set-deleting?]       (use-state false)
 
         ;; Fetch sets for selector
-        {:keys [sets loading?]}        (use-sets)
-        set-options                    (mapv (fn [s] {:value (:slug s) :label (:name s)}) sets)
+        {:keys [sets loading?]}         (use-sets)
+        set-options                     (mapv (fn [s] {:value (:slug s) :label (:name s)}) sets)
 
         ;; Fetch existing card if editing
-        card-query                     (useQuery q/CARD_QUERY
-                                                 (clj->js {:variables {:slug (or slug "")
-                                                                       :setSlug (or set-slug "")}
-                                                           :skip (or is-new? (nil? set-slug))}))
-        card-loading?                  (:loading card-query)
-        card-data                      (some-> card-query :data :card)
+        card-query                      (useQuery q/CARD_QUERY
+                                                  (clj->js {:variables {:slug (or slug "")
+                                                                        :setSlug (or set-slug "")}
+                                                            :skip (or is-new? (nil? set-slug))}))
+        card-loading?                   (:loading card-query)
+        card-data                       (some-> card-query :data :card)
 
         ;; Update form when card data loads
-        _                              (use-effect
-                                        (fn []
-                                          (when card-data
-                                            (let [transformed (transform-card-data card-data)]
-                                              (set-data transformed)
-                                              (set-card-type (:card-type transformed)))))
-                                        [card-data set-data])
+        _                               (use-effect
+                                         (fn []
+                                           (when card-data
+                                             (let [transformed (transform-card-data card-data)]
+                                               (set-data transformed)
+                                               (set-card-type (:card-type transformed)))))
+                                         [card-data set-data])
 
         ;; Handle form submission
-        handle-submit                  (fn []
-                                         (set-saving? true)
-                                         (set-error nil)
-                                         (let [mutation  (if is-new?
-                                                           (get q/create-mutation-for-type card-type)
-                                                           q/UPDATE_CARD_MUTATION)
-                                               input     (build-mutation-input data card-type)
-                                               variables (if is-new?
-                                                           {:setSlug set-slug :input input}
-                                                           {:slug slug :setSlug set-slug :input input})]
-                                           (-> (.mutate client (clj->js {:mutation mutation
-                                                                         :variables variables
-                                                                         :refetchQueries #js ["Cards" "SyncStatus"]}))
-                                               (.then (fn [_]
-                                                        (navigate (if set-slug
-                                                                    (str "/?set=" set-slug)
-                                                                    "/"))))
-                                               (.catch (fn [e]
-                                                         (set-error (:message e))))
-                                               (.finally #(set-saving? false)))))]
+        handle-submit                   (fn []
+                                          (set-saving? true)
+                                          (set-error nil)
+                                          (let [mutation  (if is-new?
+                                                            (get q/create-mutation-for-type card-type)
+                                                            q/UPDATE_CARD_MUTATION)
+                                                input     (build-mutation-input data card-type)
+                                                variables (if is-new?
+                                                            {:setSlug set-slug :input input}
+                                                            {:slug slug :setSlug set-slug :input input})]
+                                            (-> (.mutate client (clj->js {:mutation mutation
+                                                                          :variables variables
+                                                                          :refetchQueries #js ["Cards" "SyncStatus"]}))
+                                                (.then (fn [_]
+                                                         (navigate (if set-slug
+                                                                     (str "/?set=" set-slug)
+                                                                     "/"))))
+                                                (.catch (fn [e]
+                                                          (set-error (:message e))))
+                                                (.finally #(set-saving? false)))))
+
+        ;; Handle card deletion
+        handle-delete                   (fn []
+                                          (set-deleting? true)
+                                          (-> (.mutate client
+                                                       (clj->js {:mutation q/DELETE_CARD_MUTATION
+                                                                 :variables {:slug slug :setSlug set-slug}
+                                                                 :refetchQueries #js ["Cards" "SyncStatus"]}))
+                                              (.then (fn [_]
+                                                       (set-delete-open? false)
+                                                       (navigate (if set-slug
+                                                                   (str "/?set=" set-slug)
+                                                                   "/"))))
+                                              (.catch (fn [e]
+                                                        (set-error (str "Delete failed: " (:message e)))))
+                                              (.finally #(set-deleting? false))))]
 
     ($ :div {:class "max-w-6xl mx-auto"}
        ;; Header
@@ -370,7 +407,11 @@
                              :card-type card-type
                              :on-submit handle-submit
                              :saving? saving?
-                             :is-new? is-new?}))
+                             :is-new? is-new?
+                             :delete-open? delete-open?
+                             :set-delete-open? set-delete-open?
+                             :deleting? deleting?
+                             :on-delete handle-delete}))
             ;; Live preview panel
             ($ :div {:class "hidden lg:block"}
                ($ :div {:class "sticky top-6"}

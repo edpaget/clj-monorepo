@@ -4,7 +4,7 @@
   Provides a dropdown to select and navigate to different card sets."
   (:require
    ["@radix-ui/react-select" :as SelectPrimitive]
-   ["lucide-react" :refer [Plus]]
+   ["lucide-react" :refer [Plus Settings]]
    [bashketball-editor-ui.context.auth :refer [use-auth]]
    [bashketball-editor-ui.hooks.sets :refer [use-sets]]
    [bashketball-ui.components.select :as s]
@@ -14,6 +14,7 @@
 
 (def all-sets-value "__all__")
 (def create-new-value "__create__")
+(def manage-sets-value "__manage__")
 
 (defui set-selector
   "Dropdown selector for navigating between card sets.
@@ -37,6 +38,9 @@
                            (= value create-new-value)
                            (navigate "/sets/new")
 
+                           (= value manage-sets-value)
+                           (navigate "/sets/manage")
+
                            :else
                            (let [current-type (.get search-params "type")
                                  new-params   (cond-> {}
@@ -59,4 +63,10 @@
                    :value create-new-value}
                   ($ :span {:class "flex items-center gap-2"}
                      ($ Plus {:className "w-4 h-4"})
-                     "Create New Set"))))))))
+                     "Create New Set"))
+               ($ SelectPrimitive/Item
+                  {:class (cn s/select-item-classes "text-gray-600")
+                   :value manage-sets-value}
+                  ($ :span {:class "flex items-center gap-2"}
+                     ($ Settings {:className "w-4 h-4"})
+                     "Manage Sets"))))))))

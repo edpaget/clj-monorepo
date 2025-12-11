@@ -112,12 +112,31 @@
       (is (map? result))
       (is (= 2 (count (:data result))))))
 
-  (testing "filters by card type"
+  (testing "filters by card type with set-slug"
     (let [ctx                (make-ctx [mock-player-card mock-play-card])
           [_schema resolver] (get card/resolvers [:Query :cards])
           result             (resolver ctx {:set-slug test-set-slug :card-type "PLAYER_CARD"} nil)]
       (is (= 1 (count (:data result))))
       (is (= "jordan" (:slug (first (:data result)))))))
+
+  (testing "filters by card type without set-slug"
+    (let [ctx                (make-ctx [mock-player-card mock-play-card])
+          [_schema resolver] (get card/resolvers [:Query :cards])
+          result             (resolver ctx {:card-type "PLAYER_CARD"} nil)]
+      (is (= 1 (count (:data result))))
+      (is (= "jordan" (:slug (first (:data result)))))))
+
+  (testing "filters by set-slug without card type"
+    (let [ctx                (make-ctx [mock-player-card mock-play-card])
+          [_schema resolver] (get card/resolvers [:Query :cards])
+          result             (resolver ctx {:set-slug test-set-slug} nil)]
+      (is (= 2 (count (:data result))))))
+
+  (testing "returns all cards when no filters provided"
+    (let [ctx                (make-ctx [mock-player-card mock-play-card])
+          [_schema resolver] (get card/resolvers [:Query :cards])
+          result             (resolver ctx {} nil)]
+      (is (= 2 (count (:data result))))))
 
   (testing "returns empty vector for unknown set"
     (let [ctx                (make-ctx [mock-player-card])

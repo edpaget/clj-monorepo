@@ -187,10 +187,10 @@
   "))
 
 (def CARDS_QUERY
-  "Query for card catalog with optional set filter."
+  "Query for card catalog with optional set and card type filters."
   (apollo/gql "
-    query Cards($setSlug: String) {
-      cards(setSlug: $setSlug) {
+    query Cards($setSlug: String, $cardType: CardType) {
+      cards(setSlug: $setSlug, cardType: $cardType) {
         ...CardFields
       }
     }

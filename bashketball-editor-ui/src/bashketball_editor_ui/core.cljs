@@ -11,6 +11,7 @@
    [bashketball-editor-ui.views.home :as home]
    [bashketball-editor-ui.views.layout :as layout]
    [bashketball-editor-ui.views.set-editor :as set-editor]
+   [bashketball-editor-ui.views.set-management :as set-management]
    [bashketball-ui.components.protected-route :refer [protected-route]]
    [bashketball-ui.core]
    [bashketball-ui.router :as router]
@@ -33,6 +34,7 @@
                  ($ router/route {:element ($ protected-route)}
                     ($ router/route {:path "commit" :element ($ commit/commit-view)})
                     ($ router/route {:path "sets/new" :element ($ set-editor/set-editor-view)})
+                    ($ router/route {:path "sets/manage" :element ($ set-management/set-management-view)})
                     ($ router/route {:path "cards/new" :element ($ card-editor/card-editor-view)})
                     ($ router/route {:path "cards/:setSlug/:slug/edit" :element ($ card-editor/card-editor-view)}))))))))
 

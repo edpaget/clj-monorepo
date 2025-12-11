@@ -14,8 +14,40 @@
 
 (def mock-empty-cards-response
   #js {:request #js {:query q/CARDS_QUERY
-                     :variables #js {:setSlug nil}}
+                     :variables #js {}}
        :result #js {:data #js {:cards #js {:data #js []}}}})
+
+(def mock-cards-with-player-type-filter
+  #js {:request #js {:query q/CARDS_QUERY
+                     :variables #js {:cardType "PLAYER_CARD"}}
+       :result #js {:data #js {:cards #js {:data #js [#js {:__typename "PlayerCard"
+                                                           :slug "jordan"
+                                                           :setSlug "core-set"
+                                                           :name "Jordan"
+                                                           :updatedAt "2024-01-01"}]}}}})
+
+(def mock-cards-with-set-filter
+  #js {:request #js {:query q/CARDS_QUERY
+                     :variables #js {:setSlug "core-set"}}
+       :result #js {:data #js {:cards #js {:data #js [#js {:__typename "PlayerCard"
+                                                           :slug "jordan"
+                                                           :setSlug "core-set"
+                                                           :name "Jordan"
+                                                           :updatedAt "2024-01-01"}
+                                                      #js {:__typename "PlayCard"
+                                                           :slug "fast-break"
+                                                           :setSlug "core-set"
+                                                           :name "Fast Break"
+                                                           :updatedAt "2024-01-01"}]}}}})
+
+(def mock-cards-with-both-filters
+  #js {:request #js {:query q/CARDS_QUERY
+                     :variables #js {:setSlug "core-set" :cardType "PLAYER_CARD"}}
+       :result #js {:data #js {:cards #js {:data #js [#js {:__typename "PlayerCard"
+                                                           :slug "jordan"
+                                                           :setSlug "core-set"
+                                                           :name "Jordan"
+                                                           :updatedAt "2024-01-01"}]}}}})
 
 (def mock-card-sets-response
   #js {:request #js {:query q/CARD_SETS_QUERY}
@@ -28,15 +60,17 @@
   "Wrap component with required providers for testing."
   ([component]
    (with-providers component {}))
-  ([component {:keys [logged-in?] :or {logged-in? false}}]
+  ([component {:keys [logged-in? initial-entries mocks]
+               :or {logged-in? false
+                    initial-entries ["/"]
+                    mocks [mock-empty-cards-response mock-card-sets-response]}}]
    (let [auth-state {:loading? false
                      :logged-in? logged-in?
                      :user (when logged-in? {:id "test-user"})
                      :refetch (fn [])}]
-     ($ rr/MemoryRouter
+     ($ rr/MemoryRouter {:initialEntries (clj->js initial-entries)}
         ($ (.-Provider auth-context) {:value auth-state}
-           ($ MockedProvider {:mocks #js [mock-empty-cards-response
-                                          mock-card-sets-response]}
+           ($ MockedProvider {:mocks (clj->js mocks)}
               component))))))
 
 (t/deftest home-view-renders-search-test
@@ -68,3 +102,50 @@
                      (.catch (fn [e]
                                (t/is false (str e))
                                (done)))))))))
+
+(t/deftest home-view-card-type-filter-test
+  (t/async done
+           (t/testing "card type filter sends correct query variables"
+             (tlr/render (with-providers
+                           ($ home-view)
+                           {:initial-entries ["/?type=PLAYER_CARD"]
+                            :mocks [mock-cards-with-player-type-filter mock-card-sets-response]}))
+             (-> (tlr/wait-for (fn [] (tlr/get-by-text "Jordan")))
+                 (.then (fn []
+                          (t/is (some? (tlr/get-by-text "Jordan")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
+
+(t/deftest home-view-set-filter-test
+  (t/async done
+           (t/testing "set filter sends correct query variables"
+             (tlr/render (with-providers
+                           ($ home-view)
+                           {:initial-entries ["/?set=core-set"]
+                            :mocks [mock-cards-with-set-filter mock-card-sets-response]}))
+             (-> (tlr/wait-for (fn [] (tlr/get-by-text "Jordan")))
+                 (.then (fn []
+                          (t/is (some? (tlr/get-by-text "Jordan")))
+                          (t/is (some? (tlr/get-by-text "Fast Break")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))
+
+(t/deftest home-view-both-filters-test
+  (t/async done
+           (t/testing "both filters send correct query variables"
+             (tlr/render (with-providers
+                           ($ home-view)
+                           {:initial-entries ["/?set=core-set&type=PLAYER_CARD"]
+                            :mocks [mock-cards-with-both-filters mock-card-sets-response]}))
+             (-> (tlr/wait-for (fn [] (tlr/get-by-text "Jordan")))
+                 (.then (fn []
+                          (t/is (some? (tlr/get-by-text "Jordan")))
+                          (t/is (nil? (tlr/query-by-text "Fast Break")))
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))

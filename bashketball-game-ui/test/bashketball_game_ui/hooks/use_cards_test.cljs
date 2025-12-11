@@ -278,6 +278,54 @@
                     (t/is false (str "Test failed: " e))
                     (done)))))))
 
+(t/deftest use-cards-passes-card-type-filter-test
+  (t/async done
+           (let [mock        #js {:request #js {:query queries/CARDS_QUERY
+                                                :variables #js {:cardType "PLAYER_CARD"}}
+                                  :result #js {:data #js {:cards #js [sample-player-card]}}}
+                 hook-result (with-mocked-provider
+                               #(use-cards/use-cards {:card-type "PLAYER_CARD"})
+                               [mock])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (:loading result)
+                        (throw (js/Error. "Still loading"))))))
+                 (.then
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (t/is (= 1 (count (:cards result))) "Should return filtered cards")
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
+
+(t/deftest use-cards-passes-both-filters-test
+  (t/async done
+           (let [mock        #js {:request #js {:query queries/CARDS_QUERY
+                                                :variables #js {:setSlug "core-set"
+                                                                :cardType "PLAYER_CARD"}}
+                                  :result #js {:data #js {:cards #js [sample-player-card]}}}
+                 hook-result (with-mocked-provider
+                               #(use-cards/use-cards {:set-slug "core-set"
+                                                      :card-type "PLAYER_CARD"})
+                               [mock])]
+             (-> (wait-for
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (when (:loading result)
+                        (throw (js/Error. "Still loading"))))))
+                 (.then
+                  (fn []
+                    (let [result (get-result hook-result)]
+                      (t/is (= 1 (count (:cards result))) "Should return filtered cards")
+                      (done))))
+                 (.catch
+                  (fn [e]
+                    (t/is false (str "Test failed: " e))
+                    (done)))))))
+
 (t/deftest use-cards-returns-refetch-function-test
   (let [hook-result (with-mocked-provider #(use-cards/use-cards) [(mock-cards-query)])
         result      (get-result hook-result)]

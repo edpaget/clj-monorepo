@@ -18,24 +18,22 @@
   "__all__")
 
 (def card-type-options
-  "Options for card type filter."
+  "Options for card type filter.
+  Values are GraphQL enum values (SCREAMING_SNAKE_CASE)."
   [{:value all-value :label "All Types"}
-   {:value ":card-type/PLAYER_CARD" :label "Player"}
-   {:value ":card-type/STANDARD_ACTION_CARD" :label "Action"}
-   {:value ":card-type/SPLIT_PLAY_CARD" :label "Split Play"}
-   {:value ":card-type/COACHING_CARD" :label "Coaching"}
-   {:value ":card-type/TEAM_ASSET_CARD" :label "Team Asset"}
-   {:value ":card-type/PLAY_CARD" :label "Play"}
-   {:value ":card-type/ABILITY_CARD" :label "Ability"}])
+   {:value "PLAYER_CARD" :label "Player"}
+   {:value "STANDARD_ACTION_CARD" :label "Action"}
+   {:value "SPLIT_PLAY_CARD" :label "Split Play"}
+   {:value "COACHING_CARD" :label "Coaching"}
+   {:value "TEAM_ASSET_CARD" :label "Team Asset"}
+   {:value "PLAY_CARD" :label "Play"}
+   {:value "ABILITY_CARD" :label "Ability"}])
 
 (defn- normalize-filter
-  "Converts the sentinel all-value back to nil for filtering.
-  For type filters, converts string representation to keyword."
+  "Converts the sentinel all-value back to nil for filtering."
   [v]
   (when (and v (not= v all-value))
-    (if (str/starts-with? v ":")
-      (keyword (subs v 1))
-      v)))
+    v))
 
 (defn- standard-action-card?
   "Returns true if the card is a STANDARD_ACTION_CARD (unlimited copies allowed)."
@@ -92,7 +90,8 @@
         [type-filter set-type-filter] (use-state all-value)
         set-filter-normalized         (normalize-filter set-filter)
         type-filter-normalized        (normalize-filter type-filter)
-        {:keys [cards loading]}       (use-cards set-filter-normalized)
+        {:keys [cards loading]}       (use-cards {:set-slug set-filter-normalized
+                                                  :card-type type-filter-normalized})
         {:keys [sets]}                (use-sets)
         slug-counts                   (use-memo
                                        (fn [] (frequencies deck-slugs))
@@ -106,15 +105,12 @@
         filtered-cards                (use-memo
                                        (fn []
                                          (cond->> cards
-                                           type-filter-normalized
-                                           (filter (fn [c]
-                                                     (= (:card-type c) type-filter-normalized)))
                                            (seq search)
                                            (filter (fn [c]
                                                      (str/includes?
                                                       (str/lower-case (or (:name c) ""))
                                                       (str/lower-case search))))))
-                                       [cards type-filter-normalized search])]
+                                       [cards search])]
     ($ :div {:class (cn "flex flex-col h-full bg-white rounded-lg shadow border border-gray-200" class)}
        ($ :div {:class "p-4 border-b border-gray-200 space-y-3"}
           ($ :h3 {:class "font-semibold text-gray-900"} "Card Catalog")

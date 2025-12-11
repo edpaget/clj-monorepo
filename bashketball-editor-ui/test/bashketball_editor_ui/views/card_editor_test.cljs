@@ -12,6 +12,7 @@
    [cljs-tlr.uix :as uix-tlr]
    [cljs-tlr.user-event :as user]
    [cljs.test :as t :include-macros true]
+   [clojure.string :as str]
    [uix.core :refer [$ defui]]))
 
 (t/use-fixtures :each fixtures/cleanup-fixture)
@@ -119,3 +120,39 @@
     (let [ta (screen/get-by-label-text "Abilities (one per line)")]
       (events/change ta "ability 1\nability 2")
       (t/is (= "ability 1\nability 2" (.-value ta))))))
+
+;; -----------------------------------------------------------------------------
+;; Card form delete button tests
+;; Note: Radix AlertDialog Portal does not work well in JSDom environment,
+;; so tests focus on button visibility rather than dialog interactions.
+;; -----------------------------------------------------------------------------
+
+(defui test-card-form-edit
+  "Test wrapper for card form in edit mode (not new)."
+  [{:keys [on-submit on-delete]}]
+  (let [[delete-open? set-delete-open?] (uix.core/use-state false)
+        [deleting? _set-deleting?]      (uix.core/use-state false)
+        {:keys [data update]}           (form/use-form {:name "Test Card" :abilities []})]
+    ($ card-form {:data data
+                  :update-fn update
+                  :card-type "PLAYER_CARD"
+                  :on-submit on-submit
+                  :saving? false
+                  :is-new? false
+                  :delete-open? delete-open?
+                  :set-delete-open? set-delete-open?
+                  :deleting? deleting?
+                  :on-delete on-delete})))
+
+(t/deftest card-form-shows-delete-button-when-editing-test
+  (uix-tlr/render ($ test-card-form-edit {:on-submit identity :on-delete identity}))
+  (t/is (some? (screen/get-by-role "button" {:name "Delete"}))))
+
+(t/deftest card-form-hides-delete-button-for-new-cards-test
+  (uix-tlr/render ($ test-card-form {:on-submit identity}))
+  (t/is (nil? (screen/query-by-role "button" {:name "Delete"}))))
+
+(t/deftest card-form-delete-button-is-destructive-variant-test
+  (uix-tlr/render ($ test-card-form-edit {:on-submit identity :on-delete identity}))
+  (let [btn (screen/get-by-role "button" {:name "Delete"})]
+    (t/is (str/includes? (.-className btn) "bg-red"))))

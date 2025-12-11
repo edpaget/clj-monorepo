@@ -396,6 +396,14 @@
     }
 "))
 
+(def DELETE_CARD_SET_MUTATION
+  "Mutation to delete a card set and all its cards."
+  (apollo/gql "
+    mutation DeleteCardSet($slug: String!) {
+      deleteCardSet(slug: $slug)
+    }
+"))
+
 (def create-mutation-for-type
   "Map of card type to create mutation."
   {"PLAYER_CARD" CREATE_PLAYER_CARD_MUTATION

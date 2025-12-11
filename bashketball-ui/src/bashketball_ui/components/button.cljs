@@ -4,8 +4,9 @@
   Provides multiple variants and sizes with consistent styling."
   (:require
    ["class-variance-authority" :refer [cva]]
+   ["react" :as react]
    [bashketball-ui.utils :refer [cn]]
-   [uix.core :refer [$ defui]]))
+   [uix.core :refer [$]]))
 
 (def button-variants
   "CVA configuration for button variants and sizes.
@@ -34,7 +35,7 @@
         #js {:variant "default"
              :size "default"}}))
 
-(defui button
+(def button
   "A button component with multiple variants and sizes.
 
   Props:
@@ -46,15 +47,36 @@
   - `:type` - Button type (button, submit, reset)
   - `:title` - Tooltip text
 
-  Children are rendered as button content."
-  [{:keys [variant size class on-click disabled type title children]
-    :or {variant :default size :default type "button"}}]
-  ($ :button
-     {:type type
-      :class (cn (button-variants #js {:variant (name variant)
-                                       :size (name size)})
-                 class)
-      :on-click on-click
-      :disabled disabled
-      :title title}
-     children))
+  Children are rendered as button content.
+
+  Forwards refs and additional props for compatibility with Radix UI primitives."
+  (react/forwardRef
+   (fn [^js props ref]
+     ;; Keep children as-is from props (don't convert with js->clj)
+     (let [children     (.-children props)
+           ;; Convert other props for easier access
+           variant      (or (.-variant props) "default")
+           size         (or (.-size props) "default")
+           custom-class (or (.-class props) (.-className props))
+           btn-type     (or (.-type props) "button")
+           on-click     (.-on-click props)
+           variant-name (if (keyword? variant) (name variant) variant)
+           size-name    (if (keyword? size) (name size) size)
+           button-class (cn (button-variants #js {:variant variant-name :size size-name}) custom-class)
+           ;; Build final props: start with original, override with our computed values
+           final-props  (js/Object.assign
+                         #js {}
+                         props
+                         #js {:ref ref
+                              :type btn-type
+                              :className button-class})]
+       ;; Remove non-DOM props
+       (js-delete final-props "variant")
+       (js-delete final-props "size")
+       (js-delete final-props "class")
+       (js-delete final-props "children")
+       (js-delete final-props "on-click")
+       ;; Handle on-click -> onClick conversion
+       (when on-click
+         (aset final-props "onClick" on-click))
+       ($ :button final-props children)))))
