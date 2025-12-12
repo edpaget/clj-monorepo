@@ -128,8 +128,8 @@
   "Renders a single field based on its definition."
   [{:keys [field data update-fn]}]
   (let [{:keys [key label type placeholder rows options default icons]} field
-        id    (name key)
-        value (get data key)]
+        id                                                              (name key)
+        value                                                           (get data key)]
     (case type
       :text
       ($ form-field {:id id :label-text label}

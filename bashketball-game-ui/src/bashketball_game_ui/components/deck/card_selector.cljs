@@ -111,29 +111,29 @@
         [set-filter set-set-filter]       (use-state all-value)
         [type-filter set-type-filter]     (use-state all-value)
         [expanded-slug set-expanded-slug] (use-state nil)
-        set-filter-normalized         (normalize-filter set-filter)
-        type-filter-normalized        (normalize-filter type-filter)
-        {:keys [cards loading]}       (use-cards {:set-slug set-filter-normalized
-                                                  :card-type type-filter-normalized})
-        {:keys [sets]}                (use-sets)
-        slug-counts                   (use-memo
-                                       (fn [] (frequencies deck-slugs))
-                                       [deck-slugs])
-        set-options                   (use-memo
-                                       (fn []
-                                         (into [{:value all-value :label "All Sets"}]
-                                               (map (fn [s] {:value (:slug s) :label (:name s)}))
-                                               sets))
-                                       [sets])
-        filtered-cards                (use-memo
-                                       (fn []
-                                         (cond->> cards
-                                           (seq search)
-                                           (filter (fn [c]
-                                                     (str/includes?
-                                                      (str/lower-case (or (:name c) ""))
-                                                      (str/lower-case search))))))
-                                       [cards search])]
+        set-filter-normalized             (normalize-filter set-filter)
+        type-filter-normalized            (normalize-filter type-filter)
+        {:keys [cards loading]}           (use-cards {:set-slug set-filter-normalized
+                                                      :card-type type-filter-normalized})
+        {:keys [sets]}                    (use-sets)
+        slug-counts                       (use-memo
+                                           (fn [] (frequencies deck-slugs))
+                                           [deck-slugs])
+        set-options                       (use-memo
+                                           (fn []
+                                             (into [{:value all-value :label "All Sets"}]
+                                                   (map (fn [s] {:value (:slug s) :label (:name s)}))
+                                                   sets))
+                                           [sets])
+        filtered-cards                    (use-memo
+                                           (fn []
+                                             (cond->> cards
+                                               (seq search)
+                                               (filter (fn [c]
+                                                         (str/includes?
+                                                          (str/lower-case (or (:name c) ""))
+                                                          (str/lower-case search))))))
+                                           [cards search])]
     ($ :div {:class (cn "flex flex-col h-full bg-white rounded-lg shadow border border-gray-200" class)}
        ($ :div {:class "p-4 border-b border-gray-200 space-y-3"}
           ($ :h3 {:class "font-semibold text-gray-900"} "Card Catalog")

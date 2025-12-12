@@ -136,8 +136,8 @@
   Invalid entries are logged and skipped."
   []
   (log/info "Loading card catalog from classpath...")
-  (let [raw-sets      (discover-sets)
-        raw-cards     (discover-cards)
-        catalog       (create-catalog-from-data raw-cards raw-sets)]
+  (let [raw-sets  (discover-sets)
+        raw-cards (discover-cards)
+        catalog   (create-catalog-from-data raw-cards raw-sets)]
     (log/info "Loaded" (count (get-cards catalog)) "cards from" (count (get-sets catalog)) "sets")
     catalog))
