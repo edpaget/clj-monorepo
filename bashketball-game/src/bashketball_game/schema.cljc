@@ -2,8 +2,12 @@
   "Malli schemas for Bashketball game state and actions.
 
   Defines all data structures used in the game engine, including the game state,
-  board, players, ball, and the multi-schema for action validation."
-  (:require [malli.core :as m]))
+  board, players, ball, and the multi-schema for action validation.
+
+  Uses shared enums from [[bashketball-schemas.enums]] for cross-project
+  consistency (Team, Phase, Size, BallStatus, BallActionType)."
+  (:require [bashketball-schemas.enums :as enums]
+            [malli.core :as m]))
 
 ;; -----------------------------------------------------------------------------
 ;; Primitive Schemas
@@ -12,29 +16,39 @@
   "Axial coordinates for hex grid position [q r]."
   [:tuple {:graphql/scalar :HexPosition} [:int {:min 0 :max 4}] [:int {:min 0 :max 13}]])
 
+;; Re-export shared enums from bashketball-schemas for convenience
 (def Team
-  "Game player identifier (the human controlling a team)."
-  [:enum {:graphql/type :Team} :HOME :AWAY])
+  "Game player identifier. Re-exported from [[bashketball-schemas.enums/Team]]."
+  enums/Team)
 
 (def Phase
-  "Game phase."
-  [:enum {:graphql/type :Phase} :SETUP :TIP_OFF :UPKEEP :ACTIONS :RESOLUTION :END_OF_TURN :GAME_OVER])
+  "Game phase. Re-exported from [[bashketball-schemas.enums/GamePhase]]."
+  enums/GamePhase)
 
 (def Size
-  "Basketball player size category."
-  [:enum {:graphql/type :Size} :SMALL :MID :BIG])
+  "Basketball player size. Re-exported from [[bashketball-schemas.enums/Size]]."
+  enums/Size)
 
-(def Stat
-  "Basketball player stat names."
-  [:enum {:graphql/type :Stat} :SPEED :SHOOTING :PASSING :DRIBBLING :DEFENSE])
+(def BallStatus
+  "Ball state. Re-exported from [[bashketball-schemas.enums/BallStatus]]."
+  enums/BallStatus)
 
 (def BallActionType
-  "Type of ball action when in-air."
-  [:enum {:graphql/type :BallActionType} :SHOT :PASS])
+  "Ball action type. Re-exported from [[bashketball-schemas.enums/BallActionType]]."
+  enums/BallActionType)
+
+;; Game-specific enums (not shared across projects)
+(def Stat
+  "Basketball player stat names."
+  [:enum {:graphql/type :Stat} :stat/SPEED :stat/SHOOTING :stat/PASSING :stat/DRIBBLING :stat/DEFENSE])
 
 (def Terrain
   "Board tile terrain types."
-  [:enum {:graphql/type :Terrain} :COURT :THREE_POINT_LINE :PAINT :HOOP])
+  [:enum {:graphql/type :Terrain} :terrain/COURT :terrain/THREE_POINT_LINE :terrain/PAINT :terrain/HOOP])
+
+(def OccupantType
+  "Type of occupant on a board tile."
+  [:enum {:graphql/type :OccupantType} :occupant/BASKETBALL_PLAYER])
 
 ;; -----------------------------------------------------------------------------
 ;; Component Schemas
@@ -51,7 +65,7 @@
 (def PlayerStats
   "Basketball player stats."
   [:map {:graphql/type :PlayerStats}
-   [:size Size]
+   [:size enums/Size]
    [:speed :int]
    [:shooting :int]
    [:passing :int]
@@ -99,7 +113,7 @@
 (def GamePlayer
   "A game player (human/AI controlling a team)."
   [:map {:graphql/type :GamePlayer}
-   [:id Team]
+   [:id enums/Team]
    [:actions-remaining :int]
    [:deck DeckState]
    [:team TeamRoster]
@@ -109,11 +123,7 @@
   "A board tile."
   [:map {:graphql/type :Tile}
    [:terrain Terrain]
-   [:side {:optional true} Team]])
-
-(def OccupantType
-  "Type of occupant on a board tile."
-  [:enum {:graphql/type :OccupantType} :BASKETBALL_PLAYER])
+   [:side {:optional true} enums/Team]])
 
 (def Occupant
   "An occupant of a board tile."
@@ -132,13 +142,13 @@
 (def BallPossessed
   "Ball state when held by a player."
   [:map {:graphql/type :BallPossessed}
-   [:status [:= :POSSESSED]]
+   [:status [:= :ball-status/POSSESSED]]
    [:holder-id :string]])
 
 (def BallLoose
   "Ball state when on the ground."
   [:map {:graphql/type :BallLoose}
-   [:status [:= :LOOSE]]
+   [:status [:= :ball-status/LOOSE]]
    [:position HexPosition]])
 
 (def PositionTarget
@@ -162,17 +172,17 @@
 (def BallInAir
   "Ball state when in flight."
   [:map {:graphql/type :BallInAir}
-   [:status [:= :IN_AIR]]
+   [:status [:= :ball-status/IN_AIR]]
    [:origin HexPosition]
    [:target BallTarget]
-   [:action-type BallActionType]])
+   [:action-type enums/BallActionType]])
 
 (def Ball
   "Ball state (one of three states)."
   [:multi {:dispatch :status :graphql/type :Ball}
-   [:POSSESSED BallPossessed]
-   [:LOOSE BallLoose]
-   [:IN_AIR BallInAir]])
+   [:ball-status/POSSESSED BallPossessed]
+   [:ball-status/LOOSE BallLoose]
+   [:ball-status/IN_AIR BallInAir]])
 
 (def StackEffect
   "An effect on the resolution stack."
@@ -192,22 +202,22 @@
 (def Score
   "Game score for both teams."
   [:map {:graphql/type :Score}
-   [:HOME {:graphql/name :HOME} :int]
-   [:AWAY {:graphql/name :AWAY} :int]])
+   [:team/HOME {:graphql/name :HOME} :int]
+   [:team/AWAY {:graphql/name :AWAY} :int]])
 
 (def Players
   "Both players in a game."
   [:map {:graphql/type :Players}
-   [:HOME {:graphql/name :HOME} GamePlayer]
-   [:AWAY {:graphql/name :AWAY} GamePlayer]])
+   [:team/HOME {:graphql/name :HOME} GamePlayer]
+   [:team/AWAY {:graphql/name :AWAY} GamePlayer]])
 
 (def GameState
   "The complete game state."
   [:map {:graphql/type :GameState}
    [:game-id :string]
-   [:phase Phase]
+   [:phase enums/GamePhase]
    [:turn-number :int]
-   [:active-player Team]
+   [:active-player enums/Team]
    [:score Score]
    [:board Board]
    [:ball Ball]
@@ -222,7 +232,7 @@
 (def SetPhaseAction
   [:map
    [:type [:= :bashketball/set-phase]]
-   [:phase Phase]])
+   [:phase enums/GamePhase]])
 
 (def AdvanceTurnAction
   [:map
@@ -231,41 +241,41 @@
 (def SetActivePlayerAction
   [:map
    [:type [:= :bashketball/set-active-player]]
-   [:player Team]])
+   [:player enums/Team]])
 
 (def SetActionsAction
   [:map
    [:type [:= :bashketball/set-actions]]
-   [:player Team]
+   [:player enums/Team]
    [:amount :int]])
 
 (def DrawCardsAction
   [:map
    [:type [:= :bashketball/draw-cards]]
-   [:player Team]
+   [:player enums/Team]
    [:count pos-int?]])
 
 (def DiscardCardsAction
   [:map
    [:type [:= :bashketball/discard-cards]]
-   [:player Team]
+   [:player enums/Team]
    [:instance-ids [:vector :string]]])
 
 (def RemoveCardsAction
   [:map
    [:type [:= :bashketball/remove-cards]]
-   [:player Team]
+   [:player enums/Team]
    [:instance-ids [:vector :string]]])
 
 (def ShuffleDeckAction
   [:map
    [:type [:= :bashketball/shuffle-deck]]
-   [:player Team]])
+   [:player enums/Team]])
 
 (def ReturnDiscardAction
   [:map
    [:type [:= :bashketball/return-discard]]
-   [:player Team]])
+   [:player enums/Team]])
 
 (def MovePlayerAction
   [:map
@@ -286,7 +296,7 @@
 (def RefreshAllAction
   [:map
    [:type [:= :bashketball/refresh-all]]
-   [:team Team]])
+   [:team enums/Team]])
 
 (def AddModifierAction
   [:map
@@ -326,12 +336,12 @@
    [:type [:= :bashketball/set-ball-in-air]]
    [:origin HexPosition]
    [:target BallTarget]
-   [:action-type BallActionType]])
+   [:action-type enums/BallActionType]])
 
 (def AddScoreAction
   [:map
    [:type [:= :bashketball/add-score]]
-   [:team Team]
+   [:team enums/Team]
    [:points pos-int?]])
 
 (def PushStackAction
@@ -350,7 +360,7 @@
 (def RevealFateAction
   [:map
    [:type [:= :bashketball/reveal-fate]]
-   [:player Team]])
+   [:player enums/Team]])
 
 (def RecordSkillTestAction
   [:map
@@ -366,14 +376,14 @@
   "Action to play a card from hand, moving it to discard."
   [:map
    [:type [:= :bashketball/play-card]]
-   [:player Team]
+   [:player enums/Team]
    [:instance-id :string]])
 
 (def StartFromTipOffAction
   "Action to start the game from tip-off, setting the acting player as first to move."
   [:map
    [:type [:= :bashketball/start-from-tipoff]]
-   [:player Team]])
+   [:player enums/Team]])
 
 (def Action
   "Multi-schema for all action types, dispatching on :type."

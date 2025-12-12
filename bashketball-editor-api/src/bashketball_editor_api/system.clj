@@ -7,7 +7,9 @@
    [authn.core :as authn]
    [bashketball-editor-api.auth.github :as gh-auth]
    [bashketball-editor-api.config :as config]
+   [bashketball-editor-api.git.branches :as git-branches]
    [bashketball-editor-api.git.cards :as git-cards]
+   [bashketball-editor-api.git.changes :as git-changes]
    [bashketball-editor-api.git.repo :as git-repo]
    [bashketball-editor-api.git.sets :as git-sets]
    [bashketball-editor-api.graphql.schema :as gql-schema]
@@ -97,6 +99,12 @@
 (defmethod ig/init-key ::set-repo [_ {:keys [git-repo]}]
   (git-sets/create-set-repository git-repo))
 
+(defmethod ig/init-key ::branch-repo [_ {:keys [git-repo]}]
+  (git-branches/create-branch-repository git-repo))
+
+(defmethod ig/init-key ::changes-repo [_ {:keys [git-repo]}]
+  (git-changes/create-changes-repository git-repo))
+
 (defmethod ig/init-key ::card-service [_ {:keys [card-repo]}]
   (card-svc/create-card-service card-repo))
 
@@ -123,6 +131,8 @@
                                             git-repo
                                             card-repo
                                             set-repo
+                                            branch-repo
+                                            changes-repo
                                             card-service
                                             set-service
                                             config]}]
@@ -135,6 +145,8 @@
    git-repo
    card-repo
    set-repo
+   branch-repo
+   changes-repo
    card-service
    set-service
    (:session config)
@@ -176,6 +188,8 @@
    ::git-repo {:config (ig/ref ::config)}
    ::card-repo {:git-repo (ig/ref ::git-repo)}
    ::set-repo {:git-repo (ig/ref ::git-repo)}
+   ::branch-repo {:git-repo (ig/ref ::git-repo)}
+   ::changes-repo {:git-repo (ig/ref ::git-repo)}
    ::card-service {:card-repo (ig/ref ::card-repo)}
    ::set-service {:set-repo (ig/ref ::set-repo)
                   :card-repo (ig/ref ::card-repo)}
@@ -189,6 +203,8 @@
               :git-repo (ig/ref ::git-repo)
               :card-repo (ig/ref ::card-repo)
               :set-repo (ig/ref ::set-repo)
+              :branch-repo (ig/ref ::branch-repo)
+              :changes-repo (ig/ref ::changes-repo)
               :card-service (ig/ref ::card-service)
               :set-service (ig/ref ::set-service)
               :config (ig/ref ::config)}

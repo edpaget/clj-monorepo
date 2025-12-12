@@ -70,5 +70,21 @@
   [ctx _args _value]
   (git-sync/get-working-tree-status (:git-repo ctx)))
 
+(def BranchInfo
+  "Malli schema for branch information."
+  [:map {:graphql/type :BranchInfo}
+   [:current-branch [:maybe :string]]
+   [:branches [:vector :string]]])
+
+(gql/defresolver :Query :branchInfo
+  "Returns current branch and list of all local branches."
+  [:=> [:cat :any :any :any] BranchInfo]
+  [ctx _args _value]
+  (let [branch-repo (:branch-repo ctx)
+        branches    (repo/find-all branch-repo {})
+        current     (first (filter :current branches))]
+    {:current-branch (:name current)
+     :branches (mapv :name branches)}))
+
 (gql/def-resolver-map
   "Resolver map containing all Query resolvers.")

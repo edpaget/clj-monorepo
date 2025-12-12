@@ -77,19 +77,19 @@
 (deftest hydrate-game-state-test
   (testing "hydrates both HOME and AWAY decks"
     (let [game-state {:players
-                      {:HOME {:deck {:draw-pile [{:card-slug "michael-jordan"}]
-                                     :hand      []
-                                     :discard   []
-                                     :removed   []}}
-                       :AWAY {:deck {:draw-pile [{:card-slug "shaq"}]
-                                     :hand      []
-                                     :discard   []
-                                     :removed   []}}}}
+                      {:team/HOME {:deck {:draw-pile [{:card-slug "michael-jordan"}]
+                                          :hand      []
+                                          :discard   []
+                                          :removed   []}}
+                       :team/AWAY {:deck {:draw-pile [{:card-slug "shaq"}]
+                                          :hand      []
+                                          :discard   []
+                                          :removed   []}}}}
           result     (hydrate-game-state game-state test-catalog)]
-      (is (= 1 (count (get-in result [:players :HOME :deck :cards]))))
-      (is (= "michael-jordan" (get-in result [:players :HOME :deck :cards 0 :slug])))
-      (is (= 1 (count (get-in result [:players :AWAY :deck :cards]))))
-      (is (= "shaq" (get-in result [:players :AWAY :deck :cards 0 :slug])))))
+      (is (= 1 (count (get-in result [:players :team/HOME :deck :cards]))))
+      (is (= "michael-jordan" (get-in result [:players :team/HOME :deck :cards 0 :slug])))
+      (is (= 1 (count (get-in result [:players :team/AWAY :deck :cards]))))
+      (is (= "shaq" (get-in result [:players :team/AWAY :deck :cards 0 :slug])))))
 
   (testing "returns nil for nil game state"
     (is (nil? (hydrate-game-state nil test-catalog)))))

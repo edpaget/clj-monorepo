@@ -8,13 +8,13 @@
    [uix.core :refer [$ defui]]))
 
 (def ^:private team-colors
-  {:HOME {:bg "bg-blue-500" :text "text-white"}
-   :AWAY {:bg "bg-red-500" :text "text-white"}})
+  {:team/HOME {:bg "bg-blue-500" :text "text-white"}
+   :team/AWAY {:bg "bg-red-500" :text "text-white"}})
 
 (def ^:private size-labels
-  {:SMALL "S"
-   :MID   "M"
-   :BIG   "B"})
+  {:size/SM "S"
+   :size/MD "M"
+   :size/LG "B"})
 
 (defui stat-row
   "Single stat display row."
@@ -46,7 +46,7 @@
   [{:keys [player token-label team on-deselect on-info-click]}]
   (let [{:keys [name stats exhausted? modifiers card-slug]}     player
         {:keys [speed shooting defense dribbling passing size]} stats
-        colors                                                  (get team-colors team (:HOME team-colors))
+        colors                                                  (get team-colors team (:team/HOME team-colors))
         size-label                                              (get size-labels (keyword size) "?")]
     ($ :div {:class "p-2 bg-slate-50 rounded border border-slate-200"}
        ;; Header with token, name, close button

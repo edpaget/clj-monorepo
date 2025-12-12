@@ -15,6 +15,7 @@
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.components.select :refer [select]]
    [bashketball-ui.components.textarea :refer [textarea]]
+   [bashketball-ui.components.textarea-with-icons :refer [textarea-with-icons]]
    [bashketball-ui.hooks.form :as form]
    [bashketball-ui.router :as router]
    [clojure.string :as str]
@@ -37,10 +38,42 @@
            :label (get size-labels s (name s))})
         (enums/enum-values enums/Size)))
 
+(def card-subtype-labels
+  "Human-readable labels for card subtypes."
+  {:card-subtype/UNIQUE "Unique"})
+
+(def card-subtype-options
+  "Card subtype options derived from bashketball-schemas."
+  (mapv (fn [s]
+          {:value (name s)
+           :label (get card-subtype-labels s (name s))})
+        (enums/enum-values enums/CardSubtype)))
+
+(def player-subtype-labels
+  "Human-readable labels for player subtypes."
+  {:player-subtype/DWARF "Dwarf"
+   :player-subtype/ELF "Elf"
+   :player-subtype/GOBLIN "Goblin"
+   :player-subtype/HALFLING "Halfling"
+   :player-subtype/HUMAN "Human"
+   :player-subtype/MINOTAUR "Minotaur"
+   :player-subtype/OGRE "Ogre"
+   :player-subtype/ORC "Orc"
+   :player-subtype/SKELETON "Skeleton"
+   :player-subtype/TROLL "Troll"})
+
+(def player-subtype-options
+  "Player subtype options derived from bashketball-schemas."
+  (mapv (fn [s]
+          {:value (name s)
+           :label (get player-subtype-labels s (name s))})
+        (enums/enum-values enums/PlayerSubtype)))
+
 (def common-fields
   [{:key :name :label "Card Name" :type :text :placeholder "Enter card name..."}
-   {:key :image-prompt :label "Image Prompt" :type :textarea :rows 3
-    :placeholder "Describe the card image for AI generation..."}])
+   {:key :image-prompt :label "Image Prompt" :type :textarea :rows 3 :icons false
+    :placeholder "Describe the card image for AI generation..."}
+   {:key :card-subtypes :label "Card Subtypes" :type :multi-select :options card-subtype-options}])
 
 (def card-type-fields
   {"PLAYER_CARD"
@@ -52,6 +85,7 @@
      :fields [{:key :speed :label "Speed" :type :stat}
               {:key :deck-size :label "Deck Size" :type :stat}
               {:key :size :label "Size" :type :select :options size-options :default "MD"}]}
+    {:key :player-subtypes :label "Player Subtypes" :type :multi-select :options player-subtype-options :required true}
     {:key :abilities :label "Abilities (one per line)" :type :textarea-list :rows 4}]
 
    "PLAY_CARD"
@@ -93,9 +127,9 @@
 (defui render-field
   "Renders a single field based on its definition."
   [{:keys [field data update-fn]}]
-  (let [{:keys [key label type placeholder rows options default]} field
-        id                                                        (name key)
-        value                                                     (get data key)]
+  (let [{:keys [key label type placeholder rows options default icons]} field
+        id    (name key)
+        value (get data key)]
     (case type
       :text
       ($ form-field {:id id :label-text label}
@@ -107,18 +141,26 @@
 
       :textarea
       ($ form-field {:id id :label-text label}
-         ($ textarea {:id id
-                      :value (or value "")
-                      :on-change (form/field-handler update-fn key)
-                      :placeholder placeholder
-                      :rows rows}))
+         (if (false? icons)
+           ($ textarea {:id id
+                        :value (or value "")
+                        :on-change (form/field-handler update-fn key)
+                        :placeholder placeholder
+                        :rows rows})
+           ($ textarea-with-icons
+              {:id id
+               :value (or value "")
+               :on-change (form/field-handler update-fn key)
+               :placeholder placeholder
+               :rows rows})))
 
       :textarea-list
       ($ form-field {:id id :label-text label}
-         ($ textarea {:id id
-                      :value (if (seq value) (str/join "\n" value) "")
-                      :on-change (form/textarea-list-handler update-fn key)
-                      :rows rows}))
+         ($ textarea-with-icons
+            {:id id
+             :value (if (seq value) (str/join "\n" value) "")
+             :on-change (form/textarea-list-handler update-fn key)
+             :rows rows}))
 
       :stat
       ($ form-field {:id id :label-text label}
@@ -137,6 +179,27 @@
                     :options options
                     :on-value-change #(update-fn key %)
                     :class "w-20"}))
+
+      :multi-select
+      ($ form-field {:id id :label-text label}
+         ($ :div {:class "flex flex-wrap gap-2"}
+            (for [{:keys [value label]} options]
+              (let [selected? (some #{value} (or (get data key) []))]
+                ($ :label {:key value
+                           :class (str "flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer "
+                                       (if selected?
+                                         "bg-blue-100 border-blue-300"
+                                         "bg-white border-gray-200 hover:border-gray-300"))}
+                   ($ :input {:type "checkbox"
+                              :checked selected?
+                              :on-change (fn [_]
+                                           (let [current (or (get data key) [])
+                                                 new-val (if selected?
+                                                           (vec (remove #{value} current))
+                                                           (conj current value))]
+                                             (update-fn key new-val)))
+                              :class "sr-only"})
+                   ($ :span {:class "text-sm"} label))))))
 
       nil)))
 
@@ -167,6 +230,8 @@
   {"imagePrompt" :image-prompt
    "deckSize" :deck-size
    "assetPower" :asset-power
+   "cardSubtypes" :card-subtypes
+   "playerSubtypes" :player-subtypes
    "__typename" :card-type})
 
 (def graphql-typename->card-type
@@ -183,7 +248,9 @@
   "Maps form field keys to GraphQL field names."
   {:image-prompt "imagePrompt"
    :deck-size "deckSize"
-   :asset-power "assetPower"})
+   :asset-power "assetPower"
+   :card-subtypes "cardSubtypes"
+   :player-subtypes "playerSubtypes"})
 
 (defn transform-card-data
   "Transform GraphQL card data to form data format."
@@ -193,7 +260,8 @@
      (fn [acc k v]
        (let [form-key (get graphql->form-key k (keyword k))]
          (cond
-           (= k "abilities") (assoc acc form-key (js->clj v))
+           (contains? #{"abilities" "cardSubtypes" "playerSubtypes"} k)
+           (assoc acc form-key (js->clj v))
            (= k "__typename") (assoc acc form-key (get graphql-typename->card-type v v))
            (some? v) (assoc acc form-key v)
            :else acc)))
@@ -209,7 +277,7 @@
                                          (map :key (:fields f))
                                          [(:key f)])))
                              set)
-        all-keys        (into #{:name :image-prompt} type-field-keys)]
+        all-keys        (into #{:name :image-prompt :card-subtypes} type-field-keys)]
     (reduce
      (fn [acc k]
        (let [gql-key (get form->graphql-key k (name k))

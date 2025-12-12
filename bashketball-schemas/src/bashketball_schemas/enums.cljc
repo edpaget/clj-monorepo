@@ -87,6 +87,38 @@
   [:enum {:graphql/type :BallActionType}
    :ball-action/SHOT :ball-action/PASS])
 
+(def CardSubtype
+  "Card subtype enumeration for special card classifications.
+
+   - `:card-subtype/UNIQUE` - Unique cards (deck limit of 1)"
+  [:enum {:graphql/type :CardSubtype}
+   :card-subtype/UNIQUE])
+
+(def PlayerSubtype
+  "Player subtype enumeration for fantasy creature types.
+
+   - `:player-subtype/DWARF` - Dwarves
+   - `:player-subtype/ELF` - Elves
+   - `:player-subtype/GOBLIN` - Goblins
+   - `:player-subtype/HALFLING` - Halflings
+   - `:player-subtype/HUMAN` - Humans
+   - `:player-subtype/MINOTAUR` - Minotaurs
+   - `:player-subtype/OGRE` - Ogres
+   - `:player-subtype/ORC` - Orcs
+   - `:player-subtype/SKELETON` - Skeletons
+   - `:player-subtype/TROLL` - Trolls"
+  [:enum {:graphql/type :PlayerSubtype}
+   :player-subtype/DWARF
+   :player-subtype/ELF
+   :player-subtype/GOBLIN
+   :player-subtype/HALFLING
+   :player-subtype/HUMAN
+   :player-subtype/MINOTAUR
+   :player-subtype/OGRE
+   :player-subtype/ORC
+   :player-subtype/SKELETON
+   :player-subtype/TROLL])
+
 (defn enum-values
   "Extracts the keyword values from a Malli enum schema.
 

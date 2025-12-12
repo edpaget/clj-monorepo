@@ -108,7 +108,8 @@
   Wraps the routes with OIDC OAuth, GraphQL, authentication, session, JSON,
   CORS, database, and user context middleware."
   [resolver-map github-oidc-client authenticator db-pool user-repo
-   git-repo card-repo set-repo card-service set-service session-config config]
+   git-repo card-repo set-repo branch-repo changes-repo card-service set-service
+   session-config config]
   (let [success-redirect-uri (get-in config [:github :oauth :success-redirect-uri])
         required-org         (get-in config [:auth :required-org])
         allowed-origins      (set (get-in config [:cors :allowed-origins]))]
@@ -123,6 +124,8 @@
                          :git-repo git-repo
                          :card-repo card-repo
                          :set-repo set-repo
+                         :branch-repo branch-repo
+                         :changes-repo changes-repo
                          :card-service card-service
                          :set-service set-service})
           :enable-graphiql? true})

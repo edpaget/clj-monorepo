@@ -76,19 +76,19 @@
   and optional :side (:HOME or :AWAY) for hoops."
   [[q r]]
   (cond
-    (and (= q 2) (= r 0))                  {:terrain :hoop :side :HOME}
-    (and (= q 2) (= r 13))                 {:terrain :hoop :side :AWAY}
-    (or (<= r 2) (>= r 11))                {:terrain :paint :side (if (<= r 2) :HOME :AWAY)}
-    (or (= r 3) (= r 10))                  {:terrain :three-point-line :side (if (= r 3) :HOME :AWAY)}
+    (and (= q 2) (= r 0))                  {:terrain :hoop :side :team/HOME}
+    (and (= q 2) (= r 13))                 {:terrain :hoop :side :team/AWAY}
+    (or (<= r 2) (>= r 11))                {:terrain :paint :side (if (<= r 2) :team/HOME :team/AWAY)}
+    (or (= r 3) (= r 10))                  {:terrain :three-point-line :side (if (= r 3) :team/HOME :team/AWAY)}
     (contains? center-court-positions [q r]) {:terrain :center-court}
     :else                                  {:terrain :court}))
 
 (defn terrain-side
-  "Returns :HOME or :AWAY for position based on court half, or nil for center."
+  "Returns :team/HOME or :team/AWAY for position based on court half, or nil for center."
   [[_q r]]
   (cond
-    (<= r 6) :HOME
-    (>= r 7) :AWAY
+    (<= r 6) :team/HOME
+    (>= r 7) :team/AWAY
     :else nil))
 
 (def hex-half-height

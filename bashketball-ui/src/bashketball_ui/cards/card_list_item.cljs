@@ -1,7 +1,6 @@
 (ns bashketball-ui.cards.card-list-item
   "Card list item component for compact list view."
   (:require
-   ["lucide-react" :refer [ChevronRight]]
    [bashketball-ui.utils :refer [cn]]
    [clojure.string :as str]
    [uix.core :refer [$ defui]]))
@@ -71,8 +70,7 @@
        ($ :span {:class (cn "text-xs px-2 py-0.5 rounded-full ml-3 flex-shrink-0" (:badge colors))}
           (format-card-type card-type))
        ($ :span {:class "text-sm text-gray-400 ml-4 flex-shrink-0 w-16 text-right"}
-          (format-relative-time updated-at))
-       ($ ChevronRight {:className "w-4 h-4 text-gray-300 ml-2 flex-shrink-0"}))))
+          (format-relative-time updated-at)))))
 
 (defui card-list-item-skeleton
   "Loading skeleton for card list item."
@@ -81,5 +79,4 @@
      ($ :div {:class "w-2 h-2 rounded-full mr-3 bg-gray-200"})
      ($ :div {:class "flex-1 h-4 bg-gray-200 rounded"})
      ($ :div {:class "w-16 h-5 bg-gray-200 rounded-full ml-3"})
-     ($ :div {:class "w-12 h-4 bg-gray-200 rounded ml-4"})
-     ($ :div {:class "w-4 h-4 ml-2"})))
+     ($ :div {:class "w-12 h-4 bg-gray-200 rounded ml-4"})))

@@ -125,10 +125,10 @@
         (get-in game-state [:players my-team :team :bench])
 
         ;; All team roster data for player view panel
-        home-starters                                                            (get-in game-state [:players :HOME :team :starters])
-        away-starters                                                            (get-in game-state [:players :AWAY :team :starters])
-        home-bench                                                               (get-in game-state [:players :HOME :team :bench])
-        away-bench                                                               (get-in game-state [:players :AWAY :team :bench])
+        home-starters                                                            (get-in game-state [:players :team/HOME :team :starters])
+        away-starters                                                            (get-in game-state [:players :team/AWAY :team :starters])
+        home-bench                                                               (get-in game-state [:players :team/HOME :team :bench])
+        away-bench                                                               (get-in game-state [:players :team/AWAY :team :bench])
 
         my-starter-players
         (use-memo

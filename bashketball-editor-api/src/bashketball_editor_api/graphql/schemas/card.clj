@@ -15,6 +15,8 @@
 
 (def CardType enums/CardType)
 (def PlayerSize enums/Size)
+(def CardSubtype enums/CardSubtype)
+(def PlayerSubtype enums/PlayerSubtype)
 
 (def BaseCard base-card/BaseCard)
 (def Card base-card/Card)
@@ -39,13 +41,15 @@
    [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:deck-size {:optional true} :int]
    [:sht {:optional true} :int]
    [:pss {:optional true} :int]
    [:def {:optional true} :int]
    [:speed {:optional true} :int]
    [:size {:optional true} PlayerSize]
-   [:abilities {:optional true} [:vector :string]]])
+   [:abilities {:optional true} [:vector :string]]
+   [:player-subtypes [:vector {:min 1} PlayerSubtype]]])
 
 (def AbilityCardInput
   "Input schema for creating/updating ability cards."
@@ -53,6 +57,7 @@
    [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:abilities {:optional true} [:vector :string]]])
 
 (def SplitPlayCardInput
@@ -61,6 +66,7 @@
    [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate {:optional true} :int]
    [:offense {:optional true} :string]
    [:defense {:optional true} :string]])
@@ -71,6 +77,7 @@
    [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate {:optional true} :int]
    [:play {:optional true} :string]])
 
@@ -80,6 +87,7 @@
    [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate {:optional true} :int]
    [:coaching {:optional true} :string]])
 
@@ -89,6 +97,7 @@
    [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate {:optional true} :int]
    [:offense {:optional true} :string]
    [:defense {:optional true} :string]])
@@ -99,6 +108,7 @@
    [:slug {:optional true} [:maybe :string]]
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate {:optional true} :int]
    [:asset-power {:optional true} :string]])
 
@@ -115,6 +125,7 @@
   [:map {:graphql/type :CardUpdateInput}
    [:name {:optional true} :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:deck-size {:optional true} :int]
    [:sht {:optional true} :int]
    [:pss {:optional true} :int]
@@ -122,6 +133,7 @@
    [:speed {:optional true} :int]
    [:size {:optional true} PlayerSize]
    [:abilities {:optional true} [:vector :string]]
+   [:player-subtypes {:optional true} [:vector {:min 1} PlayerSubtype]]
    [:fate {:optional true} :int]
    [:offense {:optional true} :string]
    [:defense {:optional true} :string]
@@ -163,6 +175,7 @@
    [:name :string]
    [:set-slug :string]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:card-type CardType]
    [:created-at {:optional true} inst?]
    [:updated-at {:optional true} inst?]])
@@ -179,7 +192,8 @@
     [:def :int]
     [:speed :int]
     [:size PlayerSize]
-    [:abilities [:vector :string]]]))
+    [:abilities [:vector :string]]
+    [:player-subtypes [:vector {:min 1} PlayerSubtype]]]))
 
 (def internal-card-type->schema
   "Map from card type enum to its internal schema."

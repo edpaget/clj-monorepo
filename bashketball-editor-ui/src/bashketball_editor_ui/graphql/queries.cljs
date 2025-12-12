@@ -83,6 +83,7 @@
           name
           setSlug
           imagePrompt
+          cardSubtypes
           sht
           pss
           def
@@ -90,12 +91,14 @@
           size
           deckSize
           abilities
+          playerSubtypes
         }
         ... on PlayCard {
           slug
           name
           setSlug
           imagePrompt
+          cardSubtypes
           fate
           play
         }
@@ -104,6 +107,7 @@
           name
           setSlug
           imagePrompt
+          cardSubtypes
           abilities
         }
         ... on SplitPlayCard {
@@ -111,6 +115,7 @@
           name
           setSlug
           imagePrompt
+          cardSubtypes
           fate
           offense
           defense
@@ -120,6 +125,7 @@
           name
           setSlug
           imagePrompt
+          cardSubtypes
           fate
           coaching
         }
@@ -128,6 +134,7 @@
           name
           setSlug
           imagePrompt
+          cardSubtypes
           fate
           assetPower
         }
@@ -136,6 +143,7 @@
           name
           setSlug
           imagePrompt
+          cardSubtypes
           fate
           offense
           defense
@@ -241,6 +249,57 @@
         modified
         deleted
         untracked
+      }
+    }
+"))
+
+(def BRANCH_INFO_QUERY
+  "Query for current branch and all available branches."
+  (apollo/gql "
+    query BranchInfo {
+      branchInfo {
+        currentBranch
+        branches
+      }
+    }
+"))
+
+;; -----------------------------------------------------------------------------
+;; Branch & Discard Mutations
+;; -----------------------------------------------------------------------------
+
+(def SWITCH_BRANCH_MUTATION
+  "Mutation to switch to an existing branch."
+  (apollo/gql "
+    mutation SwitchBranch($branch: String!) {
+      switchBranch(branch: $branch) {
+        status
+        message
+        branch
+      }
+    }
+"))
+
+(def CREATE_BRANCH_MUTATION
+  "Mutation to create and switch to a new branch."
+  (apollo/gql "
+    mutation CreateBranch($branch: String!) {
+      createBranch(branch: $branch) {
+        status
+        message
+        branch
+      }
+    }
+"))
+
+(def DISCARD_CHANGES_MUTATION
+  "Mutation to discard all uncommitted changes."
+  (apollo/gql "
+    mutation DiscardChanges {
+      discardChanges {
+        status
+        message
+        error
       }
     }
 "))

@@ -42,7 +42,7 @@
   [game-state my-team]
   (and (ball-held-by-team? game-state my-team)
        (let [holder-pos  (get-ball-holder-position game-state)
-             target-hoop (if (= my-team :HOME) [2 13] [2 0])]
+             target-hoop (if (= my-team :team/HOME) [2 13] [2 0])]
          (and holder-pos
               (<= (board/hex-distance holder-pos target-hoop) 12)))))
 
@@ -116,7 +116,7 @@
   Cannot place on occupied hexes or hoop hexes [2,0] and [2,13]."
   [game-state team]
   (let [board     (:board game-state)
-        row-range (if (= team :HOME) (range 0 7) (range 7 14))
+        row-range (if (= team :team/HOME) (range 0 7) (range 7 14))
         hoops     #{[2 0] [2 13]}]
     (->> (for [q (range 5) r row-range] [q r])
          (filter board/valid-position?)

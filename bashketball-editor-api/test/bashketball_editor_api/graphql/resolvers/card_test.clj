@@ -18,6 +18,7 @@
    :sht 5 :pss 3 :def 4 :speed 4
    :size :size/MD
    :abilities ["Clutch" "Fadeaway"]
+   :player-subtypes [:player-subtype/HUMAN]
    :created-at (java.time.Instant/now)
    :updated-at (java.time.Instant/now)})
 
@@ -149,7 +150,9 @@
     (let [ctx                (make-ctx [] false)
           [_schema resolver] (get card/resolvers [:Mutation :createPlayerCard])
           result             (resolver ctx {:set-slug test-set-slug
-                                            :input {:slug "new-player" :name "New Player"}} nil)]
+                                            :input {:slug "new-player"
+                                                    :name "New Player"
+                                                    :player-subtypes [:player-subtype/HUMAN]}} nil)]
       (is (resolve/is-resolver-result? result))
       (let [wrapped-value (:resolved-value result)]
         (is (= :error (:behavior wrapped-value))))))
@@ -158,7 +161,9 @@
     (let [ctx                (make-ctx [] true)
           [_schema resolver] (get card/resolvers [:Mutation :createPlayerCard])
           result             (resolver ctx {:set-slug test-set-slug
-                                            :input {:slug "new-player" :name "New Player"}} nil)]
+                                            :input {:slug "new-player"
+                                                    :name "New Player"
+                                                    :player-subtypes [:player-subtype/ELF]}} nil)]
       (is (= "new-player" (:slug result)))
       (is (= "New Player" (:name result)))
       (is (= "PLAYER_CARD" (:cardType result))))))

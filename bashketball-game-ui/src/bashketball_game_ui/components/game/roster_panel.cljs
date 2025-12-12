@@ -16,8 +16,8 @@
   - placed: boolean (has position)
   - on-click: fn [player-id]"
   [{:keys [player team selected placed on-click]}]
-  (let [team-colors  {:HOME "border-blue-500 bg-blue-50"
-                      :AWAY "border-red-500 bg-red-50"}
+  (let [team-colors  {:team/HOME "border-blue-500 bg-blue-50"
+                      :team/AWAY "border-red-500 bg-red-50"}
         stats        (:stats player)
         ;; Display name with fallback to card-slug or id
         display-name (or (:name player)
@@ -65,7 +65,7 @@
   - selected-player: Currently selected player ID
   - on-player-select: fn [player-id]"
   [{:keys [players starters team selected-player on-player-select]}]
-  (let [team-label      (if (= team :HOME) "Home" "Away")
+  (let [team-label      (if (= team :team/HOME) "Home" "Away")
         ;; Get starter players, filtering out nils for missing entries
         starter-players (->> starters
                              (map #(get-player players %))

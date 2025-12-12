@@ -81,7 +81,7 @@
                 ;; Only render players with valid [q r] positions
                 :when       (and (vector? pos) (= 2 (count pos)))
                 :let        [is-home     (contains? home-players id)
-                             team        (if is-home :HOME :AWAY)
+                             team        (if is-home :team/HOME :team/AWAY)
                              player-num  (get (if is-home home-indices away-indices) id)
                              selected    (= id selected-player)
                              has-ball    (= id holder-id)

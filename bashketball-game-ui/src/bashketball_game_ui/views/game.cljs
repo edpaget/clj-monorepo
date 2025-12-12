@@ -65,7 +65,7 @@
          ($ :div {:class "flex-1 flex flex-col lg:flex-row gap-2 p-2 bg-slate-100 min-h-0 overflow-hidden"}
             ;; Left column: Away team (large screens only)
             ($ :div {:class "hidden lg:flex"}
-               ($ sections/team-column-section {:team :AWAY :on-info-click on-info-click}))
+               ($ sections/team-column-section {:team :team/AWAY :on-info-click on-info-click}))
 
             ;; Center: Game board
             ($ :div {:class "flex-1 min-h-0"}
@@ -73,12 +73,12 @@
 
             ;; Right column: Home team (large screens only)
             ($ :div {:class "hidden lg:flex"}
-               ($ sections/team-column-section {:team :HOME :on-info-click on-info-click})))
+               ($ sections/team-column-section {:team :team/HOME :on-info-click on-info-click})))
 
          ;; Team panels below board (small screens only)
          ($ :div {:class "flex gap-2 px-2 py-1 lg:hidden"}
-            ($ sections/compact-team-panel {:team :AWAY :on-info-click on-info-click})
-            ($ sections/compact-team-panel {:team :HOME :on-info-click on-info-click}))
+            ($ sections/compact-team-panel {:team :team/AWAY :on-info-click on-info-click})
+            ($ sections/compact-team-panel {:team :team/HOME :on-info-click on-info-click}))
 
          ;; Bottom bar with hand and actions
          ($ sections/bottom-bar-section)

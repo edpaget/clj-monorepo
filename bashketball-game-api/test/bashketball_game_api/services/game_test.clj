@@ -99,15 +99,15 @@
             joined       (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))
             state        (:game-state joined)]
         ;; DB layer uses Malli schema-driven decoding, so enum values
-        ;; are proper keywords. Keys like HOME/AWAY are uppercase keywords.
-        (is (= :SETUP (:phase state)))
+        ;; are proper namespaced keywords.
+        (is (= :phase/SETUP (:phase state)))
         (is (= 1 (:turn-number state)))
-        (is (= :HOME (:active-player state)))
-        ;; Score keys are uppercase keywords
-        (is (= {:HOME 0 :AWAY 0} (:score state)))
-        ;; Player keys are uppercase keywords
-        (is (some? (get-in state [:players :HOME])))
-        (is (some? (get-in state [:players :AWAY])))))))
+        (is (= :team/HOME (:active-player state)))
+        ;; Score keys are namespaced keywords
+        (is (= {:team/HOME 0 :team/AWAY 0} (:score state)))
+        ;; Player keys are namespaced keywords
+        (is (some? (get-in state [:players :team/HOME])))
+        (is (some? (get-in state [:players :team/AWAY])))))))
 
 (deftest join-own-game-fails-test
   (testing "Cannot join your own game"
@@ -208,12 +208,12 @@
             game-service (test-game-service)
             game         (game-svc/create-game! game-service (:id user1) (:id deck1))
             joined       (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))
-            ;; Game engine uses UPPERCASE enum values
-            action       {:type :bashketball/set-phase :phase :ACTIONS}
+            ;; Game engine uses namespaced enum values
+            action       {:type :bashketball/set-phase :phase :phase/ACTIONS}
             result       (game-svc/submit-action! game-service (:id joined) (:id user1) action)]
         (is (:success result) (str "Expected success but got: " (:error result)))
-        ;; DB uses Malli schema-driven decoding, so enum values are keywords
-        (is (= :ACTIONS (get-in result [:game :game-state :phase])))))))
+        ;; DB uses Malli schema-driven decoding, so enum values are namespaced keywords
+        (is (= :phase/ACTIONS (get-in result [:game :game-state :phase])))))))
 
 (deftest submit-action-wrong-turn-test
   (testing "Action fails if not your turn"
@@ -225,8 +225,8 @@
             game-service (test-game-service)
             game         (game-svc/create-game! game-service (:id user1) (:id deck1))
             joined       (game-svc/join-game! game-service (:id game) (:id user2) (:id deck2))
-            ;; Game engine uses UPPERCASE enum values
-            action       {:type :bashketball/set-phase :phase :ACTIONS}
+            ;; Game engine uses namespaced enum values
+            action       {:type :bashketball/set-phase :phase :phase/ACTIONS}
             result       (game-svc/submit-action! game-service (:id joined) (:id user2) action)]
         (is (false? (:success result)))
         (is (= "Not your turn" (:error result)))))))

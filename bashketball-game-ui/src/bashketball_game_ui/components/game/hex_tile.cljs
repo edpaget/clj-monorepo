@@ -14,8 +14,8 @@
    :court            {:fill "#f1f5f9" :stroke "#cbd5e1"}})
 
 (def ^:private side-modifiers
-  {:HOME {:fill-opacity 1.0}
-   :AWAY {:fill-opacity 0.85}})
+  {:team/HOME {:fill-opacity 1.0}
+   :team/AWAY {:fill-opacity 0.85}})
 
 (defui hex-tile
   "Single hex tile with terrain-based styling.

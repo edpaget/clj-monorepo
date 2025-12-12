@@ -286,3 +286,143 @@
           player-position        (get-in result [:players :HOME :team :players "player-1" :position])
           occupants-after-dissoc (dissoc (get-in result [:board :occupants]) player-position)]
       (is (empty? occupants-after-dissoc)))))
+
+;; =============================================================================
+;; Namespaced keyword tests (for game enum migration)
+;; =============================================================================
+
+(def NamespacedTeamEnum
+  "Team enum with namespaced keywords (matching game schema)."
+  [:enum :team/HOME :team/AWAY])
+
+(def NamespacedBallStatusEnum
+  "Ball status enum with namespaced keywords."
+  [:enum :ball-status/POSSESSED :ball-status/LOOSE :ball-status/IN_AIR])
+
+(def NamespacedPhaseEnum
+  "Game phase enum with namespaced keywords."
+  [:enum :phase/SETUP :phase/TIP_OFF :phase/ACTIONS :phase/GAME_OVER])
+
+(def ScoreSchema
+  "Score map with namespaced team keys."
+  [:map
+   [:team/HOME :int]
+   [:team/AWAY :int]])
+
+(def GameStateWithNamespacedEnumsSchema
+  "Simplified game state schema with namespaced enums."
+  [:map
+   [:active-player NamespacedTeamEnum]
+   [:phase NamespacedPhaseEnum]
+   [:score ScoreSchema]])
+
+(def NamespacedBallPossessedSchema
+  [:map
+   [:status [:= :ball-status/POSSESSED]]
+   [:holder-id :string]])
+
+(def NamespacedBallLooseSchema
+  [:map
+   [:status [:= :ball-status/LOOSE]]
+   [:position [:vector :int]]])
+
+(def NamespacedBallSchema
+  "Multi schema with namespaced dispatch values."
+  [:multi {:dispatch :status}
+   [:ball-status/POSSESSED NamespacedBallPossessedSchema]
+   [:ball-status/LOOSE NamespacedBallLooseSchema]])
+
+;; -----------------------------------------------------------------------------
+;; Decoding tests for namespaced keywords
+;; -----------------------------------------------------------------------------
+
+(deftest decode-namespaced-enum-value-test
+  (testing "decodes namespaced enum value from string"
+    (let [schema [:map [:active-player NamespacedTeamEnum]]
+          result (transform/decode {"active_player" "team/HOME"} schema)]
+      (is (= :team/HOME (:active-player result)))))
+
+  (testing "decodes multiple namespaced enums"
+    (let [result (transform/decode
+                  {"active_player" "team/AWAY"
+                   "phase" "phase/ACTIONS"
+                   "score" {"team/HOME" 10 "team/AWAY" 8}}
+                  GameStateWithNamespacedEnumsSchema)]
+      (is (= :team/AWAY (:active-player result)))
+      (is (= :phase/ACTIONS (:phase result)))
+      (is (= 10 (:team/HOME (:score result))))
+      (is (= 8 (:team/AWAY (:score result)))))))
+
+(deftest decode-namespaced-map-keys-test
+  (testing "decodes namespaced uppercase map keys"
+    (let [result (transform/decode
+                  {"team/HOME" 10 "team/AWAY" 5}
+                  ScoreSchema)]
+      (is (= {:team/HOME 10 :team/AWAY 5} result))
+      (is (contains? result :team/HOME))
+      (is (contains? result :team/AWAY)))))
+
+(deftest decode-namespaced-multi-schema-test
+  (testing "decodes multi schema with namespaced dispatch value"
+    (let [result (transform/decode
+                  {"status" "ball-status/POSSESSED" "holder_id" "player-1"}
+                  NamespacedBallSchema)]
+      (is (= :ball-status/POSSESSED (:status result)))
+      (is (= "player-1" (:holder-id result)))))
+
+  (testing "decodes loose ball variant"
+    (let [result (transform/decode
+                  {"status" "ball-status/LOOSE" "position" [1 2]}
+                  NamespacedBallSchema)]
+      (is (= :ball-status/LOOSE (:status result)))
+      (is (= [1 2] (:position result))))))
+
+;; -----------------------------------------------------------------------------
+;; Encoding tests for namespaced keywords
+;; -----------------------------------------------------------------------------
+
+(deftest encode-namespaced-enum-value-test
+  (testing "encodes namespaced enum value to string with namespace"
+    (let [schema [:map [:active-player NamespacedTeamEnum]]
+          result (transform/encode {:active-player :team/HOME} schema)]
+      (is (= "team/HOME" (get result "active_player"))))))
+
+(deftest encode-namespaced-map-keys-test
+  (testing "encodes namespaced uppercase map keys"
+    (let [result (transform/encode
+                  {:team/HOME 10 :team/AWAY 5}
+                  ScoreSchema)]
+      (is (= {"team/HOME" 10 "team/AWAY" 5} result)))))
+
+(deftest encode-namespaced-multi-schema-test
+  (testing "encodes multi schema dispatch value with namespace"
+    (let [result (transform/encode
+                  {:status :ball-status/POSSESSED :holder-id "player-1"}
+                  NamespacedBallSchema)]
+      (is (= "ball-status/POSSESSED" (get result "status")))
+      (is (= "player-1" (get result "holder_id"))))))
+
+;; -----------------------------------------------------------------------------
+;; Round-trip tests for namespaced keywords
+;; -----------------------------------------------------------------------------
+
+(deftest roundtrip-namespaced-keywords-test
+  (testing "namespaced enum values survive roundtrip"
+    (let [original {:active-player :team/HOME
+                    :phase :phase/ACTIONS
+                    :score {:team/HOME 10 :team/AWAY 8}}
+          encoded  (transform/encode original GameStateWithNamespacedEnumsSchema)
+          decoded  (transform/decode encoded GameStateWithNamespacedEnumsSchema)]
+      (is (= original decoded))))
+
+  (testing "namespaced map keys survive roundtrip"
+    (let [original {:team/HOME 10 :team/AWAY 5}
+          encoded  (transform/encode original ScoreSchema)
+          decoded  (transform/decode encoded ScoreSchema)]
+      (is (= original decoded))))
+
+  (testing "namespaced multi schema dispatch survives roundtrip"
+    (let [original {:status :ball-status/POSSESSED :holder-id "player-1"}
+          encoded  (transform/encode original NamespacedBallSchema)
+          decoded  (transform/decode encoded NamespacedBallSchema)]
+      (is (= original decoded)))))

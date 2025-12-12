@@ -76,27 +76,27 @@
     {:home {:deck [\"drive-rebound\" \"shoot-check\" ...]
             :players [{:card-slug \"orc-center\"
                        :name \"Grukk\"
-                       :stats {:size :BIG :speed 2 :shooting 2
+                       :stats {:size :size/LG :speed 2 :shooting 2
                                :passing 1 :dribbling 1 :defense 4}}
                       ...]}
      :away {...}})
   ```"
   [config]
   {:game-id (generate-id)
-   :phase :SETUP
+   :phase :phase/SETUP
    :turn-number 1
-   :active-player :HOME
-   :score {:HOME 0 :AWAY 0}
+   :active-player :team/HOME
+   :score {:team/HOME 0 :team/AWAY 0}
    :board (board/create-board)
-   :ball {:status :LOOSE :position [2 7]}
-   :players {:HOME (create-game-player :HOME (:home config))
-             :AWAY (create-game-player :AWAY (:away config))}
+   :ball {:status :ball-status/LOOSE :position [2 7]}
+   :players {:team/HOME (create-game-player :team/HOME (:home config))
+             :team/AWAY (create-game-player :team/AWAY (:away config))}
    :stack []
    :events []
    :metadata {}})
 
 (defn get-game-player
-  "Returns the game player for the given team (:HOME or :AWAY)."
+  "Returns the game player for the given team (:team/HOME or :team/AWAY)."
   [state team]
   (get-in state [:players team]))
 
@@ -114,17 +114,17 @@
   Searches both teams for the player. Handles both string and keyword player IDs
   since JSON serialization may convert keys."
   [state player-id]
-  (or (get-player-from-team state :HOME player-id)
-      (get-player-from-team state :AWAY player-id)))
+  (or (get-player-from-team state :team/HOME player-id)
+      (get-player-from-team state :team/AWAY player-id)))
 
 (defn get-basketball-player-team
-  "Returns the team (:HOME or :AWAY) that the basketball player belongs to.
+  "Returns the team (:team/HOME or :team/AWAY) that the basketball player belongs to.
 
   Handles both string and keyword player IDs since JSON serialization may convert keys."
   [state player-id]
   (cond
-    (get-player-from-team state :HOME player-id) :HOME
-    (get-player-from-team state :AWAY player-id) :AWAY
+    (get-player-from-team state :team/HOME player-id) :team/HOME
+    (get-player-from-team state :team/AWAY player-id) :team/AWAY
     :else nil))
 
 (defn get-ball

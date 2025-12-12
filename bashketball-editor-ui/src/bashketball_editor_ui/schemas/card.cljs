@@ -26,6 +26,25 @@
    :size/LG
    :size/XL])
 
+(def CardSubtype
+  "Enum of card subtypes for special classifications."
+  [:enum
+   :card-subtype/UNIQUE])
+
+(def PlayerSubtype
+  "Enum of player subtypes for fantasy creature types."
+  [:enum
+   :player-subtype/DWARF
+   :player-subtype/ELF
+   :player-subtype/GOBLIN
+   :player-subtype/HALFLING
+   :player-subtype/HUMAN
+   :player-subtype/MINOTAUR
+   :player-subtype/OGRE
+   :player-subtype/ORC
+   :player-subtype/SKELETON
+   :player-subtype/TROLL])
+
 (def BaseCard
   "Schema for fields common to all card types."
   [:map
@@ -33,7 +52,8 @@
    [:card-type CardType]
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
-   [:image-prompt {:optional true} :string]])
+   [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]])
 
 (def PlayerCard
   "Schema for player character cards with stats and abilities."
@@ -43,13 +63,15 @@
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:sht [:int {:min 1 :max 10}]]
    [:pss [:int {:min 1 :max 10}]]
    [:def [:int {:min 1 :max 10}]]
    [:speed [:int {:min 1 :max 10}]]
    [:size Size]
    [:deck-size [:int {:min 1 :max 10}]]
-   [:abilities [:vector :string]]])
+   [:abilities [:vector :string]]
+   [:player-subtypes [:vector {:min 1} PlayerSubtype]]])
 
 (def AbilityCard
   "Schema for ability cards."
@@ -59,6 +81,7 @@
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:abilities [:vector :string]]])
 
 (def SplitPlayCard
@@ -69,6 +92,7 @@
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate [:int {:min 0 :max 10}]]
    [:offense :string]
    [:defense :string]])
@@ -81,6 +105,7 @@
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate [:int {:min 0 :max 10}]]
    [:play :string]])
 
@@ -92,6 +117,7 @@
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate [:int {:min 0 :max 10}]]
    [:coaching :string]])
 
@@ -103,6 +129,7 @@
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate [:int {:min 0 :max 10}]]
    [:offense :string]
    [:defense :string]])
@@ -115,6 +142,7 @@
    [:version {:optional true :default "0"} :string]
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
+   [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate [:int {:min 0 :max 10}]]
    [:asset-power :string]])
 

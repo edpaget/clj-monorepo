@@ -25,13 +25,15 @@
    - `:name` - Display name
    - `:set-slug` - Parent set identifier
    - `:card-type` - Discriminator for multi-schema dispatch
-   - `:image-prompt` - Optional AI image generation prompt"
+   - `:image-prompt` - Optional AI image generation prompt
+   - `:card-subtypes` - Optional vector of card subtype classifications"
   [:map {:graphql/interface :Card}
    [:slug Slug]
    [:name [:string {:min 1 :max 255}]]
    [:set-slug Slug]
    [:card-type enums/CardType]
    [:image-prompt {:optional true} [:maybe :string]]
+   [:card-subtypes {:optional true} [:vector enums/CardSubtype]]
    [:created-at {:optional true} [:maybe types/DateTime]]
    [:updated-at {:optional true} [:maybe types/DateTime]]])
 
@@ -39,7 +41,8 @@
   "Fields specific to player cards.
 
    Stats range from 1-10. Size affects gameplay mechanics.
-   Abilities are string identifiers for special powers."
+   Abilities are string identifiers for special powers.
+   Player subtypes indicate the fantasy creature type."
   [:map
    [:sht :int]
    [:pss :int]
@@ -47,6 +50,7 @@
    [:speed :int]
    [:size enums/Size]
    [:abilities [:vector :string]]
+   [:player-subtypes [:vector {:min 1} enums/PlayerSubtype]]
    [:deck-size {:optional true} :int]])
 
 (def AbilityCardFields

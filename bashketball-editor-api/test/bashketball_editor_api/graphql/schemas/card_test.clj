@@ -24,6 +24,31 @@
     (is (not (m/validate schemas/PlayerSize :size/XL)))
     (is (not (m/validate schemas/PlayerSize "SM")))))
 
+(deftest card-subtype-enum-test
+  (testing "validates valid card subtypes"
+    (is (m/validate schemas/CardSubtype :card-subtype/UNIQUE)))
+
+  (testing "rejects invalid card subtypes"
+    (is (not (m/validate schemas/CardSubtype :card-subtype/INVALID)))
+    (is (not (m/validate schemas/CardSubtype "UNIQUE")))))
+
+(deftest player-subtype-enum-test
+  (testing "validates valid player subtypes"
+    (is (m/validate schemas/PlayerSubtype :player-subtype/DWARF))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/ELF))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/GOBLIN))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/HALFLING))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/HUMAN))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/MINOTAUR))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/OGRE))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/ORC))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/SKELETON))
+    (is (m/validate schemas/PlayerSubtype :player-subtype/TROLL)))
+
+  (testing "rejects invalid player subtypes"
+    (is (not (m/validate schemas/PlayerSubtype :player-subtype/INVALID)))
+    (is (not (m/validate schemas/PlayerSubtype "ELF")))))
+
 (deftest player-card-schema-test
   (testing "validates complete player card"
     (let [card {:slug "jordan"
@@ -36,7 +61,8 @@
                 :def 4
                 :speed 4
                 :size :size/MD
-                :abilities ["Clutch" "Fadeaway"]}]
+                :abilities ["Clutch" "Fadeaway"]
+                :player-subtypes [:player-subtype/HUMAN]}]
       (is (m/validate schemas/PlayerCard card))))
 
   (testing "validates player card with optional fields"
@@ -51,7 +77,9 @@
                 :speed 1
                 :size :size/SM
                 :abilities []
-                :image-prompt "A young basketball player"}]
+                :player-subtypes [:player-subtype/ELF :player-subtype/GOBLIN]
+                :image-prompt "A young basketball player"
+                :card-subtypes [:card-subtype/UNIQUE]}]
       (is (m/validate schemas/PlayerCard card)))))
 
 (deftest ability-card-schema-test
@@ -124,7 +152,8 @@
                   :deck-size 5
                   :sht 5 :pss 3 :def 4 :speed 4
                   :size :size/MD
-                  :abilities []}
+                  :abilities []
+                  :player-subtypes [:player-subtype/HUMAN]}
           play   {:slug "fast-break"
                   :name "Fast Break"
                   :set-slug "base-set"
@@ -149,7 +178,15 @@
 (deftest input-schema-test
   (testing "validates player card input"
     (let [input {:slug "test-player"
-                 :name "Test Player"}]
+                 :name "Test Player"
+                 :player-subtypes [:player-subtype/HUMAN]}]
+      (is (m/validate schemas/PlayerCardInput input))))
+
+  (testing "validates player card input with card-subtypes"
+    (let [input {:slug "unique-player"
+                 :name "Unique Player"
+                 :player-subtypes [:player-subtype/ELF]
+                 :card-subtypes [:card-subtype/UNIQUE]}]
       (is (m/validate schemas/PlayerCardInput input))))
 
   (testing "validates card set input"

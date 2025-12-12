@@ -1,6 +1,7 @@
 (ns bashketball-editor-ui.views.layout
   "Application layout with header and navigation."
   (:require
+   [bashketball-editor-ui.components.branch-selector :refer [branch-selector]]
    [bashketball-editor-ui.components.git-status :refer [git-status]]
    [bashketball-editor-ui.config :as config]
    [bashketball-editor-ui.context.auth :as auth]
@@ -12,6 +13,10 @@
   "User menu shown when logged in."
   [{:keys [user on-logout]}]
   ($ :div {:class "flex items-center gap-4"}
+     ;; Branch selector
+     ($ branch-selector)
+     ;; Separator
+     ($ :div {:class "h-6 w-px bg-gray-300"})
      ;; Git status with commit/push/pull workflow
      ($ git-status)
      ;; Separator

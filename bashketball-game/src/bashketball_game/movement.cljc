@@ -29,7 +29,7 @@
 (defn- opposing-team
   "Returns the opposing team keyword."
   [team]
-  (if (= team :HOME) :AWAY :HOME))
+  (if (= team :team/HOME) :team/AWAY :team/HOME))
 
 (defn- get-opposing-player-positions
   "Returns set of positions occupied by opposing team players."

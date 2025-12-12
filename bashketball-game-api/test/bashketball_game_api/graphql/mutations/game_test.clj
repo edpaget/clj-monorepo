@@ -360,10 +360,10 @@
             session-id (tu/create-authenticated-session! (:id user1) :user user1)
             ;; Get a player ID from the home team starters
             game-state (:game-state joined)
-            player-id  (first (get-in game-state [:players :HOME :team :starters]))]
+            player-id  (first (get-in game-state [:players :team/HOME :team :starters]))]
 
         (testing "player position is initially nil"
-          (let [player (get-in game-state [:players :HOME :team :players (keyword player-id)])]
+          (let [player (get-in game-state [:players :team/HOME :team :players (keyword player-id)])]
             (is (nil? (:position player)))))
 
         (testing "submit move-player action"

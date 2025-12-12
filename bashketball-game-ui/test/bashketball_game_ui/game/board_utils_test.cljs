@@ -65,30 +65,30 @@
 (t/deftest terrain-at-home-hoop-test
   (let [terrain (board-utils/terrain-at [2 0])]
     (t/is (= :hoop (:terrain terrain)))
-    (t/is (= :HOME (:side terrain)))))
+    (t/is (= :team/HOME (:side terrain)))))
 
 (t/deftest terrain-at-away-hoop-test
   (let [terrain (board-utils/terrain-at [2 13])]
     (t/is (= :hoop (:terrain terrain)))
-    (t/is (= :AWAY (:side terrain)))))
+    (t/is (= :team/AWAY (:side terrain)))))
 
 (t/deftest terrain-at-home-paint-test
   (let [terrain (board-utils/terrain-at [1 1])]
     (t/is (= :paint (:terrain terrain)))
-    (t/is (= :HOME (:side terrain)))))
+    (t/is (= :team/HOME (:side terrain)))))
 
 (t/deftest terrain-at-away-paint-test
   (let [terrain (board-utils/terrain-at [1 12])]
     (t/is (= :paint (:terrain terrain)))
-    (t/is (= :AWAY (:side terrain)))))
+    (t/is (= :team/AWAY (:side terrain)))))
 
 (t/deftest terrain-at-three-point-line-test
   (let [home-3pt (board-utils/terrain-at [2 3])
         away-3pt (board-utils/terrain-at [2 10])]
     (t/is (= :three-point-line (:terrain home-3pt)))
-    (t/is (= :HOME (:side home-3pt)))
+    (t/is (= :team/HOME (:side home-3pt)))
     (t/is (= :three-point-line (:terrain away-3pt)))
-    (t/is (= :AWAY (:side away-3pt)))))
+    (t/is (= :team/AWAY (:side away-3pt)))))
 
 (t/deftest terrain-at-court-test
   (let [terrain (board-utils/terrain-at [2 5])]
@@ -105,14 +105,14 @@
 ;; =============================================================================
 
 (t/deftest terrain-side-home-test
-  (t/is (= :HOME (board-utils/terrain-side [2 0])))
-  (t/is (= :HOME (board-utils/terrain-side [2 3])))
-  (t/is (= :HOME (board-utils/terrain-side [2 6]))))
+  (t/is (= :team/HOME (board-utils/terrain-side [2 0])))
+  (t/is (= :team/HOME (board-utils/terrain-side [2 3])))
+  (t/is (= :team/HOME (board-utils/terrain-side [2 6]))))
 
 (t/deftest terrain-side-away-test
-  (t/is (= :AWAY (board-utils/terrain-side [2 13])))
-  (t/is (= :AWAY (board-utils/terrain-side [2 10])))
-  (t/is (= :AWAY (board-utils/terrain-side [2 7]))))
+  (t/is (= :team/AWAY (board-utils/terrain-side [2 13])))
+  (t/is (= :team/AWAY (board-utils/terrain-side [2 10])))
+  (t/is (= :team/AWAY (board-utils/terrain-side [2 7]))))
 
 ;; =============================================================================
 ;; Hex geometry tests

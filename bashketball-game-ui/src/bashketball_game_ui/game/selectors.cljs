@@ -7,7 +7,7 @@
 (defn opponent-team
   "Returns the opponent's team keyword given the player's team."
   [my-team]
-  (if (= my-team :HOME) :AWAY :HOME))
+  (if (= my-team :team/HOME) :team/AWAY :team/HOME))
 
 (defn- phase->keyword
   "Converts a phase value to keyword, handling both string and keyword inputs."
@@ -19,12 +19,12 @@
 (defn setup-mode?
   "Returns true if the game is in setup phase."
   [phase]
-  (= (phase->keyword phase) :SETUP))
+  (= (phase->keyword phase) :phase/SETUP))
 
 (defn tip-off-mode?
   "Returns true if the game is in tip-off phase."
   [phase]
-  (= (phase->keyword phase) :TIP_OFF))
+  (= (phase->keyword phase) :phase/TIP_OFF))
 
 (defn get-player-by-id
   "Looks up a player by ID, handling both string and keyword keys."
@@ -63,13 +63,13 @@
 (defn both-teams-setup-complete?
   "Returns true if both HOME and AWAY teams have placed all their starters."
   [game-state]
-  (and (team-setup-complete? game-state :HOME)
-       (team-setup-complete? game-state :AWAY)))
+  (and (team-setup-complete? game-state :team/HOME)
+       (team-setup-complete? game-state :team/AWAY)))
 
 (defn target-basket
   "Returns the target basket position for shooting based on team."
   [my-team]
-  (if (= my-team :HOME) [2 13] [2 0]))
+  (if (= my-team :team/HOME) [2 13] [2 0]))
 
 (defn my-player-data
   "Extracts all player-related data from game state for the given team.
@@ -90,18 +90,18 @@
 (defn all-players
   "Returns home and away player maps for the hex grid."
   [game-state]
-  {:home-players (get-in game-state [:players :HOME :team :players])
-   :away-players (get-in game-state [:players :AWAY :team :players])})
+  {:home-players (get-in game-state [:players :team/HOME :team :players])
+   :away-players (get-in game-state [:players :team/AWAY :team :players])})
 
 (def phase-labels
-  {:SETUP       "Setup"
-   :TIP_OFF     "Tip-Off"
-   :UPKEEP      "Upkeep"
-   :DRAW        "Draw"
-   :ACTIONS     "Actions"
-   :RESOLUTION  "Resolution"
-   :END_OF_TURN "End of Turn"
-   :GAME_OVER   "Game Over"})
+  {:phase/SETUP       "Setup"
+   :phase/TIP_OFF     "Tip-Off"
+   :phase/UPKEEP      "Upkeep"
+   :phase/DRAW        "Draw"
+   :phase/ACTIONS     "Actions"
+   :phase/RESOLUTION  "Resolution"
+   :phase/END_OF_TURN "End of Turn"
+   :phase/GAME_OVER   "Game Over"})
 
 (defn phase-label
   "Returns human-readable label for a phase."
@@ -119,13 +119,13 @@
                    current-phase
                    (keyword current-phase))]
     (case phase-kw
-      :UPKEEP      :ACTIONS
-      :ACTIONS     :RESOLUTION
-      :RESOLUTION  :END_OF_TURN
-      :END_OF_TURN :UPKEEP
-      :SETUP       nil
-      :TIP_OFF     nil
-      :GAME_OVER   nil
+      :phase/UPKEEP      :phase/ACTIONS
+      :phase/ACTIONS     :phase/RESOLUTION
+      :phase/RESOLUTION  :phase/END_OF_TURN
+      :phase/END_OF_TURN :phase/UPKEEP
+      :phase/SETUP       nil
+      :phase/TIP_OFF     nil
+      :phase/GAME_OVER   nil
       nil)))
 
 (defn can-advance-phase?

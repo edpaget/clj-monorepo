@@ -93,7 +93,7 @@
         ;; Ball position along trajectory (animate to middle for visual)
         mid-x        (/ (+ ox tx) 2)
         mid-y        (- (/ (+ oy ty) 2) 20) ;; Arc upward
-        is-shot?     (= action-type :SHOT)
+        is-shot?     (= action-type :action-type/SHOT)
         has-target?  (some? target-pos)
         target-color (if is-shot? "#ef4444" "#3b82f6")]
 

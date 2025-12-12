@@ -27,7 +27,7 @@
                  home-btn (first btns)]
              (-> (user/click usr home-btn)
                  (.then (fn []
-                          (t/is (= [{:team :HOME :points 1}] @calls))
+                          (t/is (= [{:team :team/HOME :points 1}] @calls))
                           (done)))
                  (.catch (fn [e]
                            (t/is false (str e))
@@ -43,7 +43,7 @@
                  away-btn (second btns)]
              (-> (user/click usr away-btn)
                  (.then (fn []
-                          (t/is (= [{:team :AWAY :points 1}] @calls))
+                          (t/is (= [{:team :team/AWAY :points 1}] @calls))
                           (done)))
                  (.catch (fn [e]
                            (t/is false (str e))
@@ -59,7 +59,7 @@
                  home-btn (first btns)]
              (-> (user/click usr home-btn)
                  (.then (fn []
-                          (t/is (= [{:team :HOME :points -1}] @calls))
+                          (t/is (= [{:team :team/HOME :points -1}] @calls))
                           (done)))
                  (.catch (fn [e]
                            (t/is false (str e))

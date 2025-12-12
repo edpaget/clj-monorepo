@@ -59,8 +59,8 @@
     ($ header/game-header {:game-id         (:id game)
                            :turn-number     (:turn-number game-state)
                            :phase           phase
-                           :home-score      (get score :HOME 0)
-                           :away-score      (get score :AWAY 0)
+                           :home-score      (get score :team/HOME 0)
+                           :away-score      (get score :team/AWAY 0)
                            :is-my-turn      is-my-turn
                            :on-log-click    on-log-click
                            :on-roster-click on-roster-click})))
@@ -105,8 +105,8 @@
                 home-starters away-starters]}               (use-game-derived)
         {:keys [on-player-click]}                           (use-game-handlers)
 
-        players                                             (if (= team :HOME) home-players away-players)
-        starters                                            (if (= team :HOME) home-starters away-starters)
+        players                                             (if (= team :team/HOME) home-players away-players)
+        starters                                            (if (= team :team/HOME) home-starters away-starters)
 
         ;; Filter to only on-court players (starters with positions)
         on-court                                            (use-memo
@@ -179,7 +179,7 @@
         can-advance      (and is-my-turn (sel/can-advance-phase? phase))
         next-phase-val   (sel/next-phase phase)
         ;; Away player sees Start Game when both teams ready during setup (transitions to TIP_OFF)
-        show-setup-start (and setup-mode both-teams-ready (= my-team :AWAY))
+        show-setup-start (and setup-mode both-teams-ready (= my-team :team/AWAY))
         ;; Show End Turn unless it's setup with both teams ready and we're away, or tip-off
         show-end-turn    (and is-my-turn
                               (not discard-active)
@@ -426,9 +426,9 @@
                 active-player selected-player-id]}     (use-game-derived)
         {:keys [on-player-click]}                      (use-game-handlers)
 
-        players                                        (if (= team :HOME) home-players away-players)
-        team-label                                     (if (= team :HOME) "Home" "Away")
-        team-color                                     (if (= team :HOME) "bg-blue-500" "bg-red-500")
+        players                                        (if (= team :team/HOME) home-players away-players)
+        team-label                                     (if (= team :team/HOME) "Home" "Away")
+        team-color                                     (if (= team :team/HOME) "bg-blue-500" "bg-red-500")
         is-active                                      (= active-player team)
         is-my-team                                     (= team my-team)
 
@@ -471,7 +471,7 @@
           ($ :div {:class "mt-1 pl-2"}
              (for [[id player] on-court
                    :let        [idx (get player-indices id 1)
-                                prefix (if (= team :HOME) "H" "A")]]
+                                prefix (if (= team :team/HOME) "H" "A")]]
                ($ :div {:key   id
                         :class "flex items-center gap-1 py-0.5 cursor-pointer hover:bg-slate-100 rounded"
                         :on-click #(on-player-click id)}

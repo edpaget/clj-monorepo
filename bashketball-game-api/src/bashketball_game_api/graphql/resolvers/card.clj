@@ -6,6 +6,7 @@
   (:require
    [bashketball-game-api.services.catalog :as catalog]
    [bashketball-schemas.card :as card-schema]
+   [bashketball-schemas.enums :as enums]
    [graphql-server.core :refer [defresolver def-resolver-map]]))
 
 (def CardSet
@@ -30,14 +31,27 @@
     (catalog/get-set card-catalog slug)))
 
 (defresolver :Query :cards
-  "Returns cards, optionally filtered by set slug."
-  [:=> [:cat :any [:map [:setSlug {:optional true} [:maybe :string]]] :any]
+  "Returns cards, optionally filtered by set slug and/or card type."
+  [:=> [:cat :any [:map
+                   [:set-slug {:optional true} [:maybe :string]]
+                   [:card-type {:optional true} [:maybe enums/CardType]]] :any]
    [:vector card-schema/Card]]
-  [ctx {:keys [setSlug]} _value]
-  (let [card-catalog (get-in ctx [:request :resolver-map :card-catalog])]
-    (if setSlug
-      (vec (catalog/get-cards-by-set card-catalog setSlug))
-      (vec (catalog/get-cards card-catalog)))))
+  [ctx {:keys [set-slug card-type]} _value]
+  (let [card-catalog (get-in ctx [:request :resolver-map :card-catalog])
+        cards        (cond
+                       (and set-slug card-type)
+                       (->> (catalog/get-cards-by-set card-catalog set-slug)
+                            (filter #(= (:card-type %) card-type)))
+
+                       set-slug
+                       (catalog/get-cards-by-set card-catalog set-slug)
+
+                       card-type
+                       (catalog/get-cards-by-type card-catalog card-type)
+
+                       :else
+                       (catalog/get-cards card-catalog))]
+    (vec cards)))
 
 (defresolver :Query :card
   "Returns a single card by slug."

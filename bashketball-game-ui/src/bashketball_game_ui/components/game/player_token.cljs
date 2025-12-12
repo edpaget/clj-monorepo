@@ -7,8 +7,8 @@
    [uix.core :refer [$ defui use-callback]]))
 
 (def ^:private team-colors
-  {:HOME {:fill "#3b82f6" :stroke "#1d4ed8" :text "#ffffff"}
-   :AWAY {:fill "#ef4444" :stroke "#b91c1c" :text "#ffffff"}})
+  {:team/HOME {:fill "#3b82f6" :stroke "#1d4ed8" :text "#ffffff"}
+   :team/AWAY {:fill "#ef4444" :stroke "#b91c1c" :text "#ffffff"}})
 
 (def ^:private token-radius 22)
 
@@ -37,7 +37,7 @@
         [cx cy]      (if (valid-position? position)
                        (board/hex->pixel position)
                        [0 0])
-        colors       (get team-colors team (:HOME team-colors))
+        colors       (get team-colors team (:team/HOME team-colors))
         exhausted?   (:exhausted? player)
         first-letter (or (some-> (:name player) first str) "?")
         jersey-num   (str first-letter player-num)

@@ -53,13 +53,13 @@
                     players)}))
 
 (defn- user-team
-  "Returns the team (:HOME or :AWAY) for a user in a game, or nil.
+  "Returns the team (:team/HOME or :team/AWAY) for a user in a game, or nil.
 
-  Uses uppercase to match the game engine's Team enum values."
+  Uses namespaced keywords to match the game engine's Team enum values."
   [game user-id]
   (cond
-    (= user-id (:player-1-id game)) :HOME
-    (= user-id (:player-2-id game)) :AWAY
+    (= user-id (:player-1-id game)) :team/HOME
+    (= user-id (:player-2-id game)) :team/AWAY
     :else nil))
 
 (defn- get-phase
@@ -79,7 +79,7 @@
         user-team-val (user-team game user-id)]
     (and (= :game-status/ACTIVE (:status game))
          (some? user-team-val)
-         (or (= :TIP_OFF phase)
+         (or (= :phase/TIP_OFF phase)
              (let [active-player (or (:active-player game-state)
                                      (get game-state "active-player"))
                    active-kw     (if (string? active-player)
@@ -91,7 +91,7 @@
   "Returns true if the game state indicates game over."
   [game-state]
   (let [phase (or (:phase game-state) (get game-state "phase"))]
-    (= :GAME_OVER (if (string? phase) (keyword phase) phase))))
+    (= :phase/GAME_OVER (if (string? phase) (keyword phase) phase))))
 
 (defn- collect-deck-slugs
   "Extracts all unique card slugs from a deck state."
@@ -120,8 +120,8 @@
   how to handle played cards (e.g., team assets vs regular cards)."
   [game-state card-catalog]
   (-> game-state
-      (update-in [:players :HOME :deck] hydrate-deck card-catalog)
-      (update-in [:players :AWAY :deck] hydrate-deck card-catalog)))
+      (update-in [:players :team/HOME :deck] hydrate-deck card-catalog)
+      (update-in [:players :team/AWAY :deck] hydrate-deck card-catalog)))
 
 (defn- strip-hydrated-cards
   "Removes hydrated cards from game state before persisting.
@@ -129,8 +129,8 @@
   Card data is stored in the catalog, not duplicated in game state."
   [game-state]
   (-> game-state
-      (update-in [:players :HOME :deck] dissoc :cards)
-      (update-in [:players :AWAY :deck] dissoc :cards)))
+      (update-in [:players :team/HOME :deck] dissoc :cards)
+      (update-in [:players :team/AWAY :deck] dissoc :cards)))
 
 (def ^:private keyword-values
   "String values that should be converted to keywords when reading game state from JSON.

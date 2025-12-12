@@ -16,7 +16,7 @@
 
 (deftest action-schema-test
   (testing "set-phase action"
-    (is (schema/valid-action? {:type :bashketball/set-phase :phase :ACTIONS}))
+    (is (schema/valid-action? {:type :bashketball/set-phase :phase :phase/ACTIONS}))
     (is (not (schema/valid-action? {:type :bashketball/set-phase :phase :invalid}))))
 
   (testing "move-player action"
@@ -28,22 +28,22 @@
                                     :position [10 10]}))))
 
   (testing "draw-cards action"
-    (is (schema/valid-action? {:type :bashketball/draw-cards :player :HOME :count 5}))
-    (is (not (schema/valid-action? {:type :bashketball/draw-cards :player :HOME :count 0}))))
+    (is (schema/valid-action? {:type :bashketball/draw-cards :player :team/HOME :count 5}))
+    (is (not (schema/valid-action? {:type :bashketball/draw-cards :player :team/HOME :count 0}))))
 
   (testing "add-score action"
-    (is (schema/valid-action? {:type :bashketball/add-score :team :HOME :points 2}))
-    (is (not (schema/valid-action? {:type :bashketball/add-score :team :HOME :points 0})))))
+    (is (schema/valid-action? {:type :bashketball/add-score :team :team/HOME :points 2}))
+    (is (not (schema/valid-action? {:type :bashketball/add-score :team :team/HOME :points 0})))))
 
 (deftest discard-cards-action-schema-test
   (testing "valid discard-cards action"
     (is (schema/valid-action? {:type :bashketball/discard-cards
-                               :player :HOME
+                               :player :team/HOME
                                :instance-ids ["uuid-1" "uuid-2"]})))
 
   (testing "invalid discard-cards action with old card-slugs key"
     (is (not (schema/valid-action? {:type :bashketball/discard-cards
-                                    :player :HOME
+                                    :player :team/HOME
                                     :card-slugs ["card-1"]})))))
 
 (deftest card-instance-schema-test
@@ -57,34 +57,34 @@
 
 (deftest ball-schema-test
   (testing "possessed ball"
-    (is (m/validate schema/Ball {:status :POSSESSED :holder-id "player-1"})))
+    (is (m/validate schema/Ball {:status :ball-status/POSSESSED :holder-id "player-1"})))
 
   (testing "loose ball"
-    (is (m/validate schema/Ball {:status :LOOSE :position [2 7]})))
+    (is (m/validate schema/Ball {:status :ball-status/LOOSE :position [2 7]})))
 
   (testing "in-air ball with position target"
-    (is (m/validate schema/Ball {:status :IN_AIR
+    (is (m/validate schema/Ball {:status :ball-status/IN_AIR
                                  :origin [2 3]
                                  :target {:type :position :position [2 13]}
-                                 :action-type :SHOT})))
+                                 :action-type :ball-action/SHOT})))
 
   (testing "in-air ball with player target"
-    (is (m/validate schema/Ball {:status :IN_AIR
+    (is (m/validate schema/Ball {:status :ball-status/IN_AIR
                                  :origin [2 3]
                                  :target {:type :player :player-id "HOME-1"}
-                                 :action-type :PASS}))))
+                                 :action-type :ball-action/PASS}))))
 
 (deftest modifier-schema-test
   (testing "valid modifier"
     (is (m/validate schema/Modifier
                     {:id "buff-1"
-                     :stat :SHOOTING
+                     :stat :stat/SHOOTING
                      :amount 2})))
 
   (testing "modifier with optional fields"
     (is (m/validate schema/Modifier
                     {:id "buff-1"
-                     :stat :DEFENSE
+                     :stat :stat/DEFENSE
                      :amount -1
                      :source "foul"
                      :expires-at 5}))))
@@ -92,15 +92,15 @@
 (deftest play-card-action-schema-test
   (testing "valid play-card action"
     (is (schema/valid-action? {:type :bashketball/play-card
-                               :player :HOME
+                               :player :team/HOME
                                :instance-id "card-1"}))
     (is (schema/valid-action? {:type :bashketball/play-card
-                               :player :AWAY
+                               :player :team/AWAY
                                :instance-id "abc-123"})))
 
   (testing "invalid play-card action missing instance-id"
     (is (not (schema/valid-action? {:type :bashketball/play-card
-                                    :player :HOME}))))
+                                    :player :team/HOME}))))
 
   (testing "invalid play-card action missing player"
     (is (not (schema/valid-action? {:type :bashketball/play-card

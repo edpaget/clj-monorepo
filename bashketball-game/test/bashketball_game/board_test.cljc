@@ -53,8 +53,8 @@
 
   (testing "hoops are placed correctly"
     (let [b (board/create-board)]
-      (is (= {:terrain :HOOP :side :HOME} (get-in b [:tiles [2 0]])))
-      (is (= {:terrain :HOOP :side :AWAY} (get-in b [:tiles [2 13]])))))
+      (is (= {:terrain :terrain/HOOP :side :team/HOME} (get-in b [:tiles [2 0]])))
+      (is (= {:terrain :terrain/HOOP :side :team/AWAY} (get-in b [:tiles [2 13]])))))
 
   (testing "occupants start empty"
     (let [b (board/create-board)]
@@ -62,7 +62,7 @@
 
 (deftest occupant-operations-test
   (let [b   (board/create-board)
-        occ {:type :BASKETBALL_PLAYER :id "player-1"}]
+        occ {:type :occupant/BASKETBALL_PLAYER :id "player-1"}]
 
     (testing "set and get occupant"
       (let [b2 (board/set-occupant b [2 7] occ)]
@@ -98,7 +98,7 @@
 
 (deftest path-clear-test
   (let [b   (board/create-board)
-        occ {:type :BASKETBALL_PLAYER :id "blocker"}]
+        occ {:type :occupant/BASKETBALL_PLAYER :id "blocker"}]
 
     (testing "empty path is clear"
       (is (board/path-clear? b [0 0] [0 5])))
@@ -119,19 +119,19 @@
 
 (deftest valid-occupants-single-player-test
   (let [b (-> (board/create-board)
-              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"}))]
+              (board/set-occupant [2 3] {:type :occupant/BASKETBALL_PLAYER :id "player-1"}))]
     (is (board/valid-occupants? b))))
 
 (deftest valid-occupants-multiple-players-test
   (let [b (-> (board/create-board)
-              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"})
-              (board/set-occupant [3 4] {:type :BASKETBALL_PLAYER :id "player-2"}))]
+              (board/set-occupant [2 3] {:type :occupant/BASKETBALL_PLAYER :id "player-1"})
+              (board/set-occupant [3 4] {:type :occupant/BASKETBALL_PLAYER :id "player-2"}))]
     (is (board/valid-occupants? b))))
 
 (deftest check-occupant-invariants-detects-duplicates-test
   (let [b (-> (board/create-board)
-              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"})
-              (board/set-occupant [3 4] {:type :BASKETBALL_PLAYER :id "player-1"}))]
+              (board/set-occupant [2 3] {:type :occupant/BASKETBALL_PLAYER :id "player-1"})
+              (board/set-occupant [3 4] {:type :occupant/BASKETBALL_PLAYER :id "player-1"}))]
     (is (not (board/valid-occupants? b)))
     (let [result (board/check-occupant-invariants b)]
       (is (= :duplicate-occupant-ids (:error result)))
@@ -139,11 +139,11 @@
 
 (deftest move-occupant-maintains-invariants-test
   (let [b (-> (board/create-board)
-              (board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "player-1"})
+              (board/set-occupant [2 3] {:type :occupant/BASKETBALL_PLAYER :id "player-1"})
               (board/move-occupant [2 3] [4 5]))]
     (is (board/valid-occupants? b))
     (is (nil? (board/occupant-at b [2 3])))
-    (is (= {:type :BASKETBALL_PLAYER :id "player-1"} (board/occupant-at b [4 5])))))
+    (is (= {:type :occupant/BASKETBALL_PLAYER :id "player-1"} (board/occupant-at b [4 5])))))
 
 (deftest reachable-positions-no-obstacles-test
   (let [result (board/reachable-positions [2 7] 2 #{})]

@@ -1,38 +1,29 @@
 name: Build and Deploy Bashketball Game
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'bashketball-game-api/**'
-      - 'bashketball-game-ui/**'
-      - 'bashketball-game/**'
-      - 'bashketball-schemas/**'
-      - 'bashketball-ui/**'
-      - 'cljs-tlr/**'
-      - 'db/**'
-      - 'graphql-server/**'
-      - 'authn/**'
-      - 'oidc/**'
-      - 'oidc-google/**'
-      - 'exclusive-initializer/**'
-      - 'build/**'
-      - '.github/workflows/deploy-bashketball-game.yml'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   API_IMAGE: ghcr.io/${{ github.repository_owner }}/bashketball-game-api
   UI_IMAGE: ghcr.io/${{ github.repository_owner }}/bashketball-game-ui
+  COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   changes:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     outputs:
       api: ${{ steps.filter.outputs.api }}
       ui: ${{ steps.filter.outputs.ui }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT_SHA }}
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -64,6 +55,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT_SHA }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -81,8 +74,8 @@ jobs:
         with:
           images: ${{ env.API_IMAGE }}
           tags: |
-            type=sha,format=long,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long,prefix=${{ env.COMMIT_SHA }}
+            type=raw,value=latest
 
       - name: Build and push API image
         uses: docker/build-push-action@v5
@@ -90,7 +83,7 @@ jobs:
           context: .
           file: ./bashketball-game-api/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.API_IMAGE }}:${{ env.COMMIT_SHA }},${{ env.API_IMAGE }}:latest
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -106,6 +99,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT_SHA }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -123,8 +118,8 @@ jobs:
         with:
           images: ${{ env.UI_IMAGE }}
           tags: |
-            type=sha,format=long,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long,prefix=${{ env.COMMIT_SHA }}
+            type=raw,value=latest
 
       - name: Build and push UI image
         uses: docker/build-push-action@v5
@@ -132,7 +127,7 @@ jobs:
           context: .
           file: ./bashketball-game-ui/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.UI_IMAGE }}:${{ env.COMMIT_SHA }},${{ env.UI_IMAGE }}:latest
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -155,16 +150,16 @@ jobs:
 
           # Update API image tag if API was built
           if [[ "${{ needs.build-api.result }}" == "success" ]]; then
-            sed -i "s|image: ghcr.io/edpaget/bashketball-game-api:.*|image: ghcr.io/edpaget/bashketball-game-api:${{ github.sha }}|" \
+            sed -i "s|image: ghcr.io/edpaget/bashketball-game-api:.*|image: ghcr.io/edpaget/bashketball-game-api:${{ env.COMMIT_SHA }}|" \
               apps/base/bashketball-game/api.yaml
-            echo "Updated API image to ${{ github.sha }}"
+            echo "Updated API image to ${{ env.COMMIT_SHA }}"
           fi
 
           # Update UI image tag if UI was built
           if [[ "${{ needs.build-ui.result }}" == "success" ]]; then
-            sed -i "s|image: ghcr.io/edpaget/bashketball-game-ui:.*|image: ghcr.io/edpaget/bashketball-game-ui:${{ github.sha }}|" \
+            sed -i "s|image: ghcr.io/edpaget/bashketball-game-ui:.*|image: ghcr.io/edpaget/bashketball-game-ui:${{ env.COMMIT_SHA }}|" \
               apps/base/bashketball-game/ui.yaml
-            echo "Updated UI image to ${{ github.sha }}"
+            echo "Updated UI image to ${{ env.COMMIT_SHA }}"
           fi
 
       - name: Commit and push
@@ -176,6 +171,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Deploy bashketball-game ${{ github.sha }}"
+            git commit -m "Deploy bashketball-game ${{ env.COMMIT_SHA }}"
             git push
           fi

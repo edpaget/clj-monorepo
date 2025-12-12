@@ -8,29 +8,29 @@
   {:home {:deck ["card-1" "card-2" "card-3" "card-4" "card-5"]
           :players [{:card-slug "orc-center"
                      :name "Grukk"
-                     :stats {:size :BIG :speed 2 :shooting 2 :passing 1 :dribbling 1 :defense 4}}
+                     :stats {:size :size/LG :speed 2 :shooting 2 :passing 1 :dribbling 1 :defense 4}}
                     {:card-slug "elf-point-guard"
                      :name "Lyria"
-                     :stats {:size :SMALL :speed 5 :shooting 3 :passing 4 :dribbling 3 :defense 2}}
+                     :stats {:size :size/SM :speed 5 :shooting 3 :passing 4 :dribbling 3 :defense 2}}
                     {:card-slug "dwarf-power-forward"
                      :name "Thorin"
-                     :stats {:size :MID :speed 2 :shooting 3 :passing 2 :dribbling 2 :defense 4}}]}
+                     :stats {:size :size/MD :speed 2 :shooting 3 :passing 2 :dribbling 2 :defense 4}}]}
    :away {:deck ["card-a" "card-b" "card-c" "card-d" "card-e"]
           :players [{:card-slug "troll-center"
                      :name "Grok"
-                     :stats {:size :BIG :speed 1 :shooting 1 :passing 1 :dribbling 1 :defense 5}}
+                     :stats {:size :size/LG :speed 1 :shooting 1 :passing 1 :dribbling 1 :defense 5}}
                     {:card-slug "goblin-shooting-guard"
                      :name "Sneek"
-                     :stats {:size :SMALL :speed 4 :shooting 4 :passing 3 :dribbling 3 :defense 1}}
+                     :stats {:size :size/SM :speed 4 :shooting 4 :passing 3 :dribbling 3 :defense 1}}
                     {:card-slug "human-small-forward"
                      :name "John"
-                     :stats {:size :MID :speed 3 :shooting 3 :passing 3 :dribbling 3 :defense 3}}]}})
+                     :stats {:size :size/MD :speed 3 :shooting 3 :passing 3 :dribbling 3 :defense 3}}]}})
 
 (deftest apply-action-validation-test
   (let [game (state/create-game test-config)]
 
     (testing "valid action is applied"
-      (is (actions/apply-action game {:type :bashketball/set-phase :phase :ACTIONS})))
+      (is (actions/apply-action game {:type :bashketball/set-phase :phase :phase/ACTIONS})))
 
     (testing "invalid action throws"
       (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
@@ -38,7 +38,7 @@
 
 (deftest apply-action-event-logging-test
   (let [game    (state/create-game test-config)
-        updated (actions/apply-action game {:type :bashketball/set-phase :phase :ACTIONS})]
+        updated (actions/apply-action game {:type :bashketball/set-phase :phase :phase/ACTIONS})]
 
     (testing "event is logged"
       (is (= 1 (count (:events updated)))))
@@ -51,8 +51,8 @@
 
 (deftest set-phase-action-test
   (let [game    (state/create-game test-config)
-        updated (actions/apply-action game {:type :bashketball/set-phase :phase :ACTIONS})]
-    (is (= :ACTIONS (state/get-phase updated)))))
+        updated (actions/apply-action game {:type :bashketball/set-phase :phase :phase/ACTIONS})]
+    (is (= :phase/ACTIONS (state/get-phase updated)))))
 
 (deftest advance-turn-action-test
   (let [game    (state/create-game test-config)
@@ -62,49 +62,49 @@
       (is (= 2 (:turn-number updated))))
 
     (testing "active player switches"
-      (is (= :AWAY (state/get-active-player updated))))))
+      (is (= :team/AWAY (state/get-active-player updated))))))
 
 (deftest set-actions-action-test
   (let [game    (state/create-game test-config)
-        updated (actions/apply-action game {:type :bashketball/set-actions :player :HOME :amount 5})]
-    (is (= 5 (get-in updated [:players :HOME :actions-remaining])))))
+        updated (actions/apply-action game {:type :bashketball/set-actions :player :team/HOME :amount 5})]
+    (is (= 5 (get-in updated [:players :team/HOME :actions-remaining])))))
 
 (deftest draw-cards-action-test
   (let [game    (state/create-game test-config)
-        updated (actions/apply-action game {:type :bashketball/draw-cards :player :HOME :count 3})]
+        updated (actions/apply-action game {:type :bashketball/draw-cards :player :team/HOME :count 3})]
 
     (testing "cards move to hand"
-      (is (= 3 (count (state/get-hand updated :HOME)))))
+      (is (= 3 (count (state/get-hand updated :team/HOME)))))
 
     (testing "draw pile shrinks"
-      (is (= 2 (count (state/get-draw-pile updated :HOME)))))
+      (is (= 2 (count (state/get-draw-pile updated :team/HOME)))))
 
     (testing "correct cards drawn by slug"
       (is (= ["card-1" "card-2" "card-3"]
-             (mapv :card-slug (state/get-hand updated :HOME)))))
+             (mapv :card-slug (state/get-hand updated :team/HOME)))))
 
     (testing "drawn cards preserve instance-ids"
-      (is (every? :instance-id (state/get-hand updated :HOME))))))
+      (is (every? :instance-id (state/get-hand updated :team/HOME))))))
 
 (deftest discard-cards-action-test
   (let [game      (-> (state/create-game test-config)
-                      (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
-        hand      (state/get-hand game :HOME)
+                      (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand      (state/get-hand game :team/HOME)
         card-1-id (:instance-id (first hand))
         card-3-id (:instance-id (nth hand 2))
         updated   (actions/apply-action game {:type :bashketball/discard-cards
-                                              :player :HOME
+                                              :player :team/HOME
                                               :instance-ids [card-1-id card-3-id]})]
 
     (testing "cards removed from hand"
-      (is (= ["card-2"] (mapv :card-slug (state/get-hand updated :HOME)))))
+      (is (= ["card-2"] (mapv :card-slug (state/get-hand updated :team/HOME)))))
 
     (testing "cards added to discard"
-      (is (= ["card-1" "card-3"] (mapv :card-slug (state/get-discard updated :HOME)))))
+      (is (= ["card-1" "card-3"] (mapv :card-slug (state/get-discard updated :team/HOME)))))
 
     (testing "discarded cards retain instance-ids"
       (is (= #{card-1-id card-3-id}
-             (set (map :instance-id (state/get-discard updated :HOME))))))))
+             (set (map :instance-id (state/get-discard updated :team/HOME))))))))
 
 (deftest move-player-action-test
   (let [game    (state/create-game test-config)
@@ -116,7 +116,7 @@
       (is (= [2 3] (:position (state/get-basketball-player updated "HOME-orc-center-0")))))
 
     (testing "board occupant set"
-      (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
+      (is (= {:type :occupant/BASKETBALL_PLAYER :id "HOME-orc-center-0"}
              (board/occupant-at (:board updated) [2 3]))))))
 
 (deftest move-player-initial-state-test
@@ -141,7 +141,7 @@
       (is (= 1 (count (:occupants (:board move1))))))
 
     (testing "occupant set at new position"
-      (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
+      (is (= {:type :occupant/BASKETBALL_PLAYER :id "HOME-orc-center-0"}
              (board/occupant-at (:board move1) [2 3]))))
 
     (testing "find-occupant returns new position"
@@ -166,7 +166,7 @@
       (is (nil? (board/occupant-at (:board move2) [2 3]))))
 
     (testing "new position has occupant on board"
-      (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
+      (is (= {:type :occupant/BASKETBALL_PLAYER :id "HOME-orc-center-0"}
              (board/occupant-at (:board move2) [2 5]))))
 
     (testing "player position matches board find-occupant"
@@ -206,9 +206,9 @@
       (is (= [3 4] (:position (state/get-basketball-player move-p2 "HOME-elf-point-guard-1")))))
 
     (testing "both players on board"
-      (is (= {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}
+      (is (= {:type :occupant/BASKETBALL_PLAYER :id "HOME-orc-center-0"}
              (board/occupant-at (:board move-p2) [2 3])))
-      (is (= {:type :BASKETBALL_PLAYER :id "HOME-elf-point-guard-1"}
+      (is (= {:type :occupant/BASKETBALL_PLAYER :id "HOME-elf-point-guard-1"}
              (board/occupant-at (:board move-p2) [3 4]))))))
 
 (deftest move-player-invariants-test
@@ -232,14 +232,14 @@
   (let [game      (state/create-game test-config)
         ;; Manually corrupt the board by adding duplicate occupant
         corrupted (-> game
-                      (update :board board/set-occupant [2 3] {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"})
-                      (update :board board/set-occupant [4 5] {:type :BASKETBALL_PLAYER :id "HOME-orc-center-0"}))]
+                      (update :board board/set-occupant [2 3] {:type :occupant/BASKETBALL_PLAYER :id "HOME-orc-center-0"})
+                      (update :board board/set-occupant [4 5] {:type :occupant/BASKETBALL_PLAYER :id "HOME-orc-center-0"}))]
 
     (testing "apply-action throws when invariant would be violated"
       (is (thrown-with-msg?
            #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
            #"Board invariant violation"
-           (actions/apply-action corrupted {:type :bashketball/set-phase :phase :ACTIONS}))))))
+           (actions/apply-action corrupted {:type :bashketball/set-phase :phase :phase/ACTIONS}))))))
 
 (deftest exhaust-refresh-player-test
   (let [game      (state/create-game test-config)
@@ -260,41 +260,41 @@
     (testing "set-ball-possessed"
       (let [updated (actions/apply-action game {:type :bashketball/set-ball-possessed
                                                 :holder-id "HOME-orc-center-0"})]
-        (is (= {:status :POSSESSED :holder-id "HOME-orc-center-0"}
+        (is (= {:status :ball-status/POSSESSED :holder-id "HOME-orc-center-0"}
                (state/get-ball updated)))))
 
     (testing "set-ball-loose"
       (let [updated (actions/apply-action game {:type :bashketball/set-ball-loose
                                                 :position [3 5]})]
-        (is (= {:status :LOOSE :position [3 5]}
+        (is (= {:status :ball-status/LOOSE :position [3 5]}
                (state/get-ball updated)))))
 
     (testing "set-ball-in-air with position target"
       (let [updated (actions/apply-action game {:type :bashketball/set-ball-in-air
                                                 :origin [2 3]
                                                 :target {:type :position :position [2 13]}
-                                                :action-type :SHOT})]
-        (is (= {:status :IN_AIR :origin [2 3] :target {:type :position :position [2 13]} :action-type :SHOT}
+                                                :action-type :ball-action/SHOT})]
+        (is (= {:status :ball-status/IN_AIR :origin [2 3] :target {:type :position :position [2 13]} :action-type :ball-action/SHOT}
                (state/get-ball updated)))))
 
     (testing "set-ball-in-air with player target"
       (let [updated (actions/apply-action game {:type :bashketball/set-ball-in-air
                                                 :origin [2 3]
                                                 :target {:type :player :player-id "HOME-1"}
-                                                :action-type :PASS})]
-        (is (= {:status :IN_AIR :origin [2 3] :target {:type :player :player-id "HOME-1"} :action-type :PASS}
+                                                :action-type :ball-action/PASS})]
+        (is (= {:status :ball-status/IN_AIR :origin [2 3] :target {:type :player :player-id "HOME-1"} :action-type :ball-action/PASS}
                (state/get-ball updated)))))))
 
 (deftest add-score-action-test
   (let [game    (state/create-game test-config)
         updated (-> game
-                    (actions/apply-action {:type :bashketball/add-score :team :HOME :points 2})
-                    (actions/apply-action {:type :bashketball/add-score :team :AWAY :points 3}))]
-    (is (= {:HOME 2 :AWAY 3} (state/get-score updated)))))
+                    (actions/apply-action {:type :bashketball/add-score :team :team/HOME :points 2})
+                    (actions/apply-action {:type :bashketball/add-score :team :team/AWAY :points 3}))]
+    (is (= {:team/HOME 2 :team/AWAY 3} (state/get-score updated)))))
 
 (deftest add-modifier-action-test
   (let [game     (state/create-game test-config)
-        modifier {:id "buff-1" :stat :SHOOTING :amount 2}
+        modifier {:id "buff-1" :stat :stat/SHOOTING :amount 2}
         updated  (actions/apply-action game {:type :bashketball/add-modifier
                                              :player-id "HOME-orc-center-0"
                                              :modifier modifier})
@@ -302,7 +302,7 @@
     (is (= [modifier] (:modifiers player)))))
 
 (deftest remove-modifier-action-test
-  (let [modifier {:id "buff-1" :stat :SHOOTING :amount 2}
+  (let [modifier {:id "buff-1" :stat :stat/SHOOTING :amount 2}
         game     (-> (state/create-game test-config)
                      (actions/apply-action {:type :bashketball/add-modifier
                                             :player-id "HOME-orc-center-0"
@@ -315,30 +315,30 @@
 
 (deftest remove-cards-action-test
   (let [game      (-> (state/create-game test-config)
-                      (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
-        hand      (state/get-hand game :HOME)
+                      (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand      (state/get-hand game :team/HOME)
         card-2-id (:instance-id (second hand))
         updated   (actions/apply-action game {:type :bashketball/remove-cards
-                                              :player :HOME
+                                              :player :team/HOME
                                               :instance-ids [card-2-id]})]
 
     (testing "card removed from hand"
-      (is (= ["card-1" "card-3"] (mapv :card-slug (state/get-hand updated :HOME)))))
+      (is (= ["card-1" "card-3"] (mapv :card-slug (state/get-hand updated :team/HOME)))))
 
     (testing "card added to removed pile"
-      (is (= ["card-2"] (mapv :card-slug (get-in updated [:players :HOME :deck :removed])))))
+      (is (= ["card-2"] (mapv :card-slug (get-in updated [:players :team/HOME :deck :removed])))))
 
     (testing "removed card retains instance-id"
       (is (= card-2-id
-             (-> updated (get-in [:players :HOME :deck :removed]) first :instance-id))))))
+             (-> updated (get-in [:players :team/HOME :deck :removed]) first :instance-id))))))
 
 (deftest shuffle-deck-action-test
   (let [game           (state/create-game test-config)
-        original-ids   (set (map :instance-id (state/get-draw-pile game :HOME)))
-        original-slugs (set (map :card-slug (state/get-draw-pile game :HOME)))
-        updated        (actions/apply-action game {:type :bashketball/shuffle-deck :player :HOME})
-        shuffled-ids   (set (map :instance-id (state/get-draw-pile updated :HOME)))
-        shuffled-slugs (set (map :card-slug (state/get-draw-pile updated :HOME)))]
+        original-ids   (set (map :instance-id (state/get-draw-pile game :team/HOME)))
+        original-slugs (set (map :card-slug (state/get-draw-pile game :team/HOME)))
+        updated        (actions/apply-action game {:type :bashketball/shuffle-deck :player :team/HOME})
+        shuffled-ids   (set (map :instance-id (state/get-draw-pile updated :team/HOME)))
+        shuffled-slugs (set (map :card-slug (state/get-draw-pile updated :team/HOME)))]
 
     (testing "shuffle preserves all instance-ids"
       (is (= original-ids shuffled-ids)))
@@ -347,21 +347,21 @@
       (is (= original-slugs shuffled-slugs)))
 
     (testing "draw pile count unchanged"
-      (is (= 5 (count (state/get-draw-pile updated :HOME)))))))
+      (is (= 5 (count (state/get-draw-pile updated :team/HOME)))))))
 
 (deftest reveal-fate-action-test
   (let [game         (state/create-game test-config)
-        original-top (-> game (state/get-draw-pile :HOME) first)
-        updated      (actions/apply-action game {:type :bashketball/reveal-fate :player :HOME})]
+        original-top (-> game (state/get-draw-pile :team/HOME) first)
+        updated      (actions/apply-action game {:type :bashketball/reveal-fate :player :team/HOME})]
 
     (testing "top card moved to discard"
-      (is (= ["card-1"] (mapv :card-slug (state/get-discard updated :HOME)))))
+      (is (= ["card-1"] (mapv :card-slug (state/get-discard updated :team/HOME)))))
 
     (testing "draw pile shrinks"
-      (is (= 4 (count (state/get-draw-pile updated :HOME)))))
+      (is (= 4 (count (state/get-draw-pile updated :team/HOME)))))
 
     (testing "revealed card retains instance-id"
-      (let [discard-id (-> updated (state/get-discard :HOME) first :instance-id)]
+      (let [discard-id (-> updated (state/get-discard :team/HOME) first :instance-id)]
         (is (= (:instance-id original-top) discard-id))))
 
     (testing "event includes revealed card"
@@ -392,34 +392,34 @@
 
 (deftest play-card-removes-from-hand-test
   (let [game   (-> (state/create-game test-config)
-                   (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
-        hand   (state/get-hand game :HOME)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/apply-action game {:type        :bashketball/play-card
-                                           :player      :HOME
+                                           :player      :team/HOME
                                            :instance-id (:instance-id card)})]
-    (is (= 2 (count (state/get-hand result :HOME))))
+    (is (= 2 (count (state/get-hand result :team/HOME))))
     (is (not (some #(= (:instance-id %) (:instance-id card))
-                   (state/get-hand result :HOME))))))
+                   (state/get-hand result :team/HOME))))))
 
 (deftest play-card-adds-to-discard-test
   (let [game   (-> (state/create-game test-config)
-                   (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
-        hand   (state/get-hand game :HOME)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/apply-action game {:type        :bashketball/play-card
-                                           :player      :HOME
+                                           :player      :team/HOME
                                            :instance-id (:instance-id card)})]
-    (is (= 1 (count (state/get-discard result :HOME))))
-    (is (= card (first (state/get-discard result :HOME))))))
+    (is (= 1 (count (state/get-discard result :team/HOME))))
+    (is (= card (first (state/get-discard result :team/HOME))))))
 
 (deftest play-card-logs-event-test
   (let [game   (-> (state/create-game test-config)
-                   (actions/apply-action {:type :bashketball/draw-cards :player :HOME :count 3}))
-        hand   (state/get-hand game :HOME)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/apply-action game {:type        :bashketball/play-card
-                                           :player      :HOME
+                                           :player      :team/HOME
                                            :instance-id (:instance-id card)})
         event  (last (:events result))]
     (is (= :bashketball/play-card (:type event)))
@@ -432,17 +432,17 @@
                         :name      "Speed Boost"
                         :card-type :card-type/TEAM_ASSET_CARD}]
         game          (-> (state/create-game test-config)
-                          (assoc-in [:players :HOME :deck :hand] [card-instance])
-                          (assoc-in [:players :HOME :deck :cards] card-catalog))
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance])
+                          (assoc-in [:players :team/HOME :deck :cards] card-catalog))
         result        (actions/apply-action game {:type        :bashketball/play-card
-                                                  :player      :HOME
+                                                  :player      :team/HOME
                                                   :instance-id "asset-1"})]
 
     (testing "team asset added to assets"
-      (is (= [card-instance] (get-in result [:players :HOME :assets]))))
+      (is (= [card-instance] (get-in result [:players :team/HOME :assets]))))
 
     (testing "team asset not in discard"
-      (is (empty? (state/get-discard result :HOME))))))
+      (is (empty? (state/get-discard result :team/HOME))))))
 
 (deftest play-card-non-asset-goes-to-discard-test
   (let [card-instance {:instance-id "play-1"
@@ -451,14 +451,14 @@
                         :name      "Fast Break"
                         :card-type :card-type/PLAY_CARD}]
         game          (-> (state/create-game test-config)
-                          (assoc-in [:players :HOME :deck :hand] [card-instance])
-                          (assoc-in [:players :HOME :deck :cards] card-catalog))
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance])
+                          (assoc-in [:players :team/HOME :deck :cards] card-catalog))
         result        (actions/apply-action game {:type        :bashketball/play-card
-                                                  :player      :HOME
+                                                  :player      :team/HOME
                                                   :instance-id "play-1"})]
 
     (testing "non-asset card not in assets"
-      (is (empty? (get-in result [:players :HOME :assets]))))
+      (is (empty? (get-in result [:players :team/HOME :assets]))))
 
     (testing "non-asset card in discard"
-      (is (= [card-instance] (state/get-discard result :HOME))))))
+      (is (= [card-instance] (state/get-discard result :team/HOME))))))

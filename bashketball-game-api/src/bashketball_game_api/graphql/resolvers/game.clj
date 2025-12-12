@@ -31,8 +31,8 @@
 (def PlayersWithCards
   "Extended Players schema with hydrated deck cards."
   [:map {:graphql/type :Players}
-   [:HOME {:graphql/name :HOME} GamePlayerWithCards]
-   [:AWAY {:graphql/name :AWAY} GamePlayerWithCards]])
+   [:team/HOME {:graphql/name :HOME} GamePlayerWithCards]
+   [:team/AWAY {:graphql/name :AWAY} GamePlayerWithCards]])
 
 (def GameStateWithCards
   "Extended GameState schema with hydrated deck cards."
@@ -155,7 +155,7 @@
   (pr-str k))
 
 (defn- uppercase-keyword?
-  "Returns true if keyword is all uppercase (e.g., :HOME, :AWAY)."
+  "Returns true if keyword name is all uppercase (e.g., :HOME, :AWAY, :team/HOME)."
   [k]
   (and (keyword? k)
        (let [n (name k)]
@@ -164,35 +164,37 @@
 
 (defn- transform-map-key
   "Transforms a map key for GraphQL JSON output.
+  - Namespaced uppercase keywords (e.g., :team/HOME) -> strip namespace (:HOME)
   - Uppercase keywords (e.g., :HOME, :AWAY) -> preserved as-is
   - Field-name keywords -> camelCase keywords
-  - HexPosition vectors -> comma-separated strings
+  - HexPosition vectors -> stringified vectors
   - Other keys -> unchanged"
   [k]
   (cond
-    (uppercase-keyword? k) k
+    (uppercase-keyword? k) (keyword (name k))
     (hex-position-key? k)  (stringify-hex-key k)
     (field-name? k)        (csk/->camelCaseKeyword k)
     :else                  k))
 
-(defn- kebab->camel-keys
-  "Recursively transforms map keys for GraphQL JSON output.
+(defn- json-blob-transform
+  "Transforms keys in JSON blob fields for GraphQL output.
+
+  Only used for map-of fields that become opaque JSON in GraphQL (like tiles,
+  occupants, player maps). These fields aren't walked by graphql-server's
+  schema-driven encoder.
 
   Converts:
   - Field-name keyword keys to camelCase
-  - HexPosition vector keys [0 1] to comma-separated strings \"0,1\"
-
-  Keys that appear to be data values (like player IDs with numbers) are preserved.
-  Required because map-of types become Json blobs in GraphQL, and the encoding
-  transformer doesn't recurse into Json content to transform keys."
+  - Namespaced uppercase keyword keys to plain uppercase (:team/HOME -> :HOME)
+  - HexPosition vector keys [0 1] already stringified by stringify-board-hex-keys"
   [x]
   (cond
     (map? x) (into {}
                    (map (fn [[k v]]
                           [(transform-map-key k)
-                           (kebab->camel-keys v)])
+                           (json-blob-transform v)])
                         x))
-    (vector? x) (mapv kebab->camel-keys x)
+    (vector? x) (mapv json-blob-transform x)
     :else x))
 
 (defn- normalize-event
@@ -214,11 +216,14 @@
     (assoc game-state :events (mapv normalize-event events))
     game-state))
 
-(defn- stringify-board-hex-keys
-  "Stringifies HexPosition tuple keys in board tiles and occupants.
+(defn- transform-board-for-json
+  "Transforms board data for GraphQL JSON output.
 
-  GraphQL map-of types with tuple keys become Json blobs, and tuple keys
-  need to be stringified for JSON serialization."
+  Board tiles and occupants are map-of types that become opaque JSON blobs in
+  GraphQL. Transforms:
+  - HexPosition tuple keys to stringified format
+  - Nested keys to camelCase
+  - Values recursively"
   [game-state]
   (if-let [board (:board game-state)]
     (assoc game-state :board
@@ -226,12 +231,27 @@
              (:tiles board)
              (update :tiles
                      (fn [tiles]
-                       (into {} (map (fn [[k v]] [(stringify-hex-key k) v]) tiles))))
+                       (into {} (map (fn [[k v]]
+                                       [(stringify-hex-key k)
+                                        (json-blob-transform v)])
+                                     tiles))))
              (:occupants board)
              (update :occupants
                      (fn [occupants]
-                       (into {} (map (fn [[k v]] [(stringify-hex-key k) v]) occupants))))))
+                       (into {} (map (fn [[k v]]
+                                       [(stringify-hex-key k)
+                                        (json-blob-transform v)])
+                                     occupants))))))
     game-state))
+
+(defn- transform-game-state-for-graphql
+  "Applies all transformations needed for GraphQL output.
+
+  Only transforms board data (tiles/occupants) which are JSON blobs.
+  Other fields are handled by graphql-server's schema-driven encoder."
+  [game-state]
+  (when game-state
+    (transform-board-for-json game-state)))
 
 (defn- collect-deck-slugs
   "Extracts all unique card slugs from a deck state."
@@ -260,8 +280,8 @@
   [game-state catalog]
   (if game-state
     (-> game-state
-        (update-in [:players :HOME :deck] hydrate-deck catalog)
-        (update-in [:players :AWAY :deck] hydrate-deck catalog))
+        (update-in [:players :team/HOME :deck] hydrate-deck catalog)
+        (update-in [:players :team/AWAY :deck] hydrate-deck catalog))
     game-state))
 
 (defn- game->graphql
@@ -281,7 +301,7 @@
     :game-state   (-> (not-empty (:game-state game))
                       (hydrate-game-state catalog)
                       normalize-events
-                      stringify-board-hex-keys)
+                      transform-game-state-for-graphql)
     :winner-id    (:winner-id game)
     :created-at   (str (:created-at game))
     :started-at   (some-> (:started-at game) str)}))
@@ -373,26 +393,39 @@
     (when-let [game (game-svc/join-game! game-service game-id user-id deck-id)]
       (game->graphql game))))
 
-(defn- uppercase-keyword
-  "Converts a string to an uppercase keyword for enum values.
+(defn- ns-enum-keyword
+  "Converts a string to a namespaced enum keyword.
 
-  The game engine uses uppercase enum values like :ACTIONS, :HOME, :SHOT."
-  [s]
+  The game engine uses namespaced enum values. Supported namespaces:
+  - phase: SETUP, TIP_OFF, UPKEEP, ACTIONS, RESOLUTION, END_OF_TURN, GAME_OVER
+  - team: HOME, AWAY
+  - ball-action: SHOT, PASS
+  - stat: SPEED, SHOOTING, PASSING, DRIBBLING, DEFENSE
+
+  Input strings should be in format \"namespace/VALUE\" or just \"VALUE\" for legacy.
+  For backwards compatibility, simple uppercase strings are mapped to namespaces
+  based on known values."
+  [s ns-hint]
   (when s
-    (keyword (str/upper-case (name s)))))
+    (let [upper (str/upper-case (name s))]
+      (if (str/includes? upper "/")
+        ;; Already namespaced, convert to keyword
+        (keyword upper)
+        ;; Add namespace based on hint
+        (keyword (name ns-hint) upper)))))
 
 (defn- input->action
   "Converts GraphQL ActionInput to bashketball-game action format.
 
   Lacinia sends args with kebab-case keys. This function converts string
-  enum values to uppercase keywords to match the game engine's enums."
+  enum values to namespaced keywords to match the game engine's enums."
   [{:keys [type phase player amount count instance-id instance-ids player-id position
            modifier-id starter-id bench-id holder-id origin target
            action-type team points stat base fate modifiers total]}]
   (let [action-type-kw (keyword type)]
     (cond-> {:type action-type-kw}
-      phase        (assoc :phase (uppercase-keyword phase))
-      player       (assoc :player (uppercase-keyword player))
+      phase        (assoc :phase (ns-enum-keyword phase :phase))
+      player       (assoc :player (ns-enum-keyword player :team))
       amount       (assoc :amount amount)
       count        (assoc :count count)
       instance-id  (assoc :instance-id instance-id)
@@ -409,10 +442,10 @@
                                                 :position (vec (:position target))}
                                     "player" {:type :player
                                               :player-id (:player-id target)}))
-      action-type  (assoc :action-type (uppercase-keyword action-type))
-      team         (assoc :team (uppercase-keyword team))
+      action-type  (assoc :action-type (ns-enum-keyword action-type :ball-action))
+      team         (assoc :team (ns-enum-keyword team :team))
       points       (assoc :points points)
-      stat         (assoc :stat (uppercase-keyword stat))
+      stat         (assoc :stat (ns-enum-keyword stat :stat))
       base         (assoc :base base)
       fate         (assoc :fate fate)
       modifiers    (assoc :modifiers (vec modifiers))

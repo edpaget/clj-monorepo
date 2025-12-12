@@ -11,20 +11,20 @@
    [uix.core :refer [$ defui]]))
 
 (def ^:private team-colors
-  {:HOME {:bg     "bg-blue-500"
-          :text   "text-white"
-          :light  "bg-blue-50"
-          :border "border-blue-200"}
-   :AWAY {:bg     "bg-red-500"
-          :text   "text-white"
-          :light  "bg-red-50"
-          :border "border-red-200"}})
+  {:team/HOME {:bg     "bg-blue-500"
+               :text   "text-white"
+               :light  "bg-blue-50"
+               :border "border-blue-200"}
+   :team/AWAY {:bg     "bg-red-500"
+               :text   "text-white"
+               :light  "bg-red-50"
+               :border "border-red-200"}})
 
 (defui team-score-panel
   "Displays team name and score."
   [{:keys [team score is-active is-my-team]}]
-  (let [colors     (get team-colors team (:HOME team-colors))
-        team-label (if (= team :HOME) "Home" "Away")]
+  (let [colors     (get team-colors team (:team/HOME team-colors))
+        team-label (if (= team :team/HOME) "Home" "Away")]
     ($ :div {:class (cn "p-2 rounded-lg"
                         (if is-active
                           (:light colors)
@@ -63,7 +63,7 @@
   "Compact player row in the sidebar list."
   [{:keys [player token-label team on-click on-info-click]}]
   (let [{:keys [name card-slug exhausted?]} player
-        colors                              (get team-colors team (:HOME team-colors))]
+        colors                              (get team-colors team (:team/HOME team-colors))]
     ($ :div {:class    (cn "flex items-center gap-1.5 px-1 py-1 rounded cursor-pointer"
                            "hover:bg-slate-100 min-h-[32px]"
                            (when exhausted? "opacity-50"))
@@ -88,7 +88,7 @@
 (defui player-list
   "List of on-court players with token indicators."
   [{:keys [players player-indices team on-select on-info-click]}]
-  (let [prefix (if (= team :HOME) "H" "A")]
+  (let [prefix (if (= team :team/HOME) "H" "A")]
     ($ :div {:class "flex flex-col"}
        (when (empty? players)
          ($ :div {:class "text-xs text-slate-400 text-center py-2"} "No players"))
@@ -107,7 +107,7 @@
 
   Shows player name and placement status. Clickable to select for placement."
   [{:keys [player team selected placed on-click]}]
-  (let [colors       (get team-colors team (:HOME team-colors))
+  (let [colors       (get team-colors team (:team/HOME team-colors))
         display-name (or (:name player) (:card-slug player) "Unknown")]
     ($ :button
        {:class    (cn "w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs"
@@ -162,7 +162,7 @@
            setup-mode all-players starters selected-player-id on-player-select]}]
   (let [selected-id       (:id selected-player)
         selected-in-team? (and selected-id (contains? players selected-id))
-        prefix            (if (= team :HOME) "H" "A")]
+        prefix            (if (= team :team/HOME) "H" "A")]
     ($ :div {:class "flex-1 min-h-0 overflow-y-auto"}
        (cond
          setup-mode

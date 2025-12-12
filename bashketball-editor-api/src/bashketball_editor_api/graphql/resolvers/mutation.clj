@@ -71,6 +71,45 @@
           {:success false
            :message (str "Commit failed: " (.getMessage e))})))))
 
+(def BranchResult
+  "Malli schema for branch operation result."
+  [:map {:graphql/type :BranchResult}
+   [:status :string]
+   [:message :string]
+   [:branch {:optional true} [:maybe :string]]])
+
+(gql/defresolver :Mutation :switchBranch
+  "Switches to an existing branch.
+
+  Fails if there are uncommitted changes in the working tree."
+  [:=> [:cat :any [:map [:branch :string]] :any] BranchResult]
+  [ctx {:keys [branch]} _value]
+  (let [changes-repo (:changes-repo ctx)
+        changes      (repo/find-all changes-repo {})]
+    (if (:is-dirty changes)
+      {:status "error" :message "Commit or discard changes first"}
+      (repo/update! (:branch-repo ctx) {:name branch} {}))))
+
+(gql/defresolver :Mutation :createBranch
+  "Creates a new branch and switches to it.
+
+  Fails if there are uncommitted changes in the working tree."
+  [:=> [:cat :any [:map [:branch :string]] :any] BranchResult]
+  [ctx {:keys [branch]} _value]
+  (let [changes-repo (:changes-repo ctx)
+        changes      (repo/find-all changes-repo {})]
+    (if (:is-dirty changes)
+      {:status "error" :message "Commit or discard changes first"}
+      (repo/create! (:branch-repo ctx) {:name branch}))))
+
+(gql/defresolver :Mutation :discardChanges
+  "Discards all uncommitted changes in the working tree.
+
+  Performs a hard reset and removes untracked files."
+  [:=> [:cat :any :any :any] SyncResult]
+  [ctx _args _value]
+  (repo/delete! (:changes-repo ctx) :all))
+
 (gql/def-resolver-map
   "Resolver map containing all Mutation resolvers."
   [middleware/require-authentication])

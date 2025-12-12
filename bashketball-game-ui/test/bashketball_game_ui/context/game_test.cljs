@@ -132,13 +132,13 @@
            (-> (wait-for
                 (fn []
                   (let [el (rtl/screen.queryByTestId "my-team")]
-                    ;; Team enum uses uppercase :HOME/:AWAY per schema
-                    (when (or (nil? el) (not= ":HOME" (.-textContent el)))
+                    ;; Team enum uses namespaced :team/HOME/:team/AWAY per schema
+                    (when (or (nil? el) (not= ":team/HOME" (.-textContent el)))
                       (throw (js/Error. "Team not determined"))))))
                (.then
                 (fn []
                   (let [team-el (rtl/screen.getByTestId "my-team")]
-                    (t/is (= ":HOME" (.-textContent team-el)))
+                    (t/is (= ":team/HOME" (.-textContent team-el)))
                     (done))))
                (.catch
                 (fn [e]
@@ -157,24 +157,24 @@
 
 (t/deftest determine-my-team-returns-home-for-player1-test
   (let [game {:player-1-id "user-1" :player-2-id "user-2"}]
-    (t/is (= :HOME (#'game-context/determine-my-team game "user-1")))))
+    (t/is (= :team/HOME (#'game-context/determine-my-team game "user-1")))))
 
 (t/deftest determine-my-team-returns-away-for-player2-test
   (let [game {:player-1-id "user-1" :player-2-id "user-2"}]
-    (t/is (= :AWAY (#'game-context/determine-my-team game "user-2")))))
+    (t/is (= :team/AWAY (#'game-context/determine-my-team game "user-2")))))
 
 (t/deftest determine-my-team-returns-nil-for-spectator-test
   (let [game {:player-1-id "user-1" :player-2-id "user-2"}]
     (t/is (nil? (#'game-context/determine-my-team game "user-3")))))
 
 (t/deftest is-my-turn-returns-true-when-active-test
-  (let [game-state {:active-player :HOME}]
-    (t/is (#'game-context/is-my-turn? game-state :HOME))))
+  (let [game-state {:active-player :team/HOME}]
+    (t/is (#'game-context/is-my-turn? game-state :team/HOME))))
 
 (t/deftest is-my-turn-returns-false-when-not-active-test
-  (let [game-state {:active-player :AWAY}]
-    (t/is (not (#'game-context/is-my-turn? game-state :HOME)))))
+  (let [game-state {:active-player :team/AWAY}]
+    (t/is (not (#'game-context/is-my-turn? game-state :team/HOME)))))
 
 (t/deftest is-my-turn-handles-keyword-active-player-test
-  (let [game-state {:active-player :HOME}]
-    (t/is (#'game-context/is-my-turn? game-state :HOME))))
+  (let [game-state {:active-player :team/HOME}]
+    (t/is (#'game-context/is-my-turn? game-state :team/HOME))))

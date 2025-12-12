@@ -21,8 +21,8 @@
 (defui team-score-controls
   "Score controls for a single team."
   [{:keys [team on-add-score disabled]}]
-  (let [team-label (if (= team :HOME) "HOME" "AWAY")
-        team-color (if (= team :HOME) "text-blue-600" "text-red-600")]
+  (let [team-label (if (= team :team/HOME) "HOME" "AWAY")
+        team-color (if (= team :team/HOME) "text-blue-600" "text-red-600")]
     ($ :div {:class "flex items-center gap-1"}
        ($ :span {:class (cn "text-xs font-medium w-10" team-color)} team-label)
        ($ score-button {:label    "-1"
@@ -43,9 +43,9 @@
   [{:keys [on-add-score disabled loading]}]
   ($ :div {:class "flex items-center gap-4"}
      ($ :span {:class "text-xs font-medium text-slate-500"} "Score:")
-     ($ team-score-controls {:team         :HOME
+     ($ team-score-controls {:team         :team/HOME
                              :on-add-score on-add-score
                              :disabled     (or disabled loading)})
-     ($ team-score-controls {:team         :AWAY
+     ($ team-score-controls {:team         :team/AWAY
                              :on-add-score on-add-score
                              :disabled     (or disabled loading)})))

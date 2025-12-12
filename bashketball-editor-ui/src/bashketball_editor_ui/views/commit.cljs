@@ -2,8 +2,13 @@
   "Commit page for reviewing changes and writing commit messages."
   (:require
    ["@apollo/client" :refer [useMutation useQuery]]
-   ["lucide-react" :refer [ArrowLeft FilePlus FileX FilePenLine FileQuestion GitCommit]]
+   ["lucide-react" :refer [ArrowLeft FilePlus FileX FilePenLine FileQuestion GitCommit Trash2]]
    [bashketball-editor-ui.graphql.queries :as q]
+   [bashketball-ui.components.alert-dialog :refer [alert-dialog alert-dialog-trigger
+                                                   alert-dialog-content alert-dialog-header
+                                                   alert-dialog-footer alert-dialog-title
+                                                   alert-dialog-description alert-dialog-cancel
+                                                   alert-dialog-action]]
    [bashketball-ui.components.button :refer [button]]
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.components.textarea :refer [textarea]]
@@ -26,40 +31,58 @@
 (defui commit-view
   "Page for reviewing and committing changes."
   []
-  (let [navigate                      (router/use-navigate)
-        [message set-message]         (use-state "")
-        [committing? set-committing?] (use-state false)
-        [error set-error]             (use-state nil)
+  (let [navigate                          (router/use-navigate)
+        [message set-message]             (use-state "")
+        [committing? set-committing?]     (use-state false)
+        [discarding? set-discarding?]     (use-state false)
+        [discard-open? set-discard-open?] (use-state false)
+        [error set-error]                 (use-state nil)
 
         ;; Query working tree status
-        status-query                  (useQuery q/WORKING_TREE_STATUS_QUERY
-                                                #js {:fetchPolicy "network-only"})
-        status                        (some-> status-query :data :workingTreeStatus)
-        loading?                      (:loading status-query)
+        status-query                      (useQuery q/WORKING_TREE_STATUS_QUERY
+                                                    #js {:fetchPolicy "network-only"})
+        status                            (some-> status-query :data :workingTreeStatus)
+        loading?                          (:loading status-query)
 
-        added                         (js->clj (:added status))
-        modified                      (js->clj (:modified status))
-        deleted                       (js->clj (:deleted status))
-        untracked                     (js->clj (:untracked status))
-        is-dirty?                     (:isDirty status)
+        added                             (js->clj (:added status))
+        modified                          (js->clj (:modified status))
+        deleted                           (js->clj (:deleted status))
+        untracked                         (js->clj (:untracked status))
+        is-dirty?                         (:isDirty status)
 
-        total-changes                 (+ (count added) (count modified) (count deleted))
+        total-changes                     (+ (count added) (count modified) (count deleted))
 
-        [commit-mutation]             (useMutation q/COMMIT_CHANGES_MUTATION)
+        [commit-mutation]                 (useMutation q/COMMIT_CHANGES_MUTATION)
+        [discard-mutation]                (useMutation q/DISCARD_CHANGES_MUTATION)
 
-        handle-commit                 (fn []
-                                        (set-committing? true)
-                                        (set-error nil)
-                                        (-> (commit-mutation #js {:variables #js {:message (when (seq message) message)}
-                                                                  :refetchQueries #js ["SyncStatus"]})
-                                            (.then (fn [^js result]
-                                                     (let [data (.. result -data -commitChanges)]
-                                                       (if (.-success data)
-                                                         (navigate "/")
-                                                         (set-error (.-message data))))))
-                                            (.catch (fn [^js e]
-                                                      (set-error (.-message e))))
-                                            (.finally #(set-committing? false))))]
+        handle-commit                     (fn []
+                                            (set-committing? true)
+                                            (set-error nil)
+                                            (-> (commit-mutation #js {:variables #js {:message (when (seq message) message)}
+                                                                      :refetchQueries #js ["SyncStatus"]})
+                                                (.then (fn [^js result]
+                                                         (let [data (.. result -data -commitChanges)]
+                                                           (if (.-success data)
+                                                             (navigate "/")
+                                                             (set-error (.-message data))))))
+                                                (.catch (fn [^js e]
+                                                          (set-error (.-message e))))
+                                                (.finally #(set-committing? false))))
+
+        handle-discard                    (fn []
+                                            (set-discarding? true)
+                                            (set-error nil)
+                                            (-> (discard-mutation #js {:refetchQueries #js ["SyncStatus" "WorkingTreeStatus"]})
+                                                (.then (fn [^js result]
+                                                         (let [data (.. result -data -discardChanges)]
+                                                           (if (= "success" (:status data))
+                                                             (do
+                                                               (set-discard-open? false)
+                                                               (navigate "/"))
+                                                             (set-error (:message data))))))
+                                                (.catch (fn [^js e]
+                                                          (set-error (.-message e))))
+                                                (.finally #(set-discarding? false))))]
 
     ($ :div {:class "max-w-3xl mx-auto"}
        ;; Header
@@ -125,11 +148,32 @@
                  error))
 
             ;; Actions
-            ($ :div {:class "flex justify-end gap-4"}
-               ($ button {:variant :outline
-                          :on-click #(navigate "/")}
-                  "Cancel")
-               ($ button {:disabled committing?
-                          :on-click handle-commit}
-                  ($ GitCommit {:className "w-4 h-4 mr-2"})
-                  (if committing? "Committing..." "Commit Changes"))))))))
+            ($ :div {:class "flex justify-between"}
+               ;; Discard button on the left
+               ($ alert-dialog {:open discard-open?
+                                :on-open-change set-discard-open?}
+                  ($ alert-dialog-trigger
+                     ($ button {:variant :destructive}
+                        ($ Trash2 {:className "w-4 h-4 mr-2"})
+                        "Discard All"))
+                  ($ alert-dialog-content
+                     ($ alert-dialog-header
+                        ($ alert-dialog-title "Discard All Changes?")
+                        ($ alert-dialog-description
+                           "This will permanently discard all uncommitted changes including staged files, modified files, and untracked files. This action cannot be undone."))
+                     ($ alert-dialog-footer
+                        ($ alert-dialog-cancel)
+                        ($ alert-dialog-action
+                           {:on-click handle-discard
+                            :disabled discarding?}
+                           (if discarding? "Discarding..." "Discard All")))))
+
+               ;; Cancel and Commit buttons on the right
+               ($ :div {:class "flex gap-4"}
+                  ($ button {:variant :outline
+                             :on-click #(navigate "/")}
+                     "Cancel")
+                  ($ button {:disabled committing?
+                             :on-click handle-commit}
+                     ($ GitCommit {:className "w-4 h-4 mr-2"})
+                     (if committing? "Committing..." "Commit Changes")))))))))

@@ -44,14 +44,26 @@
               (when (every? #(re-matches #"-?\d+" %) parts)
                 (mapv #(Long/parseLong %) parts)))))))))
 
+(defn- namespaced-enum-key?
+  "Returns true if the string looks like a namespaced enum key.
+
+  Matches patterns like \"team/HOME\", \"phase/ACTIONS\" where the namespace
+  is lowercase and the value is uppercase."
+  [s]
+  (when (string? s)
+    (when-let [[_ ns-part val-part] (re-matches #"([a-z][a-z0-9-]*)/([A-Z][A-Z0-9_]*)" s)]
+      (and ns-part val-part))))
+
 (defn- decode-key
   "Decodes a JSON string key to a keyword.
 
+  - Namespaced enum keys (team/HOME) -> namespaced keywords :team/HOME
   - Uppercase keys (HOME, AWAY) -> uppercase keywords
   - Field name keys (snake_case) -> kebab-case keywords"
   [k]
   (cond
     (keyword? k) k
+    (namespaced-enum-key? k) (keyword k)
     (uppercase-string? k) (keyword k)
     (string? k) (csk/->kebab-case-keyword k)
     :else k))
@@ -71,21 +83,34 @@
     (let [v (or (get x k) (get x (name k)))]
       (if (string? v) (keyword v) v))))
 
+(defn- keyword-matches-string?
+  "Returns true if keyword matches string representation.
+
+  Handles both namespaced and non-namespaced keywords:
+  - :team/HOME matches \"team/HOME\" or \"HOME\"
+  - :ACTIVE matches \"ACTIVE\""
+  [kw s]
+  (or (= (name kw) s)
+      (and (namespace kw)
+           (= (str (namespace kw) "/" (name kw)) s))))
+
 (def ^:private enum-value-transformer
   "Transforms enum values from strings to keywords during decode.
 
-  Handles [:enum ...] schemas and [:= :keyword] literal schemas."
+  Handles [:enum ...] schemas and [:= :keyword] literal schemas.
+  For namespaced keywords like :team/HOME, matches both \"team/HOME\" and \"HOME\"."
   (mt/transformer
    {:decoders
     {:enum
      {:compile
       (fn [schema _options]
-        (let [enum-values (set (mc/children schema))]
+        (let [enum-values (mc/children schema)]
           (fn [value]
             (cond
               (keyword? value) value
-              (string? value) (let [kw (keyword value)]
-                                (if (contains? enum-values kw) kw value))
+              (string? value)
+              (or (some #(when (keyword-matches-string? % value) %) enum-values)
+                  value)
               :else value))))}
      :=
      {:compile
@@ -96,7 +121,7 @@
               (= value expected) value
               (and (keyword? expected)
                    (string? value)
-                   (= (name expected) value))
+                   (keyword-matches-string? expected value))
               expected
               :else value))))}}}))
 
@@ -150,19 +175,59 @@
    enum-value-transformer
    map-of-tuple-key-transformer))
 
+(defn- encode-key
+  "Encodes a map key for database JSON storage.
+
+  - Namespaced uppercase keywords (e.g., :team/HOME) → \"team/HOME\" (preserved)
+  - Regular keywords (e.g., :player-id) → \"player_id\" (snake_case)"
+  [k]
+  (cond
+    (not (keyword? k)) k
+    (and (namespace k) (uppercase-string? (name k)))
+    (str (namespace k) "/" (name k))
+    :else
+    (csk/->snake_case_string (name k))))
+
 (def ^:private db-encode-key-transformer
-  "Transforms kebab-case keyword keys to snake_case strings when encoding for DB."
-  (mt/key-transformer
-   {:encode (fn [k]
-              (if (keyword? k)
-                (csk/->snake_case_string (name k))
-                k))}))
+  "Transforms keyword keys to strings when encoding for DB.
+
+  Preserves namespaced uppercase keywords (like :team/HOME) as \"team/HOME\".
+  Converts regular kebab-case keywords to snake_case strings."
+  (mt/key-transformer {:encode encode-key}))
+
+(def ^:private enum-value-encoder
+  "Transforms keyword enum values to strings for DB storage.
+
+  Preserves namespace information for namespaced keywords:
+  - :team/HOME → \"team/HOME\"
+  - :ACTIVE → \"ACTIVE\""
+  (mt/transformer
+   {:encoders
+    {:enum
+     (fn [value]
+       (when (keyword? value)
+         (if (namespace value)
+           (str (namespace value) "/" (name value))
+           (name value))))
+     :=
+     {:compile
+      (fn [schema _options]
+        (let [expected (first (mc/children schema))]
+          (fn [value]
+            (cond
+              (not (keyword? value)) value
+              (namespace value) (str (namespace value) "/" (name value))
+              :else (name value)))))}}}))
 
 (def db-encoding-transformer
   "Composite transformer for encoding application data to DB JSON.
 
-  Transforms kebab-case keyword keys to snake_case strings."
+  Transforms:
+  - Kebab-case keyword keys to snake_case strings
+  - Namespaced keyword keys (like :team/HOME) preserved as \"team/HOME\"
+  - Enum values to their string representations with namespace preserved"
   (mt/transformer
+   enum-value-encoder
    db-encode-key-transformer))
 
 (defn- with-db-dispatch

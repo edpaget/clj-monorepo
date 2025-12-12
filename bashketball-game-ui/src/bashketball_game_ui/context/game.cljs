@@ -45,8 +45,8 @@
   "Determines which team the user is playing as."
   [game user-id]
   (cond
-    (= user-id (:player-1-id game)) :HOME
-    (= user-id (:player-2-id game)) :AWAY
+    (= user-id (:player-1-id game)) :team/HOME
+    (= user-id (:player-2-id game)) :team/AWAY
     :else nil))
 
 (defn- is-my-turn?
@@ -64,8 +64,8 @@
   Merges cards from both HOME and AWAY decks into a single
   `{slug -> card}` map for lookups."
   [game-state]
-  (let [home-cards (get-in game-state [:players :HOME :deck :cards])
-        away-cards (get-in game-state [:players :AWAY :deck :cards])]
+  (let [home-cards (get-in game-state [:players :team/HOME :deck :cards])
+        away-cards (get-in game-state [:players :team/AWAY :deck :cards])]
     (into {}
           (map (juxt :slug identity))
           (concat home-cards away-cards))))

@@ -62,7 +62,7 @@
   [state _action]
   (-> state
       (update :turn-number inc)
-      (update :active-player {:HOME :AWAY :AWAY :HOME})))
+      (update :active-player {:team/HOME :team/AWAY :team/AWAY :team/HOME})))
 
 (defmethod -apply-action :bashketball/set-active-player
   [state {:keys [player]}]
@@ -71,7 +71,7 @@
 (defmethod -apply-action :bashketball/start-from-tipoff
   [state {:keys [player]}]
   (-> state
-      (assoc :phase :UPKEEP)
+      (assoc :phase :phase/UPKEEP)
       (assoc :active-player player)))
 
 ;; -----------------------------------------------------------------------------
@@ -136,7 +136,7 @@
         (state/update-basketball-player player-id assoc :position position)
         (cond->
          old-position (update :board board/remove-occupant old-position))
-        (update :board board/set-occupant position {:type :BASKETBALL_PLAYER :id player-id}))))
+        (update :board board/set-occupant position {:type :occupant/BASKETBALL_PLAYER :id player-id}))))
 
 (defmethod -apply-action :bashketball/exhaust-player
   [state {:keys [player-id]}]
@@ -186,22 +186,22 @@
         (state/update-basketball-player bench-id assoc :position starter-pos)
         (cond->
          starter-pos
-          (update :board board/set-occupant starter-pos {:type :BASKETBALL_PLAYER :id bench-id})))))
+          (update :board board/set-occupant starter-pos {:type :occupant/BASKETBALL_PLAYER :id bench-id})))))
 
 ;; -----------------------------------------------------------------------------
 ;; Ball Actions
 
 (defmethod -apply-action :bashketball/set-ball-possessed
   [state {:keys [holder-id]}]
-  (assoc state :ball {:status :POSSESSED :holder-id holder-id}))
+  (assoc state :ball {:status :ball-status/POSSESSED :holder-id holder-id}))
 
 (defmethod -apply-action :bashketball/set-ball-loose
   [state {:keys [position]}]
-  (assoc state :ball {:status :LOOSE :position position}))
+  (assoc state :ball {:status :ball-status/LOOSE :position position}))
 
 (defmethod -apply-action :bashketball/set-ball-in-air
   [state {:keys [origin target action-type]}]
-  (assoc state :ball {:status :IN_AIR
+  (assoc state :ball {:status :ball-status/IN_AIR
                       :origin origin
                       :target target
                       :action-type action-type}))

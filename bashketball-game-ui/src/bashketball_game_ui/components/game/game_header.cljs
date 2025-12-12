@@ -10,14 +10,14 @@
    [uix.core :refer [$ defui]]))
 
 (def ^:private phase-labels
-  {:SETUP       "Setup"
-   :TIP_OFF     "Tip-Off"
-   :UPKEEP      "Upkeep"
-   :DRAW        "Draw"
-   :ACTIONS     "Actions"
-   :RESOLUTION  "Resolution"
-   :END_OF_TURN "End"
-   :GAME_OVER   "Over"})
+  {:phase/SETUP       "Setup"
+   :phase/TIP_OFF     "Tip-Off"
+   :phase/UPKEEP      "Upkeep"
+   :phase/DRAW        "Draw"
+   :phase/ACTIONS     "Actions"
+   :phase/RESOLUTION  "Resolution"
+   :phase/END_OF_TURN "End"
+   :phase/GAME_OVER   "Over"})
 
 (defn- phase-label
   "Returns human-readable label for a phase."
@@ -25,14 +25,14 @@
   (get phase-labels (keyword phase) (str phase)))
 
 (def ^:private phase-colors
-  {:SETUP       "bg-purple-100 text-purple-700"
-   :TIP_OFF     "bg-amber-100 text-amber-700"
-   :UPKEEP      "bg-yellow-100 text-yellow-700"
-   :DRAW        "bg-cyan-100 text-cyan-700"
-   :ACTIONS     "bg-blue-100 text-blue-700"
-   :RESOLUTION  "bg-orange-100 text-orange-700"
-   :END_OF_TURN "bg-slate-100 text-slate-700"
-   :GAME_OVER   "bg-red-100 text-red-700"})
+  {:phase/SETUP       "bg-purple-100 text-purple-700"
+   :phase/TIP_OFF     "bg-amber-100 text-amber-700"
+   :phase/UPKEEP      "bg-yellow-100 text-yellow-700"
+   :phase/DRAW        "bg-cyan-100 text-cyan-700"
+   :phase/ACTIONS     "bg-blue-100 text-blue-700"
+   :phase/RESOLUTION  "bg-orange-100 text-orange-700"
+   :phase/END_OF_TURN "bg-slate-100 text-slate-700"
+   :phase/GAME_OVER   "bg-red-100 text-red-700"})
 
 (defn- phase-color
   "Returns Tailwind classes for phase badge color."
