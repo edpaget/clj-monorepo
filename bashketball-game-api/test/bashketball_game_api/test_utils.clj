@@ -86,8 +86,10 @@
   (binding [db/*datasource* (::system/db-pool *system*)]
     (db/execute! ["DELETE FROM game_events"])
     (db/execute! ["DELETE FROM games"])
+    (db/execute! ["DELETE FROM claimed_starter_decks"])
     (db/execute! ["DELETE FROM decks"])
     (db/execute! ["DELETE FROM sessions"])
+    (db/execute! ["DELETE FROM user_avatars"])
     (db/execute! ["DELETE FROM users"])
     (f)))
 

@@ -110,6 +110,24 @@
   (get-sets [_this]
     (vals sets-by-slug)))
 
+(defn create-catalog-from-data
+  "Creates a card catalog from provided cards and sets collections.
+
+  Validates each card and set against bashketball-schemas. Invalid entries
+  are logged and skipped. Useful for testing with fixture data."
+  [cards sets]
+  (let [valid-sets    (->> sets
+                           (map validate-set!)
+                           (filter some?))
+        valid-cards   (->> cards
+                           (map validate-card!)
+                           (filter some?))
+        cards-by-slug (into {} (map (juxt :slug identity) valid-cards))
+        cards-by-set  (group-by :set-slug valid-cards)
+        cards-by-type (group-by :card-type valid-cards)
+        sets-by-slug  (into {} (map (juxt :slug identity) valid-sets))]
+    (->InMemoryCardCatalog cards-by-slug cards-by-set cards-by-type sets-by-slug)))
+
 (defn create-card-catalog
   "Creates a card catalog by loading all cards and sets from the classpath.
 
@@ -120,15 +138,6 @@
   (log/info "Loading card catalog from classpath...")
   (let [raw-sets      (discover-sets)
         raw-cards     (discover-cards)
-        valid-sets    (->> raw-sets
-                           (map validate-set!)
-                           (filter some?))
-        valid-cards   (->> raw-cards
-                           (map validate-card!)
-                           (filter some?))
-        cards-by-slug (into {} (map (juxt :slug identity) valid-cards))
-        cards-by-set  (group-by :set-slug valid-cards)
-        cards-by-type (group-by :card-type valid-cards)
-        sets-by-slug  (into {} (map (juxt :slug identity) valid-sets))]
-    (log/info "Loaded" (count valid-cards) "cards from" (count valid-sets) "sets")
-    (->InMemoryCardCatalog cards-by-slug cards-by-set cards-by-type sets-by-slug)))
+        catalog       (create-catalog-from-data raw-cards raw-sets)]
+    (log/info "Loaded" (count (get-cards catalog)) "cards from" (count (get-sets catalog)) "sets")
+    catalog))

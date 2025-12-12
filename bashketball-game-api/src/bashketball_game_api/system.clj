@@ -10,17 +10,21 @@
    [bashketball-game-api.graphql.resolvers.card :as card-resolvers]
    [bashketball-game-api.graphql.resolvers.deck :as deck-resolvers]
    [bashketball-game-api.graphql.resolvers.game :as game-resolvers]
+   [bashketball-game-api.graphql.resolvers.starter-deck :as starter-deck-resolvers]
    [bashketball-game-api.graphql.resolvers.user :as user-resolvers]
    [bashketball-game-api.graphql.subscriptions :as sub-streamers]
    [bashketball-game-api.handler :as handler]
+   [bashketball-game-api.models.avatar :as avatar]
    [bashketball-game-api.models.deck :as deck]
    [bashketball-game-api.models.game :as game]
    [bashketball-game-api.models.session :as session]
    [bashketball-game-api.models.user :as user]
    [bashketball-game-api.services.auth :as auth-service]
+   [bashketball-game-api.services.avatar :as avatar-service]
    [bashketball-game-api.services.catalog :as catalog]
    [bashketball-game-api.services.deck :as deck-service]
    [bashketball-game-api.services.game :as game-service]
+   [bashketball-game-api.services.starter-deck :as starter-deck-service]
    [clojure.tools.logging :as log]
    [db.connection-pool :as pool]
    [db.core :as db]
@@ -82,6 +86,10 @@
   (log/info "Creating game repository")
   (game/create-game-repository))
 
+(defmethod ig/init-key ::avatar-repo [_ _]
+  (log/info "Creating avatar repository")
+  (avatar/create-avatar-repository))
+
 ;; ---------------------------------------------------------------------------
 ;; Card Catalog (Phase 4)
 
@@ -100,9 +108,17 @@
   (log/info "Creating game service")
   (game-service/create-game-service game-repo deck-service card-catalog subscription-manager))
 
+(defmethod ig/init-key ::starter-deck-service [_ {:keys [deck-repo card-catalog]}]
+  (log/info "Creating starter deck service")
+  (starter-deck-service/create-starter-deck-service deck-repo card-catalog))
+
 (defmethod ig/init-key ::auth-service [_ {:keys [user-repo]}]
   (log/info "Creating auth service")
   (auth-service/create-auth-service user-repo))
+
+(defmethod ig/init-key ::avatar-service [_ {:keys [avatar-repo]}]
+  (log/info "Creating avatar service")
+  (avatar-service/create-avatar-service avatar-repo))
 
 (defmethod ig/init-key ::authenticator [_ {:keys [auth-service session-repo config]}]
   (log/info "Creating authenticator")
@@ -135,7 +151,7 @@
 ;; ---------------------------------------------------------------------------
 ;; GraphQL (Phase 4+)
 
-(defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog deck-service game-service user-repo]}]
+(defmethod ig/init-key ::resolver-map [_ {:keys [card-catalog deck-service game-service starter-deck-service user-repo]}]
   (log/info "Creating GraphQL resolver map")
   {:resolvers (merge #_{:clj-kondo/ignore [:unresolved-var]}
                card-resolvers/resolvers
@@ -144,12 +160,15 @@
                      #_{:clj-kondo/ignore [:unresolved-var]}
                      game-resolvers/resolvers
                      #_{:clj-kondo/ignore [:unresolved-var]}
+                     starter-deck-resolvers/resolvers
+                     #_{:clj-kondo/ignore [:unresolved-var]}
                      user-resolvers/resolvers
                      #_{:clj-kondo/ignore [:unresolved-var]}
                      sub-streamers/resolvers)
    :card-catalog card-catalog
    :deck-service deck-service
    :game-service game-service
+   :starter-deck-service starter-deck-service
    :user-repo user-repo})
 
 ;; ---------------------------------------------------------------------------
@@ -159,6 +178,7 @@
                                             authenticator
                                             db-pool
                                             user-repo
+                                            avatar-service
                                             resolver-map
                                             subscription-manager
                                             config]}]
@@ -167,6 +187,7 @@
    {:google-oidc-client google-oidc-client
     :authenticator authenticator
     :user-repo user-repo
+    :avatar-service avatar-service
     :db-pool db-pool
     :resolver-map resolver-map
     :subscription-manager subscription-manager
@@ -210,6 +231,7 @@
                    :migrate (ig/ref ::migrate)}
    ::deck-repo {:migrate (ig/ref ::migrate)}
    ::game-repo {:migrate (ig/ref ::migrate)}
+   ::avatar-repo {:migrate (ig/ref ::migrate)}
 
    ;; Card Catalog
    ::card-catalog {:catalog-override (:card-catalog opts)}
@@ -221,8 +243,11 @@
                    :deck-service (ig/ref ::deck-service)
                    :card-catalog (ig/ref ::card-catalog)
                    :subscription-manager (ig/ref ::subscription-manager)}
+   ::starter-deck-service {:deck-repo (ig/ref ::deck-repo)
+                           :card-catalog (ig/ref ::card-catalog)}
    ::auth-service {:user-repo (ig/ref ::user-repo)
                    :config (ig/ref ::config)}
+   ::avatar-service {:avatar-repo (ig/ref ::avatar-repo)}
    ::authenticator {:auth-service (ig/ref ::auth-service)
                     :session-repo (ig/ref ::session-repo)
                     :config (ig/ref ::config)}
@@ -233,6 +258,7 @@
    ::resolver-map {:card-catalog (ig/ref ::card-catalog)
                    :deck-service (ig/ref ::deck-service)
                    :game-service (ig/ref ::game-service)
+                   :starter-deck-service (ig/ref ::starter-deck-service)
                    :user-repo (ig/ref ::user-repo)}
 
    ;; HTTP
@@ -240,6 +266,7 @@
               :authenticator (ig/ref ::authenticator)
               :db-pool (ig/ref ::db-pool)
               :user-repo (ig/ref ::user-repo)
+              :avatar-service (ig/ref ::avatar-service)
               :resolver-map (ig/ref ::resolver-map)
               :subscription-manager (ig/ref ::subscription-manager)
               :config (ig/ref ::config)}

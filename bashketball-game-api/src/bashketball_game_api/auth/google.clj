@@ -6,6 +6,7 @@
   (:require
    [authn.protocol :as authn-proto]
    [bashketball-game-api.models.user :as user]
+   [bashketball-game-api.services.avatar :as avatar-svc]
    [clojure.tools.logging :as log]
    [db.core :as db]
    [oidc-google.core :as google]
@@ -33,15 +34,17 @@
   When OAuth succeeds:
   1. Fetches Google user info using the access token
   2. Upserts user in database
-  3. Creates authn session
-  4. Redirects to success URI
+  3. Triggers async avatar download
+  4. Creates authn session
+  5. Redirects to success URI
 
   Takes a config map with:
   - `:user-repo` - User repository for upserting users
+  - `:avatar-service` - Avatar service for caching profile pictures
   - `:authenticator` - Authn authenticator for session management
   - `:success-redirect-uri` - URI to redirect after successful auth
   - `:db-pool` - Database connection pool"
-  [{:keys [user-repo authenticator success-redirect-uri db-pool]}]
+  [{:keys [user-repo avatar-service authenticator success-redirect-uri db-pool]}]
   (fn [_request token-response]
     (binding [db/*datasource* db-pool]
       (let [access-token (:access_token token-response)
@@ -59,15 +62,18 @@
                            :email email
                            :name name
                            :picture picture})
-              user-id    (str (:id user))
-              claims     {:sub user-id
+              user-id    (:id user)
+              claims     {:sub (str user-id)
                           :email email
                           :name name
                           :picture picture}
               session-id (authn-proto/create-session
                           (:session-store authenticator)
-                          user-id
+                          (str user-id)
                           claims)]
+          ;; Trigger async avatar download (non-blocking)
+          (when (and avatar-service picture)
+            (avatar-svc/fetch-avatar-async! avatar-service user-id picture))
           (log/info "Created session for user:" user-id)
           (-> (response/redirect success-redirect-uri)
               (assoc :session {:authn/session-id session-id})))))))

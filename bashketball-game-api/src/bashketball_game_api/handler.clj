@@ -6,6 +6,7 @@
   (:require
    [authn.middleware :as authn-mw]
    [bashketball-game-api.auth.google :as google-auth]
+   [bashketball-game-api.handlers.avatar :as avatar-handler]
    [cheshire.core :as json]
    [clojure.edn :as edn]
    [clojure.string :as str]
@@ -30,6 +31,19 @@
   [_request]
   (json-response {:status "ok"} 200))
 
+(defn- parse-path-params
+  "Extracts path parameters from a URI pattern match."
+  [uri pattern]
+  (let [pattern-parts (clojure.string/split pattern #"/")
+        uri-parts     (clojure.string/split uri #"/")]
+    (when (= (count pattern-parts) (count uri-parts))
+      (reduce (fn [acc [p u]]
+                (if (clojure.string/starts-with? p ":")
+                  (assoc acc (keyword (subs p 1)) u)
+                  (if (= p u) acc (reduced nil))))
+              {}
+              (map vector pattern-parts uri-parts)))))
+
 (defn routes
   "Main application routes."
   [_opts]
@@ -38,6 +52,10 @@
       (cond
         (= uri "/health")
         (health-handler request)
+
+        (clojure.string/starts-with? uri "/api/avatars/")
+        (let [path-params (parse-path-params uri "/api/avatars/:user-id")]
+          (avatar-handler/avatar-handler (assoc request :path-params path-params)))
 
         :else
         (json-response {:error "Not found"} 404)))))
@@ -111,11 +129,12 @@
   - `:google-oidc-client` - OIDC client for Google auth
   - `:authenticator` - Authn authenticator instance
   - `:user-repo` - User repository
+  - `:avatar-service` - Avatar service for cached avatar images
   - `:db-pool` - Database connection pool
   - `:resolver-map` - GraphQL resolver map with :resolvers and :card-catalog
   - `:subscription-manager` - Subscription manager for real-time updates
   - `:config` - Application configuration"
-  [{:keys [google-oidc-client authenticator user-repo db-pool resolver-map
+  [{:keys [google-oidc-client authenticator user-repo avatar-service db-pool resolver-map
            subscription-manager config]}]
   (let [session-config  (:session config)
         google-config   (:google config)
@@ -154,6 +173,7 @@
           :callback-opts
           {:success-fn (google-auth/create-success-handler
                         {:user-repo user-repo
+                         :avatar-service avatar-service
                          :authenticator authenticator
                          :success-redirect-uri (:success-redirect-uri google-config)
                          :db-pool db-pool})
@@ -173,6 +193,8 @@
         wrap-params
         ;; Resolver map for GraphQL context
         (wrap-resolver-map resolver-map)
+        ;; Avatar service
+        (avatar-handler/wrap-avatar-service avatar-service)
         ;; CORS
         (wrap-cors allowed-origins)
         ;; Database binding

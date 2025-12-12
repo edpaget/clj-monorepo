@@ -1,0 +1,12 @@
+{:up
+ ["CREATE TABLE claimed_starter_decks (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    starter_deck_id VARCHAR(100) NOT NULL,
+    deck_id UUID NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+    claimed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, starter_deck_id)
+  )"
+  "CREATE INDEX idx_claimed_starter_decks_user_id ON claimed_starter_decks(user_id)"]
+
+ :down
+ ["DROP TABLE IF EXISTS claimed_starter_decks"]}
