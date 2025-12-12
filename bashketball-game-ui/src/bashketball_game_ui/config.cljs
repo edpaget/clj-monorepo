@@ -25,3 +25,15 @@
 (def app-name
   "Application display name."
   "Bashketball")
+
+(defn resolve-api-url
+  "Resolves a URL against the API base URL.
+
+  If the URL is nil or already absolute (starts with http:// or https://),
+  returns it unchanged. Otherwise, prepends the api-base-url."
+  [url]
+  (cond
+    (nil? url) nil
+    (or (clojure.string/starts-with? url "http://")
+        (clojure.string/starts-with? url "https://")) url
+    :else (str api-base-url url)))

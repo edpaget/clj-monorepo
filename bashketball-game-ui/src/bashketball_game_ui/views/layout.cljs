@@ -3,6 +3,7 @@
   (:require
    [bashketball-game-ui.config :as config]
    [bashketball-game-ui.context.auth :as auth]
+   [bashketball-ui.components.avatar :refer [avatar]]
    [bashketball-ui.components.button :refer [button]]
    [bashketball-ui.router :as router]
    [uix.core :refer [$ defui]]))
@@ -11,10 +12,10 @@
   "User menu shown when logged in."
   [{:keys [user on-logout]}]
   ($ :div {:class "flex items-center gap-4"}
-     (when-let [avatar-url (:avatar-url user)]
-       ($ :img {:src avatar-url
-                :alt (or (:name user) (:email user))
-                :class "w-8 h-8 rounded-full"}))
+     ($ avatar {:src (config/resolve-api-url (:avatar-url user))
+                :name (:name user)
+                :email (:email user)
+                :size :md})
      ($ :span {:class "text-sm text-gray-700"}
         (or (:name user) (:email user)))
      ($ button {:variant :outline
