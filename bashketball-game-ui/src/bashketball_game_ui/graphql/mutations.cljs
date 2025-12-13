@@ -118,3 +118,25 @@
       }
     }
   "))
+
+;; ---------------------------------------------------------------------------
+;; Starter Deck Mutations
+
+(def CLAIM_STARTER_DECK_MUTATION
+  "Mutation to claim a starter deck."
+  (apollo/gql "
+    mutation ClaimStarterDeck($starterDeckId: String!) {
+      claimStarterDeck(starterDeckId: $starterDeckId) {
+        starterDeckId
+        deckId
+        claimedAt
+        deck {
+          id
+          name
+          cardSlugs
+          isValid
+          validationErrors
+        }
+      }
+    }
+  "))

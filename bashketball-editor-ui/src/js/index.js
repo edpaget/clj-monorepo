@@ -7,6 +7,7 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import * as ApolloClient from "@apollo/client";
 import * as ApolloClientTesting from "@apollo/client/testing";
 import * as RadixAlertDialog from "@radix-ui/react-alert-dialog";
+import * as RadixPopover from "@radix-ui/react-popover";
 import * as RadixSelect from "@radix-ui/react-select";
 import * as ReactRouterDom from "react-router-dom";
 import * as LucideReact from "lucide-react";
@@ -25,6 +26,7 @@ const modules = {
   "@apollo/client": ApolloClient,
   "@apollo/client/testing": ApolloClientTesting,
   "@radix-ui/react-alert-dialog": RadixAlertDialog,
+  "@radix-ui/react-popover": RadixPopover,
   "@radix-ui/react-select": RadixSelect,
   "react-router-dom": ReactRouterDom,
   "lucide-react": LucideReact,

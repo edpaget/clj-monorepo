@@ -47,12 +47,12 @@
   "A compact list item for displaying a card.
 
   Props:
-  - `:card` - Card map with :slug, :name, :card-type, :updated-at
+  - `:card` - Card map with :slug, :name, :card-type, :updated-at, and optionally :fate
   - `:on-click` - Click handler (receives card)
   - `:selected?` - Whether this item is selected
   - `:class` - Additional CSS classes"
   [{:keys [card on-click selected? class]}]
-  (let [{:keys [slug name card-type updated-at]} card
+  (let [{:keys [name card-type updated-at fate]} card
         colors                                   (get card-type-colors card-type default-colors)]
     ($ :div
        {:class (cn "flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors"
@@ -67,6 +67,9 @@
                         (on-click card))}
        ($ :div {:class (cn "w-2 h-2 rounded-full mr-3 flex-shrink-0" (:dot colors))})
        ($ :span {:class "flex-1 font-medium text-gray-900 truncate"} name)
+       (when fate
+         ($ :span {:class "text-xs font-medium text-gray-500 ml-2 flex-shrink-0"}
+            (str "F" fate)))
        ($ :span {:class (cn "text-xs px-2 py-0.5 rounded-full ml-3 flex-shrink-0" (:badge colors))}
           (format-card-type card-type))
        ($ :span {:class "text-sm text-gray-400 ml-4 flex-shrink-0 w-16 text-right"}

@@ -23,13 +23,14 @@
         cards                                (when data (:data (:cards data)))]
     {:cards (when (seq cards)
               (mapv (fn [card]
-                      {:slug (:slug card)
-                       :name (:name card)
-                       :card-type (->> (:__typename card)
-                                       csk/->SCREAMING_SNAKE_CASE
-                                       (keyword "card-type"))
-                       :set-slug (:setSlug card)
-                       :updated-at (:updatedAt card)})
+                      (cond-> {:slug (:slug card)
+                               :name (:name card)
+                               :card-type (->> (:__typename card)
+                                               csk/->SCREAMING_SNAKE_CASE
+                                               (keyword "card-type"))
+                               :set-slug (:setSlug card)
+                               :updated-at (:updatedAt card)}
+                        (:fate card) (assoc :fate (:fate card))))
                     cards))
      :loading? loading
      :error error

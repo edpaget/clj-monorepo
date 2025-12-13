@@ -56,6 +56,7 @@
         name
         setSlug
         cardType
+        fate
         abilities
       }
       ... on PlayCard {
@@ -139,6 +140,7 @@
         name
         setSlug
         cardType
+        fate
         abilities
       }
       ... on PlayCard {
@@ -214,6 +216,7 @@
         name
         setSlug
         cardType
+        fate
         abilities
       }
       ... on PlayCard {
@@ -301,6 +304,7 @@
         name
         setSlug
         cardType
+        fate
         abilities
       }
       ... on PlayCard {
@@ -540,6 +544,7 @@
         name
         setSlug
         cardType
+        fate
         abilities
       }
       ... on PlayCard {
@@ -583,6 +588,34 @@
         cardType
         fate
         assetPower
+      }
+    }
+  "))
+
+;; ---------------------------------------------------------------------------
+;; Starter Deck Queries
+
+(def AVAILABLE_STARTER_DECKS_QUERY
+  "Query for starter decks the user hasn't claimed yet."
+  (apollo/gql "
+    query AvailableStarterDecks {
+      availableStarterDecks {
+        id
+        name
+        description
+        cardCount
+      }
+    }
+  "))
+
+(def CLAIMED_STARTER_DECKS_QUERY
+  "Query for starter decks the user has already claimed."
+  (apollo/gql "
+    query ClaimedStarterDecks {
+      claimedStarterDecks {
+        starterDeckId
+        deckId
+        claimedAt
       }
     }
   "))

@@ -24,9 +24,9 @@
   "Deck validation rules for the UI."
   {:min-player-cards 3
    :max-player-cards 5
-   :min-action-cards 30
-   :max-action-cards 50
-   :max-copies-per-card 4})
+   :min-action-cards 10
+   :max-action-cards 65
+   :max-copies-per-card 2})
 
 (defn player-card?
   "Returns true if the card is a player card."

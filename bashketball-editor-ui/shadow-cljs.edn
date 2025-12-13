@@ -1,5 +1,4 @@
 {:deps {:aliases [:test]}
- :source-paths ["src" "test"]
 
  :builds
  {:app

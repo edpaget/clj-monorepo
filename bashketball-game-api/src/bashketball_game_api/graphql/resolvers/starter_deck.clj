@@ -17,24 +17,25 @@
    [:description :string]
    [:card-count :int]])
 
+(def Deck
+  "Reference to Deck schema for nested deck in claim response."
+  [:map {:graphql/type :Deck}
+   [:id :uuid]
+   [:name :string]
+   [:card-slugs [:vector :string]]
+   [:is-valid :boolean]
+   [:validation-errors {:optional true} [:vector :string]]])
+
 (def ClaimedStarterDeck
   "GraphQL schema for ClaimedStarterDeck type.
 
-  Represents a starter deck that has been claimed by a user."
-  [:map {:graphql/type :ClaimedStarterDeck}
-   [:starter-deck-id :string]
-   [:deck-id :uuid]
-   [:claimed-at :string]])
-
-(def ClaimedStarterDeckResponse
-  "Schema for claimed starter deck data returned by claim mutation.
-
-  Includes the deck object directly for convenience."
+  Represents a starter deck that has been claimed by a user.
+  The deck field is populated when claiming a new starter deck."
   [:map {:graphql/type :ClaimedStarterDeck}
    [:starter-deck-id :string]
    [:deck-id :uuid]
    [:claimed-at :string]
-   [:deck {:optional true} :any]])
+   [:deck {:optional true} [:maybe Deck]]])
 
 (defn- get-user-id
   "Extracts and parses the user ID from the request context."
@@ -102,7 +103,7 @@
 
   Returns the claim record with the created deck, or null if already claimed
   or starter deck ID not found."
-  [:=> [:cat :any [:map [:starter-deck-id :string]] :any] [:maybe ClaimedStarterDeckResponse]]
+  [:=> [:cat :any [:map [:starter-deck-id :string]] :any] [:maybe ClaimedStarterDeck]]
   [ctx {:keys [starter-deck-id]} _value]
   (require-auth! ctx)
   (let [service (get-starter-deck-service ctx)

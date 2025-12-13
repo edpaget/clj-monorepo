@@ -37,36 +37,42 @@
             setSlug
             name
             updatedAt
+            fate
           }
           ... on AbilityCard {
             slug
             setSlug
             name
             updatedAt
+            fate
           }
           ... on SplitPlayCard {
             slug
             setSlug
             name
             updatedAt
+            fate
           }
           ... on CoachingCard {
             slug
             setSlug
             name
             updatedAt
+            fate
           }
           ... on TeamAssetCard {
             slug
             setSlug
             name
             updatedAt
+            fate
           }
           ... on StandardActionCard {
             slug
             setSlug
             name
             updatedAt
+            fate
           }
         }
       }
@@ -108,6 +114,7 @@
           setSlug
           imagePrompt
           cardSubtypes
+          fate
           abilities
         }
         ... on SplitPlayCard {

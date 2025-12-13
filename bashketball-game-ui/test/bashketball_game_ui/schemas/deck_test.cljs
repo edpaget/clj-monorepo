@@ -52,20 +52,20 @@
                                 [(str "player-" i)
                                  {:card-type :card-type/PLAYER_CARD :slug (str "player-" i)}]))
           action-cards  (into {}
-                              (for [i (range 10)]
+                              (for [i (range 5)]
                                 [(str "action-" i)
                                  {:card-type :card-type/COACHING_CARD :slug (str "action-" i)}]))
           cards-by-slug (merge player-cards action-cards)
           deck          {:card-slugs (concat (keys player-cards) (keys action-cards))}
           errors        (deck/validate-deck-client deck cards-by-slug)]
-      (t/is (some #(re-find #"at least 30 action" %) errors)))))
+      (t/is (some #(re-find #"at least 10 action" %) errors)))))
 
 (t/deftest validate-deck-max-copies-test
   (t/testing "validates maximum copies per card"
     (let [cards-by-slug {"card-a" {:card-type :card-type/COACHING_CARD :slug "card-a"}}
-          deck          {:card-slugs ["card-a" "card-a" "card-a" "card-a" "card-a"]}
+          deck          {:card-slugs ["card-a" "card-a" "card-a"]}
           errors        (deck/validate-deck-client deck cards-by-slug)]
-      (t/is (some #(re-find #"Maximum 4 copies" %) errors)))))
+      (t/is (some #(re-find #"Maximum 2 copies" %) errors)))))
 
 (t/deftest validate-deck-valid-deck-test
   (t/testing "returns empty errors for valid deck"

@@ -23,9 +23,9 @@
   "Default deck validation rules."
   {:min-players 3
    :max-players 5
-   :min-action-cards 30
-   :max-action-cards 50
-   :max-copies-per-card 4})
+   :min-action-cards 10
+   :max-action-cards 65
+   :max-copies-per-card 2})
 
 (defn- standard-action-card?
   "Returns true if the card is a STANDARD_ACTION_CARD."

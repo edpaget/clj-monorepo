@@ -58,6 +58,7 @@
    [:name :string]
    [:image-prompt {:optional true} [:maybe :string]]
    [:card-subtypes {:optional true} [:vector CardSubtype]]
+   [:fate {:optional true} :int]
    [:abilities {:optional true} [:vector :string]]])
 
 (def SplitPlayCardInput

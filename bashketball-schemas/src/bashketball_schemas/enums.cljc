@@ -90,13 +90,16 @@
 (def CardSubtype
   "Card subtype enumeration for special card classifications.
 
-   - `:card-subtype/UNIQUE` - Unique cards (deck limit of 1)"
+   - `:card-subtype/UNIQUE` - Unique cards (deck limit of 1)
+   - `:card-subtype/BASIC` - Basic cards"
   [:enum {:graphql/type :CardSubtype}
-   :card-subtype/UNIQUE])
+   :card-subtype/UNIQUE
+   :card-subtype/BASIC])
 
 (def PlayerSubtype
   "Player subtype enumeration for fantasy creature types.
 
+   - `:player-subtype/DARK_ELF` - Dark Elves
    - `:player-subtype/DWARF` - Dwarves
    - `:player-subtype/ELF` - Elves
    - `:player-subtype/GOBLIN` - Goblins
@@ -108,6 +111,7 @@
    - `:player-subtype/SKELETON` - Skeletons
    - `:player-subtype/TROLL` - Trolls"
   [:enum {:graphql/type :PlayerSubtype}
+   :player-subtype/DARK_ELF
    :player-subtype/DWARF
    :player-subtype/ELF
    :player-subtype/GOBLIN

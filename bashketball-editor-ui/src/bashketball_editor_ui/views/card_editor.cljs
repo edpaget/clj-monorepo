@@ -13,6 +13,7 @@
    [bashketball-ui.components.input :refer [input]]
    [bashketball-ui.components.label :refer [label]]
    [bashketball-ui.components.loading :refer [spinner]]
+   [bashketball-ui.components.multiselect-typeahead :refer [multiselect-typeahead]]
    [bashketball-ui.components.select :refer [select]]
    [bashketball-ui.components.textarea :refer [textarea]]
    [bashketball-ui.components.textarea-with-icons :refer [textarea-with-icons]]
@@ -40,7 +41,8 @@
 
 (def card-subtype-labels
   "Human-readable labels for card subtypes."
-  {:card-subtype/UNIQUE "Unique"})
+  {:card-subtype/UNIQUE "Unique"
+   :card-subtype/BASIC "Basic"})
 
 (def card-subtype-options
   "Card subtype options derived from bashketball-schemas."
@@ -51,7 +53,8 @@
 
 (def player-subtype-labels
   "Human-readable labels for player subtypes."
-  {:player-subtype/DWARF "Dwarf"
+  {:player-subtype/DARK_ELF "Dark Elf"
+   :player-subtype/DWARF "Dwarf"
    :player-subtype/ELF "Elf"
    :player-subtype/GOBLIN "Goblin"
    :player-subtype/HALFLING "Halfling"
@@ -85,7 +88,7 @@
      :fields [{:key :speed :label "Speed" :type :stat}
               {:key :deck-size :label "Deck Size" :type :stat}
               {:key :size :label "Size" :type :select :options size-options :default "MD"}]}
-    {:key :player-subtypes :label "Player Subtypes" :type :multi-select :options player-subtype-options :required true}
+    {:key :player-subtypes :label "Player Subtypes" :type :typeahead-multiselect :options player-subtype-options :required true}
     {:key :abilities :label "Abilities (one per line)" :type :textarea-list :rows 4}]
 
    "PLAY_CARD"
@@ -93,7 +96,8 @@
     {:key :play :label "Play Text" :type :textarea :rows 4}]
 
    "ABILITY_CARD"
-   [{:key :abilities :label "Abilities (one per line)" :type :textarea-list :rows 4}]
+   [{:key :fate :label "Fate" :type :stat}
+    {:key :abilities :label "Abilities (one per line)" :type :textarea-list :rows 4}]
 
    "SPLIT_PLAY_CARD"
    [{:key :fate :label "Fate" :type :stat}
@@ -200,6 +204,17 @@
                                              (update-fn key new-val)))
                               :class "sr-only"})
                    ($ :span {:class "text-sm"} label))))))
+
+      :typeahead-multiselect
+      ($ form-field {:id id :label-text label}
+         ($ multiselect-typeahead
+            {:id id
+             :value (or value [])
+             :options options
+             :on-change #(update-fn key %)
+             :placeholder "Select..."
+             :search-placeholder "Type to search..."
+             :class "max-w-md"}))
 
       nil)))
 

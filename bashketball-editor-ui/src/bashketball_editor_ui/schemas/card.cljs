@@ -29,11 +29,13 @@
 (def CardSubtype
   "Enum of card subtypes for special classifications."
   [:enum
-   :card-subtype/UNIQUE])
+   :card-subtype/UNIQUE
+   :card-subtype/BASIC])
 
 (def PlayerSubtype
   "Enum of player subtypes for fantasy creature types."
   [:enum
+   :player-subtype/DARK_ELF
    :player-subtype/DWARF
    :player-subtype/ELF
    :player-subtype/GOBLIN
@@ -82,6 +84,7 @@
    [:game-asset-id {:optional true} :uuid]
    [:image-prompt {:optional true} :string]
    [:card-subtypes {:optional true} [:vector CardSubtype]]
+   [:fate [:int {:min 0 :max 10}]]
    [:abilities [:vector :string]]])
 
 (def SplitPlayCard

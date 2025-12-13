@@ -1,2 +1,83 @@
 {:starter-decks
- []}
+ [{:id :pick-and-roll
+   :name "Pick-and-Roll"
+   :description "Screen-heavy offense built around Gorath's picks and Brennan's shooting. Move the ball, set screens, score off the action."
+   :players ["brennan-quickstep"
+             "gorath-wall-breaker"
+             "tika-shadowdart"
+             "dorin-stonehands"]
+   :card-slugs [;; players
+                "brennan-quickstep"
+                "gorath-wall-breaker"
+                "tika-shadowdart"
+                "dorin-stonehands"
+                ;; Fate 0-1: Power plays (3 cards)
+                "posterizer"
+                "posterizer"
+                "alley-oop"
+                ;; Fate 2-3: Core strategy (5 cards)
+                "pick-n-pop"
+                "pick-n-pop"
+                "back-door-cut"
+                "back-door-cut"
+                "hard-screen-reach"
+                ;; Fate 4-5: Backbone (8 cards)
+                "motion-offense"
+                "dish-and-relocate"
+                "dish-and-relocate"
+                "conditioning-coach"
+                "screen-game"
+                "screen-game"
+                "patient-offense"
+                "patient-offense"
+                ;; Fate 6-7: Utility (5 cards)
+                "slip-the-screen"
+                "slip-the-screen"
+                "find-your-man"
+                "find-your-man"
+                "second-wind"
+                ;; Fate 8: Insurance (2 cards)
+                "extra-pass"
+                "plan-ahead"]}
+  {:id :lockdown-defense
+   :name "Lockdown Defense"
+   :description "Suffocating defense that maximizes Zone of Control. Force turnovers, deny easy shots, let Vex score in transition."
+   :players ["duran-ironroot"
+             "grimjaw"
+             "vex-nightfingers"
+             "skritt"]
+   :card-slugs [;; players
+                "duran-ironroot"
+                "grimjaw"
+                "vex-nightfingers"
+                "skritt"
+                ;; Fate 0-1: Power plays (3 cards)
+                "posterizer"
+                "lockdown"
+                "lockdown"
+                ;; Fate 2-3: Core strategy (6 cards)
+                "passing-lane-denial"
+                "passing-lane-denial"
+                "intense-pressure"
+                "intense-pressure"
+                "hard-screen-reach"
+                "hard-screen-reach"
+                ;; Fate 4-5: Backbone (9 cards)
+                "deny-the-entry"
+                "deny-the-entry"
+                "long-arms"
+                "hrongar-s-workout-plan"
+                "conditioning-coach"
+                "box-out"
+                "box-out"
+                "defensive-scheme"
+                "defensive-scheme"
+                ;; Fate 6-7: Utility (5 cards)
+                "stay-in-front"
+                "stay-in-front"
+                "find-your-man"
+                "find-your-man"
+                "second-wind"
+                ;; Fate 8: Insurance (2 cards)
+                "study-the-tape"
+                "plan-ahead"]}]}

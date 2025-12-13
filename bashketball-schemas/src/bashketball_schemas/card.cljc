@@ -56,6 +56,7 @@
 (def AbilityCardFields
   "Fields specific to ability cards."
   [:map
+   [:fate :int]
    [:abilities [:vector :string]]])
 
 (def PlayCardFields
