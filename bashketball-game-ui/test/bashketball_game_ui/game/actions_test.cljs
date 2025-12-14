@@ -166,21 +166,17 @@
 ;; =============================================================================
 
 (def setup-game-state
-  "Game state for setup phase testing with starters."
+  "Game state for setup phase testing."
   {:board (board/create-board)
    :phase :phase/SETUP
    :ball {:__typename "BallLoose" :position [2 7]}
    :players {:team/HOME {:id :team/HOME
-                         :team {:starters ["HOME-pg-0" "HOME-sg-1" "HOME-c-2"]
-                                :bench ["HOME-pf-3"]
-                                :players {"HOME-pg-0" {:id "HOME-pg-0" :name "PG" :position nil}
+                         :team {:players {"HOME-pg-0" {:id "HOME-pg-0" :name "PG" :position nil}
                                           "HOME-sg-1" {:id "HOME-sg-1" :name "SG" :position nil}
                                           "HOME-c-2" {:id "HOME-c-2" :name "C" :position nil}
                                           "HOME-pf-3" {:id "HOME-pf-3" :name "PF" :position nil}}}}
              :team/AWAY {:id :team/AWAY
-                         :team {:starters ["AWAY-pg-0" "AWAY-sg-1" "AWAY-c-2"]
-                                :bench []
-                                :players {"AWAY-pg-0" {:id "AWAY-pg-0" :name "PG" :position nil}
+                         :team {:players {"AWAY-pg-0" {:id "AWAY-pg-0" :name "PG" :position nil}
                                           "AWAY-sg-1" {:id "AWAY-sg-1" :name "SG" :position nil}
                                           "AWAY-c-2" {:id "AWAY-c-2" :name "C" :position nil}}}}}})
 
@@ -207,35 +203,36 @@
         positions (actions/valid-setup-positions state :team/HOME)]
     (t/is (not (contains? positions [2 3])))))
 
-(t/deftest unplaced-starters-all-unplaced-test
-  (let [unplaced (actions/unplaced-starters setup-game-state :team/HOME)]
-    (t/is (= 3 (count unplaced)))
+(t/deftest unplaced-players-all-unplaced-test
+  (let [unplaced (actions/unplaced-players setup-game-state :team/HOME)]
+    (t/is (= 4 (count unplaced)))
     (t/is (contains? unplaced "HOME-pg-0"))
     (t/is (contains? unplaced "HOME-sg-1"))
-    (t/is (contains? unplaced "HOME-c-2"))))
+    (t/is (contains? unplaced "HOME-c-2"))
+    (t/is (contains? unplaced "HOME-pf-3"))))
 
-(t/deftest unplaced-starters-one-placed-test
+(t/deftest unplaced-players-one-placed-test
   (let [state    (assoc-in setup-game-state [:players :team/HOME :team :players "HOME-pg-0" :position] [2 3])
-        unplaced (actions/unplaced-starters state :team/HOME)]
-    (t/is (= 2 (count unplaced)))
+        unplaced (actions/unplaced-players state :team/HOME)]
+    (t/is (= 3 (count unplaced)))
     (t/is (not (contains? unplaced "HOME-pg-0")))
     (t/is (contains? unplaced "HOME-sg-1"))))
 
-(t/deftest all-starters-placed-none-placed-test
-  (t/is (not (actions/all-starters-placed? setup-game-state :team/HOME))))
+(t/deftest setup-complete-none-placed-test
+  (t/is (not (actions/setup-complete? setup-game-state :team/HOME))))
 
-(t/deftest all-starters-placed-some-placed-test
+(t/deftest setup-complete-some-placed-test
   (let [state (-> setup-game-state
                   (assoc-in [:players :team/HOME :team :players "HOME-pg-0" :position] [2 3])
                   (assoc-in [:players :team/HOME :team :players "HOME-sg-1" :position] [3 3]))]
-    (t/is (not (actions/all-starters-placed? state :team/HOME)))))
+    (t/is (not (actions/setup-complete? state :team/HOME)))))
 
-(t/deftest all-starters-placed-all-placed-test
+(t/deftest setup-complete-three-placed-test
   (let [state (-> setup-game-state
                   (assoc-in [:players :team/HOME :team :players "HOME-pg-0" :position] [2 3])
                   (assoc-in [:players :team/HOME :team :players "HOME-sg-1" :position] [3 3])
                   (assoc-in [:players :team/HOME :team :players "HOME-c-2" :position] [1 3]))]
-    (t/is (actions/all-starters-placed? state :team/HOME))))
+    (t/is (actions/setup-complete? state :team/HOME))))
 
 ;; =============================================================================
 ;; Speed-based movement tests

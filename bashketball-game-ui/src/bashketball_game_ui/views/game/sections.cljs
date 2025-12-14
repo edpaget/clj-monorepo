@@ -5,9 +5,12 @@
   [[use-game-handlers]] directly to access game state and actions,
   eliminating prop drilling from the parent component."
   (:require
+   [bashketball-game-ui.components.game.attach-ability-modal :as attach-modal]
    [bashketball-game-ui.components.game.bottom-bar :as bottom-bar]
+   [bashketball-game-ui.components.game.create-token-modal :as token-modal]
    [bashketball-game-ui.components.game.game-header :as header]
    [bashketball-game-ui.components.game.hex-grid :refer [hex-grid]]
+   [bashketball-game-ui.components.game.play-area-panel :refer [play-area-panel]]
    [bashketball-game-ui.components.game.team-column :refer [team-column]]
    [bashketball-game-ui.context.game :refer [use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
@@ -16,7 +19,7 @@
    [bashketball-game-ui.hooks.use-game-handlers :refer [use-game-handlers]]
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.utils :refer [cn]]
-   [uix.core :refer [$ defui use-memo use-state]]))
+   [uix.core :refer [$ defui use-callback use-memo use-state]]))
 
 (defui loading-state
   "Displays loading spinner while game data is being fetched."
@@ -89,6 +92,70 @@
                     :on-ball-click      on-ball-click
                     :on-target-click    on-target-click}))))
 
+(defui play-area-section
+  "Shared play area section showing staged cards awaiting resolution."
+  []
+  (let [{:keys [catalog detail-modal create-token-modal]} (use-game-context)
+        {:keys [play-area]}                               (use-game-derived)
+        {:keys [on-resolve-card on-open-attach-modal]}    (use-game-handlers)]
+    (when (seq play-area)
+      ($ play-area-panel {:play-area       play-area
+                          :catalog         catalog
+                          :on-resolve      on-resolve-card
+                          :on-attach       on-open-attach-modal
+                          :on-info-click   (:show detail-modal)
+                          :on-create-token (:show create-token-modal)}))))
+
+(defui create-token-modal-section
+  "Modal section for creating tokens.
+
+  Renders the create token modal and handles token creation via the actions hook."
+  []
+  (let [{:keys [my-team actions create-token-modal]} (use-game-context)
+        {:keys [my-starter-players]}                 (use-game-derived)
+
+        players                                      (use-memo
+                                                      #(mapv (fn [p] {:id (:id p) :name (:name p)})
+                                                             (or my-starter-players []))
+                                                      [my-starter-players])
+
+        on-create                                    (use-callback
+                                                      (fn [{:keys [name placement target-player-id]}]
+                                                        (let [token-card {:slug      (str "token-" (random-uuid))
+                                                                          :name      name
+                                                                          :card-type "TEAM_ASSET_CARD"
+                                                                          :token     true}]
+                                                          (-> ((:create-token actions) my-team token-card placement target-player-id)
+                                                              (.then #((:close create-token-modal)))
+                                                              (.catch #(js/console.error "Token creation failed:" %)))))
+                                                      [my-team actions create-token-modal])]
+    ($ token-modal/create-token-modal {:open?     (:open? create-token-modal)
+                                       :players   players
+                                       :on-create on-create
+                                       :on-close  (:close create-token-modal)})))
+
+(defui attach-ability-modal-section
+  "Modal section for attaching ability cards to players.
+
+  Renders the attach ability modal and handles ability resolution via the actions hook."
+  []
+  (let [{:keys [game-state catalog attach-ability-modal]} (use-game-context)
+        {:keys [on-resolve-ability]}                      (use-game-handlers)
+
+        played-by                                         (:played-by attach-ability-modal)
+        players                                           (use-memo
+                                                           #(let [team-players (get-in game-state [:players played-by :team :players])]
+                                                              (->> (vals team-players)
+                                                                   (filter :position)
+                                                                   (mapv (fn [p] {:id (:id p) :name (:name p)}))))
+                                                           [game-state played-by])]
+    ($ attach-modal/attach-ability-modal {:open?      (:open? attach-ability-modal)
+                                          :card-slug  (:card-slug attach-ability-modal)
+                                          :players    players
+                                          :catalog    catalog
+                                          :on-resolve on-resolve-ability
+                                          :on-close   (:close attach-ability-modal)})))
+
 ;; -----------------------------------------------------------------------------
 ;; Three-Column Layout Sections
 
@@ -101,14 +168,12 @@
   [{:keys [team on-info-click]}]
   (let [{:keys [game-state catalog my-team selection]}      (use-game-context)
         {:keys [home-players away-players score
-                active-player selected-player-id setup-mode
-                home-starters away-starters]}               (use-game-derived)
-        {:keys [on-player-click]}                           (use-game-handlers)
+                active-player selected-player-id setup-mode]} (use-game-derived)
+        {:keys [on-player-click on-move-asset]}             (use-game-handlers)
 
         players                                             (if (= team :team/HOME) home-players away-players)
-        starters                                            (if (= team :team/HOME) home-starters away-starters)
 
-        ;; Filter to only on-court players (starters with positions)
+        ;; Filter to only on-court players (players with positions)
         on-court                                            (use-memo
                                                              #(into {}
                                                                     (filter (fn [[_id p]] (some? (:position p))))
@@ -136,7 +201,8 @@
         raw-assets                                          (or (:assets player) [])
         assets                                              (use-memo
                                                              #(mapv (fn [asset]
-                                                                      (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
+                                                                      (assoc asset :name (or (get-in asset [:card :name])
+                                                                                             (get-in catalog [(:card-slug asset) :name]))))
                                                                     raw-assets)
                                                              [raw-assets catalog])]
     ($ team-column {:team               team
@@ -148,12 +214,13 @@
                     :player-indices     player-indices
                     :selected-player    selected-player
                     :assets             assets
+                    :catalog            catalog
                     :on-select          on-player-click
                     :on-deselect        (:clear-selected-player selection)
                     :on-info-click      on-info-click
+                    :on-move-asset      on-move-asset
                     :setup-mode         show-setup
                     :all-players        players
-                    :starters           starters
                     :selected-player-id selected-player-id
                     :on-player-select   (:set-selected-player selection)})))
 

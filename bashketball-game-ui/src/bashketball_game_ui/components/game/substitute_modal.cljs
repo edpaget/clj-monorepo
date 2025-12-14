@@ -1,7 +1,7 @@
 (ns bashketball-game-ui.components.game.substitute-modal
   "Modal component for player substitution.
 
-  Allows selecting a starter to take out and a bench player to put in."
+  Allows selecting an on-court player to take out and an off-court player to put in."
   (:require
    [bashketball-ui.components.button :refer [button]]
    [uix.core :refer [$ defui]]))
@@ -26,13 +26,14 @@
 
   Props:
   - open?: boolean, whether modal is open
-  - starters: vector of starter player maps (players on court)
-  - bench: vector of bench player maps
-  - selected-starter: currently selected starter ID or nil
-  - on-starter-select: fn [id] to select a starter
-  - on-bench-select: fn [id] called when bench player selected (confirms substitution)
+  - on-court-players: vector of on-court player maps (players on court)
+  - off-court-players: vector of off-court player maps
+  - selected-on-court: currently selected on-court player ID or nil
+  - on-on-court-select: fn [id] to select an on-court player
+  - on-off-court-select: fn [id] called when off-court player selected (confirms substitution)
   - on-close: fn [] to close modal"
-  [{:keys [open? starters bench selected-starter on-starter-select on-bench-select on-close]}]
+  [{:keys [open? on-court-players off-court-players selected-on-court
+           on-on-court-select on-off-court-select on-close]}]
   (when open?
     ($ :div {:class "fixed inset-0 z-50 flex items-center justify-center"}
        ;; Backdrop
@@ -43,29 +44,29 @@
           ($ :h2 {:class "text-lg font-semibold text-gray-900 mb-4"}
              "Substitute Player")
 
-          ;; Step 1: Select starter to take out
+          ;; Step 1: Select on-court player to take out
           ($ :div {:class "mb-4"}
              ($ :p {:class "text-sm text-slate-600 mb-2"}
                 "Select player to take out:")
              ($ :div {:class "flex flex-wrap gap-2"}
-                (for [player starters]
+                (for [player on-court-players]
                   ($ player-button {:key          (:id player)
                                     :player       player
-                                    :selected     (= (:id player) selected-starter)
-                                    :on-click     #(on-starter-select (:id player))}))))
+                                    :selected     (= (:id player) selected-on-court)
+                                    :on-click     #(on-on-court-select (:id player))}))))
 
-          ;; Step 2: Select bench player to put in
+          ;; Step 2: Select off-court player to put in
           ($ :div {:class "mb-6"}
              ($ :p {:class (str "text-sm mb-2 "
-                                (if selected-starter "text-slate-600" "text-slate-400"))}
-                "Select replacement from bench:")
+                                (if selected-on-court "text-slate-600" "text-slate-400"))}
+                "Select replacement:")
              ($ :div {:class "flex flex-wrap gap-2"}
-                (for [player bench]
+                (for [player off-court-players]
                   ($ player-button {:key          (:id player)
                                     :player       player
                                     :selected     false
-                                    :on-click     (when selected-starter
-                                                    #(on-bench-select (:id player)))}))))
+                                    :on-click     (when selected-on-court
+                                                    #(on-off-court-select (:id player)))}))))
 
           ;; Cancel button
           ($ :div {:class "flex justify-end"}

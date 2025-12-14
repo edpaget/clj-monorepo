@@ -37,7 +37,9 @@
   - `:detail-modal` - Card detail modal state from [[ui/use-detail-modal]]
   - `:ball-mode` - Ball selection state from [[ui/use-ball-mode]]
   - `:fate-reveal` - Fate reveal modal state from [[ui/use-fate-reveal]]
-  - `:substitute-mode` - Substitution mode state from [[ui/use-substitute-mode]]"
+  - `:substitute-mode` - Substitution mode state from [[ui/use-substitute-mode]]
+  - `:create-token-modal` - Create token modal state from [[ui/use-create-token-modal]]
+  - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]"
   []
   (use-context game-context))
 
@@ -107,7 +109,9 @@
         detail-modal                                                  (ui/use-detail-modal)
         ball-mode                                                     (ui/use-ball-mode)
         fate-reveal                                                   (ui/use-fate-reveal)
-        substitute-mode                                               (ui/use-substitute-mode)]
+        substitute-mode                                               (ui/use-substitute-mode)
+        create-token-modal                                            (ui/use-create-token-modal)
+        attach-ability-modal                                          (ui/use-attach-ability-modal)]
 
     (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
@@ -128,20 +132,22 @@
      [connected subscription-result refetch])
 
     ($ (:Provider game-context)
-       {:value {:game            game
-                :game-state      game-state
-                :catalog         catalog
-                :my-team         my-team
-                :is-my-turn      is-turn
-                :actions         actions
-                :loading         (and loading (not connected))
-                :error           (or error (:error subscription-result))
-                :connected       connected
-                :selection       selection
-                :pass            pass
-                :discard         discard
-                :detail-modal    detail-modal
-                :ball-mode       ball-mode
-                :fate-reveal     fate-reveal
-                :substitute-mode substitute-mode}}
+       {:value {:game                 game
+                :game-state           game-state
+                :catalog              catalog
+                :my-team              my-team
+                :is-my-turn           is-turn
+                :actions              actions
+                :loading              (and loading (not connected))
+                :error                (or error (:error subscription-result))
+                :connected            connected
+                :selection            selection
+                :pass                 pass
+                :discard              discard
+                :detail-modal         detail-modal
+                :ball-mode            ball-mode
+                :fate-reveal          fate-reveal
+                :substitute-mode      substitute-mode
+                :create-token-modal   create-token-modal
+                :attach-ability-modal attach-ability-modal}}
        children)))

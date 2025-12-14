@@ -175,32 +175,32 @@
 
   Returns a map with:
   - :active - boolean, true when in substitution selection mode
-  - :starter-id - selected starter to substitute out, or nil
-  - :set-starter - fn [id] to select a starter
+  - :on-court-id - selected on-court player to substitute out, or nil
+  - :set-on-court - fn [id] to select an on-court player
   - :enter - function to enter substitution mode
   - :cancel - function to exit substitution mode and clear selection"
   []
-  (let [[active set-active]         (use-state false)
-        [starter-id set-starter-id] (use-state nil)
-        set-starter                 (use-callback #(set-starter-id %) [])
-        enter                       (use-callback
-                                     (fn []
-                                       (set-active true)
-                                       (set-starter-id nil))
-                                     [])
-        cancel                      (use-callback
-                                     (fn []
-                                       (set-active false)
-                                       (set-starter-id nil))
-                                     [])]
+  (let [[active set-active]           (use-state false)
+        [on-court-id set-on-court-id] (use-state nil)
+        set-on-court                  (use-callback #(set-on-court-id %) [])
+        enter                         (use-callback
+                                       (fn []
+                                         (set-active true)
+                                         (set-on-court-id nil))
+                                       [])
+        cancel                        (use-callback
+                                       (fn []
+                                         (set-active false)
+                                         (set-on-court-id nil))
+                                       [])]
     (use-memo
      (fn []
-       {:active     active
-        :starter-id starter-id
-        :set-starter set-starter
-        :enter      enter
-        :cancel     cancel})
-     [active starter-id set-starter enter cancel])))
+       {:active       active
+        :on-court-id  on-court-id
+        :set-on-court set-on-court
+        :enter        enter
+        :cancel       cancel})
+     [active on-court-id set-on-court enter cancel])))
 
 (defn use-side-panel-mode
   "Hook for managing side panel view mode.
@@ -222,3 +222,50 @@
         :show-players show-players
         :toggle       toggle})
      [mode show-log show-players toggle])))
+
+(defn use-create-token-modal
+  "Hook for managing create token modal state.
+
+  Returns a map with:
+  - :open? - boolean, true if modal is open
+  - :show - fn [] to open the modal
+  - :close - fn [] to close the modal"
+  []
+  (let [[open? set-open] (use-state false)
+        show             (use-callback #(set-open true) [])
+        close            (use-callback #(set-open false) [])]
+    (use-memo
+     (fn []
+       {:open? open?
+        :show  show
+        :close close})
+     [open? show close])))
+
+(defn use-attach-ability-modal
+  "Hook for managing attach ability modal state.
+
+  Returns a map with:
+  - :open? - boolean, true if modal is open
+  - :instance-id - the card instance-id to attach
+  - :card-slug - the card slug for the ability card
+  - :played-by - the team that played the card
+  - :show - fn [instance-id card-slug played-by] to open the modal
+  - :close - fn [] to close the modal"
+  []
+  (let [[card-data set-card-data] (use-state nil)
+        show                      (use-callback
+                                   (fn [instance-id card-slug played-by]
+                                     (set-card-data {:instance-id instance-id
+                                                     :card-slug   card-slug
+                                                     :played-by   played-by}))
+                                   [])
+        close                     (use-callback #(set-card-data nil) [])]
+    (use-memo
+     (fn []
+       {:open?       (some? card-data)
+        :instance-id (:instance-id card-data)
+        :card-slug   (:card-slug card-data)
+        :played-by   (:played-by card-data)
+        :show        show
+        :close       close})
+     [card-data show close])))

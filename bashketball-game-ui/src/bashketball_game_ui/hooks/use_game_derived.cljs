@@ -21,7 +21,6 @@
   - `:setup-mode` - Boolean, true if in setup phase
   - `:my-player` - Current player's full player record
   - `:my-players` - Map of current player's team players
-  - `:my-starters` - Vector of starter player IDs
   - `:my-hand` - Vector of cards in hand
   - `:opponent` - Opponent's player record
   - `:home-players` - Map of home team players
@@ -30,18 +29,18 @@
   - `:score` - Score map by team
   - `:active-player` - Team keyword of active player
   - `:events` - Game event log
+  - `:play-area` - Vector of cards in the shared play area
   - `:selected-player-id` - Currently selected player ID
   - `:pass-active` - Boolean, true if pass mode active
   - `:ball-active` - Boolean, true if ball mode active
   - `:valid-moves` - Set of valid move positions
   - `:valid-pass-targets` - Set of valid pass target player IDs
   - `:valid-setup-positions` - Set of valid setup positions
-  - `:setup-placed-count` - Number of starters placed during setup
-  - `:my-setup-complete` - Boolean, true if current team setup complete
+  - `:setup-placed-count` - Number of players placed during setup
+  - `:my-setup-complete` - Boolean, true if current team setup complete (3 placed)
   - `:both-teams-ready` - Boolean, true if both teams ready
-  - `:my-bench-ids` - Vector of bench player IDs
-  - `:my-starter-players` - Vector of starter player records
-  - `:my-bench-players` - Vector of bench player records
+  - `:my-on-court-players` - Vector of players currently on court
+  - `:my-off-court-players` - Vector of players currently off court
   - `:discard-active` - Boolean, true if discard mode active
   - `:discard-cards` - Set of cards selected for discard
   - `:selected-card` - Currently selected card slug"
@@ -50,24 +49,25 @@
         (use-game-context)
 
         ;; Extract UI state values
-        selected-player-id                                                       (:selected-player selection)
-        pass-active                                                              (:active pass)
-        ball-active                                                              (:active ball-mode)
-        discard-active                                                           (:active discard)
-        discard-cards                                                            (:cards discard)
-        selected-card                                                            (:selected-card selection)
+        selected-player-id (:selected-player selection)
+        pass-active        (:active pass)
+        ball-active        (:active ball-mode)
+        discard-active     (:active discard)
+        discard-cards      (:cards discard)
+        selected-card      (:selected-card selection)
 
         ;; Basic derived values (no memoization needed)
-        opponent-team                                                            (sel/opponent-team my-team)
-        phase                                                                    (:phase game-state)
-        setup-mode                                                               (sel/setup-mode? phase)
-        ball-holder-id                                                           (get-in game-state [:ball :holder-id])
-        score                                                                    (:score game-state)
-        active-player                                                            (:active-player game-state)
-        events                                                                   (:events game-state)
+        opponent-team  (sel/opponent-team my-team)
+        phase          (:phase game-state)
+        setup-mode     (sel/setup-mode? phase)
+        ball-holder-id (get-in game-state [:ball :holder-id])
+        score          (:score game-state)
+        active-player  (:active-player game-state)
+        events         (:events game-state)
+        play-area      (or (:play-area game-state) [])
 
         ;; Memoized player data
-        {:keys [my-player my-players my-starters my-hand]}
+        {:keys [my-player my-players my-hand]}
         (use-memo
          #(sel/my-player-data game-state my-team)
          [game-state my-team])
@@ -105,8 +105,8 @@
         setup-placed-count
         (use-memo
          #(when setup-mode
-            (sel/setup-placed-count my-starters my-players))
-         [setup-mode my-starters my-players])
+            (sel/setup-placed-count my-players))
+         [setup-mode my-players])
 
         my-setup-complete
         (use-memo
@@ -120,52 +120,37 @@
             (sel/both-teams-setup-complete? game-state))
          [setup-mode game-state])
 
-        ;; Memoized bench/starter data for substitution
-        my-bench-ids
-        (get-in game-state [:players my-team :team :bench])
-
-        ;; All team roster data for player view panel
-        home-starters                                                            (get-in game-state [:players :team/HOME :team :starters])
-        away-starters                                                            (get-in game-state [:players :team/AWAY :team :starters])
-        home-bench                                                               (get-in game-state [:players :team/HOME :team :bench])
-        away-bench                                                               (get-in game-state [:players :team/AWAY :team :bench])
-
-        my-starter-players
+        ;; On-court and off-court players for substitution
+        my-on-court-players
         (use-memo
-         #(when my-starters
-            (->> my-starters
-                 (map (fn [id] (get my-players id)))
-                 (filter some?)
+         #(when my-players
+            (->> (vals my-players)
+                 (filter :position)
                  vec))
-         [my-starters my-players])
+         [my-players])
 
-        my-bench-players
+        my-off-court-players
         (use-memo
-         #(when my-bench-ids
-            (->> my-bench-ids
-                 (map (fn [id] (get my-players id)))
-                 (filter some?)
+         #(when my-players
+            (->> (vals my-players)
+                 (remove :position)
                  vec))
-         [my-bench-ids my-players])]
+         [my-players])]
 
     {:opponent-team         opponent-team
      :phase                 phase
      :setup-mode            setup-mode
      :my-player             my-player
      :my-players            my-players
-     :my-starters           my-starters
      :my-hand               my-hand
      :opponent              opponent
      :home-players          home-players
      :away-players          away-players
-     :home-starters         home-starters
-     :away-starters         away-starters
-     :home-bench            home-bench
-     :away-bench            away-bench
      :ball-holder-id        ball-holder-id
      :score                 score
      :active-player         active-player
      :events                events
+     :play-area             play-area
      :selected-player-id    selected-player-id
      :pass-active           pass-active
      :ball-active           ball-active
@@ -175,9 +160,8 @@
      :setup-placed-count    setup-placed-count
      :my-setup-complete     my-setup-complete
      :both-teams-ready      both-teams-ready
-     :my-bench-ids          my-bench-ids
-     :my-starter-players    my-starter-players
-     :my-bench-players      my-bench-players
+     :my-on-court-players   my-on-court-players
+     :my-off-court-players  my-off-court-players
      :discard-active        discard-active
      :discard-cards         discard-cards
      :selected-card         selected-card}))

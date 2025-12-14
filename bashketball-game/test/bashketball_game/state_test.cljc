@@ -65,7 +65,7 @@
              (:stats player))))
 
     (testing "player starts not exhausted"
-      (is (not (:exhausted? player))))
+      (is (not (:exhausted player))))
 
     (testing "player starts with no position"
       (is (nil? (:position player))))))
@@ -82,15 +82,15 @@
     (testing "returns nil for unknown player"
       (is (nil? (state/get-basketball-player-team game "unknown-player"))))))
 
-(deftest get-starters-and-bench-test
+(deftest get-all-players-test
   (let [game (state/create-game test-config)]
 
-    (testing "home has 3 starters"
-      (is (= 3 (count (state/get-starters game :team/HOME)))))
+    (testing "home has 3 players"
+      (is (= 3 (count (state/get-all-players game :team/HOME)))))
 
-    (testing "starters are first 3 players"
-      (is (= ["HOME-orc-center-0" "HOME-elf-point-guard-1" "HOME-dwarf-power-forward-2"]
-             (state/get-starters game :team/HOME))))))
+    (testing "all players start off-court (no position)"
+      (is (= 3 (count (state/get-off-court-players game :team/HOME))))
+      (is (empty? (state/get-on-court-players game :team/HOME))))))
 
 (deftest deck-accessors-test
   (let [game (state/create-game test-config)]
@@ -127,8 +127,8 @@
 
 (deftest update-basketball-player-test
   (let [game    (state/create-game test-config)
-        updated (state/update-basketball-player game "HOME-orc-center-0" assoc :exhausted? true)
+        updated (state/update-basketball-player game "HOME-orc-center-0" assoc :exhausted true)
         player  (state/get-basketball-player updated "HOME-orc-center-0")]
 
     (testing "player is updated"
-      (is (:exhausted? player)))))
+      (is (:exhausted player)))))

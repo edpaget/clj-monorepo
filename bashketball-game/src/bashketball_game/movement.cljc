@@ -56,16 +56,14 @@
 
   Uses BFS pathfinding to find positions reachable within the player's
   speed, accounting for obstacles. Players cannot move through occupied
-  hexes. Moving through hexes adjacent to opposing players costs 2 movement.
-  Returns nil if the player is not on the board."
+  hexes. Returns nil if the player is not on the board."
   ([game-state player-id]
    (valid-move-positions game-state player-id nil))
   ([game-state player-id catalog]
    (when-let [current-pos (board/find-occupant (:board game-state) player-id)]
-     (let [speed     (get-player-speed game-state player-id catalog)
-           occupied  (set (keys (get-in game-state [:board :occupants])))
-           contested (contested-positions game-state player-id)]
-       (board/reachable-positions current-pos speed occupied contested)))))
+     (let [speed    (get-player-speed game-state player-id catalog)
+           occupied (set (keys (get-in game-state [:board :occupants])))]
+       (board/reachable-positions current-pos speed occupied)))))
 
 (defn can-move-to?
   "Returns true if player can move to the given position.

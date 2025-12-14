@@ -23,22 +23,21 @@
      :card-slug card-slug
      :name name
      :position nil
-     :exhausted? false
+     :exhausted false
      :stats stats
      :abilities abilities
-     :modifiers []}))
+     :modifiers []
+     :attachments []}))
 
 (defn- create-team-roster
   "Creates a team roster from a list of player specs.
 
-  First 3 players are starters, rest are bench."
+  All players start without positions. During setup phase, exactly 3 players
+  can be placed on the court."
   [team-id player-specs]
   (let [players    (map-indexed (partial create-basketball-player team-id) player-specs)
-        player-map (into {} (map (juxt :id identity) players))
-        player-ids (map :id players)]
-    {:starters (vec (take 3 player-ids))
-     :bench (vec (drop 3 player-ids))
-     :players player-map}))
+        player-map (into {} (map (juxt :id identity) players))]
+    {:players player-map}))
 
 (defn- create-card-instance
   "Creates a card instance with a unique identifier."
@@ -91,6 +90,7 @@
    :ball {:status :ball-status/LOOSE :position [2 7]}
    :players {:team/HOME (create-game-player :team/HOME (:home config))
              :team/AWAY (create-game-player :team/AWAY (:away config))}
+   :play-area []
    :stack []
    :events []
    :metadata {}})
@@ -147,15 +147,28 @@
   [state]
   (:score state))
 
-(defn get-starters
-  "Returns the list of starter IDs for a team."
+(defn get-all-players
+  "Returns the map of all players for a team."
   [state team]
-  (get-in state [:players team :team :starters]))
+  (get-in state [:players team :team :players]))
 
-(defn get-bench
-  "Returns the list of bench player IDs for a team."
+(defn get-on-court-players
+  "Returns a vector of player IDs that are on the court (have a position)."
   [state team]
-  (get-in state [:players team :team :bench]))
+  (->> (get-all-players state team)
+       vals
+       (filter :position)
+       (map :id)
+       vec))
+
+(defn get-off-court-players
+  "Returns a vector of player IDs that are off the court (no position)."
+  [state team]
+  (->> (get-all-players state team)
+       vals
+       (remove :position)
+       (map :id)
+       vec))
 
 (defn get-hand
   "Returns the hand (list of card instances) for a team."
@@ -171,6 +184,16 @@
   "Returns the discard pile (list of card instances) for a team."
   [state team]
   (get-in state [:players team :deck :discard]))
+
+(defn get-play-area
+  "Returns the shared play area cards."
+  [state]
+  (or (:play-area state) []))
+
+(defn find-card-in-play-area
+  "Finds a card in the play area by instance-id. Returns nil if not found."
+  [state instance-id]
+  (first (filter #(= (:instance-id %) instance-id) (get-play-area state))))
 
 (defn- find-player-key
   "Finds the actual key used for a player in the team's player map.
@@ -194,3 +217,29 @@
       (apply update-in state [:players team :team :players actual-key] f args)
       state)
     state))
+
+(defn get-attachments
+  "Returns the attachments for a basketball player."
+  [state player-id]
+  (:attachments (get-basketball-player state player-id)))
+
+(defn find-attachment
+  "Finds an attachment on a basketball player by instance-id. Returns nil if not found."
+  [state player-id instance-id]
+  (first (filter #(= (:instance-id %) instance-id)
+                 (get-attachments state player-id))))
+
+(defn has-attachment?
+  "Returns true if the player has an attachment with the given instance-id."
+  [state player-id instance-id]
+  (some? (find-attachment state player-id instance-id)))
+
+(defn token?
+  "Returns true if the card instance is a token."
+  [card-instance]
+  (true? (:token card-instance)))
+
+(defn get-token-card
+  "Returns the inline card definition from a token instance."
+  [token-instance]
+  (:card token-instance))

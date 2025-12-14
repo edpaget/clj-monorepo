@@ -44,24 +44,21 @@
          set)))
 
 (defn setup-placed-count
-  "Returns count of starters that have been placed on the board."
-  [my-starters my-players]
-  (when my-starters
-    (->> my-starters
-         (map #(get-player-by-id my-players %))
+  "Returns count of players that have been placed on the board."
+  [my-players]
+  (when my-players
+    (->> (vals my-players)
          (filter :position)
          count)))
 
 (defn team-setup-complete?
-  "Returns true if all starters for a team have been placed."
+  "Returns true if exactly 3 players have been placed on the court."
   [game-state team]
-  (let [starters (get-in game-state [:players team :team :starters])
-        players  (get-in game-state [:players team :team :players])]
-    (when starters
-      (every? #(:position (get-player-by-id players %)) starters))))
+  (let [players (get-in game-state [:players team :team :players])]
+    (= 3 (count (filter :position (vals players))))))
 
 (defn both-teams-setup-complete?
-  "Returns true if both HOME and AWAY teams have placed all their starters."
+  "Returns true if both HOME and AWAY teams have placed 3 players on court."
   [game-state]
   (and (team-setup-complete? game-state :team/HOME)
        (team-setup-complete? game-state :team/AWAY)))
@@ -74,13 +71,12 @@
 (defn my-player-data
   "Extracts all player-related data from game state for the given team.
 
-  Returns a map with :my-player, :my-players, :my-starters, and :my-hand."
+  Returns a map with :my-player, :my-players, and :my-hand."
   [game-state my-team]
   (let [my-player (get-in game-state [:players my-team])]
-    {:my-player   my-player
-     :my-players  (get-in my-player [:team :players])
-     :my-starters (get-in my-player [:team :starters])
-     :my-hand     (get-in my-player [:deck :hand])}))
+    {:my-player  my-player
+     :my-players (get-in my-player [:team :players])
+     :my-hand    (get-in my-player [:deck :hand])}))
 
 (defn opponent-data
   "Extracts opponent player data from game state."
@@ -90,6 +86,7 @@
 (defn all-players
   "Returns home and away player maps for the hex grid."
   [game-state]
+  (prn "PLAYERS" (:players game-state))
   {:home-players (get-in game-state [:players :team/HOME :team :players])
    :away-players (get-in game-state [:players :team/AWAY :team :players])})
 

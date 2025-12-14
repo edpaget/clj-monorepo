@@ -96,13 +96,53 @@
       (mapv convert-remaining-string-keys x)
       x)))
 
+(def ^:private graphql-name-mappings
+  "Reverse mapping from GraphQL wire names to schema keys for types with :graphql/name.
+
+  Maps from [typename graphql-name] -> schema-key for all types that use
+  :graphql/name overrides."
+  {["Players" "HOME"] :team/HOME
+   ["Players" "AWAY"] :team/AWAY
+   ["Score" "HOME"]   :team/HOME
+   ["Score" "AWAY"]   :team/AWAY})
+
+(defn- reverse-graphql-names
+  "Converts GraphQL wire name keys back to schema keys based on __typename.
+
+  For maps with a __typename that has :graphql/name overrides (like Players
+  and Score), converts keys like :HOME/:AWAY to :team/HOME/:team/AWAY."
+  [x]
+  (cond
+    (and (map? x) (get-typename x))
+    (let [typename (get-typename x)]
+      (into {}
+            (map (fn [[k v]]
+                   (let [k-str   (cond
+                                   (keyword? k) (name k)
+                                   (string? k)  k
+                                   :else        nil)
+                         new-key (if k-str
+                                   (get graphql-name-mappings [typename k-str] k)
+                                   k)]
+                     [new-key (reverse-graphql-names v)])))
+            x))
+
+    (map? x)
+    (into {} (map (fn [[k v]] [k (reverse-graphql-names v)])) x)
+
+    (vector? x)
+    (mapv reverse-graphql-names x)
+
+    :else x))
+
 (defn build-decode-fn
   "Returns a decoder function using the given typename->schema mappings.
 
   Uses schema-driven transformation:
   1. Postwalk applies Malli decoding to maps with __typename
   2. Malli's transformers handle :map keys and :map-of keys per schema
-  3. Final pass converts remaining string keys (wrapper maps without __typename)"
+  3. Reverse :graphql/name overrides (HOME -> :team/HOME)
+  4. Final pass converts remaining string keys (wrapper maps without __typename)"
   [type-mappings]
   (letfn [(decode-if-typed [m]
             (if-let [schema (get type-mappings (get-typename m))]
@@ -111,6 +151,7 @@
     (fn [data]
       (->> data
            (walk/postwalk (fn [x] (cond-> x (map? x) decode-if-typed)))
+           reverse-graphql-names
            convert-remaining-string-keys))))
 
 (def decode-response

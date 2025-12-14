@@ -51,22 +51,22 @@
   [{:keys [value options on-change placeholder search-placeholder class id disabled]
     :or {placeholder "Select items..."
          search-placeholder "Search..."}}]
-  (let [[open? set-open!] (use-state false)
+  (let [[open? set-open!]    (use-state false)
         [search set-search!] (use-state "")
-        input-ref (use-ref nil)
-        selected-set (set (or value []))
-        filtered-options (if (str/blank? search)
-                           options
-                           (filter (fn [{:keys [label]}]
-                                     (str/includes? (str/lower-case label)
-                                                    (str/lower-case search)))
-                                   options))
-        selected-options (filter #(selected-set (:value %)) options)
-        _ (use-effect
-           (fn []
-             (when (and open? @input-ref)
-               (.focus @input-ref)))
-           [open?])]
+        input-ref            (use-ref nil)
+        selected-set         (set (or value []))
+        filtered-options     (if (str/blank? search)
+                               options
+                               (filter (fn [{:keys [label]}]
+                                         (str/includes? (str/lower-case label)
+                                                        (str/lower-case search)))
+                                       options))
+        selected-options     (filter #(selected-set (:value %)) options)
+        _                    (use-effect
+                              (fn []
+                                (when (and open? @input-ref)
+                                  (.focus @input-ref)))
+                              [open?])]
     ($ Popover/Root {:open open? :onOpenChange set-open!}
        ($ Popover/Trigger {:asChild true :disabled disabled}
           ($ :button {:type "button"

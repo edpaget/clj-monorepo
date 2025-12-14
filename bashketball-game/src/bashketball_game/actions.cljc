@@ -14,6 +14,12 @@
   #?(:clj (.toString (java.time.Instant/now))
      :cljs (.toISOString (js/Date.))))
 
+(defn- generate-id
+  "Generates a random UUID string."
+  []
+  #?(:clj (str (java.util.UUID/randomUUID))
+     :cljs (str (random-uuid))))
+
 (defmulti -apply-action
   "Multimethod dispatching on :type. Implementations receive [game-state action]
    and return the modified game-state. Should NOT handle event logging - that's
@@ -140,18 +146,17 @@
 
 (defmethod -apply-action :bashketball/exhaust-player
   [state {:keys [player-id]}]
-  (state/update-basketball-player state player-id assoc :exhausted? true))
+  (state/update-basketball-player state player-id assoc :exhausted true))
 
 (defmethod -apply-action :bashketball/refresh-player
   [state {:keys [player-id]}]
-  (state/update-basketball-player state player-id assoc :exhausted? false))
+  (state/update-basketball-player state player-id assoc :exhausted false))
 
 (defmethod -apply-action :bashketball/refresh-all
   [state {:keys [team]}]
-  (let [player-ids (concat (state/get-starters state team)
-                           (state/get-bench state team))]
+  (let [player-ids (keys (state/get-all-players state team))]
     (reduce (fn [s pid]
-              (state/update-basketball-player s pid assoc :exhausted? false))
+              (state/update-basketball-player s pid assoc :exhausted false))
             state
             player-ids)))
 
@@ -171,22 +176,14 @@
   (state/update-basketball-player state player-id assoc :modifiers []))
 
 (defmethod -apply-action :bashketball/substitute
-  [state {:keys [starter-id bench-id]}]
-  (let [team         (state/get-basketball-player-team state starter-id)
-        team-path    [:players team :team]
-        starters     (get-in state (conj team-path :starters))
-        bench        (get-in state (conj team-path :bench))
-        starter-pos  (get-in state [:players team :team :players starter-id :position])
-        new-starters (mapv #(if (= % starter-id) bench-id %) starters)
-        new-bench    (mapv #(if (= % bench-id) starter-id %) bench)]
+  [state {:keys [on-court-id off-court-id]}]
+  (let [on-court-pos (:position (state/get-basketball-player state on-court-id))]
     (-> state
-        (assoc-in (conj team-path :starters) new-starters)
-        (assoc-in (conj team-path :bench) new-bench)
-        (state/update-basketball-player starter-id assoc :position nil)
-        (state/update-basketball-player bench-id assoc :position starter-pos)
+        (state/update-basketball-player on-court-id assoc :position nil)
+        (state/update-basketball-player off-court-id assoc :position on-court-pos)
         (cond->
-         starter-pos
-          (update :board board/set-occupant starter-pos {:type :occupant/BASKETBALL_PLAYER :id bench-id})))))
+         on-court-pos
+          (update :board board/set-occupant on-court-pos {:type :occupant/BASKETBALL_PLAYER :id off-court-id})))))
 
 ;; -----------------------------------------------------------------------------
 ;; Ball Actions
@@ -273,3 +270,175 @@
          is-asset       (update-in [:players player :assets] conj played)
          (not is-asset) (update-in (conj deck-path :discard) conj played))
         (assoc :event-data {:played-card played}))))
+
+(defmethod -apply-action :bashketball/stage-card
+  [state {:keys [player instance-id]}]
+  (let [deck-path      [:players player :deck]
+        hand           (get-in state (conj deck-path :hand))
+        card           (first (filter #(= (:instance-id %) instance-id) hand))
+        new-hand       (filterv #(not= (:instance-id %) instance-id) hand)
+        play-area-card {:instance-id (:instance-id card)
+                        :card-slug   (:card-slug card)
+                        :played-by   player}]
+    (-> state
+        (assoc-in (conj deck-path :hand) new-hand)
+        (update :play-area conj play-area-card)
+        (assoc :event-data {:staged-card card}))))
+
+(defn- ability-card?
+  "Returns true if the card with given slug is an ABILITY_CARD."
+  [state player card-slug]
+  (let [cards (get-in state [:players player :deck :cards])
+        card  (some #(when (= (:slug %) card-slug) %) cards)]
+    (= (:card-type card) :card-type/ABILITY_CARD)))
+
+(defn- get-ability-card-properties
+  "Looks up the :removable and :detach-destination for an ability card.
+  Returns a map with defaults applied if the card or properties are not found."
+  [state player card-slug]
+  (let [cards (get-in state [:players player :deck :cards])
+        card  (some #(when (= (:slug %) card-slug) %) cards)]
+    {:removable          (get card :removable true)
+     :detach-destination (get card :detach-destination :detach/DISCARD)}))
+
+(defmethod -apply-action :bashketball/resolve-card
+  [state {:keys [instance-id target-player-id]}]
+  (let [play-area-card (state/find-card-in-play-area state instance-id)
+        owner          (:played-by play-area-card)
+        card-slug      (:card-slug play-area-card)
+        card-instance  {:instance-id instance-id :card-slug card-slug}
+        is-asset       (team-asset-card? state owner card-slug)
+        is-attach      (and target-player-id
+                            (ability-card? state owner card-slug))]
+    (-> state
+        (update :play-area (fn [pa] (filterv #(not= (:instance-id %) instance-id) pa)))
+        (cond->
+         is-attach
+         (as-> s
+           (let [props      (get-ability-card-properties s owner card-slug)
+                 attachment {:instance-id        instance-id
+                             :card-slug          card-slug
+                             :removable          (:removable props)
+                             :detach-destination (:detach-destination props)
+                             :attached-at        (now)}]
+             (state/update-basketball-player s target-player-id
+                                             update :attachments conj attachment)))
+
+         is-asset
+         (update-in [:players owner :assets] conj card-instance)
+
+         (and (not is-asset) (not is-attach))
+         (update-in [:players owner :deck :discard] conj card-instance))
+        (assoc :event-data (cond-> {:resolved-card play-area-card}
+                             target-player-id (assoc :target-player-id target-player-id))))))
+
+(defmethod -apply-action :bashketball/move-asset
+  [state {:keys [player instance-id destination]}]
+  (let [assets     (get-in state [:players player :assets])
+        moved-card (first (filter #(= (:instance-id %) instance-id) assets))
+        is-token?  (state/token? moved-card)
+        new-assets (filterv #(not= (:instance-id %) instance-id) assets)
+        dest-key   ({:DISCARD :discard :REMOVED :removed} destination)]
+    (-> state
+        (assoc-in [:players player :assets] new-assets)
+        (cond->
+         (not is-token?)
+          (update-in [:players player :deck dest-key] conj moved-card))
+        (assoc :event-data {:moved-asset    moved-card
+                            :destination    (if is-token? :deleted destination)
+                            :token-deleted? is-token?}))))
+
+;; -----------------------------------------------------------------------------
+;; Ability Attachment Actions
+
+(defmethod -apply-action :bashketball/attach-ability
+  [state {:keys [player instance-id target-player-id]}]
+  (let [deck-path  [:players player :deck]
+        hand       (get-in state (conj deck-path :hand))
+        card       (first (filter #(= (:instance-id %) instance-id) hand))
+        new-hand   (filterv #(not= (:instance-id %) instance-id) hand)
+        props      (get-ability-card-properties state player (:card-slug card))
+        attachment {:instance-id       (:instance-id card)
+                    :card-slug         (:card-slug card)
+                    :removable        (:removable props)
+                    :detach-destination (:detach-destination props)
+                    :attached-at       (now)}]
+    (-> state
+        (assoc-in (conj deck-path :hand) new-hand)
+        (state/update-basketball-player target-player-id
+                                        update :attachments conj attachment)
+        (assoc :event-data {:attached-card card
+                            :target-player-id target-player-id}))))
+
+(defmethod -apply-action :bashketball/detach-ability
+  [state {:keys [player target-player-id instance-id]}]
+  (let [attachment    (state/find-attachment state target-player-id instance-id)
+        is-token?     (state/token? attachment)
+        destination   (:detach-destination attachment)
+        card-instance {:instance-id (:instance-id attachment)
+                       :card-slug   (:card-slug attachment)}
+        dest-key      (if (= destination :detach/REMOVED) :removed :discard)]
+    (-> state
+        (state/update-basketball-player
+         target-player-id
+         update :attachments
+         (fn [atts] (filterv #(not= (:instance-id %) instance-id) atts)))
+        (cond->
+         (not is-token?)
+          (update-in [:players player :deck dest-key] conj card-instance))
+        (assoc :event-data {:detached-card    attachment
+                            :target-player-id target-player-id
+                            :destination      (if is-token? :deleted destination)
+                            :token-deleted?   is-token?}))))
+
+;; -----------------------------------------------------------------------------
+;; Token Actions
+
+(defn- attach-token-to-player
+  "Creates an attachment from a token card definition and attaches it to a player."
+  [state target-player-id card instance-id]
+  (let [attachment {:instance-id        instance-id
+                    :token             true
+                    :card               card
+                    :removable         (get card :removable true)
+                    :detach-destination (get card :detach-destination :detach/DISCARD)
+                    :attached-at        (now)}]
+    (state/update-basketball-player state target-player-id
+                                    update :attachments conj attachment)))
+
+(defn- normalize-token-card
+  "Fills in required fields for token cards with sensible defaults.
+  Ensures tokens pass card schema validation."
+  [card]
+  (let [card-type (keyword "card-type" (name (:card-type card)))
+        base      (-> card
+                      (assoc :card-type card-type)
+                      (update :set-slug #(or % "tokens")))]
+    (case card-type
+      :card-type/TEAM_ASSET_CARD
+      (update base :asset-power #(or % ""))
+
+      :card-type/ABILITY_CARD
+      (-> base
+          (update :fate #(or % 0))
+          (update :abilities #(or % [])))
+
+      base)))
+
+(defmethod -apply-action :bashketball/create-token
+  [state {:keys [player card placement target-player-id]}]
+  (let [normalized-card (normalize-token-card card)
+        instance-id     (generate-id)
+        token-instance  {:instance-id instance-id
+                         :token       true
+                         :card        normalized-card}]
+    (-> state
+        (cond->
+         (= placement :placement/ASSET)
+          (update-in [:players player :assets] conj token-instance)
+
+          (= placement :placement/ATTACH)
+          (attach-token-to-player target-player-id normalized-card instance-id))
+        (assoc :event-data {:created-token token-instance
+                            :placement     placement
+                            :target-player-id target-player-id}))))

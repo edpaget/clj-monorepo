@@ -27,8 +27,12 @@
   - `:set-phase` - fn [phase] -> Promise
   - `:shuffle-deck` - fn [team] -> Promise (shuffle draw pile)
   - `:return-discard` - fn [team] -> Promise (return discard pile to draw pile)
-  - `:substitute` - fn [starter-id bench-id] -> Promise (swap starter with bench player)
+  - `:substitute` - fn [on-court-id off-court-id] -> Promise (swap on-court with off-court player)
+  - `:stage-card` - fn [team instance-id] -> Promise (move card from hand to play area)
+  - `:resolve-card` - fn [instance-id target-player-id?] -> Promise (move card from play area to discard/assets/attachment)
+  - `:move-asset` - fn [team instance-id destination] -> Promise (move asset to :discard or :removed)
   - `:add-score` - fn [team points] -> Promise (add points to team, negative to decrement)
+  - `:create-token` - fn [team card placement target-player-id] -> Promise (create token as asset or attached)
   - `:loading` - boolean
   - `:error` - error object or nil"
   [game-id]
@@ -125,10 +129,32 @@
                                                              [submit])
 
         substitute                                          (use-callback
-                                                             (fn [starter-id bench-id]
-                                                               (submit {:type       "bashketball/substitute"
-                                                                        :starter-id starter-id
-                                                                        :bench-id   bench-id}))
+                                                             (fn [on-court-id off-court-id]
+                                                               (submit {:type         "bashketball/substitute"
+                                                                        :on-court-id  on-court-id
+                                                                        :off-court-id off-court-id}))
+                                                             [submit])
+
+        stage-card                                          (use-callback
+                                                             (fn [team instance-id]
+                                                               (submit {:type        "bashketball/stage-card"
+                                                                        :player      (name team)
+                                                                        :instance-id instance-id}))
+                                                             [submit])
+
+        resolve-card                                        (use-callback
+                                                             (fn [instance-id & [target-player-id]]
+                                                               (submit (cond-> {:type        "bashketball/resolve-card"
+                                                                                :instance-id instance-id}
+                                                                         target-player-id (assoc :target-player-id target-player-id))))
+                                                             [submit])
+
+        move-asset                                          (use-callback
+                                                             (fn [team instance-id destination]
+                                                               (submit {:type        "bashketball/move-asset"
+                                                                        :player      (name team)
+                                                                        :instance-id instance-id
+                                                                        :destination (name destination)}))
                                                              [submit])
 
         add-score                                           (use-callback
@@ -136,6 +162,15 @@
                                                                (submit {:type   "bashketball/add-score"
                                                                         :team   (name team)
                                                                         :points points}))
+                                                             [submit])
+
+        create-token                                        (use-callback
+                                                             (fn [team card placement target-player-id]
+                                                               (submit (cond-> {:type      "bashketball/create-token"
+                                                                                :player    (name team)
+                                                                                :card      card
+                                                                                :placement (name placement)}
+                                                                         target-player-id (assoc :target-player-id target-player-id))))
                                                              [submit])]
 
     (use-memo
@@ -154,9 +189,14 @@
         :shuffle-deck       shuffle-deck
         :return-discard     return-discard
         :substitute         substitute
+        :stage-card         stage-card
+        :resolve-card       resolve-card
+        :move-asset         move-asset
         :add-score          add-score
+        :create-token       create-token
         :loading            loading
         :error              error})
      [submit move-player pass-ball shoot-ball set-ball-loose set-ball-possessed
       reveal-fate draw-cards discard-cards end-turn set-phase shuffle-deck
-      return-discard substitute add-score loading error])))
+      return-discard substitute stage-card resolve-card move-asset add-score
+      create-token loading error])))

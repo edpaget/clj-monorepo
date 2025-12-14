@@ -124,23 +124,20 @@
          (remove #(board/occupant-at board %))
          set)))
 
-(defn unplaced-starters
-  "Returns map of player-id -> player for starters without positions."
+(defn unplaced-players
+  "Returns map of player-id -> player for all players without positions."
   [game-state team]
-  (let [starters   (get-in game-state [:players team :team :starters])
-        player-map (get-in game-state [:players team :team :players])]
-    (->> starters
-         (map #(get player-map %))
+  (let [player-map (get-in game-state [:players team :team :players])]
+    (->> (vals player-map)
          (remove :position)
          (map (juxt :id identity))
          (into {}))))
 
-(defn all-starters-placed?
-  "Returns true if all starters for the team have positions."
+(defn setup-complete?
+  "Returns true if exactly 3 players have been placed on the court."
   [game-state team]
-  (let [starters   (get-in game-state [:players team :team :starters])
-        player-map (get-in game-state [:players team :team :players])]
-    (every? #(:position (get player-map %)) starters)))
+  (let [player-map (get-in game-state [:players team :team :players])]
+    (= 3 (count (filter :position (vals player-map))))))
 
 (defn can-reveal-fate?
   "Returns true if the team has cards in their draw pile."
@@ -149,10 +146,11 @@
     (and (sequential? draw-pile) (pos? (count draw-pile)))))
 
 (defn can-substitute?
-  "Returns true if the team has bench players available for substitution."
+  "Returns true if the team has off-court players available for substitution."
   [game-state team]
-  (let [bench (get-in game-state [:players team :team :bench])]
-    (and (sequential? bench) (pos? (count bench)))))
+  (let [player-map (get-in game-state [:players team :team :players])
+        off-court  (filter (complement :position) (vals player-map))]
+    (seq off-court)))
 
 (defn make-start-from-tipoff-action
   "Constructs a start-from-tipoff action map."

@@ -124,7 +124,10 @@
   2. Transform enum values (string → namespaced keyword)
   3. Transform tuple values (string → vector) for :graphql/scalar tuples
   4. Transform map-of keys (string → vector) for tuple-keyed maps
-  5. Apply default values for missing fields"
+  5. Apply default values for missing fields
+
+  Note: :graphql/name reverse mapping (HOME → :team/HOME) is handled
+  separately by [[bashketball-game-ui.graphql.decoder/reverse-graphql-names]]."
   (mt/transformer
    kebab-key-transformer
    enum-transformer

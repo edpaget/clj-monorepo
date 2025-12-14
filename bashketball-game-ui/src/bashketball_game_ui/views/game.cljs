@@ -32,8 +32,8 @@
   (let [{:keys [game game-state loading error detail-modal fate-reveal substitute-mode]}
         (use-game-context)
 
-        {:keys [my-starter-players my-bench-players
-                home-players away-players home-starters away-starters]}
+        {:keys [my-on-court-players my-off-court-players
+                home-players away-players]}
         (use-game-derived)
 
         {:keys [on-substitute]}
@@ -80,6 +80,10 @@
             ($ sections/compact-team-panel {:team :team/AWAY :on-info-click on-info-click})
             ($ sections/compact-team-panel {:team :team/HOME :on-info-click on-info-click}))
 
+         ;; Play area (shown when cards are staged)
+         ($ :div {:class "px-2"}
+            ($ sections/play-area-section))
+
          ;; Bottom bar with hand and actions
          ($ sections/bottom-bar-section)
 
@@ -92,24 +96,26 @@
                                :fate     (:fate fate-reveal)
                                :on-close (:close fate-reveal)})
 
-         ($ substitute-modal {:open?             (:active substitute-mode)
-                              :starters          my-starter-players
-                              :bench             my-bench-players
-                              :selected-starter  (:starter-id substitute-mode)
-                              :on-starter-select (:set-starter substitute-mode)
-                              :on-bench-select   on-substitute
-                              :on-close          (:cancel substitute-mode)})
+         ($ substitute-modal {:open?               (:active substitute-mode)
+                              :on-court-players   my-on-court-players
+                              :off-court-players  my-off-court-players
+                              :selected-on-court  (:on-court-id substitute-mode)
+                              :on-on-court-select (:set-on-court substitute-mode)
+                              :on-off-court-select on-substitute
+                              :on-close           (:cancel substitute-mode)})
+
+         ($ sections/create-token-modal-section)
+
+         ($ sections/attach-ability-modal-section)
 
          ($ game-log-modal {:open?    log-open?
                             :events   (:events game-state)
                             :on-close #(set-log-open false)})
 
-         ($ roster-modal {:open?         roster-open?
-                          :home-players  home-players
-                          :home-starters home-starters
-                          :away-players  away-players
-                          :away-starters away-starters
-                          :on-close      #(set-roster-open false)})))))
+         ($ roster-modal {:open?        roster-open?
+                          :home-players home-players
+                          :away-players away-players
+                          :on-close     #(set-roster-open false)})))))
 
 (defui game-view
   "Game page component.

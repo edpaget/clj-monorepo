@@ -28,21 +28,21 @@
                        :phase "ACTIONS"
                        :activePlayer "HOME"
                        :turnNumber 1
-                       :score #js {:__typename "Score" :home 0 :away 0}
+                       :score #js {:__typename "Score" :HOME 0 :AWAY 0}
                        :board #js {:__typename "Board" :width 5 :height 14 :tiles #js {} :occupants #js {}}
                        :ball #js {:__typename "BallPossessed" :holderId "player-1"}
                        :players #js {:__typename "Players"
-                                     :home #js {:__typename "PlayerState"
+                                     :HOME #js {:__typename "GamePlayer"
                                                 :id "HOME"
                                                 :actionsRemaining 2
-                                                :deck #js {:__typename "Deck" :drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
-                                                :team #js {:__typename "Team" :starters #js [] :bench #js [] :players #js {}}
+                                                :deck #js {:__typename "DeckState" :drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
+                                                :team #js {:__typename "TeamRoster" :starters #js [] :bench #js [] :players #js {}}
                                                 :assets #js []}
-                                     :away #js {:__typename "PlayerState"
+                                     :AWAY #js {:__typename "GamePlayer"
                                                 :id "AWAY"
                                                 :actionsRemaining 0
-                                                :deck #js {:__typename "Deck" :drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
-                                                :team #js {:__typename "Team" :starters #js [] :bench #js [] :players #js {}}
+                                                :deck #js {:__typename "DeckState" :drawPile #js [] :hand #js [] :discard #js [] :removed #js []}
+                                                :team #js {:__typename "TeamRoster" :starters #js [] :bench #js [] :players #js {}}
                                                 :assets #js []}}
                        :stack #js []
                        :events #js []

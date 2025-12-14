@@ -76,7 +76,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push API image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./bashketball-editor-api/Dockerfile
@@ -118,7 +118,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push UI image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./bashketball-editor-ui/Dockerfile

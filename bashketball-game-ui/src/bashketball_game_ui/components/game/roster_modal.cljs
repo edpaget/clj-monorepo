@@ -10,11 +10,9 @@
   Props:
   - open?: boolean to show/hide modal
   - home-players: map of player-id -> player for home team
-  - home-starters: vector of home starter IDs
   - away-players: map of player-id -> player for away team
-  - away-starters: vector of away starter IDs
   - on-close: fn [] to close the modal"
-  [{:keys [open? home-players home-starters away-players away-starters on-close]}]
+  [{:keys [open? home-players away-players on-close]}]
   (when open?
     ($ :div {:class    "fixed inset-0 z-50 flex items-center justify-center bg-black/50"
              :on-click on-close}
@@ -28,9 +26,7 @@
                 "\u2715"))
           ;; Content
           ($ :div {:class "flex-1 overflow-y-auto p-4 space-y-4"}
-             ($ roster-panel {:players   away-players
-                              :starters  away-starters
-                              :team      :team/AWAY})
-             ($ roster-panel {:players   home-players
-                              :starters  home-starters
-                              :team      :team/HOME}))))))
+             ($ roster-panel {:players away-players
+                              :team    :team/AWAY})
+             ($ roster-panel {:players home-players
+                              :team    :team/HOME}))))))

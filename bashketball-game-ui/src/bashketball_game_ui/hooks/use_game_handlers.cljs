@@ -24,7 +24,10 @@
   - `:on-card-click` - Handler for card clicks
   - `:on-end-turn` - Handler for ending turn
   - `:on-shoot` - Handler for shooting
-  - `:on-play-card` - Handler for playing a card
+  - `:on-play-card` - Handler for playing a card (stages card to play area)
+  - `:on-resolve-card` - Handler for resolving a card from play area (discard)
+  - `:on-open-attach-modal` - Handler for opening attach ability modal
+  - `:on-resolve-ability` - Handler for resolving ability (attach or discard)
   - `:on-draw` - Handler for drawing cards
   - `:on-start-game` - Handler for starting game from setup (transitions to TIP_OFF)
   - `:on-start-from-tipoff` - Handler for starting game from tip-off (first to press wins)
@@ -34,11 +37,13 @@
   - `:on-reveal-fate` - Handler for revealing fate
   - `:on-shuffle` - Handler for shuffling deck
   - `:on-return-discard` - Handler for returning discard to deck
+  - `:on-move-asset` - Handler for moving asset to discard or removed zone
   - `:on-substitute` - Handler for player substitution
   - `:on-target-click` - Handler for clicking in-air ball target to resolve"
   []
   (let [{:keys [game-state my-team is-my-turn actions
-                selection pass discard ball-mode fate-reveal substitute-mode]}
+                selection pass discard ball-mode fate-reveal substitute-mode
+                attach-ability-modal]}
         (use-game-context)
 
         {:keys [setup-mode valid-moves valid-setup-positions
@@ -154,11 +159,31 @@
         (use-callback
          (fn []
            (when selected-card
-             ((:submit actions) {:type        "bashketball/play-card"
-                                 :instance-id selected-card
-                                 :player      (name my-team)})
+             ((:stage-card actions) my-team selected-card)
              ((:set-selected-card selection) nil)))
          [selected-card my-team actions selection])
+
+        on-resolve-card
+        (use-callback
+         (fn [instance-id]
+           ((:resolve-card actions) instance-id))
+         [actions])
+
+        on-open-attach-modal
+        (use-callback
+         (fn [instance-id card-slug played-by]
+           ((:show attach-ability-modal) instance-id card-slug played-by))
+         [attach-ability-modal])
+
+        on-resolve-ability
+        (use-callback
+         (fn [target-player-id]
+           (let [instance-id (:instance-id attach-ability-modal)]
+             (-> ((:resolve-card actions) instance-id target-player-id)
+                 (.then #(js/console.log "Ability resolved:" %))
+                 (.catch #(js/console.error "Ability resolve error:" %)))
+             ((:close attach-ability-modal))))
+         [actions attach-ability-modal])
 
         on-draw
         (use-callback
@@ -223,11 +248,19 @@
            ((:return-discard actions) my-team))
          [my-team actions])
 
+        on-move-asset
+        (use-callback
+         (fn [instance-id destination]
+           (-> ((:move-asset actions) my-team instance-id destination)
+               (.then #(js/console.log "Asset moved:" %))
+               (.catch #(js/console.error "Move asset error:" %))))
+         [my-team actions])
+
         on-substitute
         (use-callback
-         (fn [bench-id]
-           (let [starter-id (:starter-id substitute-mode)]
-             (-> ((:substitute actions) starter-id bench-id)
+         (fn [off-court-id]
+           (let [on-court-id (:on-court-id substitute-mode)]
+             (-> ((:substitute actions) on-court-id off-court-id)
                  (.then #(js/console.log "Substitute result:" %))
                  (.catch #(js/console.error "Substitute error:" %)))
              ((:cancel substitute-mode))))
@@ -258,6 +291,9 @@
      :on-end-turn          on-end-turn
      :on-shoot             on-shoot
      :on-play-card         on-play-card
+     :on-resolve-card      on-resolve-card
+     :on-open-attach-modal on-open-attach-modal
+     :on-resolve-ability   on-resolve-ability
      :on-draw              on-draw
      :on-start-game        on-start-game
      :on-start-from-tipoff on-start-from-tipoff
@@ -267,5 +303,6 @@
      :on-reveal-fate       on-reveal-fate
      :on-shuffle           on-shuffle
      :on-return-discard    on-return-discard
+     :on-move-asset        on-move-asset
      :on-substitute        on-substitute
      :on-target-click      on-target-click}))

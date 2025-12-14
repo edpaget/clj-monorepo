@@ -27,8 +27,8 @@
   (filter (fn [event]
             (or (= (:player-id event) player-id)
                 (= (:holder-id event) player-id)
-                (= (:starter-id event) player-id)
-                (= (:bench-id event) player-id)))
+                (= (:on-court-id event) player-id)
+                (= (:off-court-id event) player-id)))
           (:events state)))
 
 (defn get-events-by-team

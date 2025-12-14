@@ -127,6 +127,7 @@
    game-schema/Stat
    game-schema/BallActionType
    game-schema/OccupantType
+   game-schema/PlayAreaCard
 
    ;; API game schemas (from bashketball-schemas)
    game-schemas/Game

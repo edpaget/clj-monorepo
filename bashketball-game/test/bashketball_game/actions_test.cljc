@@ -249,10 +249,10 @@
                                                    :player-id "HOME-orc-center-0"})]
 
     (testing "exhaust sets exhausted? true"
-      (is (:exhausted? (state/get-basketball-player exhausted "HOME-orc-center-0"))))
+      (is (:exhausted (state/get-basketball-player exhausted "HOME-orc-center-0"))))
 
     (testing "refresh sets exhausted? false"
-      (is (not (:exhausted? (state/get-basketball-player refreshed "HOME-orc-center-0")))))))
+      (is (not (:exhausted (state/get-basketball-player refreshed "HOME-orc-center-0")))))))
 
 (deftest ball-actions-test
   (let [game (state/create-game test-config)]
@@ -462,3 +462,502 @@
 
     (testing "non-asset card in discard"
       (is (= [card-instance] (state/get-discard result :team/HOME))))))
+
+;; -----------------------------------------------------------------------------
+;; Stage Card Action Tests
+
+(deftest stage-card-removes-from-hand-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card   (first hand)
+        result (actions/apply-action game {:type        :bashketball/stage-card
+                                           :player      :team/HOME
+                                           :instance-id (:instance-id card)})]
+    (is (= 2 (count (state/get-hand result :team/HOME))))
+    (is (not (some #(= (:instance-id %) (:instance-id card))
+                   (state/get-hand result :team/HOME))))))
+
+(deftest stage-card-adds-to-play-area-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card   (first hand)
+        result (actions/apply-action game {:type        :bashketball/stage-card
+                                           :player      :team/HOME
+                                           :instance-id (:instance-id card)})]
+    (is (= 1 (count (:play-area result))))
+    (let [staged (first (:play-area result))]
+      (is (= (:instance-id card) (:instance-id staged)))
+      (is (= (:card-slug card) (:card-slug staged)))
+      (is (= :team/HOME (:played-by staged))))))
+
+(deftest stage-card-logs-event-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card   (first hand)
+        result (actions/apply-action game {:type        :bashketball/stage-card
+                                           :player      :team/HOME
+                                           :instance-id (:instance-id card)})
+        event  (last (:events result))]
+    (is (= :bashketball/stage-card (:type event)))
+    (is (= card (:staged-card event)))))
+
+;; -----------------------------------------------------------------------------
+;; Resolve Card Action Tests
+
+(deftest resolve-card-removes-from-play-area-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card   (first hand)
+        staged (actions/apply-action game {:type        :bashketball/stage-card
+                                           :player      :team/HOME
+                                           :instance-id (:instance-id card)})
+        result (actions/apply-action staged {:type        :bashketball/resolve-card
+                                             :instance-id (:instance-id card)})]
+    (is (empty? (:play-area result)))))
+
+(deftest resolve-card-moves-to-discard-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card   (first hand)
+        staged (actions/apply-action game {:type        :bashketball/stage-card
+                                           :player      :team/HOME
+                                           :instance-id (:instance-id card)})
+        result (actions/apply-action staged {:type        :bashketball/resolve-card
+                                             :instance-id (:instance-id card)})]
+    (is (= 1 (count (state/get-discard result :team/HOME))))
+    (is (= (:card-slug card) (:card-slug (first (state/get-discard result :team/HOME)))))))
+
+(deftest resolve-card-team-asset-goes-to-assets-test
+  (let [card-instance {:instance-id "asset-1" :card-slug "team-asset-speed"}
+        card-catalog  [{:slug      "team-asset-speed"
+                        :name      "Speed Boost"
+                        :card-type :card-type/TEAM_ASSET_CARD}]
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance])
+                          (assoc-in [:players :team/HOME :deck :cards] card-catalog))
+        staged        (actions/apply-action game {:type        :bashketball/stage-card
+                                                  :player      :team/HOME
+                                                  :instance-id "asset-1"})
+        result        (actions/apply-action staged {:type        :bashketball/resolve-card
+                                                    :instance-id "asset-1"})]
+    (is (= 1 (count (get-in result [:players :team/HOME :assets]))))
+    (is (empty? (state/get-discard result :team/HOME)))))
+
+(deftest resolve-card-logs-event-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card   (first hand)
+        staged (actions/apply-action game {:type        :bashketball/stage-card
+                                           :player      :team/HOME
+                                           :instance-id (:instance-id card)})
+        result (actions/apply-action staged {:type        :bashketball/resolve-card
+                                             :instance-id (:instance-id card)})
+        event  (last (:events result))]
+    (is (= :bashketball/resolve-card (:type event)))
+    (is (some? (:resolved-card event)))))
+
+;; -----------------------------------------------------------------------------
+;; Move Asset Action Tests
+
+(deftest move-asset-to-discard-test
+  (let [card-instance {:instance-id "asset-1" :card-slug "team-asset-speed"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :assets] [card-instance]))
+        result        (actions/apply-action game {:type        :bashketball/move-asset
+                                                  :player      :team/HOME
+                                                  :instance-id "asset-1"
+                                                  :destination :DISCARD})]
+
+    (testing "asset removed from assets"
+      (is (empty? (get-in result [:players :team/HOME :assets]))))
+
+    (testing "asset added to discard"
+      (is (= [card-instance] (state/get-discard result :team/HOME))))))
+
+(deftest move-asset-to-removed-test
+  (let [card-instance {:instance-id "asset-1" :card-slug "team-asset-speed"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :assets] [card-instance]))
+        result        (actions/apply-action game {:type        :bashketball/move-asset
+                                                  :player      :team/HOME
+                                                  :instance-id "asset-1"
+                                                  :destination :REMOVED})]
+
+    (testing "asset removed from assets"
+      (is (empty? (get-in result [:players :team/HOME :assets]))))
+
+    (testing "asset added to removed zone"
+      (is (= [card-instance] (get-in result [:players :team/HOME :deck :removed]))))))
+
+(deftest move-asset-logs-event-test
+  (let [card-instance {:instance-id "asset-1" :card-slug "team-asset-speed"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :assets] [card-instance]))
+        result        (actions/apply-action game {:type        :bashketball/move-asset
+                                                  :player      :team/HOME
+                                                  :instance-id "asset-1"
+                                                  :destination :DISCARD})
+        event         (last (:events result))]
+    (is (= :bashketball/move-asset (:type event)))
+    (is (= card-instance (:moved-asset event)))
+    (is (= :DISCARD (:destination event)))))
+
+;; -----------------------------------------------------------------------------
+;; Attach Ability Action Tests
+
+(deftest attach-ability-removes-from-hand-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "power-shot"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        result        (actions/apply-action game {:type            :bashketball/attach-ability
+                                                  :player          :team/HOME
+                                                  :instance-id     "ability-1"
+                                                  :target-player-id "HOME-orc-center-0"})]
+    (is (empty? (state/get-hand result :team/HOME)))))
+
+(deftest attach-ability-adds-to-player-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "power-shot"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        result        (actions/apply-action game {:type            :bashketball/attach-ability
+                                                  :player          :team/HOME
+                                                  :instance-id     "ability-1"
+                                                  :target-player-id "HOME-orc-center-0"})
+        attachments   (state/get-attachments result "HOME-orc-center-0")]
+    (is (= 1 (count attachments)))
+    (is (= "ability-1" (:instance-id (first attachments))))
+    (is (= "power-shot" (:card-slug (first attachments))))))
+
+(deftest attach-ability-default-removable-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "power-shot"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        result        (actions/apply-action game {:type            :bashketball/attach-ability
+                                                  :player          :team/HOME
+                                                  :instance-id     "ability-1"
+                                                  :target-player-id "HOME-orc-center-0"})
+        attachment    (first (state/get-attachments result "HOME-orc-center-0"))]
+    (is (true? (:removable attachment)))
+    (is (= :detach/DISCARD (:detach-destination attachment)))))
+
+(deftest attach-ability-uses-card-properties-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "power-shot"}
+        card-catalog  [{:slug              "power-shot"
+                        :removable        false
+                        :detach-destination :detach/REMOVED}]
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance])
+                          (assoc-in [:players :team/HOME :deck :cards] card-catalog))
+        result        (actions/apply-action game {:type            :bashketball/attach-ability
+                                                  :player          :team/HOME
+                                                  :instance-id     "ability-1"
+                                                  :target-player-id "HOME-orc-center-0"})
+        attachment    (first (state/get-attachments result "HOME-orc-center-0"))]
+    (is (false? (:removable attachment)))
+    (is (= :detach/REMOVED (:detach-destination attachment)))))
+
+(deftest attach-ability-logs-event-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "power-shot"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        result        (actions/apply-action game {:type            :bashketball/attach-ability
+                                                  :player          :team/HOME
+                                                  :instance-id     "ability-1"
+                                                  :target-player-id "HOME-orc-center-0"})
+        event         (last (:events result))]
+    (is (= :bashketball/attach-ability (:type event)))
+    (is (= card-instance (:attached-card event)))
+    (is (= "HOME-orc-center-0" (:target-player-id event)))))
+
+;; -----------------------------------------------------------------------------
+;; Detach Ability Action Tests
+
+(deftest detach-ability-removes-from-player-test
+  (let [attachment {:instance-id       "ability-1"
+                    :card-slug         "power-shot"
+                    :removable        true
+                    :detach-destination :detach/DISCARD
+                    :attached-at       "2024-01-01T00:00:00Z"}
+        game       (-> (state/create-game test-config)
+                       (state/update-basketball-player "HOME-orc-center-0"
+                                                       assoc :attachments [attachment]))
+        result     (actions/apply-action game {:type            :bashketball/detach-ability
+                                               :player          :team/HOME
+                                               :target-player-id "HOME-orc-center-0"
+                                               :instance-id     "ability-1"})]
+    (is (empty? (state/get-attachments result "HOME-orc-center-0")))))
+
+(deftest detach-ability-goes-to-discard-test
+  (let [attachment {:instance-id       "ability-1"
+                    :card-slug         "power-shot"
+                    :removable        true
+                    :detach-destination :detach/DISCARD
+                    :attached-at       "2024-01-01T00:00:00Z"}
+        game       (-> (state/create-game test-config)
+                       (state/update-basketball-player "HOME-orc-center-0"
+                                                       assoc :attachments [attachment]))
+        result     (actions/apply-action game {:type            :bashketball/detach-ability
+                                               :player          :team/HOME
+                                               :target-player-id "HOME-orc-center-0"
+                                               :instance-id     "ability-1"})
+        discard    (state/get-discard result :team/HOME)]
+    (is (= 1 (count discard)))
+    (is (= "ability-1" (:instance-id (first discard))))
+    (is (= "power-shot" (:card-slug (first discard))))))
+
+(deftest detach-ability-goes-to-removed-test
+  (let [attachment {:instance-id       "ability-1"
+                    :card-slug         "power-shot"
+                    :removable        true
+                    :detach-destination :detach/REMOVED
+                    :attached-at       "2024-01-01T00:00:00Z"}
+        game       (-> (state/create-game test-config)
+                       (state/update-basketball-player "HOME-orc-center-0"
+                                                       assoc :attachments [attachment]))
+        result     (actions/apply-action game {:type            :bashketball/detach-ability
+                                               :player          :team/HOME
+                                               :target-player-id "HOME-orc-center-0"
+                                               :instance-id     "ability-1"})
+        removed    (get-in result [:players :team/HOME :deck :removed])]
+    (is (= 1 (count removed)))
+    (is (= "ability-1" (:instance-id (first removed))))))
+
+(deftest detach-ability-logs-event-test
+  (let [attachment {:instance-id       "ability-1"
+                    :card-slug         "power-shot"
+                    :removable        true
+                    :detach-destination :detach/DISCARD
+                    :attached-at       "2024-01-01T00:00:00Z"}
+        game       (-> (state/create-game test-config)
+                       (state/update-basketball-player "HOME-orc-center-0"
+                                                       assoc :attachments [attachment]))
+        result     (actions/apply-action game {:type            :bashketball/detach-ability
+                                               :player          :team/HOME
+                                               :target-player-id "HOME-orc-center-0"
+                                               :instance-id     "ability-1"})
+        event      (last (:events result))]
+    (is (= :bashketball/detach-ability (:type event)))
+    (is (= attachment (:detached-card event)))
+    (is (= "HOME-orc-center-0" (:target-player-id event)))
+    (is (= :detach/DISCARD (:destination event)))))
+
+(deftest substitute-preserves-attachments-test
+  (let [attachment  {:instance-id       "ability-1"
+                     :card-slug         "power-shot"
+                     :removable        true
+                     :detach-destination :detach/DISCARD
+                     :attached-at       "2024-01-01T00:00:00Z"}
+        game        (-> (state/create-game test-config)
+                        (state/update-basketball-player "HOME-orc-center-0"
+                                                        assoc :attachments [attachment])
+                        (actions/apply-action {:type :bashketball/move-player
+                                               :player-id "HOME-orc-center-0"
+                                               :position [2 3]}))
+        result      (actions/apply-action game {:type         :bashketball/substitute
+                                                :on-court-id  "HOME-orc-center-0"
+                                                :off-court-id "HOME-dwarf-power-forward-2"})
+        attachments (state/get-attachments result "HOME-orc-center-0")]
+    (is (= 1 (count attachments)))
+    (is (= "ability-1" (:instance-id (first attachments))))))
+
+;; -----------------------------------------------------------------------------
+;; Token Card Action Tests
+
+(deftest create-token-to-assets-test
+  (let [token-card {:slug      "speed-boost-token"
+                    :name      "Speed Boost"
+                    :card-type :card-type/TEAM_ASSET_CARD}
+        game       (state/create-game test-config)
+        result     (actions/apply-action game {:type      :bashketball/create-token
+                                               :player    :team/HOME
+                                               :card      token-card
+                                               :placement :placement/ASSET})
+        assets     (get-in result [:players :team/HOME :assets])]
+
+    (testing "token added to assets"
+      (is (= 1 (count assets))))
+
+    (testing "token has token? flag"
+      (is (true? (:token (first assets)))))
+
+    (testing "token has inline card definition with defaults filled in"
+      (let [stored-card (:card (first assets))]
+        (is (= "speed-boost-token" (:slug stored-card)))
+        (is (= "Speed Boost" (:name stored-card)))
+        (is (= :card-type/TEAM_ASSET_CARD (:card-type stored-card)))
+        (is (= "tokens" (:set-slug stored-card)))
+        (is (= "" (:asset-power stored-card)))))
+
+    (testing "token has instance-id"
+      (is (string? (:instance-id (first assets)))))))
+
+(deftest create-token-attach-test
+  (let [token-card  {:slug               "shield-token"
+                     :name               "Shield"
+                     :card-type          :card-type/ABILITY_CARD
+                     :removable          false
+                     :detach-destination :detach/REMOVED}
+        game        (state/create-game test-config)
+        result      (actions/apply-action game {:type             :bashketball/create-token
+                                                :player           :team/HOME
+                                                :card             token-card
+                                                :placement        :placement/ATTACH
+                                                :target-player-id "HOME-orc-center-0"})
+        attachments (state/get-attachments result "HOME-orc-center-0")]
+
+    (testing "token attached to player"
+      (is (= 1 (count attachments))))
+
+    (testing "attachment has token? flag"
+      (is (true? (:token (first attachments)))))
+
+    (testing "attachment has inline card definition with defaults"
+      (let [stored-card (:card (first attachments))]
+        (is (= "shield-token" (:slug stored-card)))
+        (is (= "Shield" (:name stored-card)))
+        (is (= :card-type/ABILITY_CARD (:card-type stored-card)))
+        (is (= "tokens" (:set-slug stored-card)))
+        (is (= 0 (:fate stored-card)))
+        (is (= [] (:abilities stored-card)))))
+
+    (testing "attachment uses card properties"
+      (is (false? (:removable (first attachments))))
+      (is (= :detach/REMOVED (:detach-destination (first attachments)))))))
+
+(deftest create-token-logs-event-test
+  (let [token-card {:slug "test-token" :name "Test" :card-type :card-type/TEAM_ASSET_CARD}
+        game       (state/create-game test-config)
+        result     (actions/apply-action game {:type      :bashketball/create-token
+                                               :player    :team/HOME
+                                               :card      token-card
+                                               :placement :placement/ASSET})
+        event      (last (:events result))]
+
+    (testing "event type is create-token"
+      (is (= :bashketball/create-token (:type event))))
+
+    (testing "event includes created token"
+      (is (some? (:created-token event)))
+      (is (true? (:token (:created-token event)))))
+
+    (testing "event includes placement"
+      (is (= :placement/ASSET (:placement event))))))
+
+(deftest detach-token-deletes-entirely-test
+  (let [token-attachment {:instance-id        "token-1"
+                          :token             true
+                          :card               {:slug "shield-token"}
+                          :removable         true
+                          :detach-destination :detach/DISCARD
+                          :attached-at        "2024-01-01T00:00:00Z"}
+        game             (-> (state/create-game test-config)
+                             (state/update-basketball-player "HOME-orc-center-0"
+                                                             assoc :attachments [token-attachment]))
+        result           (actions/apply-action game {:type             :bashketball/detach-ability
+                                                     :player           :team/HOME
+                                                     :target-player-id "HOME-orc-center-0"
+                                                     :instance-id      "token-1"})]
+
+    (testing "token removed from player"
+      (is (empty? (state/get-attachments result "HOME-orc-center-0"))))
+
+    (testing "token NOT added to discard"
+      (is (empty? (state/get-discard result :team/HOME))))
+
+    (testing "token NOT added to removed"
+      (is (empty? (get-in result [:players :team/HOME :deck :removed]))))))
+
+(deftest detach-token-event-shows-deleted-test
+  (let [token-attachment {:instance-id        "token-1"
+                          :token             true
+                          :card               {:slug "shield-token"}
+                          :removable         true
+                          :detach-destination :detach/DISCARD
+                          :attached-at        "2024-01-01T00:00:00Z"}
+        game             (-> (state/create-game test-config)
+                             (state/update-basketball-player "HOME-orc-center-0"
+                                                             assoc :attachments [token-attachment]))
+        result           (actions/apply-action game {:type             :bashketball/detach-ability
+                                                     :player           :team/HOME
+                                                     :target-player-id "HOME-orc-center-0"
+                                                     :instance-id      "token-1"})
+        event            (last (:events result))]
+
+    (testing "event shows destination as deleted"
+      (is (= :deleted (:destination event))))
+
+    (testing "event shows token-deleted flag"
+      (is (true? (:token-deleted? event))))))
+
+(deftest detach-regular-card-still-moves-test
+  (let [attachment {:instance-id        "ability-1"
+                    :card-slug          "power-shot"
+                    :removable         true
+                    :detach-destination :detach/DISCARD
+                    :attached-at        "2024-01-01T00:00:00Z"}
+        game       (-> (state/create-game test-config)
+                       (state/update-basketball-player "HOME-orc-center-0"
+                                                       assoc :attachments [attachment]))
+        result     (actions/apply-action game {:type             :bashketball/detach-ability
+                                               :player           :team/HOME
+                                               :target-player-id "HOME-orc-center-0"
+                                               :instance-id      "ability-1"})]
+
+    (testing "regular card still goes to discard"
+      (is (= 1 (count (state/get-discard result :team/HOME)))))))
+
+(deftest move-token-asset-deletes-entirely-test
+  (let [token-asset {:instance-id "token-1"
+                     :token      true
+                     :card        {:slug "speed-token" :card-type :card-type/TEAM_ASSET_CARD}}
+        game        (-> (state/create-game test-config)
+                        (assoc-in [:players :team/HOME :assets] [token-asset]))
+        result      (actions/apply-action game {:type        :bashketball/move-asset
+                                                :player      :team/HOME
+                                                :instance-id "token-1"
+                                                :destination :DISCARD})]
+
+    (testing "token removed from assets"
+      (is (empty? (get-in result [:players :team/HOME :assets]))))
+
+    (testing "token NOT added to discard"
+      (is (empty? (state/get-discard result :team/HOME))))
+
+    (testing "token NOT added to removed"
+      (is (empty? (get-in result [:players :team/HOME :deck :removed]))))))
+
+(deftest move-token-asset-event-shows-deleted-test
+  (let [token-asset {:instance-id "token-1"
+                     :token      true
+                     :card        {:slug "speed-token"}}
+        game        (-> (state/create-game test-config)
+                        (assoc-in [:players :team/HOME :assets] [token-asset]))
+        result      (actions/apply-action game {:type        :bashketball/move-asset
+                                                :player      :team/HOME
+                                                :instance-id "token-1"
+                                                :destination :DISCARD})
+        event       (last (:events result))]
+
+    (testing "event shows destination as deleted"
+      (is (= :deleted (:destination event))))
+
+    (testing "event shows token-deleted flag"
+      (is (true? (:token-deleted? event))))))
+
+(deftest move-regular-asset-still-moves-test
+  (let [card-instance {:instance-id "asset-1" :card-slug "team-asset-speed"}
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :assets] [card-instance]))
+        result        (actions/apply-action game {:type        :bashketball/move-asset
+                                                  :player      :team/HOME
+                                                  :instance-id "asset-1"
+                                                  :destination :DISCARD})]
+
+    (testing "regular asset still goes to discard"
+      (is (= 1 (count (state/get-discard result :team/HOME)))))))

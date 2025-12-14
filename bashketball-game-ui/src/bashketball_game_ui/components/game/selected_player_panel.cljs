@@ -34,6 +34,20 @@
                            "bg-red-100 text-red-700"))}
        (str (when positive? "+") amount " " stat-name))))
 
+(defui attachment-badge
+  "Clickable badge showing an attached ability card name."
+  [{:keys [attachment catalog on-click]}]
+  (let [token?    (:token attachment)
+        card-slug (or (:card-slug attachment)
+                      (get-in attachment [:card :slug]))
+        card-name (or (when token? (get-in attachment [:card :name]))
+                      (get-in catalog [card-slug :name])
+                      card-slug)]
+    ($ :button {:class    (cn "px-1.5 py-0.5 rounded text-[10px] font-medium"
+                              "bg-purple-100 text-purple-700 hover:bg-purple-200")
+                :on-click #(when on-click (on-click card-slug))}
+       card-name)))
+
 (defui selected-player-panel
   "Displays full stats for the selected player.
 
@@ -41,13 +55,15 @@
   - player: BasketballPlayer map
   - token-label: string like 'H1' or 'A2'
   - team: :HOME or :AWAY
+  - catalog: map of card-slug -> card for name lookups
   - on-deselect: fn [] to clear selection
-  - on-info-click: fn [card-slug] to show card detail"
-  [{:keys [player token-label team on-deselect on-info-click]}]
-  (let [{:keys [name stats exhausted? modifiers card-slug]}     player
-        {:keys [speed shooting defense dribbling passing size]} stats
-        colors                                                  (get team-colors team (:team/HOME team-colors))
-        size-label                                              (get size-labels (keyword size) "?")]
+  - on-info-click: fn [card-slug] to show card detail
+  - on-attachment-click: fn [card-slug] to show attachment card detail"
+  [{:keys [player token-label team catalog on-deselect on-info-click on-attachment-click]}]
+  (let [{:keys [name stats exhausted modifiers attachments card-slug]} player
+        {:keys [speed shooting defense dribbling passing size]}        stats
+        colors                                                         (get team-colors team (:team/HOME team-colors))
+        size-label                                                     (get size-labels (keyword size) "?")]
     ($ :div {:class "p-2 bg-slate-50 rounded border border-slate-200"}
        ;; Header with token, name, close button
        ($ :div {:class "flex items-center gap-1.5 mb-2"}
@@ -56,7 +72,7 @@
                               (:bg colors) (:text colors))}
              token-label)
           ($ :span {:class (cn "flex-1 font-medium text-sm truncate"
-                               (when exhausted? "text-slate-400 line-through"))}
+                               (when exhausted "text-slate-400 line-through"))}
              name)
           ($ :button {:class    "w-5 h-5 rounded-full bg-slate-200 text-slate-500 text-xs
                                  flex items-center justify-center flex-shrink-0
@@ -82,9 +98,20 @@
             (for [{:keys [id stat amount]} modifiers]
               ($ modifier-badge {:key id :stat stat :amount amount}))))
 
+       ;; Attachments
+       (when (seq attachments)
+         ($ :div {:class "mt-2"}
+            ($ :div {:class "text-[10px] text-slate-500 mb-1"} "Attachments")
+            ($ :div {:class "flex flex-wrap gap-1"}
+               (for [att attachments]
+                 ($ attachment-badge {:key      (:instance-id att)
+                                      :attachment att
+                                      :catalog  catalog
+                                      :on-click on-attachment-click})))))
+
        ;; Footer with exhausted status and view card button
        ($ :div {:class "mt-2 flex items-center justify-between"}
-          (when exhausted?
+          (when exhausted
             ($ :span {:class "text-[10px] text-slate-400"} "Exhausted"))
           ($ :button {:class    "text-[10px] text-blue-500 hover:text-blue-700 ml-auto"
                       :on-click #(when on-info-click (on-info-click card-slug))}

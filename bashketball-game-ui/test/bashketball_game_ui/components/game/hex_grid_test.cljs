@@ -13,17 +13,17 @@
   {"player-1" {:id        "player-1"
                :name      "Guard"
                :position  [2 2]
-               :exhausted? false}
+               :exhausted false}
    "player-2" {:id        "player-2"
                :name      "Forward"
                :position  [1 3]
-               :exhausted? true}})
+               :exhausted true}})
 
 (def sample-away-players
   {"player-3" {:id        "player-3"
                :name      "Center"
                :position  [2 11]
-               :exhausted? false}})
+               :exhausted false}})
 
 (def sample-ball-possessed
   {:__typename "BallPossessed"

@@ -133,24 +133,25 @@
 (defui setup-roster-list
   "Compact roster list for setup phase player placement.
 
-  Shows starters with their placement status."
-  [{:keys [players starters team selected-player on-player-select]}]
-  (let [starter-players (->> starters
-                             (map #(get-player players %))
-                             (filter some?))
-        placed-count    (count (filter :position starter-players))]
+  Shows all players with their placement status. Max 3 can be placed."
+  [{:keys [players team selected-player on-player-select]}]
+  (let [all-players  (vals players)
+        placed-count (count (filter :position all-players))
+        max-placed?  (>= placed-count 3)]
     ($ :div {:class "flex flex-col gap-1"}
        ($ :div {:class "text-[10px] text-slate-400 px-1"}
-          (str placed-count "/" (count starters) " placed"))
-       (if (empty? starter-players)
-         ($ :div {:class "text-xs text-slate-400 text-center py-2"} "No starters")
-         (for [player starter-players
-               :let   [player-id (:id player)]]
+          (str placed-count "/3 placed"))
+       (if (empty? all-players)
+         ($ :div {:class "text-xs text-slate-400 text-center py-2"} "No players")
+         (for [player all-players
+               :let   [player-id (:id player)
+                       placed?   (some? (:position player))
+                       disabled? (or placed? (and max-placed? (not placed?)))]]
            ($ setup-roster-item {:key      player-id
                                  :player   player
                                  :team     team
                                  :selected (= player-id selected-player)
-                                 :placed   (some? (:position player))
+                                 :placed   disabled?
                                  :on-click on-player-select}))))))
 
 (defui team-players-section
@@ -159,7 +160,7 @@
   During setup mode, shows the roster for player placement.
   Otherwise shows the on-court player list or selected player panel."
   [{:keys [players player-indices team selected-player on-select on-deselect on-info-click
-           setup-mode all-players starters selected-player-id on-player-select]}]
+           catalog setup-mode all-players selected-player-id on-player-select]}]
   (let [selected-id       (:id selected-player)
         selected-in-team? (and selected-id (contains? players selected-id))
         prefix            (if (= team :team/HOME) "H" "A")]
@@ -167,18 +168,19 @@
        (cond
          setup-mode
          ($ setup-roster-list {:players          all-players
-                               :starters         starters
                                :team             team
                                :selected-player  selected-player-id
                                :on-player-select on-player-select})
 
          selected-in-team?
          (let [idx (get player-indices selected-id 1)]
-           ($ selected-player-panel {:player        selected-player
-                                     :token-label   (str prefix idx)
-                                     :team          team
-                                     :on-deselect   on-deselect
-                                     :on-info-click on-info-click}))
+           ($ selected-player-panel {:player              selected-player
+                                     :token-label         (str prefix idx)
+                                     :team                team
+                                     :catalog             catalog
+                                     :on-deselect         on-deselect
+                                     :on-info-click       on-info-click
+                                     :on-attachment-click on-info-click}))
 
          :else
          ($ player-list {:players        players
@@ -200,17 +202,18 @@
   - player-indices: map of player-id -> display index (1, 2, 3)
   - selected-player: currently selected BasketballPlayer or nil
   - assets: vector of active team asset cards
+  - catalog: map of card-slug -> card for name lookups
   - on-select: fn [player-id] when player clicked
   - on-deselect: fn [] to clear selection
   - on-info-click: fn [card-slug] to show card detail
+  - on-move-asset: fn [instance-id destination] to move asset to discard or removed
   - setup-mode: boolean, true if in setup phase
   - all-players: map of all team players (for setup roster)
-  - starters: vector of starter player IDs (for setup roster)
   - selected-player-id: ID of selected player (for setup roster)
   - on-player-select: fn [player-id] for setup player selection"
   [{:keys [team score is-active is-my-team deck-stats players player-indices selected-player
-           assets on-select on-deselect on-info-click
-           setup-mode all-players starters selected-player-id on-player-select]}]
+           assets catalog on-select on-deselect on-info-click on-move-asset
+           setup-mode all-players selected-player-id on-player-select]}]
   ($ :div {:class "w-40 h-full flex flex-col gap-2 bg-white rounded-lg border border-slate-200 p-2"}
      ;; Fixed header sections
      ($ :div {:class "flex-shrink-0"}
@@ -226,15 +229,18 @@
                                  :player-indices     player-indices
                                  :team               team
                                  :selected-player    selected-player
+                                 :catalog            catalog
                                  :on-select          on-select
                                  :on-deselect        on-deselect
                                  :on-info-click      on-info-click
                                  :setup-mode         setup-mode
                                  :all-players        all-players
-                                 :starters           starters
                                  :selected-player-id selected-player-id
                                  :on-player-select   on-player-select}))
 
      ;; Assets section - takes remaining space, scrollable
      ($ :div {:class "flex-1 min-h-0 border-t border-slate-200 pt-2"}
-        ($ team-assets-panel {:assets assets :on-info-click on-info-click}))))
+        ($ team-assets-panel {:assets        assets
+                              :on-info-click on-info-click
+                              :on-move-asset on-move-asset
+                              :is-my-team    is-my-team}))))

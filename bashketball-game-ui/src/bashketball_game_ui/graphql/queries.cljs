@@ -462,13 +462,16 @@
                 }
               }
               team {
-                starters
-                bench
                 players
               }
               assets {
+                __typename
                 instanceId
                 cardSlug
+                token
+                card {
+                  ...GameCardFields
+                }
               }
             }
             AWAY {
@@ -496,15 +499,24 @@
                 }
               }
               team {
-                starters
-                bench
                 players
               }
               assets {
+                __typename
                 instanceId
                 cardSlug
+                token
+                card {
+                  ...GameCardFields
+                }
               }
             }
+          }
+          playArea {
+            __typename
+            instanceId
+            cardSlug
+            playedBy
           }
           stack {
             id

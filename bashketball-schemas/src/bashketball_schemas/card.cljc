@@ -54,10 +54,18 @@
    [:deck-size {:optional true} :int]])
 
 (def AbilityCardFields
-  "Fields specific to ability cards."
+  "Fields specific to ability cards.
+
+  `:removable` indicates whether the card can be detached after being attached
+  to a player. Defaults to true if omitted.
+
+  `:detach-destination` specifies where the card goes when detached:
+  `:detach/DISCARD` (default) or `:detach/REMOVED`."
   [:map
    [:fate :int]
-   [:abilities [:vector :string]]])
+   [:abilities [:vector :string]]
+   [:removable {:optional true} :boolean]
+   [:detach-destination {:optional true} [:enum {:graphql/type :DetachDestination} :detach/DISCARD :detach/REMOVED]]])
 
 (def PlayCardFields
   "Fields specific to play cards."

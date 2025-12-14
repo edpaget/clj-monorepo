@@ -24,7 +24,7 @@
   "Basketball player token on the board.
 
   Props:
-  - player: BasketballPlayer map with :id, :name, :position, :exhausted?
+  - player: BasketballPlayer map with :id, :name, :position, :exhausted, :attachments
   - team: :HOME or :AWAY
   - player-num: 1-based index of player on their team
   - selected: boolean
@@ -32,22 +32,23 @@
   - pass-target: boolean, true when this player can receive a pass
   - on-click: fn [player-id]"
   [{:keys [player team player-num selected has-ball pass-target on-click]}]
-  (let [position     (:position player)
+  (let [position         (:position player)
         ;; Defensive: ensure position is a valid [q r] vector
-        [cx cy]      (if (valid-position? position)
-                       (board/hex->pixel position)
-                       [0 0])
-        colors       (get team-colors team (:team/HOME team-colors))
-        exhausted?   (:exhausted? player)
-        first-letter (or (some-> (:name player) first str) "?")
-        jersey-num   (str first-letter player-num)
+        [cx cy]          (if (valid-position? position)
+                           (board/hex->pixel position)
+                           [0 0])
+        colors           (get team-colors team (:team/HOME team-colors))
+        exhausted?       (:exhausted player)
+        attachment-count (count (:attachments player))
+        first-letter     (or (some-> (:name player) first str) "?")
+        jersey-num       (str first-letter player-num)
 
-        handle-click (use-callback
-                      (fn [e]
-                        (.stopPropagation e)
-                        (when on-click
-                          (on-click (:id player))))
-                      [on-click player])]
+        handle-click     (use-callback
+                          (fn [e]
+                            (.stopPropagation e)
+                            (when on-click
+                              (on-click (:id player))))
+                          [on-click player])]
 
     ($ :g {:class    "cursor-pointer"
            :on-click handle-click}
@@ -107,4 +108,22 @@
                    :text-anchor "middle"
                    :font-size   "12"
                    :fill        "#64748b"}
-            "zzz")))))
+            "zzz"))
+
+       ;; Attachment count badge (bottom-right of token)
+       (when (pos? attachment-count)
+         ($ :g
+            ($ :circle {:cx           (+ cx 16)
+                        :cy           (+ cy 16)
+                        :r            10
+                        :fill         "#8b5cf6"
+                        :stroke       "#6d28d9"
+                        :stroke-width 1})
+            ($ :text {:x           (+ cx 16)
+                      :y           (+ cy 20)
+                      :text-anchor "middle"
+                      :fill        "#ffffff"
+                      :font-size   "10"
+                      :font-weight "bold"
+                      :style       {:user-select "none"}}
+               (str attachment-count)))))))

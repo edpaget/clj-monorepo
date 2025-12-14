@@ -288,3 +288,73 @@
       (t/is (vector? (:position result))
             (str "Expected position to be a vector, got: " (pr-str (:position result))))
       (t/is (= [2 8] (:position result))))))
+
+;; =============================================================================
+;; GraphQL Name Override Tests
+;; =============================================================================
+;; These tests verify that :graphql/name overrides are reversed when decoding.
+;; Keys like "HOME" should become :team/HOME based on __typename dispatch.
+
+(t/deftest graphql-name-override-with-players
+  (t/testing "decodes Players HOME/AWAY keys to :team/HOME/:team/AWAY"
+    (let [js-data (clj->js {"__typename" "Players"
+                            "HOME" {"id" "home-player"}
+                            "AWAY" {"id" "away-player"}})
+          result  (decoder/decode-js-response js-data)]
+      (t/is (contains? result :team/HOME)
+            "Should have :team/HOME key")
+      (t/is (contains? result :team/AWAY)
+            "Should have :team/AWAY key")
+      ;; Nested objects without __typename have string keys converted to kebab-case
+      (t/is (some? (:team/HOME result))
+            "HOME value should not be nil")
+      (t/is (some? (:team/AWAY result))
+            "AWAY value should not be nil"))))
+
+(t/deftest graphql-name-override-with-score
+  (t/testing "decodes Score with primitive values"
+    (let [js-data (clj->js {"__typename" "Score"
+                            "HOME" 42
+                            "AWAY" 38})
+          result  (decoder/decode-js-response js-data)]
+      (t/is (= 42 (:team/HOME result))
+            "HOME should be decoded to :team/HOME")
+      (t/is (= 38 (:team/AWAY result))
+            "AWAY should be decoded to :team/AWAY"))))
+
+(t/deftest graphql-name-works-with-nested-players
+  (t/testing "decode-js-response correctly decodes Players with nested data"
+    (let [js-players (clj->js {"__typename" "Players"
+                               "HOME" {"__typename" "GamePlayer"
+                                       "id" "HOME"
+                                       "actionsRemaining" 3
+                                       "deck" {"__typename" "DeckState"
+                                               "drawPile" []
+                                               "hand" []
+                                               "discard" []
+                                               "removed" []}
+                                       "team" {"__typename" "TeamRoster"
+                                               "starters" []
+                                               "bench" []
+                                               "players" {}}
+                                       "assets" []}
+                               "AWAY" {"__typename" "GamePlayer"
+                                       "id" "AWAY"
+                                       "actionsRemaining" 3
+                                       "deck" {"__typename" "DeckState"
+                                               "drawPile" []
+                                               "hand" []
+                                               "discard" []
+                                               "removed" []}
+                                       "team" {"__typename" "TeamRoster"
+                                               "starters" []
+                                               "bench" []
+                                               "players" {}}
+                                       "assets" []}})
+          result     (decoder/decode-js-response js-players)]
+      (t/is (contains? result :team/HOME)
+            "Should have :team/HOME key")
+      (t/is (contains? result :team/AWAY)
+            "Should have :team/AWAY key")
+      (t/is (= 3 (get-in result [:team/HOME :actions-remaining]))
+            "Nested data should be decoded correctly"))))
