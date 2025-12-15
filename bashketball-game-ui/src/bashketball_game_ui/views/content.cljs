@@ -11,8 +11,8 @@
 
   Reads `:category` and `:slug` from route params to look up content."
   [{:keys [category]}]
-  (let [params (router/use-params)
-        slug (:slug params)
+  (let [params  (router/use-params)
+        slug    (:slug params)
         content (registry/get-content category slug)]
     (if content
       ($ content-page {:content content})

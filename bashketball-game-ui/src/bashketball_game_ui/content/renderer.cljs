@@ -33,7 +33,7 @@
   "Renders a full content page with title, ToC, and content."
   [{:keys [content]}]
   (let [{:keys [html toc frontmatter]} content
-        {:keys [title description]} frontmatter]
+        {:keys [title description]}    frontmatter]
     ($ :div {:class "max-w-prose"}
        ($ :header {:class "mb-8"}
           (when title

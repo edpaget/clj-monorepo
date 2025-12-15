@@ -11,7 +11,7 @@
   (let [items (registry/list-by-category category)]
     ($ :nav {:class "space-y-1"}
        (for [{:keys [slug frontmatter]} items]
-         (let [title (or (:title frontmatter) slug)
+         (let [title   (or (:title frontmatter) slug)
                active? (= slug current-slug)]
            ($ router/link
               {:key slug
@@ -25,7 +25,7 @@
   "Two-column layout with sidebar for content pages."
   [{:keys [category]}]
   (let [params (router/use-params)
-        slug (:slug params)]
+        slug   (:slug params)]
     ($ :div {:class "flex min-h-screen bg-slate-100"}
        ($ :aside {:class "w-64 flex-shrink-0 hidden md:block py-8 pl-6"}
           ($ :div {:class "sticky top-6"}

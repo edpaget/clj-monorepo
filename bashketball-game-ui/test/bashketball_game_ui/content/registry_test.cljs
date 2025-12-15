@@ -89,7 +89,7 @@
 
 (t/deftest list-test-by-category-sorts-by-order-test
   (let [entries (list-test-by-category "test-category")
-        slugs (mapv :slug entries)]
+        slugs   (mapv :slug entries)]
     (t/is (= "basic" (first slugs)))
     (t/is (= "advanced" (second slugs)))))
 
@@ -102,12 +102,12 @@
 
 (t/deftest toc-extracts-h2-headings-test
   (let [entry (get-test-content "test-category" "advanced")
-        toc (:toc entry)]
+        toc   (:toc entry)]
     (t/is (some #(= "Section One" (:text %)) toc))
     (t/is (some #(= "Section Two" (:text %)) toc))))
 
 (t/deftest toc-entries-have-required-keys-test
-  (let [entry (get-test-content "test-category" "advanced")
+  (let [entry     (get-test-content "test-category" "advanced")
         toc-entry (first (:toc entry))]
     (t/is (contains? toc-entry :level))
     (t/is (contains? toc-entry :text))
@@ -115,7 +115,7 @@
 
 (t/deftest toc-generates-slug-ids-test
   (let [entry (get-test-content "test-category" "advanced")
-        toc (:toc entry)]
+        toc   (:toc entry)]
     (t/is (some #(= "section-one" (:id %)) toc))
     (t/is (some #(= "section-two" (:id %)) toc))))
 

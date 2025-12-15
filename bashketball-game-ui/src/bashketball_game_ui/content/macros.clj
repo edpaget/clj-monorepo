@@ -44,7 +44,7 @@
     (let [end-idx (str/index-of content "---" 3)]
       (if end-idx
         (let [yaml-str (subs content 3 end-idx)
-              body (str/trim (subs content (+ end-idx 3)))]
+              body     (str/trim (subs content (+ end-idx 3)))]
           {:frontmatter (yaml/parse-string yaml-str)
            :body body})
         {:frontmatter {}
@@ -68,8 +68,8 @@
     (doseq [node (iterator-seq (.iterator (.getDescendants document)))]
       (when (instance? Heading node)
         (let [level (.getLevel node)
-              text (str (.getText node))
-              id (text->slug text)]
+              text  (str (.getText node))
+              id    (text->slug text)]
           (when (and (>= level 2) (<= level 3))
             (.add headings {:level level :text text :id id})))))
     (vec headings)))
@@ -78,8 +78,8 @@
   "Adds id attributes to h2 and h3 elements in HTML."
   [html toc]
   (reduce (fn [h {:keys [level text id]}]
-            (let [tag (str "h" level)
-                  pattern (re-pattern (str "(?i)<" tag ">([^<]*" (java.util.regex.Pattern/quote text) "[^<]*)</" tag ">"))
+            (let [tag         (str "h" level)
+                  pattern     (re-pattern (str "(?i)<" tag ">([^<]*" (java.util.regex.Pattern/quote text) "[^<]*)</" tag ">"))
                   replacement (str "<" tag " id=\"" id "\">$1</" tag ">")]
               (str/replace-first h pattern replacement)))
           html
@@ -90,8 +90,8 @@
   [markdown]
   (let [document (.parse parser markdown)
         raw-html (.render renderer document)
-        toc (extract-headings document)
-        html (add-heading-ids raw-html toc)]
+        toc      (extract-headings document)
+        html     (add-heading-ids raw-html toc)]
     {:html html :toc toc}))
 
 (defmacro inline-content-registry
@@ -105,13 +105,13 @@
                   (let [resource (io/resource path)]
                     (when-not resource
                       (throw (ex-info (str "Markdown file not found: " path) {:path path})))
-                    (let [content (slurp resource)
+                    (let [content                    (slurp resource)
                           {:keys [frontmatter body]} (parse-frontmatter content)
-                          {:keys [html toc]} (markdown->html+toc body)
-                          path-parts (str/split path #"/")
-                          category (first path-parts)
-                          filename (last path-parts)
-                          slug (str/replace filename #"\.md$" "")]
+                          {:keys [html toc]}         (markdown->html+toc body)
+                          path-parts                 (str/split path #"/")
+                          category                   (first path-parts)
+                          filename                   (last path-parts)
+                          slug                       (str/replace filename #"\.md$" "")]
                       [[category slug]
                        {:slug slug
                         :category category
