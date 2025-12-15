@@ -43,28 +43,34 @@
   - `:my-off-court-players` - Vector of players currently off court
   - `:discard-active` - Boolean, true if discard mode active
   - `:discard-cards` - Set of cards selected for discard
-  - `:selected-card` - Currently selected card slug"
+  - `:selected-card` - Currently selected card slug
+  - `:standard-action-active` - Boolean, true if standard action mode active
+  - `:standard-action-step` - Keyword, :select-cards or :select-action
+  - `:standard-action-cards` - Set of cards selected for standard action discard"
   []
-  (let [{:keys [game-state my-team is-my-turn selection pass discard ball-mode]}
+  (let [{:keys [game-state my-team is-my-turn selection pass discard ball-mode standard-action-mode]}
         (use-game-context)
 
         ;; Extract UI state values
-        selected-player-id                                                       (:selected-player selection)
-        pass-active                                                              (:active pass)
-        ball-active                                                              (:active ball-mode)
-        discard-active                                                           (:active discard)
-        discard-cards                                                            (:cards discard)
-        selected-card                                                            (:selected-card selection)
+        selected-player-id                                                                            (:selected-player selection)
+        pass-active                                                                                   (:active pass)
+        ball-active                                                                                   (:active ball-mode)
+        discard-active                                                                                (:active discard)
+        discard-cards                                                                                 (:cards discard)
+        selected-card                                                                                 (:selected-card selection)
+        standard-action-active                                                                        (:active standard-action-mode)
+        standard-action-step                                                                          (:step standard-action-mode)
+        standard-action-cards                                                                         (:cards standard-action-mode)
 
         ;; Basic derived values (no memoization needed)
-        opponent-team                                                            (sel/opponent-team my-team)
-        phase                                                                    (:phase game-state)
-        setup-mode                                                               (sel/setup-mode? phase)
-        ball-holder-id                                                           (get-in game-state [:ball :holder-id])
-        score                                                                    (:score game-state)
-        active-player                                                            (:active-player game-state)
-        events                                                                   (:events game-state)
-        play-area                                                                (or (:play-area game-state) [])
+        opponent-team                                                                                 (sel/opponent-team my-team)
+        phase                                                                                         (:phase game-state)
+        setup-mode                                                                                    (sel/setup-mode? phase)
+        ball-holder-id                                                                                (get-in game-state [:ball :holder-id])
+        score                                                                                         (:score game-state)
+        active-player                                                                                 (:active-player game-state)
+        events                                                                                        (:events game-state)
+        play-area                                                                                     (or (:play-area game-state) [])
 
         ;; Memoized player data
         {:keys [my-player my-players my-hand]}
@@ -162,6 +168,9 @@
      :both-teams-ready      both-teams-ready
      :my-on-court-players   my-on-court-players
      :my-off-court-players  my-off-court-players
-     :discard-active        discard-active
-     :discard-cards         discard-cards
-     :selected-card         selected-card}))
+     :discard-active         discard-active
+     :discard-cards          discard-cards
+     :selected-card          selected-card
+     :standard-action-active standard-action-active
+     :standard-action-step   standard-action-step
+     :standard-action-cards  standard-action-cards}))

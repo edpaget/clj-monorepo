@@ -39,7 +39,8 @@
   - `:fate-reveal` - Fate reveal modal state from [[ui/use-fate-reveal]]
   - `:substitute-mode` - Substitution mode state from [[ui/use-substitute-mode]]
   - `:create-token-modal` - Create token modal state from [[ui/use-create-token-modal]]
-  - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]"
+  - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]
+  - `:standard-action-mode` - Standard action mode state from [[ui/use-standard-action-mode]]"
   []
   (use-context game-context))
 
@@ -111,7 +112,8 @@
         fate-reveal                                                   (ui/use-fate-reveal)
         substitute-mode                                               (ui/use-substitute-mode)
         create-token-modal                                            (ui/use-create-token-modal)
-        attach-ability-modal                                          (ui/use-attach-ability-modal)]
+        attach-ability-modal                                          (ui/use-attach-ability-modal)
+        standard-action-mode                                          (ui/use-standard-action-mode)]
 
     (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
@@ -148,6 +150,7 @@
                 :ball-mode            ball-mode
                 :fate-reveal          fate-reveal
                 :substitute-mode      substitute-mode
-                :create-token-modal   create-token-modal
-                :attach-ability-modal attach-ability-modal}}
+                :create-token-modal    create-token-modal
+                :attach-ability-modal  attach-ability-modal
+                :standard-action-mode  standard-action-mode}}
        children)))

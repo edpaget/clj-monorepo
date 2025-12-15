@@ -992,3 +992,108 @@
 
     (testing "ability card not in discard"
       (is (empty? (state/get-discard result :team/HOME))))))
+
+;; -----------------------------------------------------------------------------
+;; Virtual Standard Action Tests
+
+(deftest stage-virtual-standard-action-discards-two-cards-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card-1 (:instance-id (first hand))
+        card-2 (:instance-id (second hand))
+        result (actions/apply-action game {:type                 :bashketball/stage-virtual-standard-action
+                                           :player               :team/HOME
+                                           :discard-instance-ids [card-1 card-2]
+                                           :card-slug            "shoot-block"})]
+
+    (testing "two cards removed from hand"
+      (is (= 1 (count (state/get-hand result :team/HOME)))))
+
+    (testing "two cards added to discard"
+      (is (= 2 (count (state/get-discard result :team/HOME)))))))
+
+(deftest stage-virtual-standard-action-creates-virtual-card-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card-1 (:instance-id (first hand))
+        card-2 (:instance-id (second hand))
+        result (actions/apply-action game {:type                 :bashketball/stage-virtual-standard-action
+                                           :player               :team/HOME
+                                           :discard-instance-ids [card-1 card-2]
+                                           :card-slug            "shoot-block"})]
+
+    (testing "play area has one card"
+      (is (= 1 (count (:play-area result)))))
+
+    (testing "play area card has :virtual true"
+      (is (true? (:virtual (first (:play-area result))))))
+
+    (testing "play area card has correct slug"
+      (is (= "shoot-block" (:card-slug (first (:play-area result))))))
+
+    (testing "play area card has correct owner"
+      (is (= :team/HOME (:played-by (first (:play-area result))))))))
+
+(deftest stage-virtual-standard-action-event-data-test
+  (let [game   (-> (state/create-game test-config)
+                   (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand   (state/get-hand game :team/HOME)
+        card-1 (:instance-id (first hand))
+        card-2 (:instance-id (second hand))
+        result (actions/apply-action game {:type                 :bashketball/stage-virtual-standard-action
+                                           :player               :team/HOME
+                                           :discard-instance-ids [card-1 card-2]
+                                           :card-slug            "shoot-block"})
+        event  (last (:events result))]
+
+    (testing "event has discarded cards"
+      (is (= 2 (count (:discarded-cards event)))))
+
+    (testing "event has virtual card"
+      (is (:virtual-card event)))))
+
+(deftest resolve-virtual-card-disappears-test
+  (let [game       (-> (state/create-game test-config)
+                       (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand       (state/get-hand game :team/HOME)
+        card-1     (:instance-id (first hand))
+        card-2     (:instance-id (second hand))
+        staged     (actions/apply-action game {:type                 :bashketball/stage-virtual-standard-action
+                                               :player               :team/HOME
+                                               :discard-instance-ids [card-1 card-2]
+                                               :card-slug            "shoot-block"})
+        virtual-id (:instance-id (first (:play-area staged)))
+        result     (actions/apply-action staged {:type        :bashketball/resolve-card
+                                                 :instance-id virtual-id})]
+
+    (testing "virtual card removed from play area"
+      (is (empty? (:play-area result))))
+
+    (testing "virtual card NOT added to discard"
+      (is (= 2 (count (state/get-discard result :team/HOME)))))
+
+    (testing "virtual card NOT added to assets"
+      (is (empty? (get-in result [:players :team/HOME :assets]))))
+
+    (testing "virtual card NOT added to removed"
+      (is (empty? (get-in result [:players :team/HOME :deck :removed]))))))
+
+(deftest resolve-virtual-card-event-shows-virtual-flag-test
+  (let [game       (-> (state/create-game test-config)
+                       (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand       (state/get-hand game :team/HOME)
+        card-1     (:instance-id (first hand))
+        card-2     (:instance-id (second hand))
+        staged     (actions/apply-action game {:type                 :bashketball/stage-virtual-standard-action
+                                               :player               :team/HOME
+                                               :discard-instance-ids [card-1 card-2]
+                                               :card-slug            "shoot-block"})
+        virtual-id (:instance-id (first (:play-area staged)))
+        result     (actions/apply-action staged {:type        :bashketball/resolve-card
+                                                 :instance-id virtual-id})
+        event      (last (:events result))]
+
+    (testing "event shows virtual flag"
+      (is (true? (:virtual event))))))

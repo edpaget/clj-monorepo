@@ -40,16 +40,21 @@
   - `:on-move-asset` - Handler for moving asset to discard or removed zone
   - `:on-substitute` - Handler for player substitution
   - `:on-target-click` - Handler for clicking in-air ball target to resolve
-  - `:on-toggle-exhausted` - Handler for toggling player exhaust status"
+  - `:on-toggle-exhausted` - Handler for toggling player exhaust status
+  - `:on-enter-standard-action` - Handler for entering standard action mode
+  - `:on-cancel-standard-action` - Handler for canceling standard action mode
+  - `:on-proceed-standard-action` - Handler for proceeding to standard action selection
+  - `:on-submit-standard-action` - Handler for submitting standard action with selected card slug"
   []
   (let [{:keys [game-state my-team is-my-turn actions
                 selection pass discard ball-mode fate-reveal substitute-mode
-                attach-ability-modal]}
+                attach-ability-modal standard-action-mode]}
         (use-game-context)
 
         {:keys [setup-mode valid-moves valid-setup-positions
                 valid-pass-targets selected-player-id pass-active ball-active
-                discard-active discard-cards selected-card phase]}
+                discard-active discard-cards selected-card phase
+                standard-action-active]}
         (use-game-derived)
 
         ball-in-air
@@ -130,15 +135,22 @@
         on-card-click
         (use-callback
          (fn [instance-id]
-           (let [action (h/card-click-action
-                         {:discard-mode  discard-active
-                          :discard-cards discard-cards
-                          :selected-card selected-card}
-                         instance-id)]
-             (case (:action action)
-               :toggle-discard ((:toggle-card discard) instance-id)
-               :toggle-card-selection ((:toggle-card selection) instance-id))))
-         [discard-active discard-cards selected-card discard selection])
+           (cond
+             ;; Standard action mode - toggle card for discard selection
+             standard-action-active
+             ((:toggle-card standard-action-mode) instance-id)
+
+             ;; Regular discard or selection
+             :else
+             (let [action (h/card-click-action
+                           {:discard-mode  discard-active
+                            :discard-cards discard-cards
+                            :selected-card selected-card}
+                           instance-id)]
+               (case (:action action)
+                 :toggle-discard ((:toggle-card discard) instance-id)
+                 :toggle-card-selection ((:toggle-card selection) instance-id)))))
+         [discard-active discard-cards selected-card discard selection standard-action-active standard-action-mode])
 
         on-end-turn
         (use-callback
@@ -299,7 +311,34 @@
                (-> ((:exhaust-player actions) player-id)
                    (.then #(js/console.log "Player exhausted:" %))
                    (.catch #(js/console.error "Exhaust error:" %))))))
-         [game-state actions])]
+         [game-state actions])
+
+        on-enter-standard-action
+        (use-callback
+         (fn []
+           ((:enter standard-action-mode)))
+         [standard-action-mode])
+
+        on-cancel-standard-action
+        (use-callback
+         (fn []
+           ((:cancel standard-action-mode)))
+         [standard-action-mode])
+
+        on-proceed-standard-action
+        (use-callback
+         (fn []
+           ((:proceed standard-action-mode)))
+         [standard-action-mode])
+
+        on-submit-standard-action
+        (use-callback
+         (fn [card-slug]
+           (let [cards ((:get-cards-and-exit standard-action-mode))]
+             (-> ((:stage-virtual-standard-action actions) my-team cards card-slug)
+                 (.then #(js/console.log "Standard action staged:" %))
+                 (.catch #(js/console.error "Standard action error:" %)))))
+         [my-team actions standard-action-mode])]
 
     {:on-hex-click         on-hex-click
      :on-ball-click        on-ball-click
@@ -321,6 +360,10 @@
      :on-shuffle           on-shuffle
      :on-return-discard    on-return-discard
      :on-move-asset        on-move-asset
-     :on-substitute        on-substitute
-     :on-target-click      on-target-click
-     :on-toggle-exhausted  on-toggle-exhausted}))
+     :on-substitute             on-substitute
+     :on-target-click           on-target-click
+     :on-toggle-exhausted       on-toggle-exhausted
+     :on-enter-standard-action  on-enter-standard-action
+     :on-cancel-standard-action on-cancel-standard-action
+     :on-proceed-standard-action on-proceed-standard-action
+     :on-submit-standard-action on-submit-standard-action}))

@@ -269,3 +269,73 @@
         :show        show
         :close       close})
      [card-data show close])))
+
+(defn use-standard-action-mode
+  "Hook for managing standard action mode state.
+
+  Standard action mode is a two-step flow:
+  1. Select 2 cards from hand to discard (:step = :select-cards)
+  2. Select which standard action to play (:step = :select-action)
+
+  Returns a map with:
+  - :active - boolean, true if standard action mode is active
+  - :step - keyword, :select-cards or :select-action
+  - :cards - set of selected card instance-ids for discard
+  - :count - number of cards selected
+  - :toggle-card - fn [instance-id] to toggle card selection
+  - :enter - fn [] to enter standard action mode
+  - :proceed - fn [] to proceed to action selection (requires exactly 2 cards)
+  - :cancel - fn [] to exit mode and clear state
+  - :get-cards-and-exit - fn [] returns selected instance-ids and exits mode"
+  []
+  (let [[active set-active] (use-state false)
+        [step set-step]     (use-state :select-cards)
+        [cards set-cards]   (use-state #{})
+
+        toggle-card         (use-callback
+                             (fn [instance-id]
+                               (set-cards #(if (contains? % instance-id)
+                                             (disj % instance-id)
+                                             (conj % instance-id))))
+                             [])
+
+        enter               (use-callback
+                             (fn []
+                               (set-active true)
+                               (set-step :select-cards)
+                               (set-cards #{}))
+                             [])
+
+        proceed             (use-callback
+                             (fn []
+                               (when (= 2 (count cards))
+                                 (set-step :select-action)))
+                             [cards])
+
+        cancel              (use-callback
+                             (fn []
+                               (set-active false)
+                               (set-step :select-cards)
+                               (set-cards #{}))
+                             [])
+
+        get-cards-and-exit  (use-callback
+                             (fn []
+                               (let [result cards]
+                                 (set-active false)
+                                 (set-step :select-cards)
+                                 (set-cards #{})
+                                 result))
+                             [cards])]
+    (use-memo
+     (fn []
+       {:active             active
+        :step               step
+        :cards              cards
+        :count              (count cards)
+        :toggle-card        toggle-card
+        :enter              enter
+        :proceed            proceed
+        :cancel             cancel
+        :get-cards-and-exit get-cards-and-exit})
+     [active step cards toggle-card enter proceed cancel get-cards-and-exit])))

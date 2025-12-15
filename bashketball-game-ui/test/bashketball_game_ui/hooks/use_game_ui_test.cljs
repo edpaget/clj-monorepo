@@ -63,3 +63,92 @@
     (t/is (fn? (:show-log result)) "show-log should be a function")
     (t/is (fn? (:show-players result)) "show-players should be a function")
     (t/is (fn? (:toggle result)) "toggle should be a function")))
+
+;; =============================================================================
+;; use-standard-action-mode tests
+;; =============================================================================
+
+(t/deftest use-standard-action-mode-initial-state-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))
+        result      (get-result hook-result)]
+    (t/is (false? (:active result)) "Should start inactive")
+    (t/is (= :select-cards (:step result)) "Should start in select-cards step")
+    (t/is (empty? (:cards result)) "Should start with empty cards set")
+    (t/is (zero? (:count result)) "Count should be zero")))
+
+(t/deftest use-standard-action-mode-returns-all-keys-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))
+        result      (get-result hook-result)]
+    (t/is (contains? result :active) "Should have :active key")
+    (t/is (contains? result :step) "Should have :step key")
+    (t/is (contains? result :cards) "Should have :cards key")
+    (t/is (contains? result :count) "Should have :count key")
+    (t/is (contains? result :toggle-card) "Should have :toggle-card key")
+    (t/is (contains? result :enter) "Should have :enter key")
+    (t/is (contains? result :proceed) "Should have :proceed key")
+    (t/is (contains? result :cancel) "Should have :cancel key")
+    (t/is (contains? result :get-cards-and-exit) "Should have :get-cards-and-exit key")))
+
+(t/deftest use-standard-action-mode-enter-activates-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
+    (act #((:enter (get-result hook-result))))
+    (let [result (get-result hook-result)]
+      (t/is (true? (:active result)) "Should be active after enter")
+      (t/is (= :select-cards (:step result)) "Should be in select-cards step"))))
+
+(t/deftest use-standard-action-mode-toggle-card-adds-card-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
+    (act #((:enter (get-result hook-result))))
+    (act #((:toggle-card (get-result hook-result)) "card-1"))
+    (let [result (get-result hook-result)]
+      (t/is (contains? (:cards result) "card-1") "Card should be in set")
+      (t/is (= 1 (:count result)) "Count should be 1"))))
+
+(t/deftest use-standard-action-mode-toggle-card-removes-card-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
+    (act #((:enter (get-result hook-result))))
+    (act #((:toggle-card (get-result hook-result)) "card-1"))
+    (act #((:toggle-card (get-result hook-result)) "card-1"))
+    (let [result (get-result hook-result)]
+      (t/is (not (contains? (:cards result) "card-1")) "Card should be removed")
+      (t/is (= 0 (:count result)) "Count should be 0"))))
+
+(t/deftest use-standard-action-mode-proceed-requires-two-cards-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
+    (act #((:enter (get-result hook-result))))
+    (act #((:toggle-card (get-result hook-result)) "card-1"))
+    (act #((:proceed (get-result hook-result))))
+    (let [result (get-result hook-result)]
+      (t/is (= :select-cards (:step result)) "Should still be in select-cards (only 1 card)"))))
+
+(t/deftest use-standard-action-mode-proceed-changes-step-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
+    (act #((:enter (get-result hook-result))))
+    (act #((:toggle-card (get-result hook-result)) "card-1"))
+    (act #((:toggle-card (get-result hook-result)) "card-2"))
+    (act #((:proceed (get-result hook-result))))
+    (let [result (get-result hook-result)]
+      (t/is (= :select-action (:step result)) "Should be in select-action step"))))
+
+(t/deftest use-standard-action-mode-cancel-resets-state-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
+    (act #((:enter (get-result hook-result))))
+    (act #((:toggle-card (get-result hook-result)) "card-1"))
+    (act #((:toggle-card (get-result hook-result)) "card-2"))
+    (act #((:cancel (get-result hook-result))))
+    (let [result (get-result hook-result)]
+      (t/is (false? (:active result)) "Should be inactive after cancel")
+      (t/is (empty? (:cards result)) "Cards should be empty after cancel")
+      (t/is (= :select-cards (:step result)) "Step should reset to select-cards"))))
+
+(t/deftest use-standard-action-mode-get-cards-and-exit-test
+  (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
+    (act #((:enter (get-result hook-result))))
+    (act #((:toggle-card (get-result hook-result)) "card-1"))
+    (act #((:toggle-card (get-result hook-result)) "card-2"))
+    (let [cards (atom nil)]
+      (act #(reset! cards ((:get-cards-and-exit (get-result hook-result)))))
+      (t/is (= #{"card-1" "card-2"} @cards) "Should return selected cards")
+      (let [result (get-result hook-result)]
+        (t/is (false? (:active result)) "Should be inactive after exit")
+        (t/is (empty? (:cards result)) "Cards should be empty after exit")))))

@@ -33,6 +33,7 @@
   - `:move-asset` - fn [team instance-id destination] -> Promise (move asset to :discard or :removed)
   - `:add-score` - fn [team points] -> Promise (add points to team, negative to decrement)
   - `:create-token` - fn [team card placement target-player-id] -> Promise (create token as asset or attached)
+  - `:stage-virtual-standard-action` - fn [team discard-instance-ids card-slug] -> Promise (discard 2 cards and stage virtual standard action)
   - `:exhaust-player` - fn [player-id] -> Promise (mark player as exhausted)
   - `:refresh-player` - fn [player-id] -> Promise (mark player as not exhausted)
   - `:loading` - boolean
@@ -175,6 +176,14 @@
                                                                          target-player-id (assoc :target-player-id target-player-id))))
                                                              [submit])
 
+        stage-virtual-standard-action                       (use-callback
+                                                             (fn [team discard-instance-ids card-slug]
+                                                               (submit {:type                 "bashketball/stage-virtual-standard-action"
+                                                                        :player               (name team)
+                                                                        :discard-instance-ids (vec discard-instance-ids)
+                                                                        :card-slug            card-slug}))
+                                                             [submit])
+
         exhaust-player                                      (use-callback
                                                              (fn [player-id]
                                                                (submit {:type      "bashketball/exhaust-player"
@@ -206,13 +215,14 @@
         :stage-card         stage-card
         :resolve-card       resolve-card
         :move-asset         move-asset
-        :add-score          add-score
-        :create-token       create-token
-        :exhaust-player     exhaust-player
-        :refresh-player     refresh-player
-        :loading            loading
-        :error              error})
+        :add-score                      add-score
+        :create-token                   create-token
+        :stage-virtual-standard-action  stage-virtual-standard-action
+        :exhaust-player                 exhaust-player
+        :refresh-player                 refresh-player
+        :loading                        loading
+        :error                          error})
      [submit move-player pass-ball shoot-ball set-ball-loose set-ball-possessed
       reveal-fate draw-cards discard-cards end-turn set-phase shuffle-deck
       return-discard substitute stage-card resolve-card move-asset add-score
-      create-token exhaust-player refresh-player loading error])))
+      create-token stage-virtual-standard-action exhaust-player refresh-player loading error])))

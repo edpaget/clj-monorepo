@@ -130,11 +130,16 @@
    [:card {:optional true} card/Card]])
 
 (def PlayAreaCard
-  "A card in the shared play area with metadata about who played it."
+  "A card in the shared play area with metadata about who played it.
+
+  Virtual cards (`:virtual true`) are temporary cards created when a player
+  discards 2 cards to play a standard action. They disappear entirely when
+  resolved rather than going to any pile."
   [:map {:graphql/type :PlayAreaCard}
    [:instance-id :string]
    [:card-slug :string]
-   [:played-by enums/Team]])
+   [:played-by enums/Team]
+   [:virtual {:optional true} :boolean]])
 
 (def DeckState
   "A game player's deck state during a game.
@@ -490,6 +495,18 @@
    [:placement TokenPlacement]
    [:target-player-id {:optional true} :string]])
 
+(def StageVirtualStandardActionAction
+  "Action to stage a virtual standard action by discarding 2 cards.
+
+  Creates a virtual card in the play area that represents a borrowed
+  standard action. The virtual card disappears when resolved rather
+  than going to any pile."
+  [:map
+   [:type [:= :bashketball/stage-virtual-standard-action]]
+   [:player enums/Team]
+   [:discard-instance-ids [:vector {:min 2 :max 2} :string]]
+   [:card-slug :string]])
+
 (def Action
   "Multi-schema for all action types, dispatching on :type."
   [:multi {:dispatch :type}
@@ -526,7 +543,8 @@
    [:bashketball/attach-ability AttachAbilityAction]
    [:bashketball/detach-ability DetachAbilityAction]
    [:bashketball/start-from-tipoff StartFromTipOffAction]
-   [:bashketball/create-token CreateTokenAction]])
+   [:bashketball/create-token CreateTokenAction]
+   [:bashketball/stage-virtual-standard-action StageVirtualStandardActionAction]])
 
 ;; -----------------------------------------------------------------------------
 ;; Validation Helpers

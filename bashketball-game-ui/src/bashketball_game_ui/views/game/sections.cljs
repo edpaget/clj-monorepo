@@ -11,6 +11,7 @@
    [bashketball-game-ui.components.game.game-header :as header]
    [bashketball-game-ui.components.game.hex-grid :refer [hex-grid]]
    [bashketball-game-ui.components.game.play-area-panel :refer [play-area-panel]]
+   [bashketball-game-ui.components.game.standard-action-modal :as standard-modal]
    [bashketball-game-ui.components.game.team-column :refer [team-column]]
    [bashketball-game-ui.context.game :refer [use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
@@ -158,6 +159,20 @@
                                           :on-resolve on-resolve-ability
                                           :on-close   (:close attach-ability-modal)})))
 
+(defui standard-action-modal-section
+  "Modal section for selecting a standard action to play.
+
+  Renders the standard action modal when the user has selected cards to discard
+  and is choosing which standard action to play."
+  []
+  (let [{:keys [on-cancel-standard-action
+                on-submit-standard-action]} (use-game-handlers)
+        {:keys [standard-action-step]}      (use-game-derived)]
+    ($ standard-modal/standard-action-modal
+       {:open?     (= standard-action-step :select-action)
+        :on-select on-submit-standard-action
+        :on-close  on-cancel-standard-action})))
+
 ;; -----------------------------------------------------------------------------
 ;; Three-Column Layout Sections
 
@@ -233,30 +248,40 @@
   [{:keys [game-state my-team is-my-turn phase
            selected-player-id selected-card pass-active discard-active
            discard-count my-setup-complete both-teams-ready
+           standard-action-active standard-action-count my-hand-count
            on-end-turn on-shoot on-pass on-cancel-pass on-play-card on-draw
            on-enter-discard on-cancel-discard on-submit-discard on-start-game
            on-start-from-tipoff on-setup-done on-next-phase on-reveal-fate
-           on-shuffle on-return-discard on-substitute]}]
-  (let [setup-mode       (sel/setup-mode? phase)
-        tip-off-mode     (sel/tip-off-mode? phase)
-        can-shoot        (and is-my-turn
-                              selected-player-id
-                              (actions/player-has-ball? game-state selected-player-id)
-                              (actions/can-shoot? game-state my-team))
-        can-pass         (and is-my-turn
-                              selected-player-id
-                              (actions/player-has-ball? game-state selected-player-id)
-                              (actions/can-pass? game-state my-team))
-        can-advance      (and is-my-turn (sel/can-advance-phase? phase))
-        next-phase-val   (sel/next-phase phase)
+           on-shuffle on-return-discard on-substitute
+           on-enter-standard-action on-cancel-standard-action on-proceed-standard-action]}]
+  (let [setup-mode          (sel/setup-mode? phase)
+        tip-off-mode        (sel/tip-off-mode? phase)
+        can-shoot           (and is-my-turn
+                                 selected-player-id
+                                 (actions/player-has-ball? game-state selected-player-id)
+                                 (actions/can-shoot? game-state my-team))
+        can-pass            (and is-my-turn
+                                 selected-player-id
+                                 (actions/player-has-ball? game-state selected-player-id)
+                                 (actions/can-pass? game-state my-team))
+        can-advance         (and is-my-turn (sel/can-advance-phase? phase))
+        next-phase-val      (sel/next-phase phase)
         ;; Away player sees Start Game when both teams ready during setup (transitions to TIP_OFF)
-        show-setup-start (and setup-mode both-teams-ready (= my-team :team/AWAY))
+        show-setup-start    (and setup-mode both-teams-ready (= my-team :team/AWAY))
         ;; Show End Turn unless it's setup with both teams ready and we're away, or tip-off
-        show-end-turn    (and is-my-turn
-                              (not discard-active)
-                              (not pass-active)
-                              (not show-setup-start)
-                              (not tip-off-mode))]
+        show-end-turn       (and is-my-turn
+                                 (not discard-active)
+                                 (not pass-active)
+                                 (not standard-action-active)
+                                 (not show-setup-start)
+                                 (not tip-off-mode))
+        ;; Can enter standard action mode if has 2+ cards and not in other modes
+        can-standard-action (and is-my-turn
+                                 (>= my-hand-count 2)
+                                 (not setup-mode)
+                                 (not pass-active)
+                                 (not discard-active)
+                                 (not standard-action-active))]
 
     (cond-> []
       ;; End turn (primary) - also available during setup to pass turn
@@ -346,14 +371,36 @@
              :class    "text-emerald-600 border-emerald-300 hover:bg-emerald-50"})
 
       ;; Substitute (secondary)
-      (and is-my-turn (actions/can-substitute? game-state my-team) (not pass-active) (not discard-active))
+      (and is-my-turn (actions/can-substitute? game-state my-team) (not pass-active) (not discard-active) (not standard-action-active))
       (conj {:id       :substitute
              :label    "Substitute"
              :on-click on-substitute
              :class    "text-amber-600 border-amber-300 hover:bg-amber-50"})
 
+      ;; Standard Action (secondary) - discard 2 to play standard action
+      can-standard-action
+      (conj {:id       :standard-action
+             :label    "Standard Action"
+             :on-click on-enter-standard-action
+             :class    "text-indigo-600 border-indigo-300 hover:bg-indigo-50"})
+
+      ;; Cancel Standard Action
+      standard-action-active
+      (conj {:id       :cancel-standard-action
+             :label    "Cancel"
+             :on-click on-cancel-standard-action})
+
+      ;; Proceed Standard Action (Continue to select action)
+      standard-action-active
+      (conj {:id       :proceed-standard-action
+             :label    (str "Continue (" standard-action-count "/2)")
+             :on-click on-proceed-standard-action
+             :disabled (not= standard-action-count 2)
+             :variant  :default
+             :class    "bg-indigo-600 hover:bg-indigo-700"})
+
       ;; Next Phase (secondary)
-      (and can-advance (not pass-active) (not discard-active))
+      (and can-advance (not pass-active) (not discard-active) (not standard-action-active))
       (conj {:id       :next-phase
              :label    (str "Next (" (sel/phase-label next-phase-val) ")")
              :on-click on-next-phase
@@ -387,87 +434,101 @@
   "Builds status text for the action bar."
   [{:keys [is-my-turn setup-mode tip-off-mode pass-active discard-active
            selected-player-id setup-placed-count my-setup-complete
-           has-moves loading]}]
+           standard-action-active has-moves loading]}]
   (cond
-    loading              "Submitting action..."
-    tip-off-mode         "Tip-off! Reveal fate or start the game"
-    setup-mode           (cond
-                           (not is-my-turn)     "Waiting for opponent..."
-                           my-setup-complete    "Waiting for opponent"
-                           selected-player-id   "Click hex to place"
-                           :else                (str "Place (" setup-placed-count "/3)"))
-    (not is-my-turn)     "Opponent's turn"
-    discard-active       "Select cards to discard"
-    pass-active          "Select pass target"
-    selected-player-id   (if has-moves "Click hex to move" "Select action")
-    :else                "Select a player"))
+    loading                "Submitting action..."
+    tip-off-mode           "Tip-off! Reveal fate or start the game"
+    setup-mode             (cond
+                             (not is-my-turn)     "Waiting for opponent..."
+                             my-setup-complete    "Waiting for opponent"
+                             selected-player-id   "Click hex to place"
+                             :else                (str "Place (" setup-placed-count "/3)"))
+    (not is-my-turn)       "Opponent's turn"
+    standard-action-active "Select 2 cards to discard"
+    discard-active         "Select cards to discard"
+    pass-active            "Select pass target"
+    selected-player-id     (if has-moves "Click hex to move" "Select action")
+    :else                  "Select a player"))
 
 (defui bottom-bar-section
   "Bottom bar with hand and actions."
   []
-  (let [{:keys [game-state catalog my-team is-my-turn actions pass discard substitute-mode detail-modal]}
+  (let [{:keys [game-state catalog my-team is-my-turn actions pass discard substitute-mode detail-modal standard-action-mode]}
         (use-game-context)
 
         {:keys [phase selected-player-id selected-card pass-active discard-active
                 discard-cards setup-placed-count my-setup-complete both-teams-ready
-                my-hand]}
+                my-hand standard-action-active standard-action-cards]}
         (use-game-derived)
 
         {:keys [on-card-click on-end-turn on-shoot on-play-card on-draw on-start-game
                 on-start-from-tipoff on-setup-done on-next-phase on-submit-discard
-                on-reveal-fate on-shuffle on-return-discard]}
+                on-reveal-fate on-shuffle on-return-discard
+                on-enter-standard-action on-cancel-standard-action on-proceed-standard-action]}
         (use-game-handlers)
 
-        [hand-expanded set-hand-expanded]                                                                 (use-state false)
+        [hand-expanded set-hand-expanded]                                                                                      (use-state false)
 
-        setup-mode                                                                                        (sel/setup-mode? phase)
-        tip-off-mode                                                                                      (sel/tip-off-mode? phase)
-        has-moves                                                                                         (and is-my-turn
-                                                                                                               selected-player-id
-                                                                                                               (seq (actions/valid-move-positions game-state selected-player-id)))
-        loading                                                                                           (:loading actions)
+        setup-mode                                                                                                             (sel/setup-mode? phase)
+        tip-off-mode                                                                                                           (sel/tip-off-mode? phase)
+        has-moves                                                                                                              (and is-my-turn
+                                                                                                                                    selected-player-id
+                                                                                                                                    (seq (actions/valid-move-positions game-state selected-player-id)))
+        loading                                                                                                                (:loading actions)
 
-        action-list                                                                                       (build-action-list
-                                                                                                           {:game-state         game-state
-                                                                                                            :my-team            my-team
-                                                                                                            :is-my-turn         is-my-turn
-                                                                                                            :phase              phase
-                                                                                                            :selected-player-id selected-player-id
-                                                                                                            :selected-card      selected-card
-                                                                                                            :pass-active        pass-active
-                                                                                                            :discard-active     discard-active
-                                                                                                            :discard-count      (count discard-cards)
-                                                                                                            :my-setup-complete  my-setup-complete
-                                                                                                            :both-teams-ready   both-teams-ready
-                                                                                                            :on-end-turn        on-end-turn
-                                                                                                            :on-shoot           on-shoot
-                                                                                                            :on-pass            (:start pass)
-                                                                                                            :on-cancel-pass     (:cancel pass)
-                                                                                                            :on-play-card       on-play-card
-                                                                                                            :on-draw            on-draw
-                                                                                                            :on-enter-discard   (:enter discard)
-                                                                                                            :on-cancel-discard  (:cancel discard)
-                                                                                                            :on-submit-discard  on-submit-discard
-                                                                                                            :on-start-game      on-start-game
-                                                                                                            :on-start-from-tipoff on-start-from-tipoff
-                                                                                                            :on-setup-done      on-setup-done
-                                                                                                            :on-next-phase      on-next-phase
-                                                                                                            :on-reveal-fate     on-reveal-fate
-                                                                                                            :on-shuffle         on-shuffle
-                                                                                                            :on-return-discard  on-return-discard
-                                                                                                            :on-substitute      (:enter substitute-mode)})
+        action-list                                                                                                            (build-action-list
+                                                                                                                                {:game-state                    game-state
+                                                                                                                                 :my-team                       my-team
+                                                                                                                                 :is-my-turn                    is-my-turn
+                                                                                                                                 :phase                         phase
+                                                                                                                                 :selected-player-id            selected-player-id
+                                                                                                                                 :selected-card                 selected-card
+                                                                                                                                 :pass-active                   pass-active
+                                                                                                                                 :discard-active                discard-active
+                                                                                                                                 :discard-count                 (count discard-cards)
+                                                                                                                                 :my-setup-complete             my-setup-complete
+                                                                                                                                 :both-teams-ready              both-teams-ready
+                                                                                                                                 :standard-action-active        standard-action-active
+                                                                                                                                 :standard-action-count         (count standard-action-cards)
+                                                                                                                                 :my-hand-count                 (count my-hand)
+                                                                                                                                 :on-end-turn                   on-end-turn
+                                                                                                                                 :on-shoot                      on-shoot
+                                                                                                                                 :on-pass                       (:start pass)
+                                                                                                                                 :on-cancel-pass                (:cancel pass)
+                                                                                                                                 :on-play-card                  on-play-card
+                                                                                                                                 :on-draw                       on-draw
+                                                                                                                                 :on-enter-discard              (:enter discard)
+                                                                                                                                 :on-cancel-discard             (:cancel discard)
+                                                                                                                                 :on-submit-discard             on-submit-discard
+                                                                                                                                 :on-start-game                 on-start-game
+                                                                                                                                 :on-start-from-tipoff          on-start-from-tipoff
+                                                                                                                                 :on-setup-done                 on-setup-done
+                                                                                                                                 :on-next-phase                 on-next-phase
+                                                                                                                                 :on-reveal-fate                on-reveal-fate
+                                                                                                                                 :on-shuffle                    on-shuffle
+                                                                                                                                 :on-return-discard             on-return-discard
+                                                                                                                                 :on-substitute                 (:enter substitute-mode)
+                                                                                                                                 :on-enter-standard-action      on-enter-standard-action
+                                                                                                                                 :on-cancel-standard-action     on-cancel-standard-action
+                                                                                                                                 :on-proceed-standard-action    on-proceed-standard-action})
 
-        status-text                                                                                       (build-status-text
-                                                                                                           {:is-my-turn         is-my-turn
-                                                                                                            :setup-mode         setup-mode
-                                                                                                            :tip-off-mode       tip-off-mode
-                                                                                                            :pass-active        pass-active
-                                                                                                            :discard-active     discard-active
-                                                                                                            :selected-player-id selected-player-id
-                                                                                                            :setup-placed-count (or setup-placed-count 0)
-                                                                                                            :my-setup-complete  my-setup-complete
-                                                                                                            :has-moves          has-moves
-                                                                                                            :loading            loading})]
+        status-text                                                                                                            (build-status-text
+                                                                                                                                {:is-my-turn             is-my-turn
+                                                                                                                                 :setup-mode             setup-mode
+                                                                                                                                 :tip-off-mode           tip-off-mode
+                                                                                                                                 :pass-active            pass-active
+                                                                                                                                 :discard-active         discard-active
+                                                                                                                                 :standard-action-active standard-action-active
+                                                                                                                                 :selected-player-id     selected-player-id
+                                                                                                                                 :setup-placed-count     (or setup-placed-count 0)
+                                                                                                                                 :my-setup-complete      my-setup-complete
+                                                                                                                                 :has-moves              has-moves
+                                                                                                                                 :loading                loading})
+
+        ;; Combine standard action cards with discard cards for highlighting
+        selection-cards                                                                                                        (if standard-action-active
+                                                                                                                                 standard-action-cards
+                                                                                                                                 discard-cards)]
 
     ($ bottom-bar/bottom-bar
        {:hand             my-hand
@@ -475,8 +536,8 @@
         :expanded         hand-expanded
         :on-expand-toggle #(set-hand-expanded not)
         :selected-card    selected-card
-        :discard-mode     discard-active
-        :discard-cards    discard-cards
+        :discard-mode     (or discard-active standard-action-active)
+        :discard-cards    selection-cards
         :on-card-click    on-card-click
         :on-detail-click  (:show detail-modal)
         :disabled         (not is-my-turn)

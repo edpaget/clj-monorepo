@@ -306,9 +306,11 @@
   (let [play-area-card (state/find-card-in-play-area state instance-id)
         owner          (:played-by play-area-card)
         card-slug      (:card-slug play-area-card)
+        is-virtual     (:virtual play-area-card)
         card-instance  {:instance-id instance-id :card-slug card-slug}
-        is-asset       (team-asset-card? state owner card-slug)
-        is-attach      (and target-player-id
+        is-asset       (and (not is-virtual) (team-asset-card? state owner card-slug))
+        is-attach      (and (not is-virtual)
+                            target-player-id
                             (ability-card? state owner card-slug))]
     (-> state
         (update :play-area (fn [pa] (filterv #(not= (:instance-id %) instance-id) pa)))
@@ -327,9 +329,10 @@
           is-asset
           (update-in [:players owner :assets] conj card-instance)
 
-          (and (not is-asset) (not is-attach))
+          (and (not is-virtual) (not is-asset) (not is-attach))
           (update-in [:players owner :deck :discard] conj card-instance))
-        (assoc :event-data (cond-> {:resolved-card play-area-card}
+        (assoc :event-data (cond-> {:resolved-card play-area-card
+                                    :virtual       is-virtual}
                              target-player-id (assoc :target-player-id target-player-id))))))
 
 (defmethod -apply-action :bashketball/move-asset
@@ -442,3 +445,25 @@
         (assoc :event-data {:created-token token-instance
                             :placement     placement
                             :target-player-id target-player-id}))))
+
+;; -----------------------------------------------------------------------------
+;; Virtual Standard Action
+
+(defmethod -apply-action :bashketball/stage-virtual-standard-action
+  [state {:keys [player discard-instance-ids card-slug]}]
+  (let [deck-path      [:players player :deck]
+        hand           (get-in state (conj deck-path :hand))
+        id-set         (set discard-instance-ids)
+        discarded      (filterv #(id-set (:instance-id %)) hand)
+        new-hand       (filterv #(not (id-set (:instance-id %))) hand)
+        instance-id    (generate-id)
+        play-area-card {:instance-id instance-id
+                        :card-slug   card-slug
+                        :played-by   player
+                        :virtual     true}]
+    (-> state
+        (assoc-in (conj deck-path :hand) new-hand)
+        (update-in (conj deck-path :discard) into discarded)
+        (update :play-area conj play-area-card)
+        (assoc :event-data {:discarded-cards discarded
+                            :virtual-card    play-area-card}))))
