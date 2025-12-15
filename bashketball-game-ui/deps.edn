@@ -1,4 +1,4 @@
-{:paths ["src" "resources"]
+{:paths ["src" "resources" "content"]
  :deps
  {org.clojure/clojure {:mvn/version "1.12.2"}
   org.clojure/clojurescript {:mvn/version "1.11.132"}
@@ -8,6 +8,10 @@
   metosin/malli {:mvn/version "0.19.1"}
   camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
   binaryage/devtools {:mvn/version "1.0.7"}
+
+  ;; Markdown processing (compile-time)
+  com.vladsch.flexmark/flexmark-all {:mvn/version "0.64.8"}
+  clj-commons/clj-yaml {:mvn/version "1.0.29"}
 
   ;; Shared UI components library
   local/bashketball-ui {:local/root "../bashketball-ui"}
@@ -19,5 +23,5 @@
   local/bashketball-game {:local/root "../bashketball-game"}}
 
  :aliases
- {:test {:extra-paths ["test"]
+ {:test {:extra-paths ["test" "test/fixtures"]
          :extra-deps {local/cljs-tlr {:local/root "../cljs-tlr"}}}}}

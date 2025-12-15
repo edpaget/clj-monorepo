@@ -69,7 +69,7 @@
   - selected: boolean, true if ball is selected for movement
   - on-click: optional click handler"
   [{:keys [position selected on-click]}]
-  (let [[cx cy] (board/hex->pixel position)
+  (let [[cx cy]  (board/hex->pixel position)
         offset-x (- cx 18)
         offset-y (+ cy 18)]
     ($ :g {:style    {:cursor (when on-click "pointer")}

@@ -57,6 +57,9 @@
           ($ dropdown/dropdown-menu-item
              {:on-select #(navigate "/decks")}
              "My Decks")
+          ($ dropdown/dropdown-menu-item
+             {:on-select #(navigate "/rules/introduction")}
+             "Rules")
           ($ dropdown/dropdown-menu-separator)
           ($ dropdown/dropdown-menu-item
              {:on-select #(navigate "/")}

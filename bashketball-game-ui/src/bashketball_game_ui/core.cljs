@@ -5,6 +5,8 @@
   (:require
    [bashketball-game-ui.context.auth :as auth]
    [bashketball-game-ui.graphql.client :as gql-client]
+   [bashketball-game-ui.views.content :as content]
+   [bashketball-game-ui.views.content-layout :as content-layout]
    [bashketball-game-ui.views.deck-editor :as deck-editor]
    [bashketball-game-ui.views.decks :as decks]
    [bashketball-game-ui.views.game :as game]
@@ -31,6 +33,9 @@
               ($ router/route {:path "/" :element ($ layout/layout)}
                  ($ router/route {:index true :element ($ home/home-view)})
                  ($ router/route {:path "auth/callback" :element ($ login-callback/login-callback-view)})
+                 ;; Public content routes
+                 ($ router/route {:path "rules" :element ($ content-layout/content-layout {:category "rules"})}
+                    ($ router/route {:path ":slug" :element ($ content/content-view {:category "rules"})}))
                  ;; Protected routes - require authentication
                  ($ router/route {:element ($ protected-route)}
                     ($ router/route {:path "lobby" :element ($ lobby/lobby-view)})

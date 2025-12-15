@@ -63,13 +63,21 @@
     ;; Loose ball has circles for shadow and ball
     (t/is (>= (.-length (.querySelectorAll container "circle")) 1))))
 
-(t/deftest hex-grid-does-not-render-possessed-ball-indicator-test
+(t/deftest hex-grid-renders-possessed-ball-at-holder-position-test
+  (let [{:keys [container]} (uix-tlr/render ($ hex-grid {:board        nil
+                                                         :ball         sample-ball-possessed
+                                                         :home-players sample-home-players
+                                                         :away-players {}}))]
+    ;; With holder in home-players, ball indicator renders at holder position
+    ;; Player circles + ball indicator circles
+    (t/is (>= (.-length (.querySelectorAll container "circle")) 3))))
+
+(t/deftest hex-grid-does-not-render-possessed-ball-without-holder-test
   (let [{:keys [container]} (uix-tlr/render ($ hex-grid {:board        nil
                                                          :ball         sample-ball-possessed
                                                          :home-players {}
                                                          :away-players {}}))]
-    ;; Possessed ball is shown via player-token, not ball-indicator
-    ;; Without players, there should be no circles from ball indicator
+    ;; Without holder player, no ball indicator circles
     (t/is (= 0 (.-length (.querySelectorAll container "circle"))))))
 
 (t/deftest hex-grid-highlights-valid-moves-test
@@ -133,4 +141,31 @@
                              (done))))
                (do
                  (t/is false "No player circle found")
+                 (done))))))
+
+(t/deftest hex-grid-possessed-ball-click-calls-handler-test
+  (t/async done
+           (let [clicked             (atom false)
+                 handler             (fn [] (reset! clicked true))
+                 {:keys [container]} (uix-tlr/render
+                                      ($ hex-grid {:board         nil
+                                                   :ball          sample-ball-possessed
+                                                   :home-players  sample-home-players
+                                                   :away-players  {}
+                                                   :on-ball-click handler}))
+                 usr                 (user/setup)
+                 circles             (.querySelectorAll container "circle")
+                 ;; Find the ball circle (orange fill)
+                 ball-circle         (first (filter #(= "#f97316" (.getAttribute % "fill"))
+                                                    (array-seq circles)))]
+             (if ball-circle
+               (-> (user/click usr ball-circle)
+                   (.then (fn []
+                            (t/is @clicked)
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))
+               (do
+                 (t/is false "No ball circle found")
                  (done))))))

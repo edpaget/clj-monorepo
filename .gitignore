@@ -23,3 +23,4 @@ package-lock.json
 /bashketball-game-ui/public/js
 /bashketball-game-ui/public/css
 *.md
+!bashketball-game-ui/content/**/*.md

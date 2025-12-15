@@ -29,28 +29,21 @@
   ($ :a {:href config/google-login-url}
      ($ button {:variant :default} "Sign in with Google")))
 
+(defn- nav-link-class
+  "Returns class string based on active state."
+  [^js props]
+  (if (.-isActive props)
+    "text-blue-600 font-medium"
+    "text-gray-600 hover:text-gray-900"))
+
 (defui nav-links
   "Navigation links for authenticated users."
   []
   ($ :nav {:class "flex items-center gap-4"}
-     ($ router/nav-link {:to "/lobby"
-                         :class (fn [^js props]
-                                  (if (.-isActive props)
-                                    "text-blue-600 font-medium"
-                                    "text-gray-600 hover:text-gray-900"))}
-        "Lobby")
-     ($ router/nav-link {:to "/decks"
-                         :class (fn [^js props]
-                                  (if (.-isActive props)
-                                    "text-blue-600 font-medium"
-                                    "text-gray-600 hover:text-gray-900"))}
-        "My Decks")
-     ($ router/nav-link {:to "/games"
-                         :class (fn [^js props]
-                                  (if (.-isActive props)
-                                    "text-blue-600 font-medium"
-                                    "text-gray-600 hover:text-gray-900"))}
-        "My Games")))
+     ($ router/nav-link {:to "/lobby" :class nav-link-class} "Lobby")
+     ($ router/nav-link {:to "/decks" :class nav-link-class} "My Decks")
+     ($ router/nav-link {:to "/games" :class nav-link-class} "My Games")
+     ($ router/nav-link {:to "/rules/introduction" :class nav-link-class} "Rules")))
 
 (defui header
   "Application header with navigation and login."
