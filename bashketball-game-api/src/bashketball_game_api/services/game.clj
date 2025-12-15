@@ -19,14 +19,6 @@
   [card]
   (= :card-type/PLAYER_CARD (:card-type card)))
 
-(defn- size-keyword
-  "Converts card size enum to game engine size keyword."
-  [size]
-  (case size
-    :size/SM :small
-    :size/MD :mid
-    :size/LG :big
-    :mid))
 
 (defn deck->game-config
   "Converts a validated deck to bashketball-game config format.
@@ -43,7 +35,7 @@
      :players (mapv (fn [p]
                       {:card-slug  (:slug p)
                        :name       (:name p)
-                       :stats      {:size      (size-keyword (:size p))
+                       :stats      {:size      (:size p)
                                     :speed     (:speed p)
                                     :shooting  (:sht p)
                                     :passing   (:pss p)
