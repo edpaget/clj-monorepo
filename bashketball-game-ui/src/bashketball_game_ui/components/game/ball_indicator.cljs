@@ -57,6 +57,53 @@
                  :stroke       ball-stroke
                  :stroke-width 1}))))
 
+(def ^:private possessed-ball-radius 8)
+
+(defui possessed-ball
+  "Renders a ball indicator for a possessed ball at the holder's position.
+
+  The ball appears offset from the player token to avoid occlusion.
+
+  Props:
+  - position: [q r] hex position of the holder
+  - selected: boolean, true if ball is selected for movement
+  - on-click: optional click handler"
+  [{:keys [position selected on-click]}]
+  (let [[cx cy] (board/hex->pixel position)
+        offset-x (- cx 18)
+        offset-y (+ cy 18)]
+    ($ :g {:style    {:cursor (when on-click "pointer")}
+           :on-click (when on-click #(do (.stopPropagation %) (on-click)))}
+       (when selected
+         ($ :circle {:cx           offset-x
+                     :cy           offset-y
+                     :r            (+ possessed-ball-radius 4)
+                     :fill         "none"
+                     :stroke       "#06b6d4"
+                     :stroke-width 2}))
+       ($ :ellipse {:cx      offset-x
+                    :cy      (+ offset-y 3)
+                    :rx      (- possessed-ball-radius 2)
+                    :ry      3
+                    :fill    "#00000020"})
+       ($ :circle {:cx           offset-x
+                   :cy           offset-y
+                   :r            possessed-ball-radius
+                   :fill         ball-color
+                   :stroke       ball-stroke
+                   :stroke-width 1.5})
+       ($ :path {:d            (str "M " (- offset-x possessed-ball-radius) " " offset-y
+                                    " Q " offset-x " " (- offset-y 3) " " (+ offset-x possessed-ball-radius) " " offset-y)
+                 :fill         "none"
+                 :stroke       ball-stroke
+                 :stroke-width 1})
+       ($ :line {:x1           offset-x
+                 :y1           (- offset-y possessed-ball-radius)
+                 :x2           offset-x
+                 :y2           (+ offset-y possessed-ball-radius)
+                 :stroke       ball-stroke
+                 :stroke-width 1}))))
+
 (defn- get-target-position
   "Extracts target position from the BallTarget union.
   Returns [q r] position or nil if player target without position lookup."
@@ -163,22 +210,26 @@
 
   Props:
   - ball: Ball state map with __typename and state-specific fields
-    - BallPossessed - ball held by player (rendered via player-token)
+    - BallPossessed - {:holder-id \"...\"}
     - BallLoose - {:position [q r]}
     - BallInAir - {:origin [q r] :target {:position [q r]} or {:player-id ...} :action-type :SHOT/:PASS}
   - selected: boolean, true if ball is selected for movement
-  - on-click: optional click handler for loose ball
+  - on-click: optional click handler for ball
+  - holder-position: [q r] position of ball holder (for BallPossessed)
   - player-positions: map of player-id -> [q r] for resolving player targets
   - on-target-click: optional click handler for in-air ball target"
-  [{:keys [ball selected on-click player-positions on-target-click]}]
+  [{:keys [ball selected on-click holder-position player-positions on-target-click]}]
   (case (:__typename ball)
-    "BallLoose"  ($ loose-ball {:position (:position ball)
-                                :selected selected
-                                :on-click on-click})
-    "BallInAir"  ($ in-air-ball {:origin           (:origin ball)
-                                 :target           (:target ball)
-                                 :action-type      (:action-type ball)
-                                 :player-positions player-positions
-                                 :on-target-click  on-target-click})
-    ;; BallPossessed - handled by player-token's has-ball prop
+    "BallLoose"     ($ loose-ball {:position (:position ball)
+                                   :selected selected
+                                   :on-click on-click})
+    "BallPossessed" (when holder-position
+                      ($ possessed-ball {:position holder-position
+                                         :selected selected
+                                         :on-click on-click}))
+    "BallInAir"     ($ in-air-ball {:origin           (:origin ball)
+                                    :target           (:target ball)
+                                    :action-type      (:action-type ball)
+                                    :player-positions player-positions
+                                    :on-target-click  on-target-click})
     nil))

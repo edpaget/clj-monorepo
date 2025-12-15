@@ -95,10 +95,13 @@
                              :pass-target pass-target
                              :on-click    on-player-click}))
 
-          ;; Layer 3: Ball indicator (loose or in-air only)
-          (when (and ball (not= (:__typename ball) "BallPossessed"))
-            ($ ball-indicator {:ball             ball
-                               :selected         ball-selected
-                               :on-click         on-ball-click
-                               :player-positions player-positions
-                               :on-target-click  on-target-click}))))))
+          ;; Layer 3: Ball indicator (all ball states)
+          (when ball
+            (let [holder-pos (when-let [hid (ball-holder-id ball)]
+                               (get player-positions hid))]
+              ($ ball-indicator {:ball             ball
+                                 :selected         ball-selected
+                                 :on-click         on-ball-click
+                                 :holder-position  holder-pos
+                                 :player-positions player-positions
+                                 :on-target-click  on-target-click})))))))
