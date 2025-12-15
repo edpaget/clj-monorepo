@@ -1,8 +1,8 @@
 {:paths ["src" "resources"],
  :deps
- {org.clojure/clojure {:mvn/version "1.12.2"},
+ {org.clojure/clojure {:mvn/version "1.12.4"},
   funcool/cats {:mvn/version "2.4.3-beta.2"},
-  metosin/malli {:mvn/version "0.19.1"}},
+  metosin/malli {:mvn/version "0.20.0"}},
  :aliases
  {:dev
   {:extra-paths ["dev"],

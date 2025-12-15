@@ -1,6 +1,6 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.12.2"}
-        org.clojure/clojurescript {:mvn/version "1.11.132"}
+ :deps {org.clojure/clojure {:mvn/version "1.12.4"}
+        org.clojure/clojurescript {:mvn/version "1.12.134"}
         thheller/shadow-cljs {:mvn/version "2.28.21"}
         camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
 
@@ -15,7 +15,7 @@
         com.pitch/uix.dom {:mvn/version "1.4.4"}
 
         ;; Malli (schema validation - works in CLJS)
-        metosin/malli {:mvn/version "0.19.1"}
+        metosin/malli {:mvn/version "0.20.0"}
 
         ;; devtools
         binaryage/devtools {:mvn/version "1.0.7"}}

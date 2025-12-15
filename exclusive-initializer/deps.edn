@@ -1,6 +1,6 @@
 {:deps
- {org.clojure/clojure {:mvn/version "1.12.2"},
-  metosin/malli {:mvn/version "0.19.1"}},
+ {org.clojure/clojure {:mvn/version "1.12.4"},
+  metosin/malli {:mvn/version "0.20.0"}},
  :aliases
  {:test
   {:extra-paths ["test"],

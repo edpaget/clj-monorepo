@@ -1,4 +1,4 @@
-{:deps {org.clojure/clojure {:mvn/version "1.12.2"}}
+{:deps {org.clojure/clojure {:mvn/version "1.12.4"}}
  :mvn/repos {"github" {:url "https://maven.pkg.github.com/bashketball/cards"}}
 
  :aliases
