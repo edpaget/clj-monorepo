@@ -28,6 +28,8 @@ order: 7
 
 **Injure** — Attempt to injure an opponent. An injured player is removed from the game.
 
+**Screen/Check** — A physical contest between two players. Which effect is active depends on ball possession: use **Screen** (offense) if your team has the ball, use **Check** (defense) if the opponent has the ball.
+
 **Skip next unexhaust** — The affected player remains exhausted during the next unexhaust phase.
 
 **Retain** — Do not discard this card at the end of your turn.

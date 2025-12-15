@@ -46,7 +46,7 @@ In the main part of a turn a player may take their actions. An action can be use
 
 | Action | Description |
 |--------|-------------|
-| **Move a Player** | Move up to their movement speed. Player is exhausted after moving. |
+| **Move a Player** | Move up to their movement speed. |
 | **Play a Card** | Costs at least 1 action. Some cards may specify additional action costs. |
 | **Take a Standard Action** | Spend 1 Action + discard 2 cards to use any Standard Action. |
 | **Pay Asset/Ability Costs** | Use effects that say "Spend 1 Action: Effect". Only during Action phase. |
@@ -73,7 +73,8 @@ After a basket is scored:
 1. The defending team takes possession of the ball
 2. The defending player begins a new turn — even if the basket was scored during their previous turn
 3. Each player may move one of their team players up to their movement speed ignoring zones of control
-4. All players are unexhausted
+4. Each player may substitute any team players with bench players
+5. All players are unexhausted
 
 ## End of Game
 

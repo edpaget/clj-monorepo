@@ -59,7 +59,3 @@ Each opponent's Zone of Control the ball travels through applies a penalty to th
 | LG | SM | 0 |
 | LG | MD | 0 |
 | LG | LG | -1 |
-
-## Setting a Screen
-
-Players of one team can cancel out the ZoC of players from another team by setting a Screen. A player has set a screen when they are adjacent to a player of the opposing team and they are not a SM vs a LG player.

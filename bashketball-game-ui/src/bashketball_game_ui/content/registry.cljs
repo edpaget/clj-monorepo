@@ -13,6 +13,7 @@
     "rules/zone-of-control.md"
     "rules/skill-actions.md"
     "rules/standard-actions.md"
+    "rules/injuries.md"
     "rules/card-types.md"
     "rules/symbols-keywords.md"
     "rules/the-court.md"

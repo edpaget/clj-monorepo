@@ -6,7 +6,7 @@
     "js:build": "esbuild src/js/index.js --bundle --format=iife --outfile=public/js/libs.js",
     "js:build:prod": "esbuild src/js/index.js --bundle --format=iife --minify --outdir=public/js --entry-names=[name]-[hash] --metafile=public/js/libs-meta.json",
     "js:watch": "esbuild src/js/index.js --bundle --format=iife --outfile=public/js/libs.js --watch",
-    "dev": "npm run js:build && shadow-cljs watch app",
+    "dev": "rm -rf .shadow-cljs && npm run js:build && shadow-cljs watch app",
     "build": "npm run js:build && shadow-cljs release app",
     "build:prod": "npm run js:build:prod && shadow-cljs release app && npm run css:build && node scripts/update-html-hashes.js",
     "test": "shadow-cljs compile test && node out/node-tests.js",
