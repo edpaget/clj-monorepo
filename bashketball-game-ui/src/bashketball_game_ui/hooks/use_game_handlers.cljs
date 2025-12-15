@@ -39,7 +39,8 @@
   - `:on-return-discard` - Handler for returning discard to deck
   - `:on-move-asset` - Handler for moving asset to discard or removed zone
   - `:on-substitute` - Handler for player substitution
-  - `:on-target-click` - Handler for clicking in-air ball target to resolve"
+  - `:on-target-click` - Handler for clicking in-air ball target to resolve
+  - `:on-toggle-exhausted` - Handler for toggling player exhaust status"
   []
   (let [{:keys [game-state my-team is-my-turn actions
                 selection pass discard ball-mode fate-reveal substitute-mode
@@ -282,6 +283,22 @@
                (-> ((:set-ball-possessed actions) (:player-id target))
                    (.then #(js/console.log "Resolve to player:" %))
                    (.catch #(js/console.error "Resolve error:" %))))))
+         [game-state actions])
+
+        on-toggle-exhausted
+        (use-callback
+         (fn [player-id]
+           (let [home-player (get-in game-state [:players :team/HOME :team :players player-id])
+                 away-player (get-in game-state [:players :team/AWAY :team :players player-id])
+                 player      (or home-player away-player)
+                 exhausted?  (:exhausted player)]
+             (if exhausted?
+               (-> ((:refresh-player actions) player-id)
+                   (.then #(js/console.log "Player refreshed:" %))
+                   (.catch #(js/console.error "Refresh error:" %)))
+               (-> ((:exhaust-player actions) player-id)
+                   (.then #(js/console.log "Player exhausted:" %))
+                   (.catch #(js/console.error "Exhaust error:" %))))))
          [game-state actions])]
 
     {:on-hex-click         on-hex-click
@@ -305,4 +322,5 @@
      :on-return-discard    on-return-discard
      :on-move-asset        on-move-asset
      :on-substitute        on-substitute
-     :on-target-click      on-target-click}))
+     :on-target-click      on-target-click
+     :on-toggle-exhausted  on-toggle-exhausted}))

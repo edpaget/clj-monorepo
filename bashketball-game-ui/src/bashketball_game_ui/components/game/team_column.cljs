@@ -154,7 +154,7 @@
   During setup mode, shows the roster for player placement.
   Otherwise shows the on-court player list or selected player panel."
   [{:keys [players player-indices team selected-player on-select on-deselect on-info-click
-           catalog setup-mode all-players selected-player-id on-player-select]}]
+           catalog setup-mode all-players selected-player-id on-player-select on-toggle-exhausted]}]
   (let [selected-id       (:id selected-player)
         selected-in-team? (and selected-id (contains? players selected-id))
         prefix            (if (= team :team/HOME) "H" "A")]
@@ -174,7 +174,8 @@
                                      :catalog             catalog
                                      :on-deselect         on-deselect
                                      :on-info-click       on-info-click
-                                     :on-attachment-click on-info-click}))
+                                     :on-attachment-click on-info-click
+                                     :on-toggle-exhausted on-toggle-exhausted}))
 
          :else
          ($ player-list {:players        players
@@ -201,12 +202,13 @@
   - on-deselect: fn [] to clear selection
   - on-info-click: fn [card-slug] to show card detail
   - on-move-asset: fn [instance-id destination] to move asset to discard or removed
+  - on-toggle-exhausted: fn [player-id] to toggle player exhaust status
   - setup-mode: boolean, true if in setup phase
   - all-players: map of all team players (for setup roster)
   - selected-player-id: ID of selected player (for setup roster)
   - on-player-select: fn [player-id] for setup player selection"
   [{:keys [team score is-active is-my-team deck-stats players player-indices selected-player
-           assets catalog on-select on-deselect on-info-click on-move-asset
+           assets catalog on-select on-deselect on-info-click on-move-asset on-toggle-exhausted
            setup-mode all-players selected-player-id on-player-select]}]
   ($ :div {:class "w-40 h-full flex flex-col gap-2 bg-white rounded-lg border border-slate-200 p-2"}
      ;; Fixed header sections
@@ -219,18 +221,19 @@
      ($ :div {:class "flex-shrink-0"}
         ($ :div {:class "text-xs font-medium text-slate-500 px-1"}
            (if setup-mode "Setup Roster" "Players"))
-        ($ team-players-section {:players            players
-                                 :player-indices     player-indices
-                                 :team               team
-                                 :selected-player    selected-player
-                                 :catalog            catalog
-                                 :on-select          on-select
-                                 :on-deselect        on-deselect
-                                 :on-info-click      on-info-click
-                                 :setup-mode         setup-mode
-                                 :all-players        all-players
-                                 :selected-player-id selected-player-id
-                                 :on-player-select   on-player-select}))
+        ($ team-players-section {:players             players
+                                 :player-indices      player-indices
+                                 :team                team
+                                 :selected-player     selected-player
+                                 :catalog             catalog
+                                 :on-select           on-select
+                                 :on-deselect         on-deselect
+                                 :on-info-click       on-info-click
+                                 :on-toggle-exhausted on-toggle-exhausted
+                                 :setup-mode          setup-mode
+                                 :all-players         all-players
+                                 :selected-player-id  selected-player-id
+                                 :on-player-select    on-player-select}))
 
      ;; Assets section - takes remaining space, scrollable
      ($ :div {:class "flex-1 min-h-0 border-t border-slate-200 pt-2"}

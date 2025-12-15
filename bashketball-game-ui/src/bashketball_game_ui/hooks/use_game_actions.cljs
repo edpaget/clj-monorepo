@@ -33,6 +33,8 @@
   - `:move-asset` - fn [team instance-id destination] -> Promise (move asset to :discard or :removed)
   - `:add-score` - fn [team points] -> Promise (add points to team, negative to decrement)
   - `:create-token` - fn [team card placement target-player-id] -> Promise (create token as asset or attached)
+  - `:exhaust-player` - fn [player-id] -> Promise (mark player as exhausted)
+  - `:refresh-player` - fn [player-id] -> Promise (mark player as not exhausted)
   - `:loading` - boolean
   - `:error` - error object or nil"
   [game-id]
@@ -171,6 +173,18 @@
                                                                                 :card      card
                                                                                 :placement (name placement)}
                                                                          target-player-id (assoc :target-player-id target-player-id))))
+                                                             [submit])
+
+        exhaust-player                                      (use-callback
+                                                             (fn [player-id]
+                                                               (submit {:type      "bashketball/exhaust-player"
+                                                                        :player-id player-id}))
+                                                             [submit])
+
+        refresh-player                                      (use-callback
+                                                             (fn [player-id]
+                                                               (submit {:type      "bashketball/refresh-player"
+                                                                        :player-id player-id}))
                                                              [submit])]
 
     (use-memo
@@ -194,9 +208,11 @@
         :move-asset         move-asset
         :add-score          add-score
         :create-token       create-token
+        :exhaust-player     exhaust-player
+        :refresh-player     refresh-player
         :loading            loading
         :error              error})
      [submit move-player pass-ball shoot-ball set-ball-loose set-ball-possessed
       reveal-fate draw-cards discard-cards end-turn set-phase shuffle-deck
       return-discard substitute stage-card resolve-card move-asset add-score
-      create-token loading error])))
+      create-token exhaust-player refresh-player loading error])))

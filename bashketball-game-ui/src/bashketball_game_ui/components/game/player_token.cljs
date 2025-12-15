@@ -30,8 +30,9 @@
   - selected: boolean
   - has-ball: boolean
   - pass-target: boolean, true when this player can receive a pass
-  - on-click: fn [player-id]"
-  [{:keys [player team player-num selected has-ball pass-target on-click]}]
+  - on-click: fn [player-id]
+  - on-toggle-exhausted: fn [player-id] to toggle exhaust status"
+  [{:keys [player team player-num selected has-ball pass-target on-click on-toggle-exhausted]}]
   (let [position         (:position player)
         ;; Defensive: ensure position is a valid [q r] vector
         [cx cy]          (if (valid-position? position)
@@ -48,10 +49,19 @@
                             (.stopPropagation e)
                             (when on-click
                               (on-click (:id player))))
-                          [on-click player])]
+                          [on-click player])
 
-    ($ :g {:class    "cursor-pointer"
-           :on-click handle-click}
+        handle-context-menu (use-callback
+                             (fn [e]
+                               (.preventDefault e)
+                               (.stopPropagation e)
+                               (when on-toggle-exhausted
+                                 (on-toggle-exhausted (:id player))))
+                             [on-toggle-exhausted player])]
+
+    ($ :g {:class           "cursor-pointer"
+           :on-click        handle-click
+           :on-context-menu handle-context-menu}
 
        ;; Selection ring
        (when selected
@@ -101,14 +111,23 @@
                  :style       {:user-select "none"}}
           jersey-num)
 
-       ;; Exhausted overlay
+       ;; Exhausted badge (bottom-left of token)
        (when exhausted?
-         ($ :text {:x           cx
-                   :y           (- cy 28)
-                   :text-anchor "middle"
-                   :font-size   "12"
-                   :fill        "#64748b"}
-            "zzz"))
+         ($ :g
+            ($ :circle {:cx           (- cx 16)
+                        :cy           (+ cy 16)
+                        :r            10
+                        :fill         "#64748b"
+                        :stroke       "#475569"
+                        :stroke-width 1})
+            ($ :text {:x           (- cx 16)
+                      :y           (+ cy 20)
+                      :text-anchor "middle"
+                      :fill        "#ffffff"
+                      :font-size   "10"
+                      :font-weight "bold"
+                      :style       {:user-select "none"}}
+               "E")))
 
        ;; Attachment count badge (bottom-right of token)
        (when (pos? attachment-count)

@@ -62,11 +62,11 @@
   - catalog: map of card-slug -> card for name lookups
   - on-deselect: fn [] to clear selection
   - on-info-click: fn [card-slug] to show card detail
-  - on-attachment-click: fn [card-slug] to show attachment card detail"
-  [{:keys [player token-label team catalog on-deselect on-info-click on-attachment-click]}]
+  - on-attachment-click: fn [card-slug] to show attachment card detail
+  - on-toggle-exhausted: fn [player-id] to toggle exhaust status"
+  [{:keys [player token-label team catalog on-deselect on-info-click on-attachment-click on-toggle-exhausted]}]
   (let [{:keys [name stats exhausted modifiers attachments card-slug]} player
         {:keys [speed shooting defense dribbling passing size]}        stats
-        _                                                              (prn size)
         colors                                                         (get team-colors team (:team/HOME team-colors))
         size-label                                                     (get size-labels size "?")]
     ($ :div {:class "p-2 bg-slate-50 rounded border border-slate-200"}
@@ -114,10 +114,15 @@
                                       :catalog  catalog
                                       :on-click on-attachment-click})))))
 
-       ;; Footer with exhausted status and view card button
+       ;; Footer with exhaust toggle button and view card button
        ($ :div {:class "mt-2 flex items-center justify-between"}
-          (when exhausted
-            ($ :span {:class "text-[10px] text-slate-400"} "Exhausted"))
+          ($ :button {:class    (cn "text-[10px] px-2 py-0.5 rounded"
+                                    (if exhausted
+                                      "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                                      "bg-slate-100 text-slate-600 hover:bg-slate-200"))
+                      :on-click #(when on-toggle-exhausted
+                                   (on-toggle-exhausted (:id player)))}
+             (if exhausted "Unexhaust" "Exhaust"))
           ($ :button {:class    "text-[10px] text-blue-500 hover:text-blue-700 ml-auto"
                       :on-click #(when on-info-click (on-info-click card-slug))}
              "View Card")))))

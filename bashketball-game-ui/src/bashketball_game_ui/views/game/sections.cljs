@@ -71,26 +71,28 @@
 (defui board-section
   "Main game board hex grid (player info moved to team columns)."
   []
-  (let [{:keys [game-state]}                                                 (use-game-context)
+  (let [{:keys [game-state]}                                  (use-game-context)
         {:keys [home-players away-players selected-player-id
                 valid-moves valid-setup-positions pass-active
-                valid-pass-targets ball-active]}                             (use-game-derived)
-        {:keys [on-hex-click on-player-click on-ball-click on-target-click]} (use-game-handlers)]
+                valid-pass-targets ball-active]}              (use-game-derived)
+        {:keys [on-hex-click on-player-click on-ball-click
+                on-target-click on-toggle-exhausted]}         (use-game-handlers)]
     ($ :div {:class "flex-1 bg-white rounded-lg border border-slate-200 p-2 min-h-0"}
-       ($ hex-grid {:board              (:board game-state)
-                    :ball               (:ball game-state)
-                    :home-players       home-players
-                    :away-players       away-players
-                    :selected-player    selected-player-id
-                    :valid-moves        valid-moves
-                    :setup-highlights   valid-setup-positions
-                    :pass-mode          pass-active
-                    :valid-pass-targets valid-pass-targets
-                    :ball-selected      ball-active
-                    :on-hex-click       on-hex-click
-                    :on-player-click    on-player-click
-                    :on-ball-click      on-ball-click
-                    :on-target-click    on-target-click}))))
+       ($ hex-grid {:board               (:board game-state)
+                    :ball                (:ball game-state)
+                    :home-players        home-players
+                    :away-players        away-players
+                    :selected-player     selected-player-id
+                    :valid-moves         valid-moves
+                    :setup-highlights    valid-setup-positions
+                    :pass-mode           pass-active
+                    :valid-pass-targets  valid-pass-targets
+                    :ball-selected       ball-active
+                    :on-hex-click        on-hex-click
+                    :on-player-click     on-player-click
+                    :on-ball-click       on-ball-click
+                    :on-target-click     on-target-click
+                    :on-toggle-exhausted on-toggle-exhausted}))))
 
 (defui play-area-section
   "Shared play area section showing staged cards awaiting resolution."
@@ -169,7 +171,8 @@
   (let [{:keys [game-state catalog my-team selection]}        (use-game-context)
         {:keys [home-players away-players score
                 active-player selected-player-id setup-mode]} (use-game-derived)
-        {:keys [on-player-click on-move-asset]}               (use-game-handlers)
+        {:keys [on-player-click on-move-asset
+                on-toggle-exhausted]}                         (use-game-handlers)
 
         players                                               (if (= team :team/HOME) home-players away-players)
 
@@ -205,24 +208,25 @@
                                                                                                (get-in catalog [(:card-slug asset) :name]))))
                                                                       raw-assets)
                                                                [raw-assets catalog])]
-    ($ team-column {:team               team
-                    :score              (get score team 0)
-                    :is-active          (= active-player team)
-                    :is-my-team         (= team my-team)
-                    :deck-stats         deck-stats
-                    :players            on-court
-                    :player-indices     player-indices
-                    :selected-player    selected-player
-                    :assets             assets
-                    :catalog            catalog
-                    :on-select          on-player-click
-                    :on-deselect        (:clear-selected-player selection)
-                    :on-info-click      on-info-click
-                    :on-move-asset      on-move-asset
-                    :setup-mode         show-setup
-                    :all-players        players
-                    :selected-player-id selected-player-id
-                    :on-player-select   (:set-selected-player selection)})))
+    ($ team-column {:team                team
+                    :score               (get score team 0)
+                    :is-active           (= active-player team)
+                    :is-my-team          (= team my-team)
+                    :deck-stats          deck-stats
+                    :players             on-court
+                    :player-indices      player-indices
+                    :selected-player     selected-player
+                    :assets              assets
+                    :catalog             catalog
+                    :on-select           on-player-click
+                    :on-deselect         (:clear-selected-player selection)
+                    :on-info-click       on-info-click
+                    :on-move-asset       on-move-asset
+                    :on-toggle-exhausted on-toggle-exhausted
+                    :setup-mode          show-setup
+                    :all-players         players
+                    :selected-player-id  selected-player-id
+                    :on-player-select    (:set-selected-player selection)})))
 
 (defn- build-action-list
   "Builds the action list for the bottom bar from game state and handlers."

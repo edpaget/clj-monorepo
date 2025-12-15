@@ -34,10 +34,12 @@
   - on-hex-click: fn [q r] called when hex clicked
   - on-player-click: fn [player-id] called when player clicked
   - on-ball-click: fn [] called when loose ball clicked
-  - on-target-click: fn [] called when in-air ball target clicked"
+  - on-target-click: fn [] called when in-air ball target clicked
+  - on-toggle-exhausted: fn [player-id] called to toggle player exhaust status"
   [{:keys [board ball home-players away-players
            selected-player valid-moves setup-highlights pass-mode valid-pass-targets
-           ball-selected on-hex-click on-player-click on-ball-click on-target-click]}]
+           ball-selected on-hex-click on-player-click on-ball-click on-target-click
+           on-toggle-exhausted]}]
   (let [[width height padding] (board/board-dimensions)
         all-pos                (use-memo #(board/all-positions) [])
         holder-id              (ball-holder-id ball)
@@ -86,14 +88,15 @@
                              selected    (= id selected-player)
                              has-ball    (= id holder-id)
                              pass-target (and pass-mode (contains? valid-pass-targets id))]]
-            ($ player-token {:key         id
-                             :player      player
-                             :team        team
-                             :player-num  player-num
-                             :selected    selected
-                             :has-ball    has-ball
-                             :pass-target pass-target
-                             :on-click    on-player-click}))
+            ($ player-token {:key                 id
+                             :player              player
+                             :team                team
+                             :player-num          player-num
+                             :selected            selected
+                             :has-ball            has-ball
+                             :pass-target         pass-target
+                             :on-click            on-player-click
+                             :on-toggle-exhausted on-toggle-exhausted}))
 
           ;; Layer 3: Ball indicator (all ball states)
           (when ball
