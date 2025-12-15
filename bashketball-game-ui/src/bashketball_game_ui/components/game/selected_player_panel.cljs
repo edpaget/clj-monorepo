@@ -66,7 +66,7 @@
   [{:keys [player token-label team catalog on-deselect on-info-click on-attachment-click]}]
   (let [{:keys [name stats exhausted modifiers attachments card-slug]} player
         {:keys [speed shooting defense dribbling passing size]}        stats
-        _ (prn size)
+        _                                                              (prn size)
         colors                                                         (get team-colors team (:team/HOME team-colors))
         size-label                                                     (get size-labels size "?")]
     ($ :div {:class "p-2 bg-slate-50 rounded border border-slate-200"}

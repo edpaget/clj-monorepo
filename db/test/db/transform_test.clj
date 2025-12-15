@@ -2,8 +2,7 @@
   "Tests for db.transform Malli-based transformation utilities."
   (:require
    [clojure.test :refer [deftest is testing]]
-   [db.transform :as transform]
-   [malli.core :as m]))
+   [db.transform :as transform]))
 
 (deftest keywordize-keys-test
   (testing "converts string keys to keywords"
