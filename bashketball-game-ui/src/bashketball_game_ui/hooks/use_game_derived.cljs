@@ -49,22 +49,22 @@
         (use-game-context)
 
         ;; Extract UI state values
-        selected-player-id (:selected-player selection)
-        pass-active        (:active pass)
-        ball-active        (:active ball-mode)
-        discard-active     (:active discard)
-        discard-cards      (:cards discard)
-        selected-card      (:selected-card selection)
+        selected-player-id                                                       (:selected-player selection)
+        pass-active                                                              (:active pass)
+        ball-active                                                              (:active ball-mode)
+        discard-active                                                           (:active discard)
+        discard-cards                                                            (:cards discard)
+        selected-card                                                            (:selected-card selection)
 
         ;; Basic derived values (no memoization needed)
-        opponent-team  (sel/opponent-team my-team)
-        phase          (:phase game-state)
-        setup-mode     (sel/setup-mode? phase)
-        ball-holder-id (get-in game-state [:ball :holder-id])
-        score          (:score game-state)
-        active-player  (:active-player game-state)
-        events         (:events game-state)
-        play-area      (or (:play-area game-state) [])
+        opponent-team                                                            (sel/opponent-team my-team)
+        phase                                                                    (:phase game-state)
+        setup-mode                                                               (sel/setup-mode? phase)
+        ball-holder-id                                                           (get-in game-state [:ball :holder-id])
+        score                                                                    (:score game-state)
+        active-player                                                            (:active-player game-state)
+        events                                                                   (:events game-state)
+        play-area                                                                (or (:play-area game-state) [])
 
         ;; Memoized player data
         {:keys [my-player my-players my-hand]}

@@ -166,45 +166,45 @@
   - team: :HOME or :AWAY
   - on-info-click: fn [card-slug] for card detail modal"
   [{:keys [team on-info-click]}]
-  (let [{:keys [game-state catalog my-team selection]}      (use-game-context)
+  (let [{:keys [game-state catalog my-team selection]}        (use-game-context)
         {:keys [home-players away-players score
                 active-player selected-player-id setup-mode]} (use-game-derived)
-        {:keys [on-player-click on-move-asset]}             (use-game-handlers)
+        {:keys [on-player-click on-move-asset]}               (use-game-handlers)
 
-        players                                             (if (= team :team/HOME) home-players away-players)
+        players                                               (if (= team :team/HOME) home-players away-players)
 
         ;; Filter to only on-court players (players with positions)
-        on-court                                            (use-memo
-                                                             #(into {}
-                                                                    (filter (fn [[_id p]] (some? (:position p))))
-                                                                    players)
-                                                             [players])
+        on-court                                              (use-memo
+                                                               #(into {}
+                                                                      (filter (fn [[_id p]] (some? (:position p))))
+                                                                      players)
+                                                               [players])
 
-        player-indices                                      (use-memo
-                                                             #(sel/build-player-index-map on-court)
-                                                             [on-court])
+        player-indices                                        (use-memo
+                                                               #(sel/build-player-index-map on-court)
+                                                               [on-court])
 
         ;; Get selected player if from this team
-        selected-player                                     (when (and selected-player-id
-                                                                       (contains? on-court selected-player-id))
-                                                              (get on-court selected-player-id))
+        selected-player                                       (when (and selected-player-id
+                                                                         (contains? on-court selected-player-id))
+                                                                (get on-court selected-player-id))
 
         ;; Deck stats for this team
-        deck-stats                                          (use-memo
-                                                             #(sel/deck-stats game-state team)
-                                                             [game-state team])
+        deck-stats                                            (use-memo
+                                                               #(sel/deck-stats game-state team)
+                                                               [game-state team])
 
         ;; Only show setup roster for user's own team
-        show-setup                                          (and setup-mode (= team my-team))
+        show-setup                                            (and setup-mode (= team my-team))
 
-        player                                              (get-in game-state [:players team])
-        raw-assets                                          (or (:assets player) [])
-        assets                                              (use-memo
-                                                             #(mapv (fn [asset]
-                                                                      (assoc asset :name (or (get-in asset [:card :name])
-                                                                                             (get-in catalog [(:card-slug asset) :name]))))
-                                                                    raw-assets)
-                                                             [raw-assets catalog])]
+        player                                                (get-in game-state [:players team])
+        raw-assets                                            (or (:assets player) [])
+        assets                                                (use-memo
+                                                               #(mapv (fn [asset]
+                                                                        (assoc asset :name (or (get-in asset [:card :name])
+                                                                                               (get-in catalog [(:card-slug asset) :name]))))
+                                                                      raw-assets)
+                                                               [raw-assets catalog])]
     ($ team-column {:team               team
                     :score              (get score team 0)
                     :is-active          (= active-player team)

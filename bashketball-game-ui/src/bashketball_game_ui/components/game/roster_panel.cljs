@@ -46,8 +46,8 @@
   - players: Map of player-id -> player (all team players)
   - team: :HOME or :AWAY"
   [{:keys [players team]}]
-  (let [team-label    (if (= team :team/HOME) "Home" "Away")
-        all-players   (vals players)
+  (let [team-label     (if (= team :team/HOME) "Home" "Away")
+        all-players    (vals players)
         on-court-count (count (filter :position all-players))]
     ($ :div {:class "bg-white rounded-lg border border-slate-200 p-3"}
        ($ :div {:class "flex justify-between items-center mb-2"}

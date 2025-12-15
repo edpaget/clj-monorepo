@@ -176,20 +176,6 @@
       (update-in [:players :team/HOME :deck] dissoc :cards)
       (update-in [:players :team/AWAY :deck] dissoc :cards)))
 
-(def ^:private keyword-values
-  "String values that should be converted to keywords when reading game state from JSON.
-
-  Uses uppercase values to match game engine enums. GraphQL schema field names are
-  lowercase, but enum values are uppercase."
-  #{"HOME" "AWAY"                                          ; Team
-    "SETUP" "TIP_OFF" "UPKEEP" "ACTIONS" "RESOLUTION" "END_OF_TURN" "GAME_OVER" ; Phase
-    "SMALL" "MID" "BIG"                                    ; Size
-    "SPEED" "SHOOTING" "PASSING" "DRIBBLING" "DEFENSE"     ; Stat
-    "SHOT" "PASS"                                          ; BallActionType
-    "COURT" "THREE_POINT_LINE" "PAINT" "HOOP"              ; Terrain
-    "POSSESSED" "LOOSE" "IN_AIR"                           ; Ball status
-    "BASKETBALL_PLAYER" "BALL"})                           ; OccupantType
-
 (defprotocol GameService
   "Protocol for game management operations."
 

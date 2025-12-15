@@ -314,21 +314,21 @@
         (update :play-area (fn [pa] (filterv #(not= (:instance-id %) instance-id) pa)))
         (cond->
          is-attach
-         (as-> s
-           (let [props      (get-ability-card-properties s owner card-slug)
-                 attachment {:instance-id        instance-id
-                             :card-slug          card-slug
-                             :removable          (:removable props)
-                             :detach-destination (:detach-destination props)
-                             :attached-at        (now)}]
-             (state/update-basketball-player s target-player-id
-                                             update :attachments conj attachment)))
+          (as-> s
+                (let [props      (get-ability-card-properties s owner card-slug)
+                      attachment {:instance-id        instance-id
+                                  :card-slug          card-slug
+                                  :removable          (:removable props)
+                                  :detach-destination (:detach-destination props)
+                                  :attached-at        (now)}]
+                  (state/update-basketball-player s target-player-id
+                                                  update :attachments conj attachment)))
 
-         is-asset
-         (update-in [:players owner :assets] conj card-instance)
+          is-asset
+          (update-in [:players owner :assets] conj card-instance)
 
-         (and (not is-asset) (not is-attach))
-         (update-in [:players owner :deck :discard] conj card-instance))
+          (and (not is-asset) (not is-attach))
+          (update-in [:players owner :deck :discard] conj card-instance))
         (assoc :event-data (cond-> {:resolved-card play-area-card}
                              target-player-id (assoc :target-player-id target-player-id))))))
 

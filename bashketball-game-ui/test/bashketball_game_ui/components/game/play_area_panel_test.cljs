@@ -95,7 +95,7 @@
 
 (t/deftest play-area-panel-ability-card-calls-attach-handler-test
   (t/async done
-           (let [attach-called (atom nil)
+           (let [attach-called  (atom nil)
                  resolve-called (atom nil)
                  _              (uix-tlr/render ($ play-area-panel {:play-area  ability-card-play-area
                                                                     :catalog    ability-card-catalog
