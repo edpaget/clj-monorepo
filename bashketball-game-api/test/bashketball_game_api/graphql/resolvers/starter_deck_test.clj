@@ -1,5 +1,8 @@
 (ns bashketball-game-api.graphql.resolvers.starter-deck-test
-  "Tests for starter deck GraphQL queries and mutations."
+  "Tests for starter deck GraphQL queries and mutations.
+
+  Uses mock starter deck definitions via the test system to isolate tests
+  from the actual starter-decks.edn configuration."
   (:require
    [bashketball-game-api.test-utils :as tu]
    [clojure.test :refer [deftest is testing use-fixtures]]))

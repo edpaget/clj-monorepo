@@ -1,17 +1,31 @@
 (ns bashketball-game-api.services.starter-deck-test
-  "Tests for starter deck service."
+  "Tests for starter deck service.
+
+  Uses mock starter deck definitions to isolate tests from the actual
+  starter-decks.edn configuration."
   (:require
+   [bashketball-game-api.models.deck :as deck]
+   [bashketball-game-api.services.deck :as deck-svc]
    [bashketball-game-api.services.starter-deck :as starter-deck-svc]
-   [bashketball-game-api.system :as system]
+   [bashketball-game-api.test-fixtures.cards :as test-cards]
+   [bashketball-game-api.test-fixtures.starter-decks :as test-starter-decks]
    [bashketball-game-api.test-utils :refer [with-system with-clean-db with-db
-                                            create-test-user *system*]]
+                                            create-test-user]]
    [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :once with-system)
 (use-fixtures :each with-clean-db)
 
-(defn- test-starter-deck-service []
-  (::system/starter-deck-service *system*))
+(defn- test-starter-deck-service
+  "Creates a starter deck service with mock configuration."
+  []
+  (with-db
+    (let [deck-repo (deck/create-deck-repository)]
+      (starter-deck-svc/create-starter-deck-service
+       deck-repo
+       test-cards/mock-card-catalog
+       deck-svc/default-validation-rules
+       test-starter-decks/mock-starter-decks-config))))
 
 (deftest get-starter-deck-definitions-test
   (testing "Returns all starter deck definitions from config"

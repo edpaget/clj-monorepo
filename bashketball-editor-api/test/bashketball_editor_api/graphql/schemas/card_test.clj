@@ -88,6 +88,7 @@
                 :name "Double Jump"
                 :set-slug "base-set"
                 :card-type :card-type/ABILITY_CARD
+                :fate 3
                 :abilities ["Jump twice in one turn"]}]
       (is (m/validate schemas/AbilityCard card)))))
 

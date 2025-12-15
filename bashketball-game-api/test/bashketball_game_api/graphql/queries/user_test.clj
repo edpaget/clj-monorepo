@@ -25,7 +25,7 @@
       (is (= (str (:id user)) (:id me)))
       (is (= (:email user) (:email me)))
       (is (= (:name user) (:name me)))
-      (is (= (:avatar-url user) (:avatarUrl me))))))
+      (is (= (str "/api/avatars/" (:id user)) (:avatarUrl me))))))
 
 (deftest me-query-returns-claims-test
   (testing "me query returns data from session claims"
@@ -41,4 +41,5 @@
       (is (= (str (:id user)) (:id me)))
       (is (= "custom@example.com" (:email me)))
       (is (= "Custom Name" (:name me)))
-      (is (= "https://custom.com/pic.png" (:avatarUrl me))))))
+      ;; avatarUrl always returns cached endpoint, not original picture URL
+      (is (= (str "/api/avatars/" (:id user)) (:avatarUrl me))))))

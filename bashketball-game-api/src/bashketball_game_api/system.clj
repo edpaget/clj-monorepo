@@ -108,9 +108,14 @@
   (log/info "Creating game service")
   (game-service/create-game-service game-repo deck-service card-catalog subscription-manager))
 
-(defmethod ig/init-key ::starter-deck-service [_ {:keys [deck-repo card-catalog]}]
+(defmethod ig/init-key ::starter-deck-service [_ {:keys [deck-repo card-catalog config-override]}]
   (log/info "Creating starter deck service")
-  (starter-deck-service/create-starter-deck-service deck-repo card-catalog))
+  (if config-override
+    (starter-deck-service/create-starter-deck-service
+     deck-repo card-catalog
+     deck-service/default-validation-rules
+     config-override)
+    (starter-deck-service/create-starter-deck-service deck-repo card-catalog)))
 
 (defmethod ig/init-key ::auth-service [_ {:keys [user-repo]}]
   (log/info "Creating auth service")
@@ -244,7 +249,8 @@
                    :card-catalog (ig/ref ::card-catalog)
                    :subscription-manager (ig/ref ::subscription-manager)}
    ::starter-deck-service {:deck-repo (ig/ref ::deck-repo)
-                           :card-catalog (ig/ref ::card-catalog)}
+                           :card-catalog (ig/ref ::card-catalog)
+                           :config-override (:starter-decks-config opts)}
    ::auth-service {:user-repo (ig/ref ::user-repo)
                    :config (ig/ref ::config)}
    ::avatar-service {:avatar-repo (ig/ref ::avatar-repo)}
@@ -279,7 +285,8 @@
   Accepts an optional `opts` map with:
   - `:exclude-keys` - set of component keys to exclude from initialization
   - `:port` - override the server port (use 0 for auto-select)
-  - `:card-catalog` - override the card catalog instance (useful for testing)"
+  - `:card-catalog` - override the card catalog instance (useful for testing)
+  - `:starter-decks-config` - override starter deck definitions (useful for testing)"
   ([]
    (start-system :dev))
   ([profile]

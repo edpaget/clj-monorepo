@@ -321,7 +321,6 @@
                                  id
                                  actionsRemaining
                                  team {
-                                   starters
                                    players
                                  }
                                }
@@ -329,7 +328,6 @@
                                  id
                                  actionsRemaining
                                  team {
-                                   starters
                                    players
                                  }
                                }
@@ -358,9 +356,9 @@
             game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
             joined     (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
             session-id (tu/create-authenticated-session! (:id user1) :user user1)
-            ;; Get a player ID from the home team starters
+            ;; Get a player ID from the home team players map
             game-state (:game-state joined)
-            player-id  (first (get-in game-state [:players :team/HOME :team :starters]))]
+            player-id  (first (keys (get-in game-state [:players :team/HOME :team :players])))]
 
         (testing "player position is initially nil"
           (let [player (get-in game-state [:players :team/HOME :team :players (keyword player-id)])]
@@ -391,7 +389,6 @@
                                  players {
                                    HOME {
                                      team {
-                                       starters
                                        players
                                      }
                                    }
