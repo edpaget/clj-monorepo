@@ -124,12 +124,6 @@
          (when selected
            ($ :span {:class "text-slate-500"} "→"))))))
 
-(defn- get-player
-  "Gets a player from the players map, handling both string and keyword keys."
-  [players id]
-  (or (get players id)
-      (get players (keyword id))))
-
 (defui setup-roster-list
   "Compact roster list for setup phase player placement.
 

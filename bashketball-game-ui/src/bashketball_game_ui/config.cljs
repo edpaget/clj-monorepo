@@ -2,7 +2,9 @@
   "Application configuration.
 
   Provides environment-specific settings for API endpoints and other
-  configuration values.")
+  configuration values."
+  (:require
+   [clojure.string :as str]))
 
 (def api-base-url
   "Base URL for the bashketball-game-api.
@@ -34,6 +36,6 @@
   [url]
   (cond
     (nil? url) nil
-    (or (clojure.string/starts-with? url "http://")
-        (clojure.string/starts-with? url "https://")) url
+    (or (str/starts-with? url "http://")
+        (str/starts-with? url "https://")) url
     :else (str api-base-url url)))

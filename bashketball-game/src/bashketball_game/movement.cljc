@@ -26,31 +26,6 @@
            (get-in catalog [(:card-slug player) :speed]))
          2))))
 
-(defn- opposing-team
-  "Returns the opposing team keyword."
-  [team]
-  (if (= team :team/HOME) :team/AWAY :team/HOME))
-
-(defn- get-opposing-player-positions
-  "Returns set of positions occupied by opposing team players."
-  [game-state player-id]
-  (let [team      (state/get-basketball-player-team game-state player-id)
-        opponent  (opposing-team team)
-        occupants (get-in game-state [:board :occupants])]
-    (->> occupants
-         (filter (fn [[_pos occ]]
-                   (when-let [occ-id (:id occ)]
-                     (= opponent (state/get-basketball-player-team game-state occ-id)))))
-         (map first)
-         set)))
-
-(defn- contested-positions
-  "Returns set of hexes adjacent to opposing players (zone of control)."
-  [game-state player-id]
-  (->> (get-opposing-player-positions game-state player-id)
-       (mapcat board/hex-neighbors)
-       set))
-
 (defn valid-move-positions
   "Returns set of valid positions the player can move to.
 

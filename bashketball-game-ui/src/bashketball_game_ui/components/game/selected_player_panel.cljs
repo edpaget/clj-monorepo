@@ -12,9 +12,9 @@
    :team/AWAY {:bg "bg-red-500" :text "text-white"}})
 
 (def ^:private size-labels
-  {:size/SM "S"
-   :size/MD "M"
-   :size/LG "B"})
+  "Size to display label mapping. Supports both keyword (:size/SM) and string (\"SM\") formats."
+  {:size/SM "S" :size/MD "M" :size/LG "B"
+   "SM" "S" "MD" "M" "LG" "B"})
 
 (defui stat-row
   "Single stat display row."
@@ -66,8 +66,9 @@
   [{:keys [player token-label team catalog on-deselect on-info-click on-attachment-click]}]
   (let [{:keys [name stats exhausted modifiers attachments card-slug]} player
         {:keys [speed shooting defense dribbling passing size]}        stats
+        _ (prn size)
         colors                                                         (get team-colors team (:team/HOME team-colors))
-        size-label                                                     (get size-labels (keyword size) "?")]
+        size-label                                                     (get size-labels size "?")]
     ($ :div {:class "p-2 bg-slate-50 rounded border border-slate-200"}
        ;; Header with token, name, close button
        ($ :div {:class "flex items-center gap-1.5 mb-2"}

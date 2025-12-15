@@ -210,14 +210,11 @@
            (str (namespace value) "/" (name value))
            (name value))))
      :=
-     {:compile
-      (fn [schema _options]
-        (let [expected (first (mc/children schema))]
-          (fn [value]
-            (cond
-              (not (keyword? value)) value
-              (namespace value) (str (namespace value) "/" (name value))
-              :else (name value)))))}}}))
+     (fn [value]
+       (cond
+         (not (keyword? value)) value
+         (namespace value) (str (namespace value) "/" (name value))
+         :else (name value)))}}))
 
 (def db-encoding-transformer
   "Composite transformer for encoding application data to DB JSON.

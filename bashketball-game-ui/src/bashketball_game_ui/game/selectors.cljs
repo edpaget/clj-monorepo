@@ -86,7 +86,6 @@
 (defn all-players
   "Returns home and away player maps for the hex grid."
   [game-state]
-  (prn "PLAYERS" (:players game-state))
   {:home-players (get-in game-state [:players :team/HOME :team :players])
    :away-players (get-in game-state [:players :team/AWAY :team :players])})
 
