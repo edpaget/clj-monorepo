@@ -33,23 +33,23 @@
   - on-click: fn [player-id]
   - on-toggle-exhausted: fn [player-id] to toggle exhaust status"
   [{:keys [player team player-num selected has-ball pass-target on-click on-toggle-exhausted]}]
-  (let [position         (:position player)
+  (let [position            (:position player)
         ;; Defensive: ensure position is a valid [q r] vector
-        [cx cy]          (if (valid-position? position)
-                           (board/hex->pixel position)
-                           [0 0])
-        colors           (get team-colors team (:team/HOME team-colors))
-        exhausted?       (:exhausted player)
-        attachment-count (count (:attachments player))
-        first-letter     (or (some-> (:name player) first str) "?")
-        jersey-num       (str first-letter player-num)
+        [cx cy]             (if (valid-position? position)
+                              (board/hex->pixel position)
+                              [0 0])
+        colors              (get team-colors team (:team/HOME team-colors))
+        exhausted?          (:exhausted player)
+        attachment-count    (count (:attachments player))
+        first-letter        (or (some-> (:name player) first str) "?")
+        jersey-num          (str first-letter player-num)
 
-        handle-click     (use-callback
-                          (fn [e]
-                            (.stopPropagation e)
-                            (when on-click
-                              (on-click (:id player))))
-                          [on-click player])
+        handle-click        (use-callback
+                             (fn [e]
+                               (.stopPropagation e)
+                               (when on-click
+                                 (on-click (:id player))))
+                             [on-click player])
 
         handle-context-menu (use-callback
                              (fn [e]

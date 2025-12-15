@@ -86,3 +86,35 @@
                                               :catalog     sample-catalog}))
     (t/is (some? (screen/get-by-text "Attachments")))
     (t/is (some? (screen/get-by-text "Inline Token")))))
+
+(t/deftest exhaust-button-shows-exhaust-when-not-exhausted-test
+  (uix-tlr/render ($ selected-player-panel {:player      base-player
+                                            :token-label "H1"
+                                            :team        :team/HOME}))
+  (t/is (some? (screen/get-by-text "Exhaust")))
+  (t/is (nil? (screen/query-by-text "Unexhaust"))))
+
+(t/deftest exhaust-button-shows-unexhaust-when-exhausted-test
+  (let [exhausted-player (assoc base-player :exhausted true)]
+    (uix-tlr/render ($ selected-player-panel {:player      exhausted-player
+                                              :token-label "H1"
+                                              :team        :team/HOME}))
+    (t/is (some? (screen/get-by-text "Unexhaust")))
+    (t/is (nil? (screen/query-by-text "Exhaust")))))
+
+(t/deftest exhaust-button-calls-handler-test
+  (t/async done
+           (let [called-id (atom nil)]
+             (uix-tlr/render ($ selected-player-panel {:player              base-player
+                                                       :token-label         "H1"
+                                                       :team                :team/HOME
+                                                       :on-toggle-exhausted #(reset! called-id %)}))
+             (let [usr (user/setup)
+                   btn (screen/get-by-text "Exhaust")]
+               (-> (user/click usr btn)
+                   (.then (fn []
+                            (t/is (= "player-1" @called-id))
+                            (done)))
+                   (.catch (fn [e]
+                             (t/is false (str e))
+                             (done))))))))
