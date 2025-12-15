@@ -275,13 +275,12 @@
                                  (not standard-action-active)
                                  (not show-setup-start)
                                  (not tip-off-mode))
-        ;; Can enter standard action mode if has 2+ cards and not in other modes
-        can-standard-action (and is-my-turn
-                                 (>= my-hand-count 2)
-                                 (not setup-mode)
-                                 (not pass-active)
-                                 (not discard-active)
-                                 (not standard-action-active))]
+        ;; Show standard action button when draw/discard are shown
+        show-standard-action (and is-my-turn
+                                  (not setup-mode)
+                                  (not pass-active)
+                                  (not discard-active)
+                                  (not standard-action-active))]
 
     (cond-> []
       ;; End turn (primary) - also available during setup to pass turn
@@ -378,10 +377,11 @@
              :class    "text-amber-600 border-amber-300 hover:bg-amber-50"})
 
       ;; Standard Action (secondary) - discard 2 to play standard action
-      can-standard-action
+      show-standard-action
       (conj {:id       :standard-action
              :label    "Standard Action"
              :on-click on-enter-standard-action
+             :disabled (< my-hand-count 2)
              :class    "text-indigo-600 border-indigo-300 hover:bg-indigo-50"})
 
       ;; Cancel Standard Action
