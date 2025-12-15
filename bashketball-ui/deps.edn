@@ -5,6 +5,6 @@
   com.pitch/uix.core        {:mvn/version "1.4.4"}
   metosin/malli             {:mvn/version "0.20.0"}
   local/bashketball-schemas {:local/root "../bashketball-schemas"}
-  thheller/shadow-cljs      {:mvn/version "2.28.21"}
+  thheller/shadow-cljs      {:mvn/version "3.2.1"}
   binaryage/devtools        {:mvn/version "1.0.7"}
   local/cljs-tlr            {:local/root "../cljs-tlr"}}}

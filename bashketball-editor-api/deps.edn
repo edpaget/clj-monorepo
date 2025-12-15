@@ -3,7 +3,7 @@
  {org.clojure/clojure           {:mvn/version "1.12.4"}
   metosin/malli                 {:mvn/version "0.20.0"}
   local/bashketball-schemas     {:local/root "../bashketball-schemas"}
-  integrant/integrant           {:mvn/version "0.13.1"}
+  integrant/integrant           {:mvn/version "1.0.1"}
   aero/aero                     {:mvn/version "1.1.6"}
   ring/ring-core                {:mvn/version "1.15.3"}
   ring/ring-jetty-adapter       {:mvn/version "1.15.3"}

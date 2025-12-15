@@ -7,7 +7,7 @@
     "jose": "^5.9.6"
   },
   "devDependencies": {
-    "shadow-cljs": "^2.28.21"
+    "shadow-cljs": "^3.2.1"
   },
   "scripts": {
     "watch": "shadow-cljs watch test",
