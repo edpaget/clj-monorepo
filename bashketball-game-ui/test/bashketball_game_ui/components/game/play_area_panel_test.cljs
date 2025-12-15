@@ -85,3 +85,35 @@
                  (.catch (fn [e]
                            (t/is false (str e))
                            (done)))))))
+
+(def ability-card-play-area
+  [{:instance-id "ability-1" :card-slug "power-shot" :played-by :team/HOME}])
+
+(def ability-card-catalog
+  {"power-shot" {:name      "Power Shot"
+                 :card-type :card-type/ABILITY_CARD}})
+
+(t/deftest play-area-panel-ability-card-calls-attach-handler-test
+  (t/async done
+           (let [attach-called (atom nil)
+                 resolve-called (atom nil)
+                 _              (uix-tlr/render ($ play-area-panel {:play-area  ability-card-play-area
+                                                                    :catalog    ability-card-catalog
+                                                                    :on-attach  (fn [instance-id card-slug played-by]
+                                                                                  (reset! attach-called {:instance-id instance-id
+                                                                                                         :card-slug   card-slug
+                                                                                                         :played-by   played-by}))
+                                                                    :on-resolve #(reset! resolve-called %)}))
+                 usr            (user/setup)
+                 btn            (first (screen/get-all-by-text "Resolve"))]
+             (-> (user/click usr btn)
+                 (.then (fn []
+                          (t/is (some? @attach-called) "on-attach should be called for ability cards")
+                          (t/is (= "ability-1" (:instance-id @attach-called)))
+                          (t/is (= "power-shot" (:card-slug @attach-called)))
+                          (t/is (= :team/HOME (:played-by @attach-called)))
+                          (t/is (nil? @resolve-called) "on-resolve should NOT be called for ability cards")
+                          (done)))
+                 (.catch (fn [e]
+                           (t/is false (str e))
+                           (done)))))))

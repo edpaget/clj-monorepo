@@ -961,3 +961,34 @@
 
     (testing "regular asset still goes to discard"
       (is (= 1 (count (state/get-discard result :team/HOME)))))))
+
+;; -----------------------------------------------------------------------------
+;; Resolve Ability Card from Play Area Tests
+
+(deftest resolve-ability-card-attaches-to-player-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "power-shot"}
+        card-catalog  [{:slug      "power-shot"
+                        :name      "Power Shot"
+                        :card-type :card-type/ABILITY_CARD
+                        :fate      2}]
+        game          (-> (state/create-game test-config)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance])
+                          (assoc-in [:players :team/HOME :deck :cards] card-catalog))
+        staged        (actions/apply-action game {:type        :bashketball/stage-card
+                                                  :player      :team/HOME
+                                                  :instance-id "ability-1"})
+        result        (actions/apply-action staged {:type             :bashketball/resolve-card
+                                                    :instance-id      "ability-1"
+                                                    :target-player-id "HOME-orc-center-0"})]
+
+    (testing "ability card removed from play area"
+      (is (empty? (:play-area result))))
+
+    (testing "ability card attached to target player"
+      (let [attachments (state/get-attachments result "HOME-orc-center-0")]
+        (is (= 1 (count attachments)))
+        (is (= "ability-1" (:instance-id (first attachments))))
+        (is (= "power-shot" (:card-slug (first attachments))))))
+
+    (testing "ability card not in discard"
+      (is (empty? (state/get-discard result :team/HOME))))))

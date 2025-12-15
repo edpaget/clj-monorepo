@@ -112,12 +112,12 @@
   Renders the create token modal and handles token creation via the actions hook."
   []
   (let [{:keys [my-team actions create-token-modal]} (use-game-context)
-        {:keys [my-starter-players]}                 (use-game-derived)
+        {:keys [my-on-court-players]}                (use-game-derived)
 
         players                                      (use-memo
                                                       #(mapv (fn [p] {:id (:id p) :name (:name p)})
-                                                             (or my-starter-players []))
-                                                      [my-starter-players])
+                                                             (or my-on-court-players []))
+                                                      [my-on-court-players])
 
         on-create                                    (use-callback
                                                       (fn [{:keys [name placement target-player-id]}]

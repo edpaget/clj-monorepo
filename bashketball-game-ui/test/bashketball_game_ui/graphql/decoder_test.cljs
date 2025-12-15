@@ -184,6 +184,21 @@
       (t/is (= "PlayerCard" (:__typename result)))
       (t/is (= "test-player" (:slug result))))))
 
+(t/deftest decode-js-response-decodes-ability-card-type
+  (t/testing "decode-js-response decodes AbilityCard card-type enum to namespaced keyword"
+    (let [js-obj (clj->js {"__typename" "AbilityCard"
+                           "slug" "power-shot"
+                           "name" "Power Shot"
+                           "setSlug" "core-set"
+                           "cardType" "ABILITY_CARD"
+                           "fate" 2
+                           "abilities" []})
+          result (decoder/decode-js-response js-obj)]
+      (t/is (= "AbilityCard" (:__typename result)))
+      (t/is (= "power-shot" (:slug result)))
+      (t/is (= :card-type/ABILITY_CARD (:card-type result))
+            "card-type should be decoded to namespaced keyword"))))
+
 ;; =============================================================================
 ;; Board Position Decoding Tests
 ;; =============================================================================

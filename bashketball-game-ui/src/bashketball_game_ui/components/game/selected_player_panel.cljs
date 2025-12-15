@@ -38,9 +38,13 @@
   "Clickable badge showing an attached ability card name."
   [{:keys [attachment catalog on-click]}]
   (let [token?    (:token attachment)
+        card      (:card attachment)
         card-slug (or (:card-slug attachment)
-                      (get-in attachment [:card :slug]))
-        card-name (or (when token? (get-in attachment [:card :name]))
+                      (:slug card)
+                      (get card "slug"))
+        card-name (or (when token?
+                        (or (:name card)
+                            (get card "name")))
                       (get-in catalog [card-slug :name])
                       card-slug)]
     ($ :button {:class    (cn "px-1.5 py-0.5 rounded text-[10px] font-medium"

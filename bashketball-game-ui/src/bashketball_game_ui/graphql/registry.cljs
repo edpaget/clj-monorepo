@@ -110,6 +110,7 @@
    game-schema/GamePlayer
    game-schema/TeamRoster
    game-schema/BasketballPlayer
+   game-schema/AttachedAbility
    game-schema/Tile
    game-schema/Occupant
    game-schema/Score
