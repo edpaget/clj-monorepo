@@ -35,6 +35,7 @@ COPY cljs-tlr/src /app/cljs-tlr/src
 COPY bashketball-game-ui/shadow-cljs.edn ./
 COPY bashketball-game-ui/src ./src
 COPY bashketball-game-ui/resources ./resources
+COPY bashketball-game-ui/content ./content
 COPY bashketball-game-ui/public ./public
 COPY bashketball-game-ui/scripts ./scripts
 COPY bashketball-game-ui/tailwind.config.js ./
