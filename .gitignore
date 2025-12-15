@@ -24,3 +24,4 @@ package-lock.json
 /bashketball-game-ui/public/css
 *.md
 !bashketball-game-ui/content/**/*.md
+!bashketball-game-ui/test/fixtures/**/*.md
