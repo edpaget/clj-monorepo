@@ -106,7 +106,9 @@
    [:card {:optional true} TokenCardInput]
    [:placement {:optional true} game-schema/TokenPlacement]
    [:target-player-id {:optional true} :string]
-   [:destination {:optional true} game-schema/AssetDestination]])
+   [:destination {:optional true} game-schema/AssetDestination]
+   [:discard-instance-ids {:optional true} [:vector :string]]
+   [:card-slug {:optional true} :string]])
 
 (def GameActionResult
   "GraphQL schema for action submission result."
@@ -488,39 +490,42 @@
   [{:keys [type phase player amount count instance-id instance-ids player-id position
            modifier-id starter-id bench-id holder-id origin target
            action-type team points stat base fate modifiers total
-           card placement target-player-id destination]}]
+           card placement target-player-id destination
+           discard-instance-ids card-slug]}]
   (let [action-type-kw (keyword type)]
     (cond-> {:type action-type-kw}
-      phase            (assoc :phase (ns-enum-keyword phase :phase))
-      player           (assoc :player (ns-enum-keyword player :team))
-      amount           (assoc :amount amount)
-      count            (assoc :count count)
-      instance-id      (assoc :instance-id instance-id)
-      instance-ids     (assoc :instance-ids instance-ids)
-      player-id        (assoc :player-id player-id)
-      position         (assoc :position (vec position))
-      modifier-id      (assoc :modifier-id modifier-id)
-      starter-id       (assoc :starter-id starter-id)
-      bench-id         (assoc :bench-id bench-id)
-      holder-id        (assoc :holder-id holder-id)
-      origin           (assoc :origin (vec origin))
-      target           (assoc :target (case (:target-type target)
-                                        "position" {:type :position
-                                                    :position (vec (:position target))}
-                                        "player" {:type :player
-                                                  :player-id (:player-id target)}))
-      action-type      (assoc :action-type (ns-enum-keyword action-type :ball-action))
-      team             (assoc :team (ns-enum-keyword team :team))
-      points           (assoc :points points)
-      stat             (assoc :stat (ns-enum-keyword stat :stat))
-      base             (assoc :base base)
-      fate             (assoc :fate fate)
-      modifiers        (assoc :modifiers (vec modifiers))
-      total            (assoc :total total)
-      card             (assoc :card (convert-token-card card))
-      placement        (assoc :placement (ns-enum-keyword placement :placement))
-      target-player-id (assoc :target-player-id target-player-id)
-      destination      (assoc :destination (keyword destination)))))
+      phase                (assoc :phase (ns-enum-keyword phase :phase))
+      player               (assoc :player (ns-enum-keyword player :team))
+      amount               (assoc :amount amount)
+      count                (assoc :count count)
+      instance-id          (assoc :instance-id instance-id)
+      instance-ids         (assoc :instance-ids instance-ids)
+      player-id            (assoc :player-id player-id)
+      position             (assoc :position (vec position))
+      modifier-id          (assoc :modifier-id modifier-id)
+      starter-id           (assoc :starter-id starter-id)
+      bench-id             (assoc :bench-id bench-id)
+      holder-id            (assoc :holder-id holder-id)
+      origin               (assoc :origin (vec origin))
+      target               (assoc :target (case (:target-type target)
+                                            "position" {:type :position
+                                                        :position (vec (:position target))}
+                                            "player" {:type :player
+                                                      :player-id (:player-id target)}))
+      action-type          (assoc :action-type (ns-enum-keyword action-type :ball-action))
+      team                 (assoc :team (ns-enum-keyword team :team))
+      points               (assoc :points points)
+      stat                 (assoc :stat (ns-enum-keyword stat :stat))
+      base                 (assoc :base base)
+      fate                 (assoc :fate fate)
+      modifiers            (assoc :modifiers (vec modifiers))
+      total                (assoc :total total)
+      card                 (assoc :card (convert-token-card card))
+      placement            (assoc :placement (ns-enum-keyword placement :placement))
+      target-player-id     (assoc :target-player-id target-player-id)
+      destination          (assoc :destination (keyword destination))
+      discard-instance-ids (assoc :discard-instance-ids (vec discard-instance-ids))
+      card-slug            (assoc :card-slug card-slug))))
 
 (defresolver :Mutation :submitAction
   "Submits a game action for the authenticated user.

@@ -108,6 +108,8 @@
 
          ($ sections/attach-ability-modal-section)
 
+         ($ sections/standard-action-modal-section)
+
          ($ game-log-modal {:open?    log-open?
                             :events   (:events game-state)
                             :on-close #(set-log-open false)})

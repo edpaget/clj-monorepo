@@ -308,9 +308,8 @@
 
         proceed             (use-callback
                              (fn []
-                               (when (= 2 (count cards))
-                                 (set-step :select-action)))
-                             [cards])
+                               (set-step :select-action))
+                             [])
 
         cancel              (use-callback
                              (fn []

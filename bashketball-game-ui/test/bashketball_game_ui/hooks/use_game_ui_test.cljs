@@ -113,13 +113,12 @@
       (t/is (not (contains? (:cards result) "card-1")) "Card should be removed")
       (t/is (= 0 (:count result)) "Count should be 0"))))
 
-(t/deftest use-standard-action-mode-proceed-requires-two-cards-test
+(t/deftest use-standard-action-mode-proceed-always-advances-step-test
   (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]
     (act #((:enter (get-result hook-result))))
-    (act #((:toggle-card (get-result hook-result)) "card-1"))
     (act #((:proceed (get-result hook-result))))
     (let [result (get-result hook-result)]
-      (t/is (= :select-cards (:step result)) "Should still be in select-cards (only 1 card)"))))
+      (t/is (= :select-action (:step result)) "Should advance to select-action (UI handles validation)"))))
 
 (t/deftest use-standard-action-mode-proceed-changes-step-test
   (let [hook-result (render/render-hook #(ui/use-standard-action-mode))]

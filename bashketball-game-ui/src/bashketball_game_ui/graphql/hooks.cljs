@@ -30,12 +30,16 @@
      variables)))
 
 (defn- encode-options
-  "Encodes hook options for Apollo, converting variable keys to camelCase.
+  "Encodes hook options for Apollo, converting all keys to camelCase.
 
+  Converts option keys (like :refetch-queries -> refetchQueries) and
+  variable keys for GraphQL compatibility.
   Always returns a JS object (never null) for Apollo Client 4 compatibility."
   [options]
   (clj->js (if options
-             (update options :variables encode-variable-keys)
+             (-> options
+                 (update :variables encode-variable-keys)
+                 (->> (into {} (map (fn [[k v]] [(csk/->camelCase k) v])))))
              {})))
 
 (defn use-query
