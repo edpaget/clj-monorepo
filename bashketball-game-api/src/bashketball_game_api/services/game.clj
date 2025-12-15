@@ -19,7 +19,6 @@
   [card]
   (= :card-type/PLAYER_CARD (:card-type card)))
 
-
 (defn deck->game-config
   "Converts a validated deck to bashketball-game config format.
 
