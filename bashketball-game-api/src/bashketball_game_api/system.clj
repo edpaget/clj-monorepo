@@ -17,6 +17,7 @@
    [bashketball-game-api.models.avatar :as avatar]
    [bashketball-game-api.models.deck :as deck]
    [bashketball-game-api.models.game :as game]
+   [bashketball-game-api.models.game-event :as game-event]
    [bashketball-game-api.models.session :as session]
    [bashketball-game-api.models.user :as user]
    [bashketball-game-api.services.auth :as auth-service]
@@ -86,6 +87,10 @@
   (log/info "Creating game repository")
   (game/create-game-repository))
 
+(defmethod ig/init-key ::game-event-repo [_ _]
+  (log/info "Creating game event repository")
+  (game-event/create-game-event-repository))
+
 (defmethod ig/init-key ::avatar-repo [_ _]
   (log/info "Creating avatar repository")
   (avatar/create-avatar-repository))
@@ -104,9 +109,9 @@
   (log/info "Creating deck service")
   (deck-service/create-deck-service deck-repo card-catalog))
 
-(defmethod ig/init-key ::game-service [_ {:keys [game-repo deck-service card-catalog subscription-manager]}]
+(defmethod ig/init-key ::game-service [_ {:keys [game-repo game-event-repo deck-service card-catalog subscription-manager]}]
   (log/info "Creating game service")
-  (game-service/create-game-service game-repo deck-service card-catalog subscription-manager))
+  (game-service/create-game-service game-repo game-event-repo deck-service card-catalog subscription-manager))
 
 (defmethod ig/init-key ::starter-deck-service [_ {:keys [deck-repo card-catalog config-override]}]
   (log/info "Creating starter deck service")
@@ -236,6 +241,7 @@
                    :migrate (ig/ref ::migrate)}
    ::deck-repo {:migrate (ig/ref ::migrate)}
    ::game-repo {:migrate (ig/ref ::migrate)}
+   ::game-event-repo {:migrate (ig/ref ::migrate)}
    ::avatar-repo {:migrate (ig/ref ::migrate)}
 
    ;; Card Catalog
@@ -245,6 +251,7 @@
    ::deck-service {:deck-repo (ig/ref ::deck-repo)
                    :card-catalog (ig/ref ::card-catalog)}
    ::game-service {:game-repo (ig/ref ::game-repo)
+                   :game-event-repo (ig/ref ::game-event-repo)
                    :deck-service (ig/ref ::deck-service)
                    :card-catalog (ig/ref ::card-catalog)
                    :subscription-manager (ig/ref ::subscription-manager)}

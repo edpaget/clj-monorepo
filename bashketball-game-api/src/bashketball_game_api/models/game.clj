@@ -31,17 +31,6 @@
    [:started-at {:optional true} [:maybe inst?]]
    [:ended-at {:optional true} [:maybe inst?]]])
 
-(def GameEvent
-  "Malli schema for game event entity."
-  [:map
-   [:id {:optional true} :uuid]
-   [:game-id :uuid]
-   [:player-id {:optional true} [:maybe :uuid]]
-   [:event-type :string]
-   [:event-data {:optional true} :map]
-   [:sequence-num :int]
-   [:created-at {:optional true} inst?]])
-
 (defn- transform-game-state
   "Transforms game-state JSON from DB format to application format.
 
@@ -66,21 +55,6 @@
   [games]
   (mapv transform-game games))
 
-(defn- transform-event
-  "Transforms a game event record from DB format to application format.
-
-  Keywordizes the event-data JSON column."
-  [event]
-  (when event
-    (if (:event-data event)
-      (update event :event-data db-transform/keywordize-keys)
-      event)))
-
-(defn- transform-events
-  "Transforms a collection of event records from DB format."
-  [events]
-  (mapv transform-event events))
-
 (defn- build-where-clause
   "Builds a HoneySQL where clause from a criteria map.
    Maps input keys (with hyphens before numbers) to DB column names (without)."
@@ -101,6 +75,37 @@
                        [:= col-key v])))
                  criteria)))))
 
+(defn- build-scope-query
+  "Builds a HoneySQL where clause for a named scope.
+
+  Supported scopes:
+  - `:waiting` - Games with WAITING status
+  - `:by-player` - Games where `:player-id` is player1 or player2, optional `:status`
+  - `:active-by-player` - Active games where `:player-id` is player1 or player2"
+  [scope opts]
+  (case scope
+    :waiting
+    [:= :status [:lift :game-status/WAITING]]
+
+    :by-player
+    (let [player-id  (:player-id opts)
+          base-where [:or
+                      [:= :player1-id [:cast player-id :uuid]]
+                      [:= :player2-id [:cast player-id :uuid]]]]
+      (if-let [status (:status opts)]
+        [:and base-where [:= :status [:lift status]]]
+        base-where))
+
+    :active-by-player
+    (let [player-id (:player-id opts)]
+      [:and
+       [:= :status [:lift :game-status/ACTIVE]]
+       [:or
+        [:= :player1-id [:cast player-id :uuid]]
+        [:= :player2-id [:cast player-id :uuid]]]])
+
+    nil))
+
 (defrecord GameRepository []
   proto/Repository
   (find-by [_this criteria]
@@ -112,17 +117,22 @@
           transform-game)))
 
   (find-all [_this opts]
-    (let [query (cond-> {:select [:*]
-                         :from [:games]
-                         :order-by (or (:order-by opts) [[:created-at :desc]])}
-                  (:where opts)
-                  (assoc :where (build-where-clause (:where opts)))
+    (let [scope-where (when (:scope opts)
+                        (build-scope-query (:scope opts) opts))
+          query       (cond-> {:select [:*]
+                               :from [:games]
+                               :order-by (or (:order-by opts) [[:created-at :desc]])}
+                        scope-where
+                        (assoc :where scope-where)
 
-                  (:limit opts)
-                  (assoc :limit (:limit opts))
+                        (and (not (:scope opts)) (:where opts))
+                        (assoc :where (build-where-clause (:where opts)))
 
-                  (:offset opts)
-                  (assoc :offset (:offset opts)))]
+                        (:limit opts)
+                        (assoc :limit (:limit opts))
+
+                        (:offset opts)
+                        (assoc :offset (:offset opts)))]
       (transform-games (db/execute! query))))
 
   (create! [_this data]
@@ -185,145 +195,23 @@
   []
   (->GameRepository))
 
-(defn find-waiting-games
-  "Returns games in 'waiting' status, available to join."
-  [_repo]
-  (transform-games
-   (db/execute!
-    {:select [:*]
-     :from [:games]
-     :where [:= :status [:lift :game-status/WAITING]]
-     :order-by [[:created-at :desc]]})))
+(defprotocol GameRepositoryExt
+  "Extended repository operations specific to games."
+  (count-all [this opts]
+    "Returns count of games matching the given options.
 
-(defn find-by-player
-  "Returns games where the user is either player1 or player2.
+    Supports the same `:scope` and `:where` options as `find-all`."))
 
-  Accepts optional `opts` map with `:status`, `:limit`, and `:offset` keys."
-  ([_repo user-id]
-   (find-by-player _repo user-id {}))
-  ([_repo user-id {:keys [status limit offset]}]
-   (let [base-where   [:or
-                       [:= :player1-id [:cast user-id :uuid]]
-                       [:= :player2-id [:cast user-id :uuid]]]
-         where-clause (if status
-                        [:and base-where [:= :status [:lift status]]]
-                        base-where)
-         query        (cond-> {:select [:*]
-                               :from [:games]
-                               :where where-clause
-                               :order-by [[:created-at :desc]]}
-                        limit (assoc :limit limit)
-                        offset (assoc :offset offset))]
-     (transform-games (db/execute! query)))))
+(extend-type GameRepository
+  GameRepositoryExt
+  (count-all [_this opts]
+    (let [scope-where  (when (:scope opts)
+                         (build-scope-query (:scope opts) opts))
+          where-clause (or scope-where
+                           (when (:where opts)
+                             (build-where-clause (:where opts))))]
+      (:count (db/execute-one!
+               (cond-> {:select [[[:count :*] :count]]
+                        :from [:games]}
+                 where-clause (assoc :where where-clause)))))))
 
-(defn count-by-player
-  "Returns count of games where the user is either player1 or player2.
-
-  Accepts optional `opts` map with `:status` key for filtering."
-  ([_repo user-id]
-   (count-by-player _repo user-id {}))
-  ([_repo user-id {:keys [status]}]
-   (let [base-where   [:or
-                       [:= :player1-id [:cast user-id :uuid]]
-                       [:= :player2-id [:cast user-id :uuid]]]
-         where-clause (if status
-                        [:and base-where [:= :status [:lift status]]]
-                        base-where)]
-     (:count (db/execute-one!
-              {:select [[[:count :*] :count]]
-               :from [:games]
-               :where where-clause})))))
-
-(defn find-active-by-player
-  "Returns active games where the user is either player1 or player2."
-  [_repo user-id]
-  (transform-games
-   (db/execute!
-    {:select [:*]
-     :from [:games]
-     :where [:and
-             [:= :status [:lift :game-status/ACTIVE]]
-             [:or
-              [:= :player1-id [:cast user-id :uuid]]
-              [:= :player2-id [:cast user-id :uuid]]]]
-     :order-by [[:created-at :desc]]})))
-
-(defn update-game-state!
-  "Updates only the game state JSON field."
-  [_repo game-id game-state]
-  (-> (db/execute-one!
-       {:update :games
-        :set {:game-state [:lift game-state]}
-        :where [:= :id [:cast game-id :uuid]]
-        :returning [:*]})
-      transform-game))
-
-(defn start-game!
-  "Transitions a game to 'active' status with player2 joining."
-  [repo game-id player2-id player2-deck-id initial-state current-player-id]
-  (proto/update! repo game-id
-                 {:player-2-id player2-id
-                  :player-2-deck-id player2-deck-id
-                  :status :game-status/ACTIVE
-                  :game-state initial-state
-                  :current-player-id current-player-id
-                  :started-at (java.time.Instant/now)}))
-
-(defn end-game!
-  "Transitions a game to 'completed' or 'abandoned' status."
-  [repo game-id status winner-id]
-  (proto/update! repo game-id
-                 {:status status
-                  :winner-id winner-id
-                  :ended-at (java.time.Instant/now)}))
-
-(defn create-event!
-  "Creates a game event record."
-  [game-id player-id event-type event-data sequence-num]
-  {:pre [(m/validate GameEvent {:game-id game-id
-                                :player-id player-id
-                                :event-type event-type
-                                :event-data event-data
-                                :sequence-num sequence-num})]}
-  (-> (db/execute-one!
-       {:insert-into :game-events
-        :values [(cond-> {:game-id game-id
-                          :event-type event-type
-                          :event-data [:lift (or event-data {})]
-                          :sequence-num sequence-num
-                          :created-at (java.time.Instant/now)}
-                   player-id
-                   (assoc :player-id player-id))]
-        :returning [:*]})
-      transform-event))
-
-(defn find-events-by-game
-  "Returns all events for a game, ordered by sequence number."
-  [game-id]
-  (transform-events
-   (db/execute!
-    {:select [:*]
-     :from [:game-events]
-     :where [:= :game-id [:cast game-id :uuid]]
-     :order-by [[:sequence-num :asc]]})))
-
-(defn find-events-since
-  "Returns events for a game after a given sequence number."
-  [game-id since-sequence]
-  (transform-events
-   (db/execute!
-    {:select [:*]
-     :from [:game-events]
-     :where [:and
-             [:= :game-id [:cast game-id :uuid]]
-             [:> :sequence-num since-sequence]]
-     :order-by [[:sequence-num :asc]]})))
-
-(defn get-next-sequence-num
-  "Returns the next sequence number for a game's events."
-  [game-id]
-  (let [result (db/execute-one!
-                {:select [[[:coalesce [:max :sequence-num] 0] :max-seq]]
-                 :from [:game-events]
-                 :where [:= :game-id [:cast game-id :uuid]]})]
-    (inc (:max-seq result))))

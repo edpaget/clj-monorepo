@@ -6,6 +6,8 @@
   state management and validation."
   (:require
    [bashketball-game-api.models.game :as game-model]
+   [bashketball-game-api.models.game-event :as game-event]
+   [bashketball-game-api.models.game-utils :as game-utils]
    [bashketball-game-api.models.protocol :as proto]
    [bashketball-game-api.services.catalog :as catalog]
    [bashketball-game-api.services.deck :as deck-svc]
@@ -207,7 +209,7 @@
   (leave-game! [this game-id user-id]
     "Leaves a WAITING game (cancels it). Returns true if successful."))
 
-(defrecord GameServiceImpl [game-repo deck-service card-catalog subscription-manager]
+(defrecord GameServiceImpl [game-repo game-event-repo deck-service card-catalog subscription-manager]
   GameService
 
   (create-game! [_this user-id deck-id]
@@ -234,7 +236,7 @@
                     away-config   (deck->game-config card-catalog deck2)
                     initial-state (game-state/create-game {:home home-config
                                                            :away away-config})
-                    updated-game  (game-model/start-game! game-repo
+                    updated-game  (game-utils/start-game! game-repo
                                                           game-id
                                                           user-id
                                                           deck-id
@@ -258,24 +260,25 @@
         game)))
 
   (list-user-games [_this user-id]
-    (game-model/find-by-player game-repo user-id))
+    (proto/find-all game-repo {:scope :by-player :player-id user-id}))
 
   (list-user-games-paginated [_this user-id opts]
-    (let [games (game-model/find-by-player game-repo user-id opts)
-          total (game-model/count-by-player game-repo user-id
-                                            (select-keys opts [:status]))]
+    (let [scope-opts (cond-> {:scope :by-player :player-id user-id}
+                       (:status opts) (assoc :status (:status opts))
+                       (:limit opts) (assoc :limit (:limit opts))
+                       (:offset opts) (assoc :offset (:offset opts)))
+          games      (proto/find-all game-repo scope-opts)
+          total      (game-model/count-all game-repo (select-keys scope-opts [:scope :player-id :status]))]
       {:data games
        :total-count total}))
 
   (list-user-games-by-status [_this user-id status]
     (if (= status :game-status/ACTIVE)
-      (game-model/find-active-by-player game-repo user-id)
-      (->> (game-model/find-by-player game-repo user-id)
-           (filter #(= status (:status %)))
-           vec)))
+      (proto/find-all game-repo {:scope :active-by-player :player-id user-id})
+      (proto/find-all game-repo {:scope :by-player :player-id user-id :status status})))
 
   (list-available-games [_this user-id]
-    (->> (game-model/find-waiting-games game-repo)
+    (->> (proto/find-all game-repo {:scope :waiting})
          (remove #(= user-id (:player-1-id %)))
          vec))
 
@@ -300,12 +303,13 @@
                                      (:fate card)))
                   new-state      (-> (game-actions/apply-action hydrated-state action)
                                      strip-hydrated-cards)
-                  seq-num        (game-model/get-next-sequence-num game-id)
-                  _event         (game-model/create-event! game-id
-                                                           user-id
-                                                           (name (:type action))
-                                                           action
-                                                           seq-num)
+                  seq-num        (game-event/next-sequence-num game-event-repo game-id)
+                  _event         (proto/create! game-event-repo
+                                                {:game-id game-id
+                                                 :player-id user-id
+                                                 :event-type (name (:type action))
+                                                 :event-data action
+                                                 :sequence-num seq-num})
                   updated-game   (if (game-over? new-state)
                                    (let [winner-team (if (> (get-in new-state [:score :home])
                                                             (get-in new-state [:score :away]))
@@ -313,10 +317,10 @@
                                          winner-id   (if (= winner-team :home)
                                                        (:player-1-id game)
                                                        (:player-2-id game))]
-                                     (game-model/update-game-state! game-repo game-id new-state)
-                                     (game-model/end-game! game-repo game-id
+                                     (proto/update! game-repo game-id {:game-state new-state})
+                                     (game-utils/end-game! game-repo game-id
                                                            :game-status/COMPLETED winner-id))
-                                   (game-model/update-game-state! game-repo game-id new-state))]
+                                   (proto/update! game-repo game-id {:game-state new-state}))]
               (subs/publish! subscription-manager [:game game-id]
                              {:type :state-changed
                               :data {:game-id (str game-id)}})
@@ -332,7 +336,7 @@
         (let [winner-id (if (= user-id (:player-1-id game))
                           (:player-2-id game)
                           (:player-1-id game))
-              updated   (game-model/end-game! game-repo game-id
+              updated   (game-utils/end-game! game-repo game-id
                                               :game-status/COMPLETED winner-id)]
           (subs/publish! subscription-manager [:game game-id]
                          {:type :game-ended
@@ -354,5 +358,5 @@
 
 (defn create-game-service
   "Creates a new GameService instance."
-  [game-repo deck-service card-catalog subscription-manager]
-  (->GameServiceImpl game-repo deck-service card-catalog subscription-manager))
+  [game-repo game-event-repo deck-service card-catalog subscription-manager]
+  (->GameServiceImpl game-repo game-event-repo deck-service card-catalog subscription-manager))
