@@ -62,6 +62,14 @@
    [:position {:optional true} [:vector :int]]
    [:player-id {:optional true} :string]])
 
+(def PlacementInput
+  "Input schema for examined card placement.
+
+  Used by resolve-examined-cards action to specify where each card goes."
+  [:map {:graphql/type :PlacementInput}
+   [:instance-id :string]
+   [:destination game-schema/ExamineCardsDestination]])
+
 (def TokenCardInput
   "Input schema for creating token cards.
 
@@ -108,7 +116,8 @@
    [:target-player-id {:optional true} :string]
    [:destination {:optional true} game-schema/AssetDestination]
    [:discard-instance-ids {:optional true} [:vector :string]]
-   [:card-slug {:optional true} :string]])
+   [:card-slug {:optional true} :string]
+   [:placements {:optional true} [:vector PlacementInput]]])
 
 (def GameActionResult
   "GraphQL schema for action submission result."
@@ -275,7 +284,8 @@
   (->> (concat (:draw-pile deck)
                (:hand deck)
                (:discard deck)
-               (:removed deck))
+               (:removed deck)
+               (:examined deck))
        (map :card-slug)
        distinct))
 
@@ -482,6 +492,14 @@
   (cond-> card
     (:card-type card) (update :card-type #(ns-enum-keyword % :card-type))))
 
+(defn- convert-placement
+  "Converts a placement map from GraphQL input format.
+
+  Transforms destination string to namespaced keyword (e.g., \"TOP\" -> :examine/TOP)."
+  [{:keys [instance-id destination]}]
+  {:instance-id instance-id
+   :destination (ns-enum-keyword destination :examine)})
+
 (defn- input->action
   "Converts GraphQL ActionInput to bashketball-game action format.
 
@@ -491,7 +509,7 @@
            modifier-id starter-id bench-id holder-id origin target
            action-type team points stat base fate modifiers total
            card placement target-player-id destination
-           discard-instance-ids card-slug]}]
+           discard-instance-ids card-slug placements]}]
   (let [action-type-kw (keyword type)]
     (cond-> {:type action-type-kw}
       phase                (assoc :phase (ns-enum-keyword phase :phase))
@@ -525,7 +543,8 @@
       target-player-id     (assoc :target-player-id target-player-id)
       destination          (assoc :destination (keyword destination))
       discard-instance-ids (assoc :discard-instance-ids (vec discard-instance-ids))
-      card-slug            (assoc :card-slug card-slug))))
+      card-slug            (assoc :card-slug card-slug)
+      placements           (assoc :placements (mapv convert-placement placements)))))
 
 (defresolver :Mutation :submitAction
   "Submits a game action for the authenticated user.

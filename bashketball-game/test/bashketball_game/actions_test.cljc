@@ -1204,14 +1204,14 @@
                                              :count  3})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/apply-action examined
-                   {:type       :bashketball/resolve-examined-cards
-                    :player     :team/HOME
-                    :placements [{:instance-id (:instance-id (nth cards 2))
-                                  :destination :examine/TOP}
-                                 {:instance-id (:instance-id (nth cards 0))
-                                  :destination :examine/TOP}
-                                 {:instance-id (:instance-id (nth cards 1))
-                                  :destination :examine/DISCARD}]})]
+                                       {:type       :bashketball/resolve-examined-cards
+                                        :player     :team/HOME
+                                        :placements [{:instance-id (:instance-id (nth cards 2))
+                                                      :destination :examine/TOP}
+                                                     {:instance-id (:instance-id (nth cards 0))
+                                                      :destination :examine/TOP}
+                                                     {:instance-id (:instance-id (nth cards 1))
+                                                      :destination :examine/DISCARD}]})]
     (testing "examined zone cleared"
       (is (empty? (state/get-examined resolved :team/HOME))))
 
@@ -1230,12 +1230,12 @@
                                              :count  2})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/apply-action examined
-                   {:type       :bashketball/resolve-examined-cards
-                    :player     :team/HOME
-                    :placements [{:instance-id (:instance-id (first cards))
-                                  :destination :examine/BOTTOM}
-                                 {:instance-id (:instance-id (second cards))
-                                  :destination :examine/BOTTOM}]})]
+                                       {:type       :bashketball/resolve-examined-cards
+                                        :player     :team/HOME
+                                        :placements [{:instance-id (:instance-id (first cards))
+                                                      :destination :examine/BOTTOM}
+                                                     {:instance-id (:instance-id (second cards))
+                                                      :destination :examine/BOTTOM}]})]
     (testing "cards at bottom of deck in order"
       (let [pile (state/get-draw-pile resolved :team/HOME)]
         (is (= "card-1" (:card-slug (nth pile 3))))
@@ -1248,14 +1248,14 @@
                                              :count  3})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/apply-action examined
-                   {:type       :bashketball/resolve-examined-cards
-                    :player     :team/HOME
-                    :placements [{:instance-id (:instance-id (first cards))
-                                  :destination :examine/TOP}
-                                 {:instance-id (:instance-id (second cards))
-                                  :destination :examine/BOTTOM}
-                                 {:instance-id (:instance-id (nth cards 2))
-                                  :destination :examine/DISCARD}]})]
+                                       {:type       :bashketball/resolve-examined-cards
+                                        :player     :team/HOME
+                                        :placements [{:instance-id (:instance-id (first cards))
+                                                      :destination :examine/TOP}
+                                                     {:instance-id (:instance-id (second cards))
+                                                      :destination :examine/BOTTOM}
+                                                     {:instance-id (:instance-id (nth cards 2))
+                                                      :destination :examine/DISCARD}]})]
     (testing "top card is first in draw pile"
       (is (= "card-1" (:card-slug (first (state/get-draw-pile resolved :team/HOME))))))
 
@@ -1272,14 +1272,14 @@
                                              :count  3})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/apply-action examined
-                   {:type       :bashketball/resolve-examined-cards
-                    :player     :team/HOME
-                    :placements [{:instance-id (:instance-id (first cards))
-                                  :destination :examine/TOP}
-                                 {:instance-id (:instance-id (second cards))
-                                  :destination :examine/BOTTOM}
-                                 {:instance-id (:instance-id (nth cards 2))
-                                  :destination :examine/DISCARD}]})
+                                       {:type       :bashketball/resolve-examined-cards
+                                        :player     :team/HOME
+                                        :placements [{:instance-id (:instance-id (first cards))
+                                                      :destination :examine/TOP}
+                                                     {:instance-id (:instance-id (second cards))
+                                                      :destination :examine/BOTTOM}
+                                                     {:instance-id (:instance-id (nth cards 2))
+                                                      :destination :examine/DISCARD}]})
         event    (last (:events resolved))]
     (is (= :bashketball/resolve-examined-cards (:type event)))
     (is (= 3 (count (:resolved-placements event))))
@@ -1297,10 +1297,10 @@
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Placements must include all examined cards"
          (actions/apply-action examined
-           {:type       :bashketball/resolve-examined-cards
-            :player     :team/HOME
-            :placements [{:instance-id (:instance-id (first cards))
-                          :destination :examine/TOP}]})))))
+                               {:type       :bashketball/resolve-examined-cards
+                                :player     :team/HOME
+                                :placements [{:instance-id (:instance-id (first cards))
+                                              :destination :examine/TOP}]})))))
 
 (deftest resolve-examined-extra-placements-throws-test
   (let [game     (state/create-game test-config)
@@ -1312,11 +1312,11 @@
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Placements must include all examined cards"
          (actions/apply-action examined
-           {:type       :bashketball/resolve-examined-cards
-            :player     :team/HOME
-            :placements [{:instance-id (:instance-id (first cards))
-                          :destination :examine/TOP}
-                         {:instance-id (:instance-id (second cards))
-                          :destination :examine/TOP}
-                         {:instance-id "fake-id"
-                          :destination :examine/DISCARD}]})))))
+                               {:type       :bashketball/resolve-examined-cards
+                                :player     :team/HOME
+                                :placements [{:instance-id (:instance-id (first cards))
+                                              :destination :examine/TOP}
+                                             {:instance-id (:instance-id (second cards))
+                                              :destination :examine/TOP}
+                                             {:instance-id "fake-id"
+                                              :destination :examine/DISCARD}]})))))

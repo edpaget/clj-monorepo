@@ -406,3 +406,84 @@
             (is (some? player) (str "Could not find player with id: " player-id))
             (is (= [2 3] (:position player))
                 (str "Expected position [2 3] but got: " (:position player)))))))))
+
+;; ---------------------------------------------------------------------------
+;; Examine Cards Actions
+
+(deftest submit-examine-cards-action-test
+  (testing "examine-cards action moves cards to examined zone"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            response   (tu/graphql-request
+                        "mutation SubmitAction($gameId: Uuid!, $action: ActionInput!) {
+                         submitAction(gameId: $gameId, action: $action) { success error }
+                       }"
+                        :variables {:gameId (str (:id game))
+                                    :action {:type   "bashketball/examine-cards"
+                                             :player "home"
+                                             :count  3}}
+                        :session-id session-id)
+            result     (get-in (tu/graphql-data response) [:submitAction])]
+        (is (true? (:success result)) (str "Expected success, got error: " (:error result)))))))
+
+(deftest submit-resolve-examined-cards-action-test
+  (testing "resolve-examined-cards action places cards correctly"
+    (tu/with-db
+      (let [user1      (tu/create-test-user "user-1")
+            user2      (tu/create-test-user "user-2")
+            deck1      (tu/create-valid-test-deck (:id user1))
+            deck2      (tu/create-valid-test-deck (:id user2))
+            game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
+            joined     (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            session-id (tu/create-authenticated-session! (:id user1) :user user1)
+            ;; First examine cards
+            _          (tu/graphql-request
+                        "mutation SubmitAction($gameId: Uuid!, $action: ActionInput!) {
+                          submitAction(gameId: $gameId, action: $action) { success }
+                        }"
+                        :variables {:gameId (str (:id game))
+                                    :action {:type   "bashketball/examine-cards"
+                                             :player "home"
+                                             :count  3}}
+                        :session-id session-id)
+            ;; Get the examined cards from the game state
+            game-resp  (tu/graphql-request
+                        "query GetGame($id: Uuid!) {
+                           game(id: $id) {
+                             gameState {
+                               players {
+                                 HOME { deck { examined { instanceId cardSlug } } }
+                               }
+                             }
+                           }
+                         }"
+                        :variables {:id (str (:id game))}
+                        :session-id session-id)
+            examined   (get-in (tu/graphql-data game-resp)
+                               [:game :gameState :players :HOME :deck :examined])
+            placements (mapv (fn [card idx]
+                               {:instanceId  (:instanceId card)
+                                :destination (case idx
+                                               0 "TOP"
+                                               1 "BOTTOM"
+                                               2 "DISCARD")})
+                             examined (range))
+            ;; Now resolve the examined cards
+            response   (tu/graphql-request
+                        "mutation SubmitAction($gameId: Uuid!, $action: ActionInput!) {
+                          submitAction(gameId: $gameId, action: $action) { success error }
+                        }"
+                        :variables {:gameId (str (:id game))
+                                    :action {:type       "bashketball/resolve-examined-cards"
+                                             :player     "home"
+                                             :placements placements}}
+                        :session-id session-id)
+            result     (get-in (tu/graphql-data response) [:submitAction])]
+        (is (= 3 (count examined)) "Should have 3 examined cards")
+        (is (true? (:success result)) (str "Expected success, got error: " (:error result)))))))

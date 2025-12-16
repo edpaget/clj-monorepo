@@ -254,27 +254,27 @@
            on-start-from-tipoff on-setup-done on-next-phase on-reveal-fate
            on-shuffle on-return-discard on-substitute
            on-enter-standard-action on-cancel-standard-action on-proceed-standard-action]}]
-  (let [setup-mode          (sel/setup-mode? phase)
-        tip-off-mode        (sel/tip-off-mode? phase)
-        can-shoot           (and is-my-turn
-                                 selected-player-id
-                                 (actions/player-has-ball? game-state selected-player-id)
-                                 (actions/can-shoot? game-state my-team))
-        can-pass            (and is-my-turn
-                                 selected-player-id
-                                 (actions/player-has-ball? game-state selected-player-id)
-                                 (actions/can-pass? game-state my-team))
-        can-advance         (and is-my-turn (sel/can-advance-phase? phase))
-        next-phase-val      (sel/next-phase phase)
+  (let [setup-mode           (sel/setup-mode? phase)
+        tip-off-mode         (sel/tip-off-mode? phase)
+        can-shoot            (and is-my-turn
+                                  selected-player-id
+                                  (actions/player-has-ball? game-state selected-player-id)
+                                  (actions/can-shoot? game-state my-team))
+        can-pass             (and is-my-turn
+                                  selected-player-id
+                                  (actions/player-has-ball? game-state selected-player-id)
+                                  (actions/can-pass? game-state my-team))
+        can-advance          (and is-my-turn (sel/can-advance-phase? phase))
+        next-phase-val       (sel/next-phase phase)
         ;; Away player sees Start Game when both teams ready during setup (transitions to TIP_OFF)
-        show-setup-start    (and setup-mode both-teams-ready (= my-team :team/AWAY))
+        show-setup-start     (and setup-mode both-teams-ready (= my-team :team/AWAY))
         ;; Show End Turn unless it's setup with both teams ready and we're away, or tip-off
-        show-end-turn       (and is-my-turn
-                                 (not discard-active)
-                                 (not pass-active)
-                                 (not standard-action-active)
-                                 (not show-setup-start)
-                                 (not tip-off-mode))
+        show-end-turn        (and is-my-turn
+                                  (not discard-active)
+                                  (not pass-active)
+                                  (not standard-action-active)
+                                  (not show-setup-start)
+                                  (not tip-off-mode))
         ;; Show standard action button when draw/discard are shown
         show-standard-action (and is-my-turn
                                   (not setup-mode)
