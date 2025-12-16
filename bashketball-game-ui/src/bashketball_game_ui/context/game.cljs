@@ -7,9 +7,12 @@
   (:require
    [bashketball-game-ui.context.dispatch :refer [dispatch-provider]]
    [bashketball-game-ui.game.actions :as actions]
+   [bashketball-game-ui.game.discard-machine :as dm]
    [bashketball-game-ui.game.dispatcher :as dispatcher]
+   [bashketball-game-ui.game.peek-machine :as pm]
    [bashketball-game-ui.game.selection-machine :as sm]
    [bashketball-game-ui.game.selectors :as sel]
+   [bashketball-game-ui.game.substitute-machine :as subm]
    [bashketball-game-ui.graphql.hooks :as gql]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.graphql.subscriptions :as subscriptions]
@@ -35,17 +38,33 @@
   - `:loading` - Initial load state
   - `:error` - Error object if any
   - `:connected` - SSE connection status
+
+  Selection machine:
   - `:selection-mode` - Current selection machine state keyword
   - `:selection-data` - Selection machine data (selected player, cards, etc.)
   - `:send` - Function to send events to selection machine
   - `:can-send?` - Predicate to check if event type is valid
-  - `:discard` - Discard mode state from [[ui/use-discard-mode]]
+
+  Discard machine:
+  - `:discard-machine` - Full machine state `{:state :data}`
+  - `:send-discard` - Function to send events to discard machine
+  - `:can-send-discard?` - Predicate to check if event type is valid
+
+  Substitute machine:
+  - `:substitute-machine` - Full machine state `{:state :data}`
+  - `:send-substitute` - Function to send events to substitute machine
+  - `:can-send-substitute?` - Predicate to check if event type is valid
+
+  Peek machine:
+  - `:peek-machine` - Full machine state `{:state :data}`
+  - `:send-peek` - Function to send events to peek machine
+  - `:can-send-peek?` - Predicate to check if event type is valid
+
+  UI hooks:
   - `:detail-modal` - Card detail modal state from [[ui/use-detail-modal]]
   - `:fate-reveal` - Fate reveal modal state from [[ui/use-fate-reveal]]
-  - `:substitute-mode` - Substitution mode state from [[ui/use-substitute-mode]]
   - `:create-token-modal` - Create token modal state from [[ui/use-create-token-modal]]
-  - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]
-  - `:peek-deck-modal` - Peek deck modal state from [[ui/use-peek-deck-modal]]"
+  - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]"
   []
   (use-context game-context))
 
@@ -111,14 +130,16 @@
         ;; Selection machine state (replaces selection, pass, ball-mode, standard-action-mode)
         [machine-state set-machine-state]                             (use-state (sm/init))
 
+        ;; Modal state machines
+        [discard-machine set-discard-machine]                         (use-state (dm/init))
+        [substitute-machine set-substitute-machine]                   (use-state (subm/init))
+        [peek-machine set-peek-machine]                               (use-state (pm/init))
+
         ;; UI state hooks (remaining hooks not replaced by machine)
-        discard                                                       (ui/use-discard-mode)
         detail-modal                                                  (ui/use-detail-modal)
         fate-reveal                                                   (ui/use-fate-reveal)
-        substitute-mode                                               (ui/use-substitute-mode)
         create-token-modal                                            (ui/use-create-token-modal)
         attach-ability-modal                                          (ui/use-attach-ability-modal)
-        peek-deck-modal                                               (ui/use-peek-deck-modal)
 
         ;; Create dispatcher for selection machine
         get-ball-holder-position                                      (use-callback
@@ -147,7 +168,55 @@
         can-send?                                                     (use-callback
                                                                        (fn [event-type]
                                                                          (contains? (sm/valid-events (:state machine-state)) event-type))
-                                                                       [machine-state])]
+                                                                       [machine-state])
+
+        ;; Discard machine send function
+        send-discard                                                  (use-callback
+                                                                       (fn [event]
+                                                                         (set-discard-machine
+                                                                          (fn [current]
+                                                                            (let [result (dm/transition current event)]
+                                                                              (when-let [action (:action result)]
+                                                                                (dispatch-action action))
+                                                                              (select-keys result [:state :data])))))
+                                                                       [dispatch-action])
+
+        can-send-discard?                                             (use-callback
+                                                                       (fn [event-type]
+                                                                         (contains? (dm/valid-events discard-machine) event-type))
+                                                                       [discard-machine])
+
+        ;; Substitute machine send function
+        send-substitute                                               (use-callback
+                                                                       (fn [event]
+                                                                         (set-substitute-machine
+                                                                          (fn [current]
+                                                                            (let [result (subm/transition current event)]
+                                                                              (when-let [action (:action result)]
+                                                                                (dispatch-action action))
+                                                                              (select-keys result [:state :data])))))
+                                                                       [dispatch-action])
+
+        can-send-substitute?                                          (use-callback
+                                                                       (fn [event-type]
+                                                                         (contains? (subm/valid-events substitute-machine) event-type))
+                                                                       [substitute-machine])
+
+        ;; Peek machine send function
+        send-peek                                                     (use-callback
+                                                                       (fn [event]
+                                                                         (set-peek-machine
+                                                                          (fn [current]
+                                                                            (let [result (pm/transition current event)]
+                                                                              (when-let [action (:action result)]
+                                                                                (dispatch-action action))
+                                                                              (select-keys result [:state :data])))))
+                                                                       [dispatch-action])
+
+        can-send-peek?                                                (use-callback
+                                                                       (fn [event-type]
+                                                                         (contains? (pm/valid-events peek-machine) event-type))
+                                                                       [peek-machine])]
 
     (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
@@ -184,12 +253,21 @@
                    :selection-data        (:data machine-state)
                    :send                  send
                    :can-send?             can-send?
+                   ;; Discard machine
+                   :discard-machine       discard-machine
+                   :send-discard          send-discard
+                   :can-send-discard?     can-send-discard?
+                   ;; Substitute machine
+                   :substitute-machine    substitute-machine
+                   :send-substitute       send-substitute
+                   :can-send-substitute?  can-send-substitute?
+                   ;; Peek machine
+                   :peek-machine          peek-machine
+                   :send-peek             send-peek
+                   :can-send-peek?        can-send-peek?
                    ;; Remaining UI hooks
-                   :discard               discard
                    :detail-modal          detail-modal
                    :fate-reveal           fate-reveal
-                   :substitute-mode       substitute-mode
                    :create-token-modal    create-token-modal
-                   :attach-ability-modal  attach-ability-modal
-                   :peek-deck-modal       peek-deck-modal}}
+                   :attach-ability-modal  attach-ability-modal}}
           children))))

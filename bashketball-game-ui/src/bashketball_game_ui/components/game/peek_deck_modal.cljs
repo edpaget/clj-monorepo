@@ -1,13 +1,19 @@
 (ns bashketball-game-ui.components.game.peek-deck-modal
   "Modal component for peeking at deck cards.
 
+  Uses the peek state machine for state management. The machine handles:
+  - Count selection (1-5)
+  - Card selection for placement
+  - Placement assignment
+  - Finish guard (all cards must be placed)
+
   Two-phase flow:
   1. Select count (1-5) and click Peek
   2. Assign each card to TOP/BOTTOM/DISCARD and confirm"
   (:require
    [bashketball-ui.cards.card-preview :refer [card-preview]]
    [bashketball-ui.components.button :refer [button]]
-   [uix.core :refer [$ defui use-state use-effect]]))
+   [uix.core :refer [$ defui use-effect use-callback]]))
 
 (defui count-selector
   "Number selector for choosing how many cards to peek."
@@ -60,67 +66,71 @@
 (defui peek-deck-modal
   "Modal for peeking at deck cards.
 
+  Uses the peek state machine for state management. The machine handles all
+  state transitions including card selection and placement tracking.
+
   Props:
-  - open?: boolean, whether modal is open
-  - target-team: team keyword (:team/HOME or :team/AWAY)
-  - count: number of cards to examine
-  - phase: :select-count or :place-cards
-  - examined-cards: vector of card instances from examined zone
+  - machine-state: peek machine state `{:state :data}`
+  - send: fn to send events to the peek machine
+  - examined-cards: vector of card instances from examined zone (from game state)
   - catalog: card catalog map {slug -> card}
-  - on-count-change: fn [n] to update count
-  - on-peek: fn [] to submit examine-cards action
-  - on-resolve: fn [placements] to submit resolve action
-  - on-close: fn [] to close modal"
-  [{:keys [open? target-team count phase examined-cards catalog
-           on-count-change on-peek on-resolve on-close]}]
-  (let [[selected-id set-selected-id] (use-state nil)
-        [placements set-placements]   (use-state {})
+  - on-peek: fn [team count] to submit examine-cards action (called before machine proceeds)"
+  [{:keys [machine-state send examined-cards catalog on-peek]}]
+  (let [state          (:state machine-state)
+        data           (:data machine-state)
+        open?          (not= state :closed)
+        target-team    (:target-team data)
+        peek-count     (:count data)
+        selected-id    (:selected-id data)
+        placements     (or (:placements data) {})
+        cards          (or (:cards data) [])
 
-        all-placed?                   (= (clojure.core/count placements)
-                                         (clojure.core/count examined-cards))
+        in-place-phase (= state :place-cards)
 
-        handle-destination-click      (fn [destination]
-                                        (when selected-id
-                                          (set-placements #(assoc % selected-id destination))
-                                          (set-selected-id nil)))
+        all-placed?    (and (seq cards)
+                            (= (clojure.core/count placements)
+                               (clojure.core/count cards)))
 
-        handle-confirm                (fn []
-                                        (let [placement-vec (mapv (fn [card]
-                                                                    {:instance-id (:instance-id card)
-                                                                     :destination (get placements (:instance-id card))})
-                                                                  examined-cards)]
-                                          (on-resolve placement-vec)))]
+        handle-peek    (use-callback
+                        (fn []
+                          (on-peek target-team peek-count))
+                        [on-peek target-team peek-count])]
 
+    ;; When examined-cards arrive and we're in select-count state,
+    ;; transition to place-cards with the cards
     (use-effect
      (fn []
-       (when (not open?)
-         (set-selected-id nil)
-         (set-placements {}))
+       (when (and (= state :select-count)
+                  (seq examined-cards))
+         (send {:type :proceed
+                :data {:cards (mapv :instance-id examined-cards)}}))
        js/undefined)
-     [open?])
+     [state examined-cards send])
 
     (when open?
       ($ :div {:class "fixed inset-0 z-50 flex items-center justify-center"}
          ($ :div {:class    "fixed inset-0 bg-black/50"
-                  :on-click on-close})
+                  :on-click #(send {:type :cancel})})
          ($ :div {:class "relative bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4"}
             ($ :h2 {:class "text-lg font-semibold text-gray-900 mb-4"}
                (str "Peek Deck - " (if (= target-team :team/HOME) "HOME" "AWAY")))
 
-            (if (= phase :select-count)
+            (if (not in-place-phase)
+              ;; Phase 1: Select count
               ($ :<>
                  ($ :p {:class "text-sm text-slate-600 mb-4"}
                     "How many cards do you want to peek at?")
                  ($ :div {:class "mb-6"}
-                    ($ count-selector {:value     count
-                                       :on-change on-count-change}))
+                    ($ count-selector {:value     peek-count
+                                       :on-change #(send {:type :set-count :data {:count %}})}))
                  ($ :div {:class "flex justify-end gap-2"}
                     ($ button {:variant  :outline
-                               :on-click on-close}
+                               :on-click #(send {:type :cancel})}
                        "Cancel")
-                    ($ button {:on-click on-peek}
+                    ($ button {:on-click handle-peek}
                        "Peek")))
 
+              ;; Phase 2: Place cards
               ($ :<>
                  ($ :p {:class "text-sm text-slate-600 mb-2"}
                     "Select each card and choose where to place it:")
@@ -132,7 +142,8 @@
                                       :catalog   catalog
                                       :selected  (= (:instance-id card) selected-id)
                                       :placement (get placements (:instance-id card))
-                                      :on-click  #(set-selected-id (:instance-id card))})))
+                                      :on-click  #(send {:type :select-card
+                                                         :data {:instance-id (:instance-id card)}})})))
 
                  (when selected-id
                    ($ :div {:class "mb-4 p-3 bg-slate-50 rounded-lg"}
@@ -141,13 +152,16 @@
                       ($ :div {:class "flex gap-2 justify-center"}
                          ($ destination-button {:destination "TOP"
                                                 :label       "Top of Deck"
-                                                :on-click    handle-destination-click})
+                                                :on-click    #(send {:type :place-card
+                                                                     :data {:destination %}})})
                          ($ destination-button {:destination "BOTTOM"
                                                 :label       "Bottom of Deck"
-                                                :on-click    handle-destination-click})
+                                                :on-click    #(send {:type :place-card
+                                                                     :data {:destination %}})})
                          ($ destination-button {:destination "DISCARD"
                                                 :label       "Discard"
-                                                :on-click    handle-destination-click}))))
+                                                :on-click    #(send {:type :place-card
+                                                                     :data {:destination %}})}))))
 
                  (when (seq placements)
                    ($ :div {:class "mb-4 text-sm text-slate-600"}
@@ -161,8 +175,8 @@
 
                  ($ :div {:class "flex justify-end gap-2"}
                     ($ button {:variant  :outline
-                               :on-click on-close}
+                               :on-click #(send {:type :cancel})}
                        "Cancel")
                     ($ button {:disabled (not all-placed?)
-                               :on-click handle-confirm}
+                               :on-click #(send {:type :finish})}
                        "Confirm")))))))))

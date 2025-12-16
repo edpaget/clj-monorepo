@@ -4,58 +4,13 @@
   Groups related state into reusable hooks that encapsulate state
   and state transitions for common UI patterns.
 
-  Note: Selection-related hooks (player selection, pass mode, ball mode,
-  standard action mode) have been migrated to the selection state machine.
-  See [[bashketball-game-ui.game.selection-machine]]."
+  Note: Selection, discard, substitute, and peek interactions have been migrated
+  to pure state machines. See:
+  - [[bashketball-game-ui.game.selection-machine]]
+  - [[bashketball-game-ui.game.discard-machine]]
+  - [[bashketball-game-ui.game.substitute-machine]]
+  - [[bashketball-game-ui.game.peek-machine]]"
   (:require [uix.core :refer [use-state use-callback use-memo]]))
-
-(defn use-discard-mode
-  "Hook for managing discard mode and selected cards.
-
-  Returns a map with:
-  - :active - boolean, true if discard mode is active
-  - :cards - set of selected card instance-ids for discard
-  - :count - number of cards selected
-  - :toggle-card - function to toggle a card in the discard set (by instance-id)
-  - :enter - function to enter discard mode (clears previous selections)
-  - :cancel - function to exit discard mode and clear selections
-  - :get-cards-and-exit - function that returns selected instance-ids and exits mode"
-  []
-  (let [[active set-active] (use-state false)
-        [cards set-cards]   (use-state #{})
-        toggle-card         (use-callback
-                             (fn [instance-id]
-                               (set-cards #(if (contains? % instance-id)
-                                             (disj % instance-id)
-                                             (conj % instance-id))))
-                             [])
-        enter               (use-callback
-                             (fn []
-                               (set-active true)
-                               (set-cards #{}))
-                             [])
-        cancel              (use-callback
-                             (fn []
-                               (set-active false)
-                               (set-cards #{}))
-                             [])
-        get-cards-and-exit  (use-callback
-                             (fn []
-                               (let [result cards]
-                                 (set-active false)
-                                 (set-cards #{})
-                                 result))
-                             [cards])]
-    (use-memo
-     (fn []
-       {:active             active
-        :cards              cards
-        :count              (count cards)
-        :toggle-card        toggle-card
-        :enter              enter
-        :cancel             cancel
-        :get-cards-and-exit get-cards-and-exit})
-     [active cards toggle-card enter cancel get-cards-and-exit])))
 
 (defn use-detail-modal
   "Hook for managing card detail modal state.
@@ -96,38 +51,6 @@
         :show  show
         :close close})
      [fate show close])))
-
-(defn use-substitute-mode
-  "Hook for managing substitution mode state.
-
-  Returns a map with:
-  - :active - boolean, true when in substitution selection mode
-  - :on-court-id - selected on-court player to substitute out, or nil
-  - :set-on-court - fn [id] to select an on-court player
-  - :enter - function to enter substitution mode
-  - :cancel - function to exit substitution mode and clear selection"
-  []
-  (let [[active set-active]           (use-state false)
-        [on-court-id set-on-court-id] (use-state nil)
-        set-on-court                  (use-callback #(set-on-court-id %) [])
-        enter                         (use-callback
-                                       (fn []
-                                         (set-active true)
-                                         (set-on-court-id nil))
-                                       [])
-        cancel                        (use-callback
-                                       (fn []
-                                         (set-active false)
-                                         (set-on-court-id nil))
-                                       [])]
-    (use-memo
-     (fn []
-       {:active       active
-        :on-court-id  on-court-id
-        :set-on-court set-on-court
-        :enter        enter
-        :cancel       cancel})
-     [active on-court-id set-on-court enter cancel])))
 
 (defn use-side-panel-mode
   "Hook for managing side panel view mode.
@@ -196,50 +119,3 @@
         :show        show
         :close       close})
      [card-data show close])))
-
-(defn use-peek-deck-modal
-  "Hook for managing peek deck modal state.
-
-  Returns a map with:
-  - :open? - boolean, true if modal is open
-  - :target-team - team whose deck to peek (:team/HOME or :team/AWAY)
-  - :count - number of cards to examine (1-5)
-  - :phase - :select-count or :place-cards
-  - :show - fn [team] to open the modal for a team
-  - :close - fn [] to close the modal and reset state
-  - :set-count - fn [n] to update the count
-  - :set-phase - fn [phase] to change the phase"
-  []
-  (let [[modal-data set-modal-data] (use-state nil)
-
-        show                        (use-callback
-                                     (fn [team]
-                                       (set-modal-data {:target-team team
-                                                        :count       3
-                                                        :phase       :select-count}))
-                                     [])
-
-        close                       (use-callback
-                                     #(set-modal-data nil)
-                                     [])
-
-        set-count                   (use-callback
-                                     (fn [n]
-                                       (set-modal-data #(assoc % :count n)))
-                                     [])
-
-        set-phase                   (use-callback
-                                     (fn [phase]
-                                       (set-modal-data #(assoc % :phase phase)))
-                                     [])]
-    (use-memo
-     (fn []
-       {:open?       (some? modal-data)
-        :target-team (:target-team modal-data)
-        :count       (:count modal-data)
-        :phase       (:phase modal-data)
-        :show        show
-        :close       close
-        :set-count   set-count
-        :set-phase   set-phase})
-     [modal-data show close set-count set-phase])))

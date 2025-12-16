@@ -19,7 +19,6 @@
    [bashketball-game-ui.game.selectors :as sel]
    [bashketball-game-ui.hooks.use-game-derived :refer [use-game-derived]]
    [bashketball-game-ui.hooks.use-game-handlers :refer [use-game-handlers]]
-   [bashketball-game-ui.hooks.use-selection-machine :refer [use-selection-machine]]
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui use-callback use-memo use-state]]))
@@ -202,41 +201,28 @@
 (defui peek-deck-modal-section
   "Modal section for peeking at deck cards.
 
-  Renders the peek deck modal with two phases:
+  Uses the peek state machine for state management. Renders the peek deck
+  modal with two phases:
   1. Select count (1-5 cards)
   2. Assign each card to TOP/BOTTOM/DISCARD"
   []
-  (let [{:keys [game-state catalog actions]
-         peek-modal :peek-deck-modal}
+  (let [{:keys [game-state catalog actions peek-machine send-peek]}
         (use-game-context)
 
-        target-team                         (:target-team peek-modal)
-        examined-cards                      (when target-team
-                                              (get-in game-state [:players target-team :deck :examined]))
+        target-team                                                 (get-in peek-machine [:data :target-team])
+        examined-cards                                              (when target-team
+                                                                      (get-in game-state [:players target-team :deck :examined]))
 
-        on-peek                             (use-callback
-                                             (fn []
-                                               (-> ((:examine-cards actions) target-team (:count peek-modal))
-                                                   (.then #((:set-phase peek-modal) :place-cards))
-                                                   (.catch #(js/console.error "Examine cards failed:" %))))
-                                             [actions target-team peek-modal])
-
-        on-resolve                          (use-callback
-                                             (fn [placements]
-                                               (-> ((:resolve-examined-cards actions) target-team placements)
-                                                   (.then #((:close peek-modal)))
-                                                   (.catch #(js/console.error "Resolve examined cards failed:" %))))
-                                             [actions target-team peek-modal])]
-    ($ peek-deck-modal {:open?           (:open? peek-modal)
-                        :target-team     target-team
-                        :count           (:count peek-modal)
-                        :phase           (:phase peek-modal)
+        on-peek                                                     (use-callback
+                                                                     (fn [team count]
+                                                                       (-> ((:examine-cards actions) team count)
+                                                                           (.catch #(js/console.error "Examine cards failed:" %))))
+                                                                     [actions])]
+    ($ peek-deck-modal {:machine-state   peek-machine
+                        :send            send-peek
                         :examined-cards  examined-cards
                         :catalog         catalog
-                        :on-count-change (:set-count peek-modal)
-                        :on-peek         on-peek
-                        :on-resolve      on-resolve
-                        :on-close        (:close peek-modal)})))
+                        :on-peek         on-peek})))
 
 ;; -----------------------------------------------------------------------------
 ;; Three-Column Layout Sections
@@ -549,8 +535,8 @@
   "Bottom bar with hand and actions."
   []
   (let [{:keys [game-state catalog my-team is-my-turn actions send
-                selection-mode selection-data discard substitute-mode
-                detail-modal peek-deck-modal]}
+                selection-mode selection-data send-discard send-substitute
+                detail-modal send-peek]}
         (use-game-context)
 
         {:keys [phase selected-player-id selected-card pass-active discard-active
@@ -566,8 +552,12 @@
         [hand-expanded set-hand-expanded]                                           (use-state false)
 
         opponent-team                                                               (if (= my-team :team/HOME) :team/AWAY :team/HOME)
-        on-peek-my-deck                                                             (use-callback #((:show peek-deck-modal) my-team) [my-team peek-deck-modal])
-        on-peek-opponent-deck                                                       (use-callback #((:show peek-deck-modal) opponent-team) [opponent-team peek-deck-modal])
+        on-peek-my-deck                                                             (use-callback
+                                                                                     #(send-peek {:type :show :data {:team my-team}})
+                                                                                     [my-team send-peek])
+        on-peek-opponent-deck                                                       (use-callback
+                                                                                     #(send-peek {:type :show :data {:team opponent-team}})
+                                                                                     [opponent-team send-peek])
 
         setup-mode                                                                  (sel/setup-mode? phase)
         tip-off-mode                                                                (sel/tip-off-mode? phase)
@@ -630,8 +620,8 @@
                                                                                       :on-cancel-pass                on-cancel-pass
                                                                                       :on-play-card                  on-play-card
                                                                                       :on-draw                       on-draw
-                                                                                      :on-enter-discard              (:enter discard)
-                                                                                      :on-cancel-discard             (:cancel discard)
+                                                                                      :on-enter-discard              #(send-discard {:type :enter})
+                                                                                      :on-cancel-discard             #(send-discard {:type :cancel})
                                                                                       :on-submit-discard             on-submit-discard
                                                                                       :on-start-game                 on-start-game
                                                                                       :on-start-from-tipoff          on-start-from-tipoff
@@ -640,7 +630,7 @@
                                                                                       :on-reveal-fate                on-reveal-fate
                                                                                       :on-shuffle                    on-shuffle
                                                                                       :on-return-discard             on-return-discard
-                                                                                      :on-substitute                 (:enter substitute-mode)
+                                                                                      :on-substitute                 #(send-substitute {:type :enter})
                                                                                       :on-enter-standard-action      on-enter-standard-action
                                                                                       :on-cancel-standard-action     on-cancel-standard-action
                                                                                       :on-proceed-standard-action    on-proceed-standard-action

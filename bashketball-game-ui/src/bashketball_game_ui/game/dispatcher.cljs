@@ -67,4 +67,24 @@
             (.then #(js/console.log "Standard action staged:" %))
             (.catch #(js/console.error "Standard action error:" %))))
 
+      :substitute
+      (let [on-court-id  (:on-court-id action)
+            off-court-id (:off-court-id action)]
+        (-> ((:substitute actions) on-court-id off-court-id)
+            (.then #(js/console.log "Substitute result:" %))
+            (.catch #(js/console.error "Substitute error:" %))))
+
+      :discard-cards
+      (let [cards (:cards action)]
+        (-> ((:discard-cards actions) my-team (vec cards))
+            (.then #(js/console.log "Discard result:" %))
+            (.catch #(js/console.error "Discard error:" %))))
+
+      :resolve-peek
+      (let [target-team (:target-team action)
+            placements  (:placements action)]
+        (-> ((:resolve-examined-cards actions) target-team placements)
+            (.then #(js/console.log "Peek resolve result:" %))
+            (.catch #(js/console.error "Peek resolve error:" %))))
+
       (js/console.warn "Unknown action type:" type action))))

@@ -38,15 +38,14 @@
   - `:on-shuffle` - Handler for shuffling deck
   - `:on-return-discard` - Handler for returning discard to deck
   - `:on-move-asset` - Handler for moving asset to discard or removed zone
-  - `:on-substitute` - Handler for player substitution
   - `:on-target-click` - Handler for clicking in-air ball target to resolve
   - `:on-toggle-exhausted` - Handler for toggling player exhaust status"
   []
   (let [{:keys [game-state my-team actions send selection-data
-                discard fate-reveal substitute-mode attach-ability-modal]}
+                discard-machine send-discard fate-reveal attach-ability-modal]}
         (use-game-context)
 
-        {:keys [selected-card phase discard-cards]}
+        {:keys [selected-card phase]}
         (use-game-derived)
 
         on-end-turn
@@ -130,13 +129,13 @@
         on-submit-discard
         (use-callback
          (fn []
-           (when (pos? (:count discard))
-             (let [cards         ((:get-cards-and-exit discard))
-                   new-selection (h/selection-after-discard selected-card cards)]
-               (when (not= new-selection selected-card)
-                 (send {:type :click-card :data {:instance-id new-selection}}))
-               ((:discard-cards actions) my-team (vec cards)))))
-         [discard my-team actions selected-card send])
+           (let [cards (get-in discard-machine [:data :cards])]
+             (when (seq cards)
+               (let [new-selection (h/selection-after-discard selected-card cards)]
+                 (when (not= new-selection selected-card)
+                   (send {:type :click-card :data {:instance-id new-selection}}))
+                 (send-discard {:type :submit})))))
+         [discard-machine send-discard selected-card send])
 
         on-reveal-fate
         (use-callback
@@ -168,16 +167,6 @@
                (.then #(js/console.log "Asset moved:" %))
                (.catch #(js/console.error "Move asset error:" %))))
          [my-team actions])
-
-        on-substitute
-        (use-callback
-         (fn [off-court-id]
-           (let [on-court-id (:on-court-id substitute-mode)]
-             (-> ((:substitute actions) on-court-id off-court-id)
-                 (.then #(js/console.log "Substitute result:" %))
-                 (.catch #(js/console.error "Substitute error:" %)))
-             ((:cancel substitute-mode))))
-         [actions substitute-mode])
 
         on-target-click
         (use-callback
@@ -229,6 +218,5 @@
      :on-shuffle            on-shuffle
      :on-return-discard     on-return-discard
      :on-move-asset         on-move-asset
-     :on-substitute         on-substitute
      :on-target-click       on-target-click
      :on-toggle-exhausted   on-toggle-exhausted}))

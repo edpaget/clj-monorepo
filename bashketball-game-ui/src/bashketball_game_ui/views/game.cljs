@@ -3,8 +3,8 @@
 
   Displays the active game with board, players, and actions.
   Uses the game context provider for real-time state updates.
-  Sections consume context directly via [[use-game-context]],
-  [[use-game-derived]], and [[use-game-handlers]]."
+  Sections consume context directly via [[use-game-context]]
+  and [[use-game-derived]]."
   (:require
    [bashketball-game-ui.components.game.card-detail-modal :refer [card-detail-modal]]
    [bashketball-game-ui.components.game.fate-reveal-modal :refer [fate-reveal-modal]]
@@ -14,7 +14,6 @@
    [bashketball-game-ui.context.auth :refer [use-auth]]
    [bashketball-game-ui.context.game :refer [game-provider use-game-context]]
    [bashketball-game-ui.hooks.use-game-derived :refer [use-game-derived]]
-   [bashketball-game-ui.hooks.use-game-handlers :refer [use-game-handlers]]
    [bashketball-game-ui.views.game.sections :as sections]
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.router :as router]
@@ -29,21 +28,19 @@
   Uses three-column layout on large screens (≥1024px), stacked layout
   on smaller screens."
   []
-  (let [{:keys [game game-state loading error detail-modal fate-reveal substitute-mode]}
+  (let [{:keys [game game-state loading error detail-modal fate-reveal
+                substitute-machine send-substitute]}
         (use-game-context)
 
         {:keys [my-on-court-players my-off-court-players
                 home-players away-players]}
         (use-game-derived)
 
-        {:keys [on-substitute]}
-        (use-game-handlers)
-
-        on-info-click                                                                    (:show detail-modal)
+        on-info-click                                                  (:show detail-modal)
 
         ;; Modal state for log and roster
-        [log-open? set-log-open]                                                         (use-state false)
-        [roster-open? set-roster-open]                                                   (use-state false)]
+        [log-open? set-log-open]                                       (use-state false)
+        [roster-open? set-roster-open]                                 (use-state false)]
 
     (cond
       loading
@@ -96,13 +93,10 @@
                                :fate     (:fate fate-reveal)
                                :on-close (:close fate-reveal)})
 
-         ($ substitute-modal {:open?               (:active substitute-mode)
+         ($ substitute-modal {:machine-state      substitute-machine
+                              :send               send-substitute
                               :on-court-players   my-on-court-players
-                              :off-court-players  my-off-court-players
-                              :selected-on-court  (:on-court-id substitute-mode)
-                              :on-on-court-select (:set-on-court substitute-mode)
-                              :on-off-court-select on-substitute
-                              :on-close           (:cancel substitute-mode)})
+                              :off-court-players  my-off-court-players})
 
          ($ sections/create-token-modal-section)
 
