@@ -30,7 +30,7 @@
   - `:substitute` - fn [on-court-id off-court-id] -> Promise (swap on-court with off-court player)
   - `:stage-card` - fn [team instance-id] -> Promise (move card from hand to play area)
   - `:resolve-card` - fn [instance-id target-player-id?] -> Promise (move card from play area to discard/assets/attachment)
-  - `:move-asset` - fn [team instance-id destination] -> Promise (move asset to :discard or :removed)
+  - `:move-asset` - fn [team instance-id destination] -> Promise (move asset to :DISCARD or :REMOVED)
   - `:add-score` - fn [team points] -> Promise (add points to team, negative to decrement)
   - `:create-token` - fn [team card placement target-player-id] -> Promise (create token as asset or attached)
   - `:stage-virtual-standard-action` - fn [team discard-instance-ids card-slug] -> Promise (discard 2 cards and stage virtual standard action)

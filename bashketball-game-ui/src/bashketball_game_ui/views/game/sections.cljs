@@ -2,7 +2,7 @@
   "Sub-components for the game view.
 
   Each section consumes [[use-game-context]], [[use-game-derived]], and
-  [[use-game-handlers]] directly to access game state and actions,
+  [[use-dispatch]] to access game state and dispatch actions,
   eliminating prop drilling from the parent component."
   (:require
    [bashketball-game-ui.components.game.attach-ability-modal :as attach-modal]
@@ -14,11 +14,11 @@
    [bashketball-game-ui.components.game.play-area-panel :refer [play-area-panel]]
    [bashketball-game-ui.components.game.standard-action-modal :as standard-modal]
    [bashketball-game-ui.components.game.team-column :refer [team-column]]
+   [bashketball-game-ui.context.dispatch :refer [use-dispatch]]
    [bashketball-game-ui.context.game :refer [use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
    [bashketball-game-ui.game.selectors :as sel]
    [bashketball-game-ui.hooks.use-game-derived :refer [use-game-derived]]
-   [bashketball-game-ui.hooks.use-game-handlers :refer [use-game-handlers]]
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui use-callback use-memo use-state]]))
@@ -77,7 +77,7 @@
         {:keys [home-players away-players selected-player-id
                 valid-moves valid-setup-positions pass-active
                 valid-pass-targets ball-active]}              (use-game-derived)
-        {:keys [on-target-click on-toggle-exhausted]}         (use-game-handlers)
+        dispatch                                              (use-dispatch)
 
         ;; Wrap selection machine events
         on-hex-click                                          (use-callback
@@ -93,7 +93,17 @@
         on-ball-click                                         (use-callback
                                                                (fn []
                                                                  (send {:type :click-ball}))
-                                                               [send])]
+                                                               [send])
+
+        on-target-click                                       (use-callback
+                                                               (fn []
+                                                                 (dispatch {:type :target-click}))
+                                                               [dispatch])
+
+        on-toggle-exhausted                                   (use-callback
+                                                               (fn [player-id]
+                                                                 (dispatch {:type :toggle-exhausted :player-id player-id}))
+                                                               [dispatch])]
     ($ :div {:class "flex-1 bg-white rounded-lg border border-slate-200 p-2 min-h-0"}
        ($ hex-grid {:board               (:board game-state)
                     :ball                (:ball game-state)
@@ -116,12 +126,25 @@
   []
   (let [{:keys [catalog detail-modal create-token-modal]} (use-game-context)
         {:keys [play-area]}                               (use-game-derived)
-        {:keys [on-resolve-card on-open-attach-modal]}    (use-game-handlers)]
+        dispatch                                          (use-dispatch)
+
+        on-resolve                                        (use-callback
+                                                           (fn [instance-id]
+                                                             (dispatch {:type :resolve-card :instance-id instance-id}))
+                                                           [dispatch])
+
+        on-attach                                         (use-callback
+                                                           (fn [instance-id card-slug played-by]
+                                                             (dispatch {:type :open-attach-modal
+                                                                        :instance-id instance-id
+                                                                        :card-slug   card-slug
+                                                                        :played-by   played-by}))
+                                                           [dispatch])]
     (when (seq play-area)
       ($ play-area-panel {:play-area       play-area
                           :catalog         catalog
-                          :on-resolve      on-resolve-card
-                          :on-attach       on-open-attach-modal
+                          :on-resolve      on-resolve
+                          :on-attach       on-attach
                           :on-info-click   (:show detail-modal)
                           :on-create-token (:show create-token-modal)}))))
 
@@ -156,10 +179,10 @@
 (defui attach-ability-modal-section
   "Modal section for attaching ability cards to players.
 
-  Renders the attach ability modal and handles ability resolution via the actions hook."
+  Renders the attach ability modal and handles ability resolution via dispatch."
   []
   (let [{:keys [game-state catalog attach-ability-modal]} (use-game-context)
-        {:keys [on-resolve-ability]}                      (use-game-handlers)
+        dispatch                                          (use-dispatch)
 
         played-by                                         (:played-by attach-ability-modal)
         players                                           (use-memo
@@ -167,7 +190,12 @@
                                                               (->> (vals team-players)
                                                                    (filter :position)
                                                                    (mapv (fn [p] {:id (:id p) :name (:name p)}))))
-                                                           [game-state played-by])]
+                                                           [game-state played-by])
+
+        on-resolve-ability                                (use-callback
+                                                           (fn [target-player-id]
+                                                             (dispatch {:type :resolve-ability :target-player-id target-player-id}))
+                                                           [dispatch])]
     ($ attach-modal/attach-ability-modal {:open?      (:open? attach-ability-modal)
                                           :card-slug  (:card-slug attach-ability-modal)
                                           :players    players
@@ -237,7 +265,7 @@
   (let [{:keys [game-state catalog my-team send]}             (use-game-context)
         {:keys [home-players away-players score
                 active-player selected-player-id setup-mode]} (use-game-derived)
-        {:keys [on-move-asset on-toggle-exhausted]}           (use-game-handlers)
+        dispatch                                              (use-dispatch)
 
         players                                               (if (= team :team/HOME) home-players away-players)
 
@@ -288,7 +316,19 @@
         on-player-select                                      (use-callback
                                                                (fn [player-id]
                                                                  (send {:type :click-player :data {:player-id player-id}}))
-                                                               [send])]
+                                                               [send])
+
+        on-move-asset                                         (use-callback
+                                                               (fn [instance-id destination]
+                                                                 (dispatch {:type        :move-asset
+                                                                            :instance-id instance-id
+                                                                            :destination destination}))
+                                                               [dispatch])
+
+        on-toggle-exhausted                                   (use-callback
+                                                               (fn [player-id]
+                                                                 (dispatch {:type :toggle-exhausted :player-id player-id}))
+                                                               [dispatch])]
     ($ team-column {:team                team
                     :score               (get score team 0)
                     :is-active           (= active-player team)
@@ -544,10 +584,7 @@
                 my-hand standard-action-active standard-action-cards]}
         (use-game-derived)
 
-        {:keys [on-end-turn on-shoot on-play-card on-draw on-start-game
-                on-start-from-tipoff on-setup-done on-next-phase on-submit-discard
-                on-reveal-fate on-shuffle on-return-discard]}
-        (use-game-handlers)
+        dispatch                                                                    (use-dispatch)
 
         [hand-expanded set-hand-expanded]                                           (use-state false)
 
@@ -565,6 +602,20 @@
                                                                                          selected-player-id
                                                                                          (seq (actions/valid-move-positions game-state selected-player-id)))
         loading                                                                     (:loading actions)
+
+        ;; Dispatch-based handlers
+        on-end-turn                                                                 (use-callback #(dispatch {:type :end-turn}) [dispatch])
+        on-shoot                                                                    (use-callback #(dispatch {:type :shoot}) [dispatch])
+        on-play-card                                                                (use-callback #(dispatch {:type :play-card}) [dispatch])
+        on-draw                                                                     (use-callback #(dispatch {:type :draw}) [dispatch])
+        on-start-game                                                               (use-callback #(dispatch {:type :start-game}) [dispatch])
+        on-start-from-tipoff                                                        (use-callback #(dispatch {:type :start-from-tipoff}) [dispatch])
+        on-setup-done                                                               (use-callback #(dispatch {:type :setup-done}) [dispatch])
+        on-next-phase                                                               (use-callback #(dispatch {:type :next-phase}) [dispatch])
+        on-submit-discard                                                           (use-callback #(dispatch {:type :submit-discard}) [dispatch])
+        on-reveal-fate                                                              (use-callback #(dispatch {:type :reveal-fate}) [dispatch])
+        on-shuffle                                                                  (use-callback #(dispatch {:type :shuffle}) [dispatch])
+        on-return-discard                                                           (use-callback #(dispatch {:type :return-discard}) [dispatch])
 
         ;; Selection machine handlers
         on-card-click                                                               (use-callback

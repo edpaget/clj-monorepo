@@ -9,6 +9,7 @@
    [bashketball-game-api.models.game-event :as game-event]
    [bashketball-game-api.models.game-utils :as game-utils]
    [bashketball-game-api.models.protocol :as proto]
+   [bashketball-game-api.models.transaction :refer [in-transaction]]
    [bashketball-game-api.services.catalog :as catalog]
    [bashketball-game-api.services.deck :as deck-svc]
    [bashketball-game.actions :as game-actions]
@@ -209,7 +210,7 @@
   (leave-game! [this game-id user-id]
     "Leaves a WAITING game (cancels it). Returns true if successful."))
 
-(defrecord GameServiceImpl [game-repo game-event-repo deck-service card-catalog subscription-manager]
+(defrecord GameServiceImpl [game-repo game-event-repo deck-service card-catalog subscription-manager tx-manager]
   GameService
 
   (create-game! [_this user-id deck-id]
@@ -291,9 +292,7 @@
                                       (pr-str (game-schema/explain-action action)))}
           (try
             (let [current-state  (:game-state game)
-                  ;; Hydrate with card data for action processing (e.g., team asset detection)
                   hydrated-state (hydrate-game-state current-state card-catalog)
-                  ;; For reveal-fate, capture the top card's fate before action
                   revealed-fate  (when (= :bashketball/reveal-fate (:type action))
                                    (let [player    (:player action)
                                          card-slug (get-in current-state
@@ -303,24 +302,25 @@
                                      (:fate card)))
                   new-state      (-> (game-actions/apply-action hydrated-state action)
                                      strip-hydrated-cards)
-                  seq-num        (game-event/next-sequence-num game-event-repo game-id)
-                  _event         (proto/create! game-event-repo
-                                                {:game-id game-id
-                                                 :player-id user-id
-                                                 :event-type (name (:type action))
-                                                 :event-data action
-                                                 :sequence-num seq-num})
-                  updated-game   (if (game-over? new-state)
-                                   (let [winner-team (if (> (get-in new-state [:score :home])
-                                                            (get-in new-state [:score :away]))
-                                                       :home :away)
-                                         winner-id   (if (= winner-team :home)
-                                                       (:player-1-id game)
-                                                       (:player-2-id game))]
-                                     (proto/update! game-repo game-id {:game-state new-state})
-                                     (game-utils/end-game! game-repo game-id
-                                                           :game-status/COMPLETED winner-id))
-                                   (proto/update! game-repo game-id {:game-state new-state}))]
+                  updated-game   (in-transaction tx-manager
+                                   (let [seq-num (game-event/next-sequence-num game-event-repo game-id)]
+                                     (proto/create! game-event-repo
+                                                    {:game-id game-id
+                                                     :player-id user-id
+                                                     :event-type (name (:type action))
+                                                     :event-data action
+                                                     :sequence-num seq-num}))
+                                   (if (game-over? new-state)
+                                     (let [winner-team (if (> (get-in new-state [:score :home])
+                                                              (get-in new-state [:score :away]))
+                                                         :home :away)
+                                           winner-id   (if (= winner-team :home)
+                                                         (:player-1-id game)
+                                                         (:player-2-id game))]
+                                       (proto/update! game-repo game-id {:game-state new-state})
+                                       (game-utils/end-game! game-repo game-id
+                                                             :game-status/COMPLETED winner-id))
+                                     (proto/update! game-repo game-id {:game-state new-state})))]
               (subs/publish! subscription-manager [:game game-id]
                              {:type :state-changed
                               :data {:game-id (str game-id)}})
@@ -357,6 +357,10 @@
           deleted)))))
 
 (defn create-game-service
-  "Creates a new GameService instance."
-  [game-repo game-event-repo deck-service card-catalog subscription-manager]
-  (->GameServiceImpl game-repo game-event-repo deck-service card-catalog subscription-manager))
+  "Creates a new GameService instance.
+
+  Takes repository dependencies, catalog, subscription manager, and a
+  [[bashketball-game-api.models.transaction/Transactable]] for wrapping
+  multi-step database operations in transactions."
+  [game-repo game-event-repo deck-service card-catalog subscription-manager tx-manager]
+  (->GameServiceImpl game-repo game-event-repo deck-service card-catalog subscription-manager tx-manager))

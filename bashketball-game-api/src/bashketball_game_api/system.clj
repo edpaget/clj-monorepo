@@ -19,6 +19,7 @@
    [bashketball-game-api.models.game :as game]
    [bashketball-game-api.models.game-event :as game-event]
    [bashketball-game-api.models.session :as session]
+   [bashketball-game-api.models.transaction :as tx]
    [bashketball-game-api.models.user :as user]
    [bashketball-game-api.services.auth :as auth-service]
    [bashketball-game-api.services.avatar :as avatar-service]
@@ -95,6 +96,10 @@
   (log/info "Creating avatar repository")
   (avatar/create-avatar-repository))
 
+(defmethod ig/init-key ::tx-manager [_ _]
+  (log/info "Creating transaction manager")
+  (tx/create-transaction-manager))
+
 ;; ---------------------------------------------------------------------------
 ;; Card Catalog (Phase 4)
 
@@ -109,9 +114,9 @@
   (log/info "Creating deck service")
   (deck-service/create-deck-service deck-repo card-catalog))
 
-(defmethod ig/init-key ::game-service [_ {:keys [game-repo game-event-repo deck-service card-catalog subscription-manager]}]
+(defmethod ig/init-key ::game-service [_ {:keys [game-repo game-event-repo deck-service card-catalog subscription-manager tx-manager]}]
   (log/info "Creating game service")
-  (game-service/create-game-service game-repo game-event-repo deck-service card-catalog subscription-manager))
+  (game-service/create-game-service game-repo game-event-repo deck-service card-catalog subscription-manager tx-manager))
 
 (defmethod ig/init-key ::starter-deck-service [_ {:keys [deck-repo card-catalog config-override]}]
   (log/info "Creating starter deck service")
@@ -250,11 +255,13 @@
    ;; Services
    ::deck-service {:deck-repo (ig/ref ::deck-repo)
                    :card-catalog (ig/ref ::card-catalog)}
+   ::tx-manager {}
    ::game-service {:game-repo (ig/ref ::game-repo)
                    :game-event-repo (ig/ref ::game-event-repo)
                    :deck-service (ig/ref ::deck-service)
                    :card-catalog (ig/ref ::card-catalog)
-                   :subscription-manager (ig/ref ::subscription-manager)}
+                   :subscription-manager (ig/ref ::subscription-manager)
+                   :tx-manager (ig/ref ::tx-manager)}
    ::starter-deck-service {:deck-repo (ig/ref ::deck-repo)
                            :card-catalog (ig/ref ::card-catalog)
                            :config-override (:starter-decks-config opts)}

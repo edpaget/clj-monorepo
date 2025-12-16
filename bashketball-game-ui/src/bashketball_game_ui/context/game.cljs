@@ -19,7 +19,7 @@
    [bashketball-game-ui.hooks.use-game-actions :refer [use-game-actions]]
    [bashketball-game-ui.hooks.use-game-ui :as ui]
    [bashketball-ui.core]
-   [uix.core :refer [$ defui create-context use-context use-state use-effect use-memo use-callback]]))
+   [uix.core :refer [$ defui create-context use-context use-state use-effect use-memo use-callback use-ref]]))
 
 (def game-context
   "React context for game state."
@@ -141,17 +141,44 @@
         create-token-modal                                            (ui/use-create-token-modal)
         attach-ability-modal                                          (ui/use-attach-ability-modal)
 
-        ;; Create dispatcher for selection machine
+        ;; Refs to break circular dependency between dispatcher and send functions
+        send-ref                                                      (use-ref nil)
+        send-discard-ref                                              (use-ref nil)
+
+        ;; Create dispatcher with full context
         get-ball-holder-position                                      (use-callback
                                                                        #(actions/get-ball-holder-position game-state)
                                                                        [game-state])
+
+        get-game-state                                                (use-callback
+                                                                       (fn [] game-state)
+                                                                       [game-state])
+
+        get-selection-data                                            (use-callback
+                                                                       (fn [] (:data machine-state))
+                                                                       [machine-state])
+
+        get-discard-machine                                           (use-callback
+                                                                       (fn [] discard-machine)
+                                                                       [discard-machine])
 
         dispatch-action                                               (use-memo
                                                                        #(dispatcher/create-dispatcher
                                                                          {:actions                  actions
                                                                           :my-team                  my-team
-                                                                          :get-ball-holder-position get-ball-holder-position})
-                                                                       [actions my-team get-ball-holder-position])
+                                                                          :get-ball-holder-position get-ball-holder-position
+                                                                          :get-game-state           get-game-state
+                                                                          :get-selection-data       get-selection-data
+                                                                          :get-discard-machine      get-discard-machine
+                                                                          :send                     (fn [event] (when-let [s @send-ref] (s event)))
+                                                                          :send-discard             (fn [event] (when-let [s @send-discard-ref] (s event)))
+                                                                          :fate-reveal              fate-reveal
+                                                                          :attach-ability-modal     attach-ability-modal
+                                                                          :detail-modal             detail-modal
+                                                                          :create-token-modal       create-token-modal})
+                                                                       [actions my-team get-ball-holder-position get-game-state
+                                                                        get-selection-data get-discard-machine fate-reveal
+                                                                        attach-ability-modal detail-modal create-token-modal])
 
         ;; Selection machine send function
         send                                                          (use-callback
@@ -216,7 +243,12 @@
         can-send-peek?                                                (use-callback
                                                                        (fn [event-type]
                                                                          (contains? (pm/valid-events peek-machine) event-type))
-                                                                       [peek-machine])]
+                                                                       [peek-machine])
+
+        ;; Update refs after send functions are created
+        _                                                             (do
+                                                                        (reset! send-ref send)
+                                                                        (reset! send-discard-ref send-discard))]
 
     (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
