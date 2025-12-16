@@ -11,11 +11,10 @@ A shot is an attempt to score on one of the basket hexes. Cards may target a tea
 A shot is resolved by:
 
 1. Taking a player's Shot stat
-2. Adding the distance modifier from the basket hex
-3. Adding or subtracting any bonuses provided by cards
-4. Factoring in any defender's Zones of Control
+2. Adding or subtracting any bonuses provided by cards
+3. Determining Advantage/Disadvantage from Zones of Control
 
-The final number is then subtracted from 8 giving the Shot difficulty. The player then reveals fate and must show a number greater than or equal to the shot difficulty.
+The final stat is subtracted from 8 giving the Shot difficulty. The player then reveals fate (applying any Advantage or Disadvantage) and must show a number greater than or equal to the shot difficulty.
 
 ## Pass
 
@@ -24,24 +23,20 @@ A pass is an attempt to send the ball to a teammate. Cards may target one team p
 A pass is resolved by:
 
 1. Taking a player's Pass stat
-2. Adding the distance modifier between the players
-3. Adding or subtracting any bonuses provided by cards
-4. Factoring in any defender's Zones of Control
+2. Adding or subtracting any bonuses provided by cards
+3. Determining Advantage/Disadvantage from Zones of Control in the pass path
 
-The final number is then subtracted from 8 giving the Pass difficulty. The player then reveals fate and must show a number greater than or equal to the pass difficulty.
+The final stat is subtracted from 8 giving the Pass difficulty. The player then reveals fate (applying any Advantage or Disadvantage) and must show a number greater than or equal to the pass difficulty.
 
-## Distance Modifiers
+## Distance
 
-Both shooting and passing use the same distance modifiers:
+Both shooting and passing are affected by distance:
 
-| Distance | Modifier |
-|----------|----------|
-| Adjacent | +2 |
-| 2 hexes | +1 |
-| 3 hexes | +0 |
-| 4 hexes | -1 |
-| 5 hexes | -2 |
-| 6+ hexes | -3 |
+| Range | Effect |
+|-------|--------|
+| Close (1-2 hexes) | Advantage |
+| Medium (3-4 hexes) | Normal |
+| Long (5+ hexes) | Disadvantage |
 
 ## Defense
 
@@ -50,7 +45,13 @@ A defensive action is a check or steal attempt where a defender proactively atte
 A defensive action is resolved by:
 
 1. Taking a player's Defense stat
-2. Subtracting any ZoC imposed by players other than the target
-3. Adding or subtracting any bonuses provided by cards
+2. Adding or subtracting any bonuses provided by cards
+3. Determining Advantage/Disadvantage from size comparison with the target
 
-This number is subtracted from 8 and gives the defensive action difficulty. The player then reveals fate and must show a number greater than or equal to the defensive action difficulty.
+The stat is subtracted from 8 giving the defensive action difficulty. The player then reveals fate (applying any Advantage or Disadvantage) and must show a number greater than or equal to the defensive action difficulty.
+
+| Defender vs Target | Effect |
+|--------------------|--------|
+| Larger | Advantage |
+| Same size | Normal |
+| Smaller | Disadvantage |

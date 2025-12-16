@@ -6,56 +6,50 @@ order: 3
 
 Players exert a Zone of Control (ZoC) in a one hex radius. Actions by other players are affected by this ZoC:
 
-- Moves through a ZoC cost extra movement points for each opponent's ZoC you are moving through
-- Attempting to shoot while within a ZoC gives a penalty (depending on player size)
-- A pass that travels through a ZoC also gives a penalty for each ZoC it moves through (depending on player size)
+- Moves through a ZoC cost extra movement points
+- Attempting to shoot while within a ZoC affects your Advantage/Disadvantage
+- A pass that travels through a ZoC affects your Advantage/Disadvantage
 
 **Important:** Exhausted players do not exert a Zone of Control.
+
+## Stacking Rule
+
+Multiple sources of Advantage and Disadvantage cancel each other one-for-one. The net result is capped at Double Advantage or Double Disadvantage. Sources include distance, Zones of Control, and card effects.
+
+**Example:** A player shooting from close range (Advantage) while in a same-size defender's ZoC (Disadvantage) resolves the skill test normally.
 
 ## Movement Through ZoC
 
 Moving through an opponent's Zone of Control costs extra movement points.
 
-| Defender Size | Moving Player Size | Additional Movement Cost |
-|---------------|-------------------|-------------------------|
-| SM | SM | +1 |
-| SM | MD | +0 |
-| SM | LG | +0 |
-| MD | SM | +2 |
-| MD | MD | +1 |
-| MD | LG | +0 |
-| LG | SM | +2 |
-| LG | MD | +2 |
-| LG | LG | +1 |
+| Defender vs You | Additional Movement Cost |
+|-----------------|-------------------------|
+| Larger | +2 |
+| Same size | +1 |
+| Smaller | +0 |
 
 ## Shooting in ZoC
 
-Attempting to shoot while within an opponent's Zone of Control applies a penalty to the Shot (SHT) skill test.
+An uncontested shot grants Advantage. Being within a defender's Zone of Control modifies this based on size comparison:
 
-| Defender Size | Shooter Size | Shot Modifier |
-|---------------|--------------|---------------|
-| SM | SM | -1 |
-| SM | MD | +0 |
-| SM | LG | +0 |
-| MD | SM | -2 |
-| MD | MD | -1 |
-| MD | LG | +0 |
-| LG | SM | -3 |
-| LG | MD | -2 |
-| LG | LG | -1 |
+| Situation | Effect |
+|-----------|--------|
+| Uncontested | Advantage |
+| Smaller defender | Normal |
+| Same size defender | Disadvantage |
+| Larger defender | Double Disadvantage |
+
+**Example:** A Medium shooter in a Large defender's ZoC has Double Disadvantage. If they were also in a Small defender's ZoC, it would remain Double Disadvantage (capped).
 
 ## Passing Through ZoC
 
-Each opponent's Zone of Control the ball travels through applies a penalty to the Pass (PSS) skill test.
+An uncontested pass (no defenders in the path) grants Advantage. If any defender's Zone of Control is in the pass path, there is no baseline Advantage—only the ZoC effects apply. Smaller defenders are quicker and better at intercepting passes:
 
-| Defender Size | Passer Size | Pass Modifier (per ZoC) |
-|---------------|-------------|------------------------|
-| SM | SM | -1 |
-| SM | MD | -2 |
-| SM | LG | -2 |
-| MD | SM | 0 |
-| MD | MD | -1 |
-| MD | LG | -2 |
-| LG | SM | 0 |
-| LG | MD | 0 |
-| LG | LG | -1 |
+| Situation | Effect |
+|-----------|--------|
+| Uncontested | Advantage |
+| Larger defender (per ZoC) | Normal |
+| Same size defender (per ZoC) | Disadvantage |
+| Smaller defender (per ZoC) | Double Disadvantage |
+
+**Example:** A Large passer throwing through one Medium and one Small defender's ZoC has: Disadvantage (MD) + Double Disadvantage (SM) = Double Disadvantage (capped).

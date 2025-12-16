@@ -24,7 +24,7 @@ There are 3 Standard Action Cards: **Shoot / Block**, **Pass / Steal**, and **Sc
 | Side | Effect |
 |------|--------|
 | **Offense** | Ball carrier attempts Pass to teammate within 6⬡, ↷ |
-| **Defense** | Engage ball carrier within 2⬡. Attempt Defend-2. SM vs MD/LG: +1. ✓ You take the ball. ✗ You ↷ |
+| **Defense** | Engage ball carrier within 2⬡. Attempt Defend-2. SM defender ignores size Disadvantage. ✓ You take the ball. ✗ You ↷ |
 
 ## Screen / Check
 

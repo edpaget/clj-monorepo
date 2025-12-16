@@ -15,14 +15,13 @@ After both teams have been placed, play proceeds to the Tip-off.
 
 ## Tip-Off
 
-Both Players Reveal Fate. The player with the higher fate (plus size bonus) wins the tip-off.
+Both Players Reveal Fate with Advantage or Disadvantage based on size comparison. The player with the higher fate wins the tip-off.
 
-| Size Matchup | Bonus |
-|--------------|-------|
-| LG vs SM | +2 |
-| LG vs MD | +1 |
-| MD vs SM | +1 |
-| Same size | +0 |
+| Your Size vs Opponent | Effect |
+|-----------------------|--------|
+| Larger | Advantage |
+| Same size | Normal |
+| Smaller | Disadvantage |
 
 The winner of the tip-off:
 - May place the ball with any of their players who are not in the center circle

@@ -16,15 +16,15 @@ When you succeed on a Screen/Check, compare your Fate reveal to the difficulty:
 
 ## Brace
 
-When an Injure attempt is triggered (margin 2-3), the target reveals Fate and adds their Size bonus:
+When an Injure attempt is triggered (margin 2-3), the target reveals Fate with Advantage or Disadvantage based on their size:
 
-| Size | Brace Bonus |
-|------|-------------|
-| SM | +0 |
-| MD | +2 |
-| LG | +4 |
+| Size | Effect |
+|------|--------|
+| SM | Normal |
+| MD | Advantage |
+| LG | Double Advantage |
 
-If Brace total ≥ attacker's margin, injury is avoided. Normal Check effects still apply.
+If the revealed Fate ≥ attacker's margin, injury is avoided. Normal Check effects still apply.
 
 ## Substitution
 
