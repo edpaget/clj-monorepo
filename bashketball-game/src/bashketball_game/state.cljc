@@ -51,7 +51,8 @@
   {:draw-pile (mapv create-card-instance card-slugs)
    :hand []
    :discard []
-   :removed []})
+   :removed []
+   :examined []})
 
 (defn- create-game-player
   "Creates a game player (human/AI controlling a team)."
@@ -184,6 +185,11 @@
   "Returns the discard pile (list of card instances) for a team."
   [state team]
   (get-in state [:players team :deck :discard]))
+
+(defn get-examined
+  "Returns the examined zone (list of card instances) for a team."
+  [state team]
+  (get-in state [:players team :deck :examined]))
 
 (defn get-play-area
   "Returns the shared play area cards."

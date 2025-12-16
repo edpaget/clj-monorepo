@@ -55,6 +55,10 @@
   "Destination for moving team asset cards."
   [:enum {:graphql/type :AssetDestination} :DISCARD :REMOVED])
 
+(def ExamineCardsDestination
+  "Destination for resolving examined cards from deck inspection."
+  [:enum {:graphql/type :ExamineCardsDestination} :examine/TOP :examine/BOTTOM :examine/DISCARD])
+
 (def DetachDestination
   "Destination for detached ability cards."
   [:enum {:graphql/type :DetachDestination} :detach/DISCARD :detach/REMOVED])
@@ -144,6 +148,9 @@
 (def DeckState
   "A game player's deck state during a game.
 
+  The `:examined` zone holds cards temporarily during a two-phase examine action.
+  Cards move from draw-pile to examined, then resolve to top/bottom of deck or discard.
+
   The optional `:cards` field contains hydrated card data for all cards
   referenced in the deck. This is populated at the API layer, not by the
   game engine."
@@ -152,6 +159,7 @@
    [:hand [:vector CardInstance]]
    [:discard [:vector CardInstance]]
    [:removed [:vector CardInstance]]
+   [:examined [:vector CardInstance]]
    [:cards {:optional true} [:vector card/Card]]])
 
 (def GamePlayer
@@ -507,6 +515,33 @@
    [:discard-instance-ids [:vector {:min 2 :max 2} :string]]
    [:card-slug :string]])
 
+(def ExamineCardsAction
+  "Action to examine the top N cards of the draw pile.
+
+  Moves cards from draw-pile to examined zone for player review.
+  When deck has fewer than N cards, examines all remaining cards."
+  [:map
+   [:type [:= :bashketball/examine-cards]]
+   [:player enums/Team]
+   [:count pos-int?]])
+
+(def ExamineCardsPlacement
+  "Placement instruction for a single examined card."
+  [:map
+   [:instance-id :string]
+   [:destination ExamineCardsDestination]])
+
+(def ResolveExaminedCardsAction
+  "Action to resolve examined cards to their destinations.
+
+  Placements must include ALL cards currently in the examined zone.
+  Cards going to TOP are placed in the order specified (first in list = top of deck).
+  Cards going to BOTTOM are placed in the order specified (first in list = bottom of deck)."
+  [:map
+   [:type [:= :bashketball/resolve-examined-cards]]
+   [:player enums/Team]
+   [:placements [:vector ExamineCardsPlacement]]])
+
 (def Action
   "Multi-schema for all action types, dispatching on :type."
   [:multi {:dispatch :type}
@@ -544,7 +579,9 @@
    [:bashketball/detach-ability DetachAbilityAction]
    [:bashketball/start-from-tipoff StartFromTipOffAction]
    [:bashketball/create-token CreateTokenAction]
-   [:bashketball/stage-virtual-standard-action StageVirtualStandardActionAction]])
+   [:bashketball/stage-virtual-standard-action StageVirtualStandardActionAction]
+   [:bashketball/examine-cards ExamineCardsAction]
+   [:bashketball/resolve-examined-cards ResolveExaminedCardsAction]])
 
 ;; -----------------------------------------------------------------------------
 ;; Validation Helpers

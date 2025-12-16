@@ -1150,3 +1150,173 @@
          (actions/apply-action discarded {:type        :bashketball/play-card
                                           :player      :team/HOME
                                           :instance-id card-id})))))
+
+;; -----------------------------------------------------------------------------
+;; Examine Cards Action Tests
+
+(deftest examine-cards-moves-to-examined-zone-test
+  (let [game    (state/create-game test-config)
+        updated (actions/apply-action game {:type   :bashketball/examine-cards
+                                            :player :team/HOME
+                                            :count  3})]
+    (testing "cards moved to examined zone"
+      (is (= 3 (count (state/get-examined updated :team/HOME)))))
+
+    (testing "draw pile shrinks"
+      (is (= 2 (count (state/get-draw-pile updated :team/HOME)))))
+
+    (testing "correct cards examined by slug"
+      (is (= ["card-1" "card-2" "card-3"]
+             (mapv :card-slug (state/get-examined updated :team/HOME)))))))
+
+(deftest examine-cards-event-logging-test
+  (let [game    (state/create-game test-config)
+        updated (actions/apply-action game {:type   :bashketball/examine-cards
+                                            :player :team/HOME
+                                            :count  3})
+        event   (last (:events updated))]
+    (is (= :bashketball/examine-cards (:type event)))
+    (is (= 3 (:requested-count event)))
+    (is (= 3 (:actual-count event)))
+    (is (= 3 (count (:examined-cards event))))))
+
+(deftest examine-cards-partial-deck-test
+  (let [game    (-> (state/create-game test-config)
+                    (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 4}))
+        updated (actions/apply-action game {:type   :bashketball/examine-cards
+                                            :player :team/HOME
+                                            :count  3})]
+    (testing "examines available cards only"
+      (is (= 1 (count (state/get-examined updated :team/HOME)))))
+
+    (testing "draw pile empty"
+      (is (empty? (state/get-draw-pile updated :team/HOME))))
+
+    (testing "event shows actual vs requested"
+      (let [event (last (:events updated))]
+        (is (= 3 (:requested-count event)))
+        (is (= 1 (:actual-count event)))))))
+
+(deftest resolve-examined-to-top-test
+  (let [game     (state/create-game test-config)
+        examined (actions/apply-action game {:type   :bashketball/examine-cards
+                                             :player :team/HOME
+                                             :count  3})
+        cards    (state/get-examined examined :team/HOME)
+        resolved (actions/apply-action examined
+                   {:type       :bashketball/resolve-examined-cards
+                    :player     :team/HOME
+                    :placements [{:instance-id (:instance-id (nth cards 2))
+                                  :destination :examine/TOP}
+                                 {:instance-id (:instance-id (nth cards 0))
+                                  :destination :examine/TOP}
+                                 {:instance-id (:instance-id (nth cards 1))
+                                  :destination :examine/DISCARD}]})]
+    (testing "examined zone cleared"
+      (is (empty? (state/get-examined resolved :team/HOME))))
+
+    (testing "top cards on deck in order"
+      (is (= ["card-3" "card-1" "card-4" "card-5"]
+             (mapv :card-slug (state/get-draw-pile resolved :team/HOME)))))
+
+    (testing "discarded card in discard"
+      (is (= ["card-2"]
+             (mapv :card-slug (state/get-discard resolved :team/HOME)))))))
+
+(deftest resolve-examined-to-bottom-test
+  (let [game     (state/create-game test-config)
+        examined (actions/apply-action game {:type   :bashketball/examine-cards
+                                             :player :team/HOME
+                                             :count  2})
+        cards    (state/get-examined examined :team/HOME)
+        resolved (actions/apply-action examined
+                   {:type       :bashketball/resolve-examined-cards
+                    :player     :team/HOME
+                    :placements [{:instance-id (:instance-id (first cards))
+                                  :destination :examine/BOTTOM}
+                                 {:instance-id (:instance-id (second cards))
+                                  :destination :examine/BOTTOM}]})]
+    (testing "cards at bottom of deck in order"
+      (let [pile (state/get-draw-pile resolved :team/HOME)]
+        (is (= "card-1" (:card-slug (nth pile 3))))
+        (is (= "card-2" (:card-slug (nth pile 4))))))))
+
+(deftest resolve-examined-all-destinations-test
+  (let [game     (state/create-game test-config)
+        examined (actions/apply-action game {:type   :bashketball/examine-cards
+                                             :player :team/HOME
+                                             :count  3})
+        cards    (state/get-examined examined :team/HOME)
+        resolved (actions/apply-action examined
+                   {:type       :bashketball/resolve-examined-cards
+                    :player     :team/HOME
+                    :placements [{:instance-id (:instance-id (first cards))
+                                  :destination :examine/TOP}
+                                 {:instance-id (:instance-id (second cards))
+                                  :destination :examine/BOTTOM}
+                                 {:instance-id (:instance-id (nth cards 2))
+                                  :destination :examine/DISCARD}]})]
+    (testing "top card is first in draw pile"
+      (is (= "card-1" (:card-slug (first (state/get-draw-pile resolved :team/HOME))))))
+
+    (testing "bottom card is last in draw pile"
+      (is (= "card-2" (:card-slug (last (state/get-draw-pile resolved :team/HOME))))))
+
+    (testing "discarded card in discard"
+      (is (= ["card-3"] (mapv :card-slug (state/get-discard resolved :team/HOME)))))))
+
+(deftest resolve-examined-event-logging-test
+  (let [game     (state/create-game test-config)
+        examined (actions/apply-action game {:type   :bashketball/examine-cards
+                                             :player :team/HOME
+                                             :count  3})
+        cards    (state/get-examined examined :team/HOME)
+        resolved (actions/apply-action examined
+                   {:type       :bashketball/resolve-examined-cards
+                    :player     :team/HOME
+                    :placements [{:instance-id (:instance-id (first cards))
+                                  :destination :examine/TOP}
+                                 {:instance-id (:instance-id (second cards))
+                                  :destination :examine/BOTTOM}
+                                 {:instance-id (:instance-id (nth cards 2))
+                                  :destination :examine/DISCARD}]})
+        event    (last (:events resolved))]
+    (is (= :bashketball/resolve-examined-cards (:type event)))
+    (is (= 3 (count (:resolved-placements event))))
+    (is (= 1 (:top-count event)))
+    (is (= 1 (:bottom-count event)))
+    (is (= 1 (:discard-count event)))))
+
+(deftest resolve-examined-missing-placements-throws-test
+  (let [game     (state/create-game test-config)
+        examined (actions/apply-action game {:type   :bashketball/examine-cards
+                                             :player :team/HOME
+                                             :count  3})
+        cards    (state/get-examined examined :team/HOME)]
+    (is (thrown-with-msg?
+         #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+         #"Placements must include all examined cards"
+         (actions/apply-action examined
+           {:type       :bashketball/resolve-examined-cards
+            :player     :team/HOME
+            :placements [{:instance-id (:instance-id (first cards))
+                          :destination :examine/TOP}]})))))
+
+(deftest resolve-examined-extra-placements-throws-test
+  (let [game     (state/create-game test-config)
+        examined (actions/apply-action game {:type   :bashketball/examine-cards
+                                             :player :team/HOME
+                                             :count  2})
+        cards    (state/get-examined examined :team/HOME)]
+    (is (thrown-with-msg?
+         #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+         #"Placements must include all examined cards"
+         (actions/apply-action examined
+           {:type       :bashketball/resolve-examined-cards
+            :player     :team/HOME
+            :placements [{:instance-id (:instance-id (first cards))
+                          :destination :examine/TOP}
+                         {:instance-id (:instance-id (second cards))
+                          :destination :examine/TOP}
+                         {:instance-id "fake-id"
+                          :destination :examine/DISCARD}]})))))

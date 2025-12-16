@@ -6,6 +6,7 @@
   (:require [bashketball-game.board :as board]
             [bashketball-game.schema :as schema]
             [bashketball-game.state :as state]
+            [clojure.set :as set]
             [malli.core :as m]))
 
 (defn- now
@@ -473,3 +474,59 @@
         (update :play-area conj play-area-card)
         (assoc :event-data {:discarded-cards discarded
                             :virtual-card    play-area-card}))))
+
+;; -----------------------------------------------------------------------------
+;; Examine Cards Actions
+
+(defmethod -apply-action :bashketball/examine-cards
+  [state {:keys [player count]}]
+  (let [deck-path    [:players player :deck]
+        draw-pile    (get-in state (conj deck-path :draw-pile))
+        actual-count (min count (clojure.core/count draw-pile))
+        examined     (vec (take actual-count draw-pile))
+        remaining    (vec (drop actual-count draw-pile))]
+    (-> state
+        (assoc-in (conj deck-path :draw-pile) remaining)
+        (assoc-in (conj deck-path :examined) examined)
+        (assoc :event-data {:examined-cards  examined
+                            :requested-count count
+                            :actual-count    actual-count}))))
+
+(defn- validate-examined-placements
+  "Validates that placements match examined cards exactly.
+  Throws if there are missing or extra placements."
+  [examined placements]
+  (let [examined-ids  (set (map :instance-id examined))
+        placement-ids (set (map :instance-id placements))]
+    (when (not= examined-ids placement-ids)
+      (throw (ex-info "Placements must include all examined cards"
+                      {:examined-ids  examined-ids
+                       :placement-ids placement-ids
+                       :missing       (set/difference examined-ids placement-ids)
+                       :extra         (set/difference placement-ids examined-ids)})))))
+
+(defn- group-examined-by-destination
+  "Groups examined cards by placement destination, preserving placement order."
+  [examined placements]
+  (let [examined-by-id (into {} (map (juxt :instance-id identity) examined))
+        grouped        (group-by :destination placements)]
+    {:top     (mapv #(examined-by-id (:instance-id %)) (get grouped :examine/TOP []))
+     :bottom  (mapv #(examined-by-id (:instance-id %)) (get grouped :examine/BOTTOM []))
+     :discard (mapv #(examined-by-id (:instance-id %)) (get grouped :examine/DISCARD []))}))
+
+(defmethod -apply-action :bashketball/resolve-examined-cards
+  [state {:keys [player placements]}]
+  (let [deck-path [:players player :deck]
+        examined  (get-in state (conj deck-path :examined))
+        _         (validate-examined-placements examined placements)
+        grouped   (group-examined-by-destination examined placements)
+        draw-pile (get-in state (conj deck-path :draw-pile))]
+    (-> state
+        (assoc-in (conj deck-path :examined) [])
+        (assoc-in (conj deck-path :draw-pile) (into (:top grouped) draw-pile))
+        (update-in (conj deck-path :draw-pile) into (:bottom grouped))
+        (update-in (conj deck-path :discard) into (:discard grouped))
+        (assoc :event-data {:resolved-placements placements
+                            :top-count           (clojure.core/count (:top grouped))
+                            :bottom-count        (clojure.core/count (:bottom grouped))
+                            :discard-count       (clojure.core/count (:discard grouped))}))))
