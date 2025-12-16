@@ -261,29 +261,35 @@
   [state {:keys [player instance-id]}]
   (let [deck-path [:players player :deck]
         hand      (get-in state (conj deck-path :hand))
-        played    (first (filter #(= (:instance-id %) instance-id) hand))
-        new-hand  (filterv #(not= (:instance-id %) instance-id) hand)
-        is-asset  (team-asset-card? state player (:card-slug played))]
-    (-> state
-        (assoc-in (conj deck-path :hand) new-hand)
-        (cond->
-         is-asset       (update-in [:players player :assets] conj played)
-         (not is-asset) (update-in (conj deck-path :discard) conj played))
-        (assoc :event-data {:played-card played}))))
+        played    (first (filter #(= (:instance-id %) instance-id) hand))]
+    (when-not played
+      (throw (ex-info "Card not in hand"
+                      {:player instance-id :instance-id instance-id})))
+    (let [new-hand (filterv #(not= (:instance-id %) instance-id) hand)
+          is-asset (team-asset-card? state player (:card-slug played))]
+      (-> state
+          (assoc-in (conj deck-path :hand) new-hand)
+          (cond->
+           is-asset       (update-in [:players player :assets] conj played)
+           (not is-asset) (update-in (conj deck-path :discard) conj played))
+          (assoc :event-data {:played-card played})))))
 
 (defmethod -apply-action :bashketball/stage-card
   [state {:keys [player instance-id]}]
-  (let [deck-path      [:players player :deck]
-        hand           (get-in state (conj deck-path :hand))
-        card           (first (filter #(= (:instance-id %) instance-id) hand))
-        new-hand       (filterv #(not= (:instance-id %) instance-id) hand)
-        play-area-card {:instance-id (:instance-id card)
-                        :card-slug   (:card-slug card)
-                        :played-by   player}]
-    (-> state
-        (assoc-in (conj deck-path :hand) new-hand)
-        (update :play-area conj play-area-card)
-        (assoc :event-data {:staged-card card}))))
+  (let [deck-path [:players player :deck]
+        hand      (get-in state (conj deck-path :hand))
+        card      (first (filter #(= (:instance-id %) instance-id) hand))]
+    (when-not card
+      (throw (ex-info "Card not in hand"
+                      {:player player :instance-id instance-id})))
+    (let [new-hand       (filterv #(not= (:instance-id %) instance-id) hand)
+          play-area-card {:instance-id (:instance-id card)
+                          :card-slug   (:card-slug card)
+                          :played-by   player}]
+      (-> state
+          (assoc-in (conj deck-path :hand) new-hand)
+          (update :play-area conj play-area-card)
+          (assoc :event-data {:staged-card card})))))
 
 (defn- ability-card?
   "Returns true if the card with given slug is an ABILITY_CARD."

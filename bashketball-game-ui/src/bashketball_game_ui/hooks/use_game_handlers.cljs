@@ -234,9 +234,12 @@
         (use-callback
          (fn []
            (when (pos? (:count discard))
-             (let [cards ((:get-cards-and-exit discard))]
+             (let [cards         ((:get-cards-and-exit discard))
+                   new-selection (h/selection-after-discard selected-card cards)]
+               (when (not= new-selection selected-card)
+                 ((:set-selected-card selection) new-selection))
                ((:discard-cards actions) my-team (vec cards)))))
-         [discard my-team actions])
+         [discard my-team actions selected-card selection])
 
         on-reveal-fate
         (use-callback

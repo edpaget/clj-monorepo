@@ -84,3 +84,14 @@
   Otherwise returns new-value (select)."
   [current new-value]
   (if (= current new-value) nil new-value))
+
+(defn selection-after-discard
+  "Returns the new selected-card value after discarding cards.
+
+  If the currently selected card is in the set of discarded instance-ids,
+  returns nil (clear selection). Otherwise returns the current selection
+  unchanged."
+  [selected-card discarded-ids]
+  (if (contains? discarded-ids selected-card)
+    nil
+    selected-card))

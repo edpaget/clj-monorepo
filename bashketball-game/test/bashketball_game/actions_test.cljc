@@ -1097,3 +1097,56 @@
 
     (testing "event shows virtual flag"
       (is (true? (:virtual event))))))
+
+;; -----------------------------------------------------------------------------
+;; Missing Card Validation Tests
+
+(deftest stage-card-throws-when-card-not-in-hand-test
+  (let [game (-> (state/create-game test-config)
+                 (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))]
+    (is (thrown-with-msg?
+         #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+         #"Card not in hand"
+         (actions/apply-action game {:type        :bashketball/stage-card
+                                     :player      :team/HOME
+                                     :instance-id "nonexistent-card-id"})))))
+
+(deftest stage-card-throws-after-discard-test
+  (let [game      (-> (state/create-game test-config)
+                      (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand      (state/get-hand game :team/HOME)
+        card-id   (:instance-id (first hand))
+        discarded (actions/apply-action game {:type         :bashketball/discard-cards
+                                              :player       :team/HOME
+                                              :instance-ids [card-id]})]
+    (is (thrown-with-msg?
+         #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+         #"Card not in hand"
+         (actions/apply-action discarded {:type        :bashketball/stage-card
+                                          :player      :team/HOME
+                                          :instance-id card-id})))))
+
+(deftest play-card-throws-when-card-not-in-hand-test
+  (let [game (-> (state/create-game test-config)
+                 (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))]
+    (is (thrown-with-msg?
+         #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+         #"Card not in hand"
+         (actions/apply-action game {:type        :bashketball/play-card
+                                     :player      :team/HOME
+                                     :instance-id "nonexistent-card-id"})))))
+
+(deftest play-card-throws-after-discard-test
+  (let [game      (-> (state/create-game test-config)
+                      (actions/apply-action {:type :bashketball/draw-cards :player :team/HOME :count 3}))
+        hand      (state/get-hand game :team/HOME)
+        card-id   (:instance-id (first hand))
+        discarded (actions/apply-action game {:type         :bashketball/discard-cards
+                                              :player       :team/HOME
+                                              :instance-ids [card-id]})]
+    (is (thrown-with-msg?
+         #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+         #"Card not in hand"
+         (actions/apply-action discarded {:type        :bashketball/play-card
+                                          :player      :team/HOME
+                                          :instance-id card-id})))))
