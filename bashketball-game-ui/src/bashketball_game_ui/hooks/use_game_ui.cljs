@@ -338,3 +338,50 @@
         :cancel             cancel
         :get-cards-and-exit get-cards-and-exit})
      [active step cards toggle-card enter proceed cancel get-cards-and-exit])))
+
+(defn use-peek-deck-modal
+  "Hook for managing peek deck modal state.
+
+  Returns a map with:
+  - :open? - boolean, true if modal is open
+  - :target-team - team whose deck to peek (:team/HOME or :team/AWAY)
+  - :count - number of cards to examine (1-5)
+  - :phase - :select-count or :place-cards
+  - :show - fn [team] to open the modal for a team
+  - :close - fn [] to close the modal and reset state
+  - :set-count - fn [n] to update the count
+  - :set-phase - fn [phase] to change the phase"
+  []
+  (let [[modal-data set-modal-data] (use-state nil)
+
+        show                        (use-callback
+                                     (fn [team]
+                                       (set-modal-data {:target-team team
+                                                        :count       3
+                                                        :phase       :select-count}))
+                                     [])
+
+        close                       (use-callback
+                                     #(set-modal-data nil)
+                                     [])
+
+        set-count                   (use-callback
+                                     (fn [n]
+                                       (set-modal-data #(assoc % :count n)))
+                                     [])
+
+        set-phase                   (use-callback
+                                     (fn [phase]
+                                       (set-modal-data #(assoc % :phase phase)))
+                                     [])]
+    (use-memo
+     (fn []
+       {:open?       (some? modal-data)
+        :target-team (:target-team modal-data)
+        :count       (:count modal-data)
+        :phase       (:phase modal-data)
+        :show        show
+        :close       close
+        :set-count   set-count
+        :set-phase   set-phase})
+     [modal-data show close set-count set-phase])))

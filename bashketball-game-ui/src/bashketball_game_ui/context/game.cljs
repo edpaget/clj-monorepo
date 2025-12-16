@@ -40,7 +40,8 @@
   - `:substitute-mode` - Substitution mode state from [[ui/use-substitute-mode]]
   - `:create-token-modal` - Create token modal state from [[ui/use-create-token-modal]]
   - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]
-  - `:standard-action-mode` - Standard action mode state from [[ui/use-standard-action-mode]]"
+  - `:standard-action-mode` - Standard action mode state from [[ui/use-standard-action-mode]]
+  - `:peek-deck-modal` - Peek deck modal state from [[ui/use-peek-deck-modal]]"
   []
   (use-context game-context))
 
@@ -113,7 +114,8 @@
         substitute-mode                                               (ui/use-substitute-mode)
         create-token-modal                                            (ui/use-create-token-modal)
         attach-ability-modal                                          (ui/use-attach-ability-modal)
-        standard-action-mode                                          (ui/use-standard-action-mode)]
+        standard-action-mode                                          (ui/use-standard-action-mode)
+        peek-deck-modal                                               (ui/use-peek-deck-modal)]
 
     (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
@@ -152,5 +154,6 @@
                 :substitute-mode      substitute-mode
                 :create-token-modal    create-token-modal
                 :attach-ability-modal  attach-ability-modal
-                :standard-action-mode  standard-action-mode}}
+                :standard-action-mode  standard-action-mode
+                :peek-deck-modal       peek-deck-modal}}
        children)))

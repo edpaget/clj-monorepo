@@ -157,3 +157,23 @@
   [team]
   {:type "bashketball/start-from-tipoff"
    :player (name team)})
+
+(defn make-examine-cards-action
+  "Constructs an examine-cards action map to peek at top N cards."
+  [team count]
+  {:type   "bashketball/examine-cards"
+   :player (name team)
+   :count  count})
+
+(defn make-resolve-examined-cards-action
+  "Constructs a resolve-examined-cards action map.
+
+  Placements is a vector of maps with :instance-id and :destination keys.
+  Destination should be \"TOP\", \"BOTTOM\", or \"DISCARD\"."
+  [team placements]
+  {:type       "bashketball/resolve-examined-cards"
+   :player     (name team)
+   :placements (mapv (fn [{:keys [instance-id destination]}]
+                       {:instanceId  instance-id
+                        :destination destination})
+                     placements)})

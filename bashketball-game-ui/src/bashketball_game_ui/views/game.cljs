@@ -110,6 +110,8 @@
 
          ($ sections/standard-action-modal-section)
 
+         ($ sections/peek-deck-modal-section)
+
          ($ game-log-modal {:open?    log-open?
                             :events   (:events game-state)
                             :on-close #(set-log-open false)})

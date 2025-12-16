@@ -19,7 +19,8 @@
 
 (def ^:private secondary-action-ids
   "Actions shown in overflow menu."
-  #{:shuffle :return-discard :substitute :next-phase :reveal-fate :cancel-pass})
+  #{:shuffle :return-discard :substitute :next-phase :reveal-fate :cancel-pass
+    :peek-my-deck :peek-opponent-deck})
 
 (defui action-overflow-menu
   "Dropdown menu for overflow actions.

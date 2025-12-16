@@ -36,6 +36,8 @@
   - `:stage-virtual-standard-action` - fn [team discard-instance-ids card-slug] -> Promise (discard 2 cards and stage virtual standard action)
   - `:exhaust-player` - fn [player-id] -> Promise (mark player as exhausted)
   - `:refresh-player` - fn [player-id] -> Promise (mark player as not exhausted)
+  - `:examine-cards` - fn [team count] -> Promise (move top N cards to examined zone)
+  - `:resolve-examined-cards` - fn [team placements] -> Promise (place examined cards to top/bottom/discard)
   - `:loading` - boolean
   - `:error` - error object or nil"
   [game-id]
@@ -194,6 +196,23 @@
                                                              (fn [player-id]
                                                                (submit {:type      "bashketball/refresh-player"
                                                                         :player-id player-id}))
+                                                             [submit])
+
+        examine-cards                                       (use-callback
+                                                             (fn [team count]
+                                                               (submit {:type   "bashketball/examine-cards"
+                                                                        :player (name team)
+                                                                        :count  count}))
+                                                             [submit])
+
+        resolve-examined-cards                              (use-callback
+                                                             (fn [team placements]
+                                                               (submit {:type       "bashketball/resolve-examined-cards"
+                                                                        :player     (name team)
+                                                                        :placements (mapv (fn [{:keys [instance-id destination]}]
+                                                                                            {:instanceId  instance-id
+                                                                                             :destination destination})
+                                                                                          placements)}))
                                                              [submit])]
 
     (use-memo
@@ -220,9 +239,12 @@
         :stage-virtual-standard-action  stage-virtual-standard-action
         :exhaust-player                 exhaust-player
         :refresh-player                 refresh-player
+        :examine-cards                  examine-cards
+        :resolve-examined-cards         resolve-examined-cards
         :loading                        loading
         :error                          error})
      [submit move-player pass-ball shoot-ball set-ball-loose set-ball-possessed
       reveal-fate draw-cards discard-cards end-turn set-phase shuffle-deck
       return-discard substitute stage-card resolve-card move-asset add-score
-      create-token stage-virtual-standard-action exhaust-player refresh-player loading error])))
+      create-token stage-virtual-standard-action exhaust-player refresh-player
+      examine-cards resolve-examined-cards loading error])))
