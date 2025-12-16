@@ -210,23 +210,23 @@
          peek-modal :peek-deck-modal}
         (use-game-context)
 
-        target-team                                          (:target-team peek-modal)
-        examined-cards                                       (when target-team
-                                                               (get-in game-state [:players target-team :deck :examined]))
+        target-team                         (:target-team peek-modal)
+        examined-cards                      (when target-team
+                                              (get-in game-state [:players target-team :deck :examined]))
 
-        on-peek                                              (use-callback
-                                                              (fn []
-                                                                (-> ((:examine-cards actions) target-team (:count peek-modal))
-                                                                    (.then #((:set-phase peek-modal) :place-cards))
-                                                                    (.catch #(js/console.error "Examine cards failed:" %))))
-                                                              [actions target-team peek-modal])
+        on-peek                             (use-callback
+                                             (fn []
+                                               (-> ((:examine-cards actions) target-team (:count peek-modal))
+                                                   (.then #((:set-phase peek-modal) :place-cards))
+                                                   (.catch #(js/console.error "Examine cards failed:" %))))
+                                             [actions target-team peek-modal])
 
-        on-resolve                                           (use-callback
-                                                              (fn [placements]
-                                                                (-> ((:resolve-examined-cards actions) target-team placements)
-                                                                    (.then #((:close peek-modal)))
-                                                                    (.catch #(js/console.error "Resolve examined cards failed:" %))))
-                                                              [actions target-team peek-modal])]
+        on-resolve                          (use-callback
+                                             (fn [placements]
+                                               (-> ((:resolve-examined-cards actions) target-team placements)
+                                                   (.then #((:close peek-modal)))
+                                                   (.catch #(js/console.error "Resolve examined cards failed:" %))))
+                                             [actions target-team peek-modal])]
     ($ peek-deck-modal {:open?           (:open? peek-modal)
                         :target-team     target-team
                         :count           (:count peek-modal)
@@ -563,107 +563,107 @@
                 on-reveal-fate on-shuffle on-return-discard]}
         (use-game-handlers)
 
-        [hand-expanded set-hand-expanded]                                                                                                      (use-state false)
+        [hand-expanded set-hand-expanded]                                           (use-state false)
 
-        opponent-team                                                                                                                          (if (= my-team :team/HOME) :team/AWAY :team/HOME)
-        on-peek-my-deck                                                                                                                        (use-callback #((:show peek-deck-modal) my-team) [my-team peek-deck-modal])
-        on-peek-opponent-deck                                                                                                                  (use-callback #((:show peek-deck-modal) opponent-team) [opponent-team peek-deck-modal])
+        opponent-team                                                               (if (= my-team :team/HOME) :team/AWAY :team/HOME)
+        on-peek-my-deck                                                             (use-callback #((:show peek-deck-modal) my-team) [my-team peek-deck-modal])
+        on-peek-opponent-deck                                                       (use-callback #((:show peek-deck-modal) opponent-team) [opponent-team peek-deck-modal])
 
-        setup-mode                                                                                                                             (sel/setup-mode? phase)
-        tip-off-mode                                                                                                                           (sel/tip-off-mode? phase)
-        has-moves                                                                                                                              (and is-my-turn
-                                                                                                                                                    selected-player-id
-                                                                                                                                                    (seq (actions/valid-move-positions game-state selected-player-id)))
-        loading                                                                                                                                (:loading actions)
+        setup-mode                                                                  (sel/setup-mode? phase)
+        tip-off-mode                                                                (sel/tip-off-mode? phase)
+        has-moves                                                                   (and is-my-turn
+                                                                                         selected-player-id
+                                                                                         (seq (actions/valid-move-positions game-state selected-player-id)))
+        loading                                                                     (:loading actions)
 
         ;; Selection machine handlers
-        on-card-click                                                                                                                          (use-callback
-                                                                                                                                                (fn [instance-id]
-                                                                                                                                                  (if standard-action-active
-                                                                                                                                                    (send {:type :toggle-standard-card :data {:instance-id instance-id}})
-                                                                                                                                                    (send {:type :click-card :data {:instance-id instance-id}})))
-                                                                                                                                                [send standard-action-active])
+        on-card-click                                                               (use-callback
+                                                                                     (fn [instance-id]
+                                                                                       (if standard-action-active
+                                                                                         (send {:type :toggle-standard-card :data {:instance-id instance-id}})
+                                                                                         (send {:type :click-card :data {:instance-id instance-id}})))
+                                                                                     [send standard-action-active])
 
-        on-pass                                                                                                                                (use-callback
-                                                                                                                                                (fn []
-                                                                                                                                                  (send {:type :start-pass}))
-                                                                                                                                                [send])
+        on-pass                                                                     (use-callback
+                                                                                     (fn []
+                                                                                       (send {:type :start-pass}))
+                                                                                     [send])
 
-        on-cancel-pass                                                                                                                         (use-callback
-                                                                                                                                                (fn []
-                                                                                                                                                  (send {:type :escape}))
-                                                                                                                                                [send])
+        on-cancel-pass                                                              (use-callback
+                                                                                     (fn []
+                                                                                       (send {:type :escape}))
+                                                                                     [send])
 
-        on-enter-standard-action                                                                                                               (use-callback
-                                                                                                                                                (fn []
-                                                                                                                                                  (send {:type :enter-standard}))
-                                                                                                                                                [send])
+        on-enter-standard-action                                                    (use-callback
+                                                                                     (fn []
+                                                                                       (send {:type :enter-standard}))
+                                                                                     [send])
 
-        on-cancel-standard-action                                                                                                              (use-callback
-                                                                                                                                                (fn []
-                                                                                                                                                  (send {:type :escape}))
-                                                                                                                                                [send])
+        on-cancel-standard-action                                                   (use-callback
+                                                                                     (fn []
+                                                                                       (send {:type :escape}))
+                                                                                     [send])
 
-        on-proceed-standard-action                                                                                                             (use-callback
-                                                                                                                                                (fn []
-                                                                                                                                                  (send {:type :select-cards :data {:cards (:cards selection-data)}}))
-                                                                                                                                                [send selection-data])
+        on-proceed-standard-action                                                  (use-callback
+                                                                                     (fn []
+                                                                                       (send {:type :select-cards :data {:cards (:cards selection-data)}}))
+                                                                                     [send selection-data])
 
-        action-list                                                                                                                            (build-action-list
-                                                                                                                                                {:game-state                    game-state
-                                                                                                                                                 :my-team                       my-team
-                                                                                                                                                 :is-my-turn                    is-my-turn
-                                                                                                                                                 :phase                         phase
-                                                                                                                                                 :selected-player-id            selected-player-id
-                                                                                                                                                 :selected-card                 selected-card
-                                                                                                                                                 :pass-active                   pass-active
-                                                                                                                                                 :discard-active                discard-active
-                                                                                                                                                 :discard-count                 (count discard-cards)
-                                                                                                                                                 :my-setup-complete             my-setup-complete
-                                                                                                                                                 :both-teams-ready              both-teams-ready
-                                                                                                                                                 :standard-action-active        standard-action-active
-                                                                                                                                                 :standard-action-count         (count standard-action-cards)
-                                                                                                                                                 :my-hand-count                 (count my-hand)
-                                                                                                                                                 :on-end-turn                   on-end-turn
-                                                                                                                                                 :on-shoot                      on-shoot
-                                                                                                                                                 :on-pass                       on-pass
-                                                                                                                                                 :on-cancel-pass                on-cancel-pass
-                                                                                                                                                 :on-play-card                  on-play-card
-                                                                                                                                                 :on-draw                       on-draw
-                                                                                                                                                 :on-enter-discard              (:enter discard)
-                                                                                                                                                 :on-cancel-discard             (:cancel discard)
-                                                                                                                                                 :on-submit-discard             on-submit-discard
-                                                                                                                                                 :on-start-game                 on-start-game
-                                                                                                                                                 :on-start-from-tipoff          on-start-from-tipoff
-                                                                                                                                                 :on-setup-done                 on-setup-done
-                                                                                                                                                 :on-next-phase                 on-next-phase
-                                                                                                                                                 :on-reveal-fate                on-reveal-fate
-                                                                                                                                                 :on-shuffle                    on-shuffle
-                                                                                                                                                 :on-return-discard             on-return-discard
-                                                                                                                                                 :on-substitute                 (:enter substitute-mode)
-                                                                                                                                                 :on-enter-standard-action      on-enter-standard-action
-                                                                                                                                                 :on-cancel-standard-action     on-cancel-standard-action
-                                                                                                                                                 :on-proceed-standard-action    on-proceed-standard-action
-                                                                                                                                                 :on-peek-my-deck               on-peek-my-deck
-                                                                                                                                                 :on-peek-opponent-deck         on-peek-opponent-deck})
+        action-list                                                                 (build-action-list
+                                                                                     {:game-state                    game-state
+                                                                                      :my-team                       my-team
+                                                                                      :is-my-turn                    is-my-turn
+                                                                                      :phase                         phase
+                                                                                      :selected-player-id            selected-player-id
+                                                                                      :selected-card                 selected-card
+                                                                                      :pass-active                   pass-active
+                                                                                      :discard-active                discard-active
+                                                                                      :discard-count                 (count discard-cards)
+                                                                                      :my-setup-complete             my-setup-complete
+                                                                                      :both-teams-ready              both-teams-ready
+                                                                                      :standard-action-active        standard-action-active
+                                                                                      :standard-action-count         (count standard-action-cards)
+                                                                                      :my-hand-count                 (count my-hand)
+                                                                                      :on-end-turn                   on-end-turn
+                                                                                      :on-shoot                      on-shoot
+                                                                                      :on-pass                       on-pass
+                                                                                      :on-cancel-pass                on-cancel-pass
+                                                                                      :on-play-card                  on-play-card
+                                                                                      :on-draw                       on-draw
+                                                                                      :on-enter-discard              (:enter discard)
+                                                                                      :on-cancel-discard             (:cancel discard)
+                                                                                      :on-submit-discard             on-submit-discard
+                                                                                      :on-start-game                 on-start-game
+                                                                                      :on-start-from-tipoff          on-start-from-tipoff
+                                                                                      :on-setup-done                 on-setup-done
+                                                                                      :on-next-phase                 on-next-phase
+                                                                                      :on-reveal-fate                on-reveal-fate
+                                                                                      :on-shuffle                    on-shuffle
+                                                                                      :on-return-discard             on-return-discard
+                                                                                      :on-substitute                 (:enter substitute-mode)
+                                                                                      :on-enter-standard-action      on-enter-standard-action
+                                                                                      :on-cancel-standard-action     on-cancel-standard-action
+                                                                                      :on-proceed-standard-action    on-proceed-standard-action
+                                                                                      :on-peek-my-deck               on-peek-my-deck
+                                                                                      :on-peek-opponent-deck         on-peek-opponent-deck})
 
-        status-text                                                                                                                            (build-status-text
-                                                                                                                                                {:is-my-turn             is-my-turn
-                                                                                                                                                 :setup-mode             setup-mode
-                                                                                                                                                 :tip-off-mode           tip-off-mode
-                                                                                                                                                 :pass-active            pass-active
-                                                                                                                                                 :discard-active         discard-active
-                                                                                                                                                 :standard-action-active standard-action-active
-                                                                                                                                                 :selected-player-id     selected-player-id
-                                                                                                                                                 :setup-placed-count     (or setup-placed-count 0)
-                                                                                                                                                 :my-setup-complete      my-setup-complete
-                                                                                                                                                 :has-moves              has-moves
-                                                                                                                                                 :loading                loading})
+        status-text                                                                 (build-status-text
+                                                                                     {:is-my-turn             is-my-turn
+                                                                                      :setup-mode             setup-mode
+                                                                                      :tip-off-mode           tip-off-mode
+                                                                                      :pass-active            pass-active
+                                                                                      :discard-active         discard-active
+                                                                                      :standard-action-active standard-action-active
+                                                                                      :selected-player-id     selected-player-id
+                                                                                      :setup-placed-count     (or setup-placed-count 0)
+                                                                                      :my-setup-complete      my-setup-complete
+                                                                                      :has-moves              has-moves
+                                                                                      :loading                loading})
 
         ;; Combine standard action cards with discard cards for highlighting
-        selection-cards                                                                                                                        (if standard-action-active
-                                                                                                                                                 standard-action-cards
-                                                                                                                                                 discard-cards)]
+        selection-cards                                                             (if standard-action-active
+                                                                                      standard-action-cards
+                                                                                      discard-cards)]
 
     ($ bottom-bar/bottom-bar
        {:hand             my-hand

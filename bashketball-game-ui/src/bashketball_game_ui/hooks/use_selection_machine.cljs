@@ -50,22 +50,22 @@
   Returns same interface as [[use-selection-machine]] but with `:action`
   in the return value from send instead of auto-dispatching."
   []
-  (let [[state set-state] (uix/use-state (sm/init))
+  (let [[state set-state]             (uix/use-state (sm/init))
         [last-action set-last-action] (uix/use-state nil)
 
-        send              (uix/use-callback
-                           (fn [event]
-                             (set-state
-                              (fn [current]
-                                (let [result (sm/transition current event)]
-                                  (set-last-action (:action result))
-                                  (select-keys result [:state :data])))))
-                           [])
+        send                          (uix/use-callback
+                                       (fn [event]
+                                         (set-state
+                                          (fn [current]
+                                            (let [result (sm/transition current event)]
+                                              (set-last-action (:action result))
+                                              (select-keys result [:state :data])))))
+                                       [])
 
-        can?              (uix/use-callback
-                           (fn [event-type]
-                             (contains? (sm/valid-events (:state state)) event-type))
-                           [state])]
+        can?                          (uix/use-callback
+                                       (fn [event-type]
+                                         (contains? (sm/valid-events (:state state)) event-type))
+                                       [state])]
 
     {:mode   (:state state)
      :data   (:data state)

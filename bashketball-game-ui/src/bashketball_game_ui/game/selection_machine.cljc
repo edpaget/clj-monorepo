@@ -193,7 +193,7 @@
 
       (vector? spec)
       (let [[_ action-type next-state] spec
-            target-state (or next-state :idle)]
+            target-state               (or next-state :idle)]
         {:state  target-state
          :data   (when (not= target-state :idle)
                    (merge data event-data))

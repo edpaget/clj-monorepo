@@ -1,9 +1,9 @@
 (ns bashketball-game-ui.game.selection-machine-test
   "Tests for the selection state machine."
   (:require
-   [bashketball-game-ui.game.selection-machine :as sm]
    #?(:clj [clojure.test :as t]
-      :cljs [cljs.test :as t :include-macros true])))
+      :cljs [cljs.test :as t :include-macros true])
+   [bashketball-game-ui.game.selection-machine :as sm]))
 
 ;; =============================================================================
 ;; Init tests
@@ -239,9 +239,9 @@
     (t/is (= #{"c2"} (get-in result [:data :cards])))))
 
 (t/deftest standard-action-toggle-card-multiple-test
-  (let [s0      {:state :standard-action-selecting :data nil}
-        s1      (sm/transition s0 {:type :toggle-standard-card :data {:instance-id "c1"}})
-        s2      (sm/transition s1 {:type :toggle-standard-card :data {:instance-id "c2"}})]
+  (let [s0 {:state :standard-action-selecting :data nil}
+        s1 (sm/transition s0 {:type :toggle-standard-card :data {:instance-id "c1"}})
+        s2 (sm/transition s1 {:type :toggle-standard-card :data {:instance-id "c2"}})]
     (t/is (= #{"c1" "c2"} (get-in s2 [:data :cards])))))
 
 ;; =============================================================================
