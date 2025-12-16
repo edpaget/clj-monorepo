@@ -2,67 +2,12 @@
   "Custom hooks for game UI state management.
 
   Groups related state into reusable hooks that encapsulate state
-  and state transitions for common UI patterns."
+  and state transitions for common UI patterns.
+
+  Note: Selection-related hooks (player selection, pass mode, ball mode,
+  standard action mode) have been migrated to the selection state machine.
+  See [[bashketball-game-ui.game.selection-machine]]."
   (:require [uix.core :refer [use-state use-callback use-memo]]))
-
-(defn use-selection
-  "Hook for managing player and card selection state.
-
-  Returns a map with:
-  - :selected-player - currently selected player ID or nil
-  - :selected-card - currently selected card instance-id or nil
-  - :set-selected-player - setter function
-  - :set-selected-card - setter function
-  - :toggle-player - toggles player selection (select if different, deselect if same)
-  - :toggle-card - toggles card selection (by instance-id)
-  - :clear - clears both selections"
-  []
-  (let [[selected-player set-selected-player] (use-state nil)
-        [selected-card set-selected-card]     (use-state nil)
-
-        toggle-player                         (use-callback
-                                               (fn [id]
-                                                 (set-selected-player #(if (= % id) nil id)))
-                                               [])
-
-        toggle-card                           (use-callback
-                                               (fn [instance-id]
-                                                 (set-selected-card #(if (= % instance-id) nil instance-id)))
-                                               [])
-
-        clear                                 (use-callback
-                                               (fn []
-                                                 (set-selected-player nil)
-                                                 (set-selected-card nil))
-                                               [])]
-    (use-memo
-     (fn []
-       {:selected-player     selected-player
-        :selected-card       selected-card
-        :set-selected-player set-selected-player
-        :set-selected-card   set-selected-card
-        :toggle-player       toggle-player
-        :toggle-card         toggle-card
-        :clear               clear})
-     [selected-player selected-card toggle-player toggle-card clear])))
-
-(defn use-pass-mode
-  "Hook for managing pass mode state.
-
-  Returns a map with:
-  - :active - boolean, true if pass mode is active
-  - :start - function to enter pass mode
-  - :cancel - function to exit pass mode"
-  []
-  (let [[active set-active] (use-state false)
-        start               (use-callback #(set-active true) [])
-        cancel              (use-callback #(set-active false) [])]
-    (use-memo
-     (fn []
-       {:active active
-        :start  start
-        :cancel cancel})
-     [active start cancel])))
 
 (defn use-discard-mode
   "Hook for managing discard mode and selected cards.
@@ -131,24 +76,6 @@
         :show      show
         :close     close})
      [card-slug show close])))
-
-(defn use-ball-mode
-  "Hook for managing ball selection/movement mode.
-
-  Returns a map with:
-  - :active - boolean, true when ball is selected for movement
-  - :select - function to enter ball mode (ball selected)
-  - :cancel - function to exit ball mode"
-  []
-  (let [[active set-active] (use-state false)
-        select              (use-callback #(set-active true) [])
-        cancel              (use-callback #(set-active false) [])]
-    (use-memo
-     (fn []
-       {:active active
-        :select select
-        :cancel cancel})
-     [active select cancel])))
 
 (defn use-fate-reveal
   "Hook for managing fate reveal modal state.
@@ -269,75 +196,6 @@
         :show        show
         :close       close})
      [card-data show close])))
-
-(defn use-standard-action-mode
-  "Hook for managing standard action mode state.
-
-  Standard action mode is a two-step flow:
-  1. Select 2 cards from hand to discard (:step = :select-cards)
-  2. Select which standard action to play (:step = :select-action)
-
-  Returns a map with:
-  - :active - boolean, true if standard action mode is active
-  - :step - keyword, :select-cards or :select-action
-  - :cards - set of selected card instance-ids for discard
-  - :count - number of cards selected
-  - :toggle-card - fn [instance-id] to toggle card selection
-  - :enter - fn [] to enter standard action mode
-  - :proceed - fn [] to proceed to action selection (requires exactly 2 cards)
-  - :cancel - fn [] to exit mode and clear state
-  - :get-cards-and-exit - fn [] returns selected instance-ids and exits mode"
-  []
-  (let [[active set-active] (use-state false)
-        [step set-step]     (use-state :select-cards)
-        [cards set-cards]   (use-state #{})
-
-        toggle-card         (use-callback
-                             (fn [instance-id]
-                               (set-cards #(if (contains? % instance-id)
-                                             (disj % instance-id)
-                                             (conj % instance-id))))
-                             [])
-
-        enter               (use-callback
-                             (fn []
-                               (set-active true)
-                               (set-step :select-cards)
-                               (set-cards #{}))
-                             [])
-
-        proceed             (use-callback
-                             (fn []
-                               (set-step :select-action))
-                             [])
-
-        cancel              (use-callback
-                             (fn []
-                               (set-active false)
-                               (set-step :select-cards)
-                               (set-cards #{}))
-                             [])
-
-        get-cards-and-exit  (use-callback
-                             (fn []
-                               (let [result cards]
-                                 (set-active false)
-                                 (set-step :select-cards)
-                                 (set-cards #{})
-                                 result))
-                             [cards])]
-    (use-memo
-     (fn []
-       {:active             active
-        :step               step
-        :cards              cards
-        :count              (count cards)
-        :toggle-card        toggle-card
-        :enter              enter
-        :proceed            proceed
-        :cancel             cancel
-        :get-cards-and-exit get-cards-and-exit})
-     [active step cards toggle-card enter proceed cancel get-cards-and-exit])))
 
 (defn use-peek-deck-modal
   "Hook for managing peek deck modal state.

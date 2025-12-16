@@ -19,6 +19,7 @@
    [bashketball-game-ui.game.selectors :as sel]
    [bashketball-game-ui.hooks.use-game-derived :refer [use-game-derived]]
    [bashketball-game-ui.hooks.use-game-handlers :refer [use-game-handlers]]
+   [bashketball-game-ui.hooks.use-selection-machine :refer [use-selection-machine]]
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui use-callback use-memo use-state]]))
@@ -73,12 +74,27 @@
 (defui board-section
   "Main game board hex grid (player info moved to team columns)."
   []
-  (let [{:keys [game-state]}                                  (use-game-context)
+  (let [{:keys [game-state send]}                             (use-game-context)
         {:keys [home-players away-players selected-player-id
                 valid-moves valid-setup-positions pass-active
                 valid-pass-targets ball-active]}              (use-game-derived)
-        {:keys [on-hex-click on-player-click on-ball-click
-                on-target-click on-toggle-exhausted]}         (use-game-handlers)]
+        {:keys [on-target-click on-toggle-exhausted]}         (use-game-handlers)
+
+        ;; Wrap selection machine events
+        on-hex-click                                          (use-callback
+                                                               (fn [q r]
+                                                                 (send {:type :click-hex :data {:q q :r r}}))
+                                                               [send])
+
+        on-player-click                                       (use-callback
+                                                               (fn [player-id]
+                                                                 (send {:type :click-player :data {:player-id player-id}}))
+                                                               [send])
+
+        on-ball-click                                         (use-callback
+                                                               (fn []
+                                                                 (send {:type :click-ball}))
+                                                               [send])]
     ($ :div {:class "flex-1 bg-white rounded-lg border border-slate-200 p-2 min-h-0"}
        ($ hex-grid {:board               (:board game-state)
                     :ball                (:ball game-state)
@@ -166,13 +182,22 @@
   Renders the standard action modal when the user has selected cards to discard
   and is choosing which standard action to play."
   []
-  (let [{:keys [on-cancel-standard-action
-                on-submit-standard-action]} (use-game-handlers)
-        {:keys [standard-action-step]}      (use-game-derived)]
+  (let [{:keys [send]}                 (use-game-context)
+        {:keys [standard-action-step]} (use-game-derived)
+
+        on-select                      (use-callback
+                                        (fn [card-slug]
+                                          (send {:type :select-action :data {:card-slug card-slug}}))
+                                        [send])
+
+        on-close                       (use-callback
+                                        (fn []
+                                          (send {:type :escape}))
+                                        [send])]
     ($ standard-modal/standard-action-modal
        {:open?     (= standard-action-step :select-action)
-        :on-select on-submit-standard-action
-        :on-close  on-cancel-standard-action})))
+        :on-select on-select
+        :on-close  on-close})))
 
 (defui peek-deck-modal-section
   "Modal section for peeking at deck cards.
@@ -181,36 +206,37 @@
   1. Select count (1-5 cards)
   2. Assign each card to TOP/BOTTOM/DISCARD"
   []
-  (let [{:keys [game-state catalog actions peek-deck-modal]}
+  (let [{:keys [game-state catalog actions]
+         peek-modal :peek-deck-modal}
         (use-game-context)
 
-        target-team                                          (:target-team peek-deck-modal)
+        target-team                                          (:target-team peek-modal)
         examined-cards                                       (when target-team
                                                                (get-in game-state [:players target-team :deck :examined]))
 
         on-peek                                              (use-callback
                                                               (fn []
-                                                                (-> ((:examine-cards actions) target-team (:count peek-deck-modal))
-                                                                    (.then #((:set-phase peek-deck-modal) :place-cards))
+                                                                (-> ((:examine-cards actions) target-team (:count peek-modal))
+                                                                    (.then #((:set-phase peek-modal) :place-cards))
                                                                     (.catch #(js/console.error "Examine cards failed:" %))))
-                                                              [actions target-team peek-deck-modal])
+                                                              [actions target-team peek-modal])
 
         on-resolve                                           (use-callback
                                                               (fn [placements]
                                                                 (-> ((:resolve-examined-cards actions) target-team placements)
-                                                                    (.then #((:close peek-deck-modal)))
+                                                                    (.then #((:close peek-modal)))
                                                                     (.catch #(js/console.error "Resolve examined cards failed:" %))))
-                                                              [actions target-team peek-deck-modal])]
-    ($ peek-deck-modal {:open?           (:open? peek-deck-modal)
+                                                              [actions target-team peek-modal])]
+    ($ peek-deck-modal {:open?           (:open? peek-modal)
                         :target-team     target-team
-                        :count           (:count peek-deck-modal)
-                        :phase           (:phase peek-deck-modal)
+                        :count           (:count peek-modal)
+                        :phase           (:phase peek-modal)
                         :examined-cards  examined-cards
                         :catalog         catalog
-                        :on-count-change (:set-count peek-deck-modal)
+                        :on-count-change (:set-count peek-modal)
                         :on-peek         on-peek
                         :on-resolve      on-resolve
-                        :on-close        (:close peek-deck-modal)})))
+                        :on-close        (:close peek-modal)})))
 
 ;; -----------------------------------------------------------------------------
 ;; Three-Column Layout Sections
@@ -222,11 +248,10 @@
   - team: :HOME or :AWAY
   - on-info-click: fn [card-slug] for card detail modal"
   [{:keys [team on-info-click]}]
-  (let [{:keys [game-state catalog my-team selection]}        (use-game-context)
+  (let [{:keys [game-state catalog my-team send]}             (use-game-context)
         {:keys [home-players away-players score
                 active-player selected-player-id setup-mode]} (use-game-derived)
-        {:keys [on-player-click on-move-asset
-                on-toggle-exhausted]}                         (use-game-handlers)
+        {:keys [on-move-asset on-toggle-exhausted]}           (use-game-handlers)
 
         players                                               (if (= team :team/HOME) home-players away-players)
 
@@ -261,7 +286,23 @@
                                                                         (assoc asset :name (or (get-in asset [:card :name])
                                                                                                (get-in catalog [(:card-slug asset) :name]))))
                                                                       raw-assets)
-                                                               [raw-assets catalog])]
+                                                               [raw-assets catalog])
+
+        ;; Selection machine handlers
+        on-player-click                                       (use-callback
+                                                               (fn [player-id]
+                                                                 (send {:type :click-player :data {:player-id player-id}}))
+                                                               [send])
+
+        on-deselect                                           (use-callback
+                                                               (fn []
+                                                                 (send {:type :escape}))
+                                                               [send])
+
+        on-player-select                                      (use-callback
+                                                               (fn [player-id]
+                                                                 (send {:type :click-player :data {:player-id player-id}}))
+                                                               [send])]
     ($ team-column {:team                team
                     :score               (get score team 0)
                     :is-active           (= active-player team)
@@ -273,14 +314,14 @@
                     :assets              assets
                     :catalog             catalog
                     :on-select           on-player-click
-                    :on-deselect         (:clear-selected-player selection)
+                    :on-deselect         on-deselect
                     :on-info-click       on-info-click
                     :on-move-asset       on-move-asset
                     :on-toggle-exhausted on-toggle-exhausted
                     :setup-mode          show-setup
                     :all-players         players
                     :selected-player-id  selected-player-id
-                    :on-player-select    (:set-selected-player selection)})))
+                    :on-player-select    on-player-select})))
 
 (defn- build-action-list
   "Builds the action list for the bottom bar from game state and handlers."
@@ -507,7 +548,9 @@
 (defui bottom-bar-section
   "Bottom bar with hand and actions."
   []
-  (let [{:keys [game-state catalog my-team is-my-turn actions pass discard substitute-mode detail-modal standard-action-mode peek-deck-modal]}
+  (let [{:keys [game-state catalog my-team is-my-turn actions send
+                selection-mode selection-data discard substitute-mode
+                detail-modal peek-deck-modal]}
         (use-game-context)
 
         {:keys [phase selected-player-id selected-card pass-active discard-active
@@ -515,10 +558,9 @@
                 my-hand standard-action-active standard-action-cards]}
         (use-game-derived)
 
-        {:keys [on-card-click on-end-turn on-shoot on-play-card on-draw on-start-game
+        {:keys [on-end-turn on-shoot on-play-card on-draw on-start-game
                 on-start-from-tipoff on-setup-done on-next-phase on-submit-discard
-                on-reveal-fate on-shuffle on-return-discard
-                on-enter-standard-action on-cancel-standard-action on-proceed-standard-action]}
+                on-reveal-fate on-shuffle on-return-discard]}
         (use-game-handlers)
 
         [hand-expanded set-hand-expanded]                                                                                                      (use-state false)
@@ -533,6 +575,39 @@
                                                                                                                                                     selected-player-id
                                                                                                                                                     (seq (actions/valid-move-positions game-state selected-player-id)))
         loading                                                                                                                                (:loading actions)
+
+        ;; Selection machine handlers
+        on-card-click                                                                                                                          (use-callback
+                                                                                                                                                (fn [instance-id]
+                                                                                                                                                  (if standard-action-active
+                                                                                                                                                    (send {:type :toggle-standard-card :data {:instance-id instance-id}})
+                                                                                                                                                    (send {:type :click-card :data {:instance-id instance-id}})))
+                                                                                                                                                [send standard-action-active])
+
+        on-pass                                                                                                                                (use-callback
+                                                                                                                                                (fn []
+                                                                                                                                                  (send {:type :start-pass}))
+                                                                                                                                                [send])
+
+        on-cancel-pass                                                                                                                         (use-callback
+                                                                                                                                                (fn []
+                                                                                                                                                  (send {:type :escape}))
+                                                                                                                                                [send])
+
+        on-enter-standard-action                                                                                                               (use-callback
+                                                                                                                                                (fn []
+                                                                                                                                                  (send {:type :enter-standard}))
+                                                                                                                                                [send])
+
+        on-cancel-standard-action                                                                                                              (use-callback
+                                                                                                                                                (fn []
+                                                                                                                                                  (send {:type :escape}))
+                                                                                                                                                [send])
+
+        on-proceed-standard-action                                                                                                             (use-callback
+                                                                                                                                                (fn []
+                                                                                                                                                  (send {:type :select-cards :data {:cards (:cards selection-data)}}))
+                                                                                                                                                [send selection-data])
 
         action-list                                                                                                                            (build-action-list
                                                                                                                                                 {:game-state                    game-state
@@ -551,8 +626,8 @@
                                                                                                                                                  :my-hand-count                 (count my-hand)
                                                                                                                                                  :on-end-turn                   on-end-turn
                                                                                                                                                  :on-shoot                      on-shoot
-                                                                                                                                                 :on-pass                       (:start pass)
-                                                                                                                                                 :on-cancel-pass                (:cancel pass)
+                                                                                                                                                 :on-pass                       on-pass
+                                                                                                                                                 :on-cancel-pass                on-cancel-pass
                                                                                                                                                  :on-play-card                  on-play-card
                                                                                                                                                  :on-draw                       on-draw
                                                                                                                                                  :on-enter-discard              (:enter discard)
@@ -613,35 +688,39 @@
   - team: :HOME or :AWAY
   - on-info-click: fn [card-slug] for card detail modal"
   [{:keys [team on-info-click]}]
-  (let [{:keys [game-state catalog my-team selection]} (use-game-context)
+  (let [{:keys [game-state catalog my-team send]} (use-game-context)
         {:keys [home-players away-players score
-                active-player selected-player-id]}     (use-game-derived)
-        {:keys [on-player-click]}                      (use-game-handlers)
+                active-player]}                   (use-game-derived)
 
-        players                                        (if (= team :team/HOME) home-players away-players)
-        team-label                                     (if (= team :team/HOME) "Home" "Away")
-        team-color                                     (if (= team :team/HOME) "bg-blue-500" "bg-red-500")
-        is-active                                      (= active-player team)
-        is-my-team                                     (= team my-team)
+        players                                   (if (= team :team/HOME) home-players away-players)
+        team-label                                (if (= team :team/HOME) "Home" "Away")
+        team-color                                (if (= team :team/HOME) "bg-blue-500" "bg-red-500")
+        is-active                                 (= active-player team)
+        is-my-team                                (= team my-team)
 
         ;; Filter to only on-court players
-        on-court                                       (use-memo
-                                                        #(into {}
-                                                               (filter (fn [[_id p]] (some? (:position p))))
-                                                               players)
-                                                        [players])
+        on-court                                  (use-memo
+                                                   #(into {}
+                                                          (filter (fn [[_id p]] (some? (:position p))))
+                                                          players)
+                                                   [players])
 
-        player-indices                                 (use-memo
-                                                        #(sel/build-player-index-map on-court)
-                                                        [on-court])
+        player-indices                            (use-memo
+                                                   #(sel/build-player-index-map on-court)
+                                                   [on-court])
 
-        player                                         (get-in game-state [:players team])
-        raw-assets                                     (or (:assets player) [])
-        assets                                         (use-memo
-                                                        #(mapv (fn [asset]
-                                                                 (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
-                                                               raw-assets)
-                                                        [raw-assets catalog])]
+        player                                    (get-in game-state [:players team])
+        raw-assets                                (or (:assets player) [])
+        assets                                    (use-memo
+                                                   #(mapv (fn [asset]
+                                                            (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
+                                                          raw-assets)
+                                                   [raw-assets catalog])
+
+        on-player-click                           (use-callback
+                                                   (fn [player-id]
+                                                     (send {:type :click-player :data {:player-id player-id}}))
+                                                   [send])]
 
     ($ :div {:class (cn "flex-1 p-2 rounded-lg border"
                         (if is-active "bg-slate-50 border-slate-300" "bg-white border-slate-200"))}

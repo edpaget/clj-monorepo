@@ -5,6 +5,10 @@
   dispatch functions to child components.
   Uses automatic __typename-based decoding."
   (:require
+   [bashketball-game-ui.context.dispatch :refer [dispatch-provider]]
+   [bashketball-game-ui.game.actions :as actions]
+   [bashketball-game-ui.game.dispatcher :as dispatcher]
+   [bashketball-game-ui.game.selection-machine :as sm]
    [bashketball-game-ui.game.selectors :as sel]
    [bashketball-game-ui.graphql.hooks :as gql]
    [bashketball-game-ui.graphql.queries :as queries]
@@ -12,7 +16,7 @@
    [bashketball-game-ui.hooks.use-game-actions :refer [use-game-actions]]
    [bashketball-game-ui.hooks.use-game-ui :as ui]
    [bashketball-ui.core]
-   [uix.core :refer [$ defui create-context use-context use-state use-effect]]))
+   [uix.core :refer [$ defui create-context use-context use-state use-effect use-memo use-callback]]))
 
 (def game-context
   "React context for game state."
@@ -25,22 +29,22 @@
   - `:game` - Current game record (decoded)
   - `:game-state` - Inner game state from bashketball-game
   - `:catalog` - Card catalog map `{slug -> card}` from [[build-catalog]]
-  - `:my-team` - :home or :away for current user
+  - `:my-team` - :team/HOME or :team/AWAY for current user
   - `:is-my-turn` - boolean indicating if it's the user's turn
   - `:actions` - Action dispatch functions from [[use-game-actions]]
   - `:loading` - Initial load state
   - `:error` - Error object if any
   - `:connected` - SSE connection status
-  - `:selection` - Player/card selection state from [[ui/use-selection]]
-  - `:pass` - Pass mode state from [[ui/use-pass-mode]]
+  - `:selection-mode` - Current selection machine state keyword
+  - `:selection-data` - Selection machine data (selected player, cards, etc.)
+  - `:send` - Function to send events to selection machine
+  - `:can-send?` - Predicate to check if event type is valid
   - `:discard` - Discard mode state from [[ui/use-discard-mode]]
   - `:detail-modal` - Card detail modal state from [[ui/use-detail-modal]]
-  - `:ball-mode` - Ball selection state from [[ui/use-ball-mode]]
   - `:fate-reveal` - Fate reveal modal state from [[ui/use-fate-reveal]]
   - `:substitute-mode` - Substitution mode state from [[ui/use-substitute-mode]]
   - `:create-token-modal` - Create token modal state from [[ui/use-create-token-modal]]
   - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]
-  - `:standard-action-mode` - Standard action mode state from [[ui/use-standard-action-mode]]
   - `:peek-deck-modal` - Peek deck modal state from [[ui/use-peek-deck-modal]]"
   []
   (use-context game-context))
@@ -104,18 +108,46 @@
         my-team                                                       (when game (determine-my-team game user-id))
         is-turn                                                       (is-my-turn? game-state my-team)
 
-        ;; UI state hooks
-        selection                                                     (ui/use-selection)
-        pass                                                          (ui/use-pass-mode)
+        ;; Selection machine state (replaces selection, pass, ball-mode, standard-action-mode)
+        [machine-state set-machine-state]                             (use-state (sm/init))
+
+        ;; UI state hooks (remaining hooks not replaced by machine)
         discard                                                       (ui/use-discard-mode)
         detail-modal                                                  (ui/use-detail-modal)
-        ball-mode                                                     (ui/use-ball-mode)
         fate-reveal                                                   (ui/use-fate-reveal)
         substitute-mode                                               (ui/use-substitute-mode)
         create-token-modal                                            (ui/use-create-token-modal)
         attach-ability-modal                                          (ui/use-attach-ability-modal)
-        standard-action-mode                                          (ui/use-standard-action-mode)
-        peek-deck-modal                                               (ui/use-peek-deck-modal)]
+        peek-deck-modal                                               (ui/use-peek-deck-modal)
+
+        ;; Create dispatcher for selection machine
+        get-ball-holder-position                                      (use-callback
+                                                                       #(actions/get-ball-holder-position game-state)
+                                                                       [game-state])
+
+        dispatch-action                                               (use-memo
+                                                                       #(dispatcher/create-dispatcher
+                                                                         {:actions                  actions
+                                                                          :my-team                  my-team
+                                                                          :get-ball-holder-position get-ball-holder-position})
+                                                                       [actions my-team get-ball-holder-position])
+
+        ;; Selection machine send function
+        send                                                          (use-callback
+                                                                       (fn [event]
+                                                                         (set-machine-state
+                                                                          (fn [current]
+                                                                            (let [result (sm/transition current event)]
+                                                                              (when-let [action (:action result)]
+                                                                                (dispatch-action action))
+                                                                              (select-keys result [:state :data])))))
+                                                                       [dispatch-action])
+
+        ;; Predicate to check if event is valid in current state
+        can-send?                                                     (use-callback
+                                                                       (fn [event-type]
+                                                                         (contains? (sm/valid-events (:state machine-state)) event-type))
+                                                                       [machine-state])]
 
     (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
@@ -135,25 +167,29 @@
        js/undefined)
      [connected subscription-result refetch])
 
-    ($ (:Provider game-context)
-       {:value {:game                 game
-                :game-state           game-state
-                :catalog              catalog
-                :my-team              my-team
-                :is-my-turn           is-turn
-                :actions              actions
-                :loading              (and loading (not connected))
-                :error                (or error (:error subscription-result))
-                :connected            connected
-                :selection            selection
-                :pass                 pass
-                :discard              discard
-                :detail-modal         detail-modal
-                :ball-mode            ball-mode
-                :fate-reveal          fate-reveal
-                :substitute-mode      substitute-mode
-                :create-token-modal    create-token-modal
-                :attach-ability-modal  attach-ability-modal
-                :standard-action-mode  standard-action-mode
-                :peek-deck-modal       peek-deck-modal}}
-       children)))
+    ($ dispatch-provider
+       {:dispatch dispatch-action}
+       ($ (:Provider game-context)
+          {:value {:game                  game
+                   :game-state            game-state
+                   :catalog               catalog
+                   :my-team               my-team
+                   :is-my-turn            is-turn
+                   :actions               actions
+                   :loading               (and loading (not connected))
+                   :error                 (or error (:error subscription-result))
+                   :connected             connected
+                   ;; Selection machine
+                   :selection-mode        (:state machine-state)
+                   :selection-data        (:data machine-state)
+                   :send                  send
+                   :can-send?             can-send?
+                   ;; Remaining UI hooks
+                   :discard               discard
+                   :detail-modal          detail-modal
+                   :fate-reveal           fate-reveal
+                   :substitute-mode       substitute-mode
+                   :create-token-modal    create-token-modal
+                   :attach-ability-modal  attach-ability-modal
+                   :peek-deck-modal       peek-deck-modal}}
+          children))))

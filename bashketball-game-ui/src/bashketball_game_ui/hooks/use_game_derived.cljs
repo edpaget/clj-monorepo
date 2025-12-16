@@ -43,24 +43,29 @@
   - `:my-off-court-players` - Vector of players currently off court
   - `:discard-active` - Boolean, true if discard mode active
   - `:discard-cards` - Set of cards selected for discard
-  - `:selected-card` - Currently selected card slug
+  - `:selected-card` - Currently selected card instance-id
   - `:standard-action-active` - Boolean, true if standard action mode active
   - `:standard-action-step` - Keyword, :select-cards or :select-action
   - `:standard-action-cards` - Set of cards selected for standard action discard"
   []
-  (let [{:keys [game-state my-team is-my-turn selection pass discard ball-mode standard-action-mode]}
+  (let [{:keys [game-state my-team is-my-turn selection-mode selection-data discard]}
         (use-game-context)
 
-        ;; Extract UI state values
-        selected-player-id                                                                            (:selected-player selection)
-        pass-active                                                                                   (:active pass)
-        ball-active                                                                                   (:active ball-mode)
-        discard-active                                                                                (:active discard)
-        discard-cards                                                                                 (:cards discard)
-        selected-card                                                                                 (:selected-card selection)
-        standard-action-active                                                                        (:active standard-action-mode)
-        standard-action-step                                                                          (:step standard-action-mode)
-        standard-action-cards                                                                         (:cards standard-action-mode)
+        ;; Derive values from selection machine state
+        selected-player-id                                                             (:player-id selection-data)
+        pass-active                                                                    (= selection-mode :targeting-pass)
+        ball-active                                                                    (= selection-mode :ball-selected)
+        discard-active                                                                 (:active discard)
+        discard-cards                                                                  (:cards discard)
+        selected-card                                                                  (:selected-card selection-data)
+        standard-action-active                                                         (#{:standard-action-selecting
+                                                                                          :standard-action-confirming}
+                                                                                        selection-mode)
+        standard-action-step                                                           (case selection-mode
+                                                                                         :standard-action-selecting :select-cards
+                                                                                         :standard-action-confirming :select-action
+                                                                                         nil)
+        standard-action-cards                                                          (or (:cards selection-data) #{})
 
         ;; Basic derived values (no memoization needed)
         opponent-team                                                                                 (sel/opponent-team my-team)

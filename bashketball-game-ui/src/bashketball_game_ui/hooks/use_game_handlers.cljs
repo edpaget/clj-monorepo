@@ -2,7 +2,11 @@
   "Hook for pre-bound game action handlers.
 
   Centralizes all game interaction handlers in one place,
-  composing context state with action functions."
+  composing context state with action functions.
+
+  Selection-related handlers (player clicks, hex clicks, card clicks, etc.)
+  have been migrated to the selection state machine. Use `send` from context
+  to dispatch selection events."
   (:require
    [bashketball-game-ui.context.game :refer [use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
@@ -18,10 +22,6 @@
   to create ready-to-use callbacks for game interactions.
 
   Returns a map with:
-  - `:on-hex-click` - Handler for hex grid clicks
-  - `:on-ball-click` - Handler for ball clicks
-  - `:on-player-click` - Handler for player token clicks
-  - `:on-card-click` - Handler for card clicks
   - `:on-end-turn` - Handler for ending turn
   - `:on-shoot` - Handler for shooting
   - `:on-play-card` - Handler for playing a card (stages card to play area)
@@ -40,124 +40,21 @@
   - `:on-move-asset` - Handler for moving asset to discard or removed zone
   - `:on-substitute` - Handler for player substitution
   - `:on-target-click` - Handler for clicking in-air ball target to resolve
-  - `:on-toggle-exhausted` - Handler for toggling player exhaust status
-  - `:on-enter-standard-action` - Handler for entering standard action mode
-  - `:on-cancel-standard-action` - Handler for canceling standard action mode
-  - `:on-proceed-standard-action` - Handler for proceeding to standard action selection
-  - `:on-submit-standard-action` - Handler for submitting standard action with selected card slug"
+  - `:on-toggle-exhausted` - Handler for toggling player exhaust status"
   []
-  (let [{:keys [game-state my-team is-my-turn actions
-                selection pass discard ball-mode fate-reveal substitute-mode
-                attach-ability-modal standard-action-mode]}
+  (let [{:keys [game-state my-team actions send selection-data
+                discard fate-reveal substitute-mode attach-ability-modal]}
         (use-game-context)
 
-        {:keys [setup-mode valid-moves valid-setup-positions
-                valid-pass-targets selected-player-id pass-active ball-active
-                discard-active discard-cards selected-card phase
-                standard-action-active]}
+        {:keys [selected-card phase discard-cards]}
         (use-game-derived)
-
-        ball-in-air
-        (= "BallInAir" (get-in game-state [:ball :__typename]))
-
-        on-hex-click
-        (use-callback
-         (fn [q r]
-           (cond
-             ;; Ball in air - redirect to different position (failed pass/shot)
-             ball-in-air
-             (-> ((:set-ball-loose actions) q r)
-                 (.then #(js/console.log "Ball redirected to:" %))
-                 (.catch #(js/console.error "Ball redirect error:" %)))
-
-             ;; Loose ball selected - move it
-             ball-active
-             (do
-               (-> ((:set-ball-loose actions) q r)
-                   (.then #(js/console.log "Ball move result:" %))
-                   (.catch #(js/console.error "Ball move error:" %)))
-               ((:cancel ball-mode)))
-
-             :else
-             (when-let [action (h/hex-click-action
-                                {:setup-mode            setup-mode
-                                 :is-my-turn            is-my-turn
-                                 :selected-player       selected-player-id
-                                 :valid-setup-positions valid-setup-positions
-                                 :valid-moves           valid-moves}
-                                q r)]
-               (-> ((:move-player actions) (:player-id action) (first (:position action)) (second (:position action)))
-                   (.then #(js/console.log "Move result:" %))
-                   (.catch #(js/console.error "Move error:" %)))
-               ((:set-selected-player selection) nil))))
-         [ball-in-air ball-active ball-mode setup-mode is-my-turn selected-player-id
-          valid-setup-positions valid-moves actions selection])
-
-        on-ball-click
-        (use-callback
-         (fn []
-           (if ball-active
-             ((:cancel ball-mode))
-             ((:select ball-mode))))
-         [ball-active ball-mode])
-
-        on-player-click
-        (use-callback
-         (fn [player-id]
-           (cond
-             ;; Ball in air - redirect to this player (successful catch)
-             ball-in-air
-             (-> ((:set-ball-possessed actions) player-id)
-                 (.then #(js/console.log "Ball caught by:" %))
-                 (.catch #(js/console.error "Ball catch error:" %)))
-
-             ;; Loose ball selected - give to player
-             ball-active
-             (do
-               ((:set-ball-possessed actions) player-id)
-               ((:cancel ball-mode)))
-
-             :else
-             (let [action (h/player-click-action
-                           {:pass-mode            pass-active
-                            :valid-pass-targets   valid-pass-targets
-                            :ball-holder-position (actions/get-ball-holder-position game-state)
-                            :selected-player      selected-player-id}
-                           player-id)]
-               (case (:action action)
-                 :pass (do
-                         ((:pass-ball actions) (:origin action) (:target-player-id action))
-                         ((:cancel pass))
-                         ((:set-selected-player selection) nil))
-                 :toggle-selection ((:toggle-player selection) player-id)))))
-         [ball-in-air selected-player-id pass-active valid-pass-targets game-state actions pass selection ball-active ball-mode])
-
-        on-card-click
-        (use-callback
-         (fn [instance-id]
-           (cond
-             ;; Standard action mode - toggle card for discard selection
-             standard-action-active
-             ((:toggle-card standard-action-mode) instance-id)
-
-             ;; Regular discard or selection
-             :else
-             (let [action (h/card-click-action
-                           {:discard-mode  discard-active
-                            :discard-cards discard-cards
-                            :selected-card selected-card}
-                           instance-id)]
-               (case (:action action)
-                 :toggle-discard ((:toggle-card discard) instance-id)
-                 :toggle-card-selection ((:toggle-card selection) instance-id)))))
-         [discard-active discard-cards selected-card discard selection standard-action-active standard-action-mode])
 
         on-end-turn
         (use-callback
          (fn []
            ((:end-turn actions))
-           ((:clear selection)))
-         [actions selection])
+           (send {:type :escape}))
+         [actions send])
 
         on-shoot
         (use-callback
@@ -165,16 +62,16 @@
            (when-let [origin (actions/get-ball-holder-position game-state)]
              (let [target (sel/target-basket my-team)]
                ((:shoot-ball actions) origin target)
-               ((:set-selected-player selection) nil))))
-         [game-state my-team actions selection])
+               (send {:type :escape}))))
+         [game-state my-team actions send])
 
         on-play-card
         (use-callback
          (fn []
-           (when selected-card
-             ((:stage-card actions) my-team selected-card)
-             ((:set-selected-card selection) nil)))
-         [selected-card my-team actions selection])
+           (when-let [card-id (:selected-card selection-data)]
+             ((:stage-card actions) my-team card-id)
+             (send {:type :click-card :data {:instance-id card-id}})))
+         [selection-data my-team actions send])
 
         on-resolve-card
         (use-callback
@@ -220,8 +117,8 @@
         (use-callback
          (fn []
            ((:end-turn actions))
-           ((:clear selection)))
-         [actions selection])
+           (send {:type :escape}))
+         [actions send])
 
         on-next-phase
         (use-callback
@@ -237,9 +134,9 @@
              (let [cards         ((:get-cards-and-exit discard))
                    new-selection (h/selection-after-discard selected-card cards)]
                (when (not= new-selection selected-card)
-                 ((:set-selected-card selection) new-selection))
+                 (send {:type :click-card :data {:instance-id new-selection}}))
                ((:discard-cards actions) my-team (vec cards)))))
-         [discard my-team actions selected-card selection])
+         [discard my-team actions selected-card send])
 
         on-reveal-fate
         (use-callback
@@ -314,59 +211,24 @@
                (-> ((:exhaust-player actions) player-id)
                    (.then #(js/console.log "Player exhausted:" %))
                    (.catch #(js/console.error "Exhaust error:" %))))))
-         [game-state actions])
+         [game-state actions])]
 
-        on-enter-standard-action
-        (use-callback
-         (fn []
-           ((:enter standard-action-mode)))
-         [standard-action-mode])
-
-        on-cancel-standard-action
-        (use-callback
-         (fn []
-           ((:cancel standard-action-mode)))
-         [standard-action-mode])
-
-        on-proceed-standard-action
-        (use-callback
-         (fn []
-           ((:proceed standard-action-mode)))
-         [standard-action-mode])
-
-        on-submit-standard-action
-        (use-callback
-         (fn [card-slug]
-           (let [cards ((:get-cards-and-exit standard-action-mode))]
-             (-> ((:stage-virtual-standard-action actions) my-team cards card-slug)
-                 (.then #(js/console.log "Standard action staged:" %))
-                 (.catch #(js/console.error "Standard action error:" %)))))
-         [my-team actions standard-action-mode])]
-
-    {:on-hex-click         on-hex-click
-     :on-ball-click        on-ball-click
-     :on-player-click      on-player-click
-     :on-card-click        on-card-click
-     :on-end-turn          on-end-turn
-     :on-shoot             on-shoot
-     :on-play-card         on-play-card
-     :on-resolve-card      on-resolve-card
-     :on-open-attach-modal on-open-attach-modal
-     :on-resolve-ability   on-resolve-ability
-     :on-draw              on-draw
-     :on-start-game        on-start-game
-     :on-start-from-tipoff on-start-from-tipoff
-     :on-setup-done        on-setup-done
-     :on-next-phase        on-next-phase
-     :on-submit-discard    on-submit-discard
-     :on-reveal-fate       on-reveal-fate
-     :on-shuffle           on-shuffle
-     :on-return-discard    on-return-discard
-     :on-move-asset        on-move-asset
-     :on-substitute             on-substitute
-     :on-target-click           on-target-click
-     :on-toggle-exhausted       on-toggle-exhausted
-     :on-enter-standard-action  on-enter-standard-action
-     :on-cancel-standard-action on-cancel-standard-action
-     :on-proceed-standard-action on-proceed-standard-action
-     :on-submit-standard-action on-submit-standard-action}))
+    {:on-end-turn           on-end-turn
+     :on-shoot              on-shoot
+     :on-play-card          on-play-card
+     :on-resolve-card       on-resolve-card
+     :on-open-attach-modal  on-open-attach-modal
+     :on-resolve-ability    on-resolve-ability
+     :on-draw               on-draw
+     :on-start-game         on-start-game
+     :on-start-from-tipoff  on-start-from-tipoff
+     :on-setup-done         on-setup-done
+     :on-next-phase         on-next-phase
+     :on-submit-discard     on-submit-discard
+     :on-reveal-fate        on-reveal-fate
+     :on-shuffle            on-shuffle
+     :on-return-discard     on-return-discard
+     :on-move-asset         on-move-asset
+     :on-substitute         on-substitute
+     :on-target-click       on-target-click
+     :on-toggle-exhausted   on-toggle-exhausted}))
