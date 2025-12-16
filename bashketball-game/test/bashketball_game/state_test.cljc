@@ -6,23 +6,23 @@
   {:home {:deck ["drive-rebound" "shoot-check" "pass-steal" "drive-rebound" "shoot-check"]
           :players [{:card-slug "orc-center"
                      :name "Grukk"
-                     :stats {:size :size/LG :speed 2 :shooting 2 :passing 1 :dribbling 1 :defense 4}}
+                     :stats {:size :size/LG :speed 2 :shooting 2 :passing 1 :defense 4}}
                     {:card-slug "elf-point-guard"
                      :name "Lyria"
-                     :stats {:size :size/SM :speed 5 :shooting 3 :passing 4 :dribbling 3 :defense 2}}
+                     :stats {:size :size/SM :speed 5 :shooting 3 :passing 4 :defense 2}}
                     {:card-slug "dwarf-power-forward"
                      :name "Thorin"
-                     :stats {:size :size/MD :speed 2 :shooting 3 :passing 2 :dribbling 2 :defense 4}}]}
+                     :stats {:size :size/MD :speed 2 :shooting 3 :passing 2 :defense 4}}]}
    :away {:deck ["drive-rebound" "shoot-check" "pass-steal" "drive-rebound" "shoot-check"]
           :players [{:card-slug "troll-center"
                      :name "Grok"
-                     :stats {:size :size/LG :speed 1 :shooting 1 :passing 1 :dribbling 1 :defense 5}}
+                     :stats {:size :size/LG :speed 1 :shooting 1 :passing 1 :defense 5}}
                     {:card-slug "goblin-shooting-guard"
                      :name "Sneek"
-                     :stats {:size :size/SM :speed 4 :shooting 4 :passing 3 :dribbling 3 :defense 1}}
+                     :stats {:size :size/SM :speed 4 :shooting 4 :passing 3 :defense 1}}
                     {:card-slug "human-small-forward"
                      :name "John"
-                     :stats {:size :size/MD :speed 3 :shooting 3 :passing 3 :dribbling 3 :defense 3}}]}})
+                     :stats {:size :size/MD :speed 3 :shooting 3 :passing 3 :defense 3}}]}})
 
 (deftest create-game-test
   (let [game (state/create-game test-config)]
@@ -61,7 +61,7 @@
       (is (= "HOME-orc-center-0" (:id player)))
       (is (= "orc-center" (:card-slug player)))
       (is (= "Grukk" (:name player)))
-      (is (= {:size :size/LG :speed 2 :shooting 2 :passing 1 :dribbling 1 :defense 4}
+      (is (= {:size :size/LG :speed 2 :shooting 2 :passing 1 :defense 4}
              (:stats player))))
 
     (testing "player starts not exhausted"

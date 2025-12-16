@@ -38,7 +38,6 @@
                                     :speed     (:speed p)
                                     :shooting  (:sht p)
                                     :passing   (:pss p)
-                                    :dribbling (:pss p)
                                     :defense   (:def p)}
                        :abilities  (or (:abilities p) [])})
                     players)}))

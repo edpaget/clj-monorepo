@@ -8,23 +8,23 @@
   {:home {:deck ["card-1" "card-2" "card-3" "card-4" "card-5"]
           :players [{:card-slug "orc-center"
                      :name "Grukk"
-                     :stats {:size :size/LG :speed 2 :shooting 2 :passing 1 :dribbling 1 :defense 4}}
+                     :stats {:size :size/LG :speed 2 :shooting 2 :passing 1 :defense 4}}
                     {:card-slug "elf-point-guard"
                      :name "Lyria"
-                     :stats {:size :size/SM :speed 5 :shooting 3 :passing 4 :dribbling 3 :defense 2}}
+                     :stats {:size :size/SM :speed 5 :shooting 3 :passing 4 :defense 2}}
                     {:card-slug "dwarf-power-forward"
                      :name "Thorin"
-                     :stats {:size :size/MD :speed 2 :shooting 3 :passing 2 :dribbling 2 :defense 4}}]}
+                     :stats {:size :size/MD :speed 2 :shooting 3 :passing 2 :defense 4}}]}
    :away {:deck ["card-a" "card-b" "card-c" "card-d" "card-e"]
           :players [{:card-slug "troll-center"
                      :name "Grok"
-                     :stats {:size :size/LG :speed 1 :shooting 1 :passing 1 :dribbling 1 :defense 5}}
+                     :stats {:size :size/LG :speed 1 :shooting 1 :passing 1 :defense 5}}
                     {:card-slug "goblin-shooting-guard"
                      :name "Sneek"
-                     :stats {:size :size/SM :speed 4 :shooting 4 :passing 3 :dribbling 3 :defense 1}}
+                     :stats {:size :size/SM :speed 4 :shooting 4 :passing 3 :defense 1}}
                     {:card-slug "human-small-forward"
                      :name "John"
-                     :stats {:size :size/MD :speed 3 :shooting 3 :passing 3 :dribbling 3 :defense 3}}]}})
+                     :stats {:size :size/MD :speed 3 :shooting 3 :passing 3 :defense 3}}]}})
 
 (deftest apply-action-validation-test
   (let [game (state/create-game test-config)]

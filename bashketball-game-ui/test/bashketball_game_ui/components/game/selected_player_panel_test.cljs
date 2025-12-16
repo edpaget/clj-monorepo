@@ -20,7 +20,6 @@
    :stats      {:speed    3
                 :shooting 5
                 :defense  4
-                :dribbling 2
                 :passing  3
                 :size     :size/LG}})
 

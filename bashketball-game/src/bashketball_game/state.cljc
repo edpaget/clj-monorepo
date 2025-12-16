@@ -77,7 +77,7 @@
             :players [{:card-slug \"orc-center\"
                        :name \"Grukk\"
                        :stats {:size :size/LG :speed 2 :shooting 2
-                               :passing 1 :dribbling 1 :defense 4}}
+                               :passing 1 :defense 4}}
                       ...]}
      :away {...}})
   ```"

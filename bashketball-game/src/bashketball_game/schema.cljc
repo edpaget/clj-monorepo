@@ -41,7 +41,7 @@
 ;; Game-specific enums (not shared across projects)
 (def Stat
   "Basketball player stat names."
-  [:enum {:graphql/type :Stat} :stat/SPEED :stat/SHOOTING :stat/PASSING :stat/DRIBBLING :stat/DEFENSE])
+  [:enum {:graphql/type :Stat} :stat/SPEED :stat/SHOOTING :stat/PASSING :stat/DEFENSE])
 
 (def Terrain
   "Board tile terrain types."
@@ -99,7 +99,6 @@
    [:speed :int]
    [:shooting :int]
    [:passing :int]
-   [:dribbling :int]
    [:defense :int]])
 
 (def BasketballPlayer

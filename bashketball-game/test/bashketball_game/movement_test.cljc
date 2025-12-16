@@ -14,17 +14,17 @@
   {:home {:deck []
           :players [{:card-slug "slow-center"
                      :name "Grukk"
-                     :stats {:size :size/LG :speed 2 :shooting 2 :passing 1 :dribbling 1 :defense 4}}
+                     :stats {:size :size/LG :speed 2 :shooting 2 :passing 1 :defense 4}}
                     {:card-slug "fast-guard"
                      :name "Lyria"
-                     :stats {:size :size/SM :speed 5 :shooting 3 :passing 4 :dribbling 3 :defense 2}}
+                     :stats {:size :size/SM :speed 5 :shooting 3 :passing 4 :defense 2}}
                     {:card-slug "mid-forward"
                      :name "Thorin"
-                     :stats {:size :size/MD :speed 3 :shooting 3 :passing 2 :dribbling 2 :defense 4}}]}
+                     :stats {:size :size/MD :speed 3 :shooting 3 :passing 2 :defense 4}}]}
    :away {:deck []
           :players [{:card-slug "slow-center"
                      :name "Grok"
-                     :stats {:size :size/LG :speed 1 :shooting 1 :passing 1 :dribbling 1 :defense 5}}]}})
+                     :stats {:size :size/LG :speed 1 :shooting 1 :passing 1 :defense 5}}]}})
 
 (defn place-player
   "Places a player on the board at the given position."

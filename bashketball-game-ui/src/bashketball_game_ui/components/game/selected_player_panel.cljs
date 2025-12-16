@@ -66,7 +66,7 @@
   - on-toggle-exhausted: fn [player-id] to toggle exhaust status"
   [{:keys [player token-label team catalog on-deselect on-info-click on-attachment-click on-toggle-exhausted]}]
   (let [{:keys [name stats exhausted modifiers attachments card-slug]} player
-        {:keys [speed shooting defense dribbling passing size]}        stats
+        {:keys [speed shooting defense passing size]}                  stats
         colors                                                         (get team-colors team (:team/HOME team-colors))
         size-label                                                     (get size-labels size "?")]
     ($ :div {:class "p-2 bg-slate-50 rounded border border-slate-200"}
@@ -94,7 +94,6 @@
           ($ stat-row {:label "SPD" :value speed})
           ($ stat-row {:label "SHT" :value shooting})
           ($ stat-row {:label "DEF" :value defense})
-          ($ stat-row {:label "DRB" :value dribbling})
           ($ stat-row {:label "PAS" :value passing}))
 
        ;; Modifiers

@@ -295,7 +295,6 @@
                                        "speed" 5
                                        "shooting" 7
                                        "passing" 6
-                                       "dribbling" 5
                                        "defense" 4}
                               "abilities" []
                               "modifiers" []})
