@@ -75,6 +75,28 @@ After a basket is scored:
 4. Each player may substitute any team players with bench players
 5. All players are unexhausted
 
+## Game Structure
+
+The game is divided into **4 quarters**. Each quarter consists of **6 turns per player** (12 turns total per quarter).
+
+### Between Quarters
+
+At the end of each quarter:
+
+1. All players are unexhausted
+2. Each player may substitute any team players with bench players
+3. Possession alternates (team that started the previous quarter defends first)
+
+### Halftime
+
+Between quarters 2 and 3, in addition to the standard quarter break:
+
+1. Each player may move one of their team players up to their movement speed ignoring zones of control
+
 ## End of Game
 
-The game ends when a player has scored **11 points**.
+The game ends after the 4th quarter. The team with the highest score wins.
+
+### Overtime
+
+If the score is tied at the end of the 4th quarter, play continues with overtime periods of **2 turns per player** until one team leads at the end of an overtime period.
