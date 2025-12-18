@@ -4,6 +4,7 @@
   Provides Query resolvers for listing and fetching games, Mutation resolvers
   for game lifecycle operations, and field resolvers for player references."
   (:require
+   [bashketball-game-api.game.hydration :as hydration]
    [bashketball-game-api.services.game :as game-svc]
    [bashketball-game.schema :as game-schema]
    [bashketball-schemas.card :as card-schema]
@@ -278,82 +279,6 @@
   (when game-state
     (transform-board-for-json game-state)))
 
-(defn- collect-deck-slugs
-  "Extracts all unique card slugs from a deck state."
-  [deck]
-  (->> (concat (:draw-pile deck)
-               (:hand deck)
-               (:discard deck)
-               (:removed deck)
-               (:examined deck))
-       (map :card-slug)
-       distinct))
-
-(defn- collect-player-attachment-slugs
-  "Extracts card slugs from player attachments."
-  [team-roster]
-  (->> (vals (:players team-roster))
-       (mapcat :attachments)
-       (keep :card-slug)))
-
-(defn- collect-asset-slugs
-  "Extracts card slugs from team assets."
-  [assets]
-  (keep :card-slug assets))
-
-(defn- collect-extra-slugs
-  "Collects card slugs from play area, assets, and attachments."
-  [game-state]
-  (let [home-assets (get-in game-state [:players :team/HOME :assets] [])
-        away-assets (get-in game-state [:players :team/AWAY :assets] [])
-        home-roster (get-in game-state [:players :team/HOME :team])
-        away-roster (get-in game-state [:players :team/AWAY :team])
-        play-area   (get game-state :play-area [])]
-    (concat (collect-asset-slugs home-assets)
-            (collect-asset-slugs away-assets)
-            (collect-player-attachment-slugs home-roster)
-            (collect-player-attachment-slugs away-roster)
-            (map :card-slug play-area))))
-
-(defn- hydrate-deck
-  "Adds cards field to deck state with hydrated card data."
-  [deck catalog]
-  (let [slugs (collect-deck-slugs deck)
-        cards (if catalog
-                (->> slugs
-                     (map #(get catalog %))
-                     (filter some?)
-                     vec)
-                [])]
-    (assoc deck :cards cards)))
-
-(defn- hydrate-game-state
-  "Hydrates all deck cards in game state including play area, assets, and attachments."
-  [game-state catalog]
-  (if game-state
-    (let [extra-slugs (collect-extra-slugs game-state)
-          extra-cards (when catalog
-                        (->> extra-slugs
-                             (map #(get catalog %))
-                             (filter some?)
-                             vec))
-          home-deck   (get-in game-state [:players :team/HOME :deck])
-          away-deck   (get-in game-state [:players :team/AWAY :deck])
-          home-cards  (:cards (hydrate-deck home-deck catalog))
-          away-cards  (:cards (hydrate-deck away-deck catalog))
-          home-all    (->> (concat home-cards extra-cards)
-                           (filter some?)
-                           distinct
-                           vec)
-          away-all    (->> (concat away-cards extra-cards)
-                           (filter some?)
-                           distinct
-                           vec)]
-      (-> game-state
-          (assoc-in [:players :team/HOME :deck :cards] home-all)
-          (assoc-in [:players :team/AWAY :deck :cards] away-all)))
-    game-state))
-
 (defn- game->graphql
   "Transforms a game record to GraphQL response format.
 
@@ -369,7 +294,7 @@
     :player-2-id  (:player-2-id game)
     :status       (name (:status game))
     :game-state   (-> (not-empty (:game-state game))
-                      (hydrate-game-state catalog)
+                      (hydration/hydrate-game-state catalog)
                       normalize-events
                       transform-game-state-for-graphql)
     :winner-id    (:winner-id game)
@@ -382,10 +307,9 @@
   (get-in ctx [:request :resolver-map :game-service]))
 
 (defn- get-card-catalog
-  "Gets the card catalog map from the request context."
+  "Gets the card catalog from the request context."
   [ctx]
-  (some-> (get-in ctx [:request :resolver-map :card-catalog])
-          :cards-by-slug))
+  (get-in ctx [:request :resolver-map :card-catalog]))
 
 (def ^:private default-limit 20)
 (def ^:private max-limit 100)

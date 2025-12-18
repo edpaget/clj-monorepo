@@ -5,6 +5,7 @@
   and completion. Integrates with the [[bashketball-game]] library for game
   state management and validation."
   (:require
+   [bashketball-game-api.game.hydration :as hydration]
    [bashketball-game-api.models.game :as game-model]
    [bashketball-game-api.models.game-event :as game-event]
    [bashketball-game-api.models.game-utils :as game-utils]
@@ -85,80 +86,6 @@
   [game-state]
   (let [phase (or (:phase game-state) (get game-state "phase"))]
     (= :phase/GAME_OVER (if (string? phase) (keyword phase) phase))))
-
-(defn- collect-deck-slugs
-  "Extracts all unique card slugs from a deck state."
-  [deck]
-  (->> (concat (:draw-pile deck)
-               (:hand deck)
-               (:discard deck)
-               (:removed deck))
-       (map :card-slug)
-       distinct))
-
-(defn- collect-player-attachment-slugs
-  "Extracts card slugs from player attachments."
-  [team-roster]
-  (->> (vals (:players team-roster))
-       (mapcat :attachments)
-       (keep :card-slug)))
-
-(defn- collect-asset-slugs
-  "Extracts card slugs from team assets."
-  [assets]
-  (keep :card-slug assets))
-
-(defn- collect-extra-slugs
-  "Collects card slugs from play area, assets, and attachments."
-  [game-state]
-  (let [home-assets (get-in game-state [:players :team/HOME :assets] [])
-        away-assets (get-in game-state [:players :team/AWAY :assets] [])
-        home-roster (get-in game-state [:players :team/HOME :team])
-        away-roster (get-in game-state [:players :team/AWAY :team])
-        play-area   (get game-state :play-area [])]
-    (concat (collect-asset-slugs home-assets)
-            (collect-asset-slugs away-assets)
-            (collect-player-attachment-slugs home-roster)
-            (collect-player-attachment-slugs away-roster)
-            (map :card-slug play-area))))
-
-(defn- hydrate-deck
-  "Adds cards field to deck state with full card data from catalog."
-  [deck card-catalog]
-  (let [slugs (collect-deck-slugs deck)
-        cards (->> slugs
-                   (map #(catalog/get-card card-catalog %))
-                   (filter some?)
-                   vec)]
-    (assoc deck :cards cards)))
-
-(defn- hydrate-game-state
-  "Hydrates deck cards in game state for action processing.
-
-  The game engine needs card data (including card-type) to determine
-  how to handle played cards (e.g., team assets vs regular cards).
-  Includes cards from play area, assets, and player attachments."
-  [game-state card-catalog]
-  (let [extra-slugs (collect-extra-slugs game-state)
-        extra-cards (->> extra-slugs
-                         (map #(catalog/get-card card-catalog %))
-                         (filter some?)
-                         vec)
-        home-deck   (get-in game-state [:players :team/HOME :deck])
-        away-deck   (get-in game-state [:players :team/AWAY :deck])
-        home-cards  (:cards (hydrate-deck home-deck card-catalog))
-        away-cards  (:cards (hydrate-deck away-deck card-catalog))
-        home-all    (->> (concat home-cards extra-cards)
-                         (filter some?)
-                         distinct
-                         vec)
-        away-all    (->> (concat away-cards extra-cards)
-                         (filter some?)
-                         distinct
-                         vec)]
-    (-> game-state
-        (assoc-in [:players :team/HOME :deck :cards] home-all)
-        (assoc-in [:players :team/AWAY :deck :cards] away-all))))
 
 (defn- strip-hydrated-cards
   "Removes hydrated cards from game state before persisting.
@@ -292,7 +219,7 @@
                                       (pr-str (game-schema/explain-action action)))}
           (try
             (let [current-state  (:game-state game)
-                  hydrated-state (hydrate-game-state current-state card-catalog)
+                  hydrated-state (hydration/hydrate-game-state current-state card-catalog)
                   revealed-fate  (when (= :bashketball/reveal-fate (:type action))
                                    (let [player    (:player action)
                                          card-slug (get-in current-state
