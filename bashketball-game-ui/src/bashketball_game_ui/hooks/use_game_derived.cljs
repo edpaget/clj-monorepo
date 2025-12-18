@@ -4,15 +4,15 @@
   Centralizes all memoized game state computations in one place,
   making them available to any component via [[use-game-derived]]."
   (:require
-   [bashketball-game-ui.context.game :refer [use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
    [bashketball-game-ui.game.selectors :as sel]
+   [bashketball-game-ui.hooks.selectors :as s]
    [uix.core :refer [use-memo]]))
 
 (defn use-game-derived
   "Returns all derived game data, properly memoized.
 
-  Consumes [[use-game-context]] internally and computes commonly needed
+  Consumes selector hooks internally and computes commonly needed
   values like valid moves, player data, and setup state.
 
   Returns a map with:
@@ -48,11 +48,18 @@
   - `:standard-action-step` - Keyword, :select-cards or :select-action
   - `:standard-action-cards` - Set of cards selected for standard action discard"
   []
-  (let [{:keys [game-state my-team is-my-turn selection-mode selection-data discard-machine]}
-        (use-game-context)
+  (let [game-state                (s/use-game-state)
+        my-team                   (s/use-my-team)
+        is-my-turn                (s/use-is-my-turn)
+        {:keys [mode data]}       (s/use-selection)
+        {:keys [machine]}         (s/use-discard-machine)
+
+        selection-mode            mode
+        selection-data            data
+        discard-machine           machine
 
         ;; Derive values from selection machine state
-        selected-player-id                                                                    (:player-id selection-data)
+        selected-player-id        (:player-id selection-data)
         pass-active                                                                           (= selection-mode :targeting-pass)
         ball-active                                                                           (= selection-mode :ball-selected)
         discard-active                                                                        (= (:state discard-machine) :selecting)

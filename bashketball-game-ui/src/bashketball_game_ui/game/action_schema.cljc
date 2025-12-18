@@ -5,7 +5,7 @@
   grouped by source:
 
   - **State machine actions**: Emitted by selection, discard, substitute, and peek machines
-  - **Handler actions**: Actions from [[use-game-handlers]] being migrated to dispatch
+  - **Dispatcher actions**: Handler actions dispatched from components
   - **UI actions**: Modal and UI state control actions
 
   All actions share a common shape with `:type` as the discriminator.

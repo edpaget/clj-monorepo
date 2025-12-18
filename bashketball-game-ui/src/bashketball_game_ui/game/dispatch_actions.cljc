@@ -1,8 +1,8 @@
 (ns bashketball-game-ui.game.dispatch-actions
   "Pure action constructor functions.
 
-  Provides functions to create action maps for dispatching. These replace
-  the callback closures in [[use-game-handlers]] with inspectable data.
+  Provides functions to create action maps for dispatching. These provide
+  inspectable data structures for game actions.
 
   Each function returns an action map that can be passed to dispatch.")
 

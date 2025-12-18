@@ -3,8 +3,7 @@
 
   Displays the active game with board, players, and actions.
   Uses the game context provider for real-time state updates.
-  Sections consume context directly via [[use-game-context]]
-  and [[use-game-derived]]."
+  Sections consume context directly via selector hooks and [[use-game-derived]]."
   (:require
    [bashketball-game-ui.components.game.card-detail-modal :refer [card-detail-modal]]
    [bashketball-game-ui.components.game.fate-reveal-modal :refer [fate-reveal-modal]]
@@ -12,7 +11,8 @@
    [bashketball-game-ui.components.game.roster-modal :refer [roster-modal]]
    [bashketball-game-ui.components.game.substitute-modal :refer [substitute-modal]]
    [bashketball-game-ui.context.auth :refer [use-auth]]
-   [bashketball-game-ui.context.game :refer [game-provider use-game-context]]
+   [bashketball-game-ui.context.game :refer [game-provider]]
+   [bashketball-game-ui.hooks.selectors :as s]
    [bashketball-game-ui.hooks.use-game-derived :refer [use-game-derived]]
    [bashketball-game-ui.views.game.sections :as sections]
    [bashketball-ui.components.loading :refer [spinner]]
@@ -28,9 +28,12 @@
   Uses three-column layout on large screens (≥1024px), stacked layout
   on smaller screens."
   []
-  (let [{:keys [game game-state loading error detail-modal fate-reveal
-                substitute-machine send-substitute]}
-        (use-game-context)
+  (let [game                                                           (s/use-game)
+        game-state                                                     (s/use-game-state)
+        {:keys [loading error]}                                        (s/use-connection-status)
+        detail-modal                                                   (s/use-detail-modal)
+        fate-reveal                                                    (s/use-fate-reveal)
+        {:keys [machine send]}                                         (s/use-substitute-machine)
 
         {:keys [my-on-court-players my-off-court-players
                 home-players away-players]}
@@ -93,8 +96,8 @@
                                :fate     (:fate fate-reveal)
                                :on-close (:close fate-reveal)})
 
-         ($ substitute-modal {:machine-state      substitute-machine
-                              :send               send-substitute
+         ($ substitute-modal {:machine-state      machine
+                              :send               send
                               :on-court-players   my-on-court-players
                               :off-court-players  my-off-court-players})
 

@@ -7,6 +7,7 @@
    [bashketball-game-ui.context.game :as game-context]
    [bashketball-game-ui.graphql.queries :as queries]
    [bashketball-game-ui.graphql.subscriptions :as subscriptions]
+   [bashketball-game-ui.hooks.selectors :as s]
    [cljs-tlr.fixtures :as fixtures]
    [cljs-tlr.render :as render]
    [cljs.test :as t :include-macros true]
@@ -73,16 +74,20 @@
 (defn create-test-cache []
   (InMemoryCache. #js {:addTypename false}))
 
-;; Test component that uses the context
+;; Test component that uses selector hooks
 (defui test-consumer []
-  (let [ctx (game-context/use-game-context)]
+  (let [game                    (s/use-game)
+        my-team                 (s/use-my-team)
+        is-my-turn              (s/use-is-my-turn)
+        actions                 (s/use-actions)
+        {:keys [loading]}       (s/use-connection-status)]
     ($ :div {:data-testid "context-consumer"}
-       ($ :span {:data-testid "loading"} (str (:loading ctx)))
-       ($ :span {:data-testid "my-team"} (str (:my-team ctx)))
-       ($ :span {:data-testid "is-my-turn"} (str (:is-my-turn ctx)))
-       (when (:game ctx)
-         ($ :span {:data-testid "game-id"} (:id (:game ctx))))
-       (when (:actions ctx)
+       ($ :span {:data-testid "loading"} (str loading))
+       ($ :span {:data-testid "my-team"} (str my-team))
+       ($ :span {:data-testid "is-my-turn"} (str is-my-turn))
+       (when game
+         ($ :span {:data-testid "game-id"} (:id game)))
+       (when actions
          ($ :span {:data-testid "has-actions"} "true")))))
 
 (defn render-with-context [game-id user-id mocks]

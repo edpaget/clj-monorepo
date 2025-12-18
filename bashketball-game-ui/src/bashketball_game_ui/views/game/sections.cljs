@@ -1,9 +1,8 @@
 (ns bashketball-game-ui.views.game.sections
   "Sub-components for the game view.
 
-  Each section consumes [[use-game-context]], [[use-game-derived]], and
-  [[use-dispatch]] to access game state and dispatch actions,
-  eliminating prop drilling from the parent component."
+  Each section uses selector hooks from [[selectors]] and [[use-game-derived]]
+  to access game state, plus [[use-dispatch]] for actions."
   (:require
    [bashketball-game-ui.components.game.attach-ability-modal :as attach-modal]
    [bashketball-game-ui.components.game.bottom-bar :as bottom-bar]
@@ -15,9 +14,9 @@
    [bashketball-game-ui.components.game.standard-action-modal :as standard-modal]
    [bashketball-game-ui.components.game.team-column :refer [team-column]]
    [bashketball-game-ui.context.dispatch :refer [use-dispatch]]
-   [bashketball-game-ui.context.game :refer [use-game-context]]
    [bashketball-game-ui.game.actions :as actions]
    [bashketball-game-ui.game.selectors :as sel]
+   [bashketball-game-ui.hooks.selectors :as s]
    [bashketball-game-ui.hooks.use-game-derived :refer [use-game-derived]]
    [bashketball-ui.components.loading :refer [spinner]]
    [bashketball-ui.utils :refer [cn]]
@@ -47,7 +46,7 @@
 (defui connection-banner
   "Shows connection status warning when disconnected."
   []
-  (let [{:keys [connected]} (use-game-context)]
+  (let [{:keys [connected]} (s/use-connection-status)]
     (when-not connected
       ($ :div {:class "bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-sm text-yellow-800"}
          "Connecting to game server..."))))
@@ -59,8 +58,10 @@
   - on-log-click: fn [] to open game log modal
   - on-roster-click: fn [] to open roster modal"
   [{:keys [on-log-click on-roster-click]}]
-  (let [{:keys [game game-state is-my-turn]} (use-game-context)
-        {:keys [phase score]}                (use-game-derived)]
+  (let [game                  (s/use-game)
+        game-state            (s/use-game-state)
+        is-my-turn            (s/use-is-my-turn)
+        {:keys [phase score]} (use-game-derived)]
     ($ header/game-header {:game-id         (:id game)
                            :turn-number     (:turn-number game-state)
                            :phase           phase
@@ -73,7 +74,8 @@
 (defui board-section
   "Main game board hex grid (player info moved to team columns)."
   []
-  (let [{:keys [game-state send]}                             (use-game-context)
+  (let [game-state                                            (s/use-game-state)
+        {:keys [send]}                                        (s/use-selection)
         {:keys [home-players away-players selected-player-id
                 valid-moves valid-setup-positions pass-active
                 valid-pass-targets ball-active]}              (use-game-derived)
@@ -124,9 +126,11 @@
 (defui play-area-section
   "Shared play area section showing staged cards awaiting resolution."
   []
-  (let [{:keys [catalog detail-modal create-token-modal]} (use-game-context)
-        {:keys [play-area]}                               (use-game-derived)
-        dispatch                                          (use-dispatch)
+  (let [catalog                   (s/use-catalog)
+        detail-modal              (s/use-detail-modal)
+        create-token-modal        (s/use-create-token-modal)
+        {:keys [play-area]}       (use-game-derived)
+        dispatch                  (use-dispatch)
 
         on-resolve                                        (use-callback
                                                            (fn [instance-id]
@@ -153,8 +157,10 @@
 
   Renders the create token modal and handles token creation via the actions hook."
   []
-  (let [{:keys [my-team actions create-token-modal]} (use-game-context)
-        {:keys [my-on-court-players]}                (use-game-derived)
+  (let [my-team                       (s/use-my-team)
+        actions                       (s/use-actions)
+        create-token-modal            (s/use-create-token-modal)
+        {:keys [my-on-court-players]} (use-game-derived)
 
         players                                      (use-memo
                                                       #(mapv (fn [p] {:id (:id p) :name (:name p)})
@@ -181,8 +187,10 @@
 
   Renders the attach ability modal and handles ability resolution via dispatch."
   []
-  (let [{:keys [game-state catalog attach-ability-modal]} (use-game-context)
-        dispatch                                          (use-dispatch)
+  (let [game-state            (s/use-game-state)
+        catalog               (s/use-catalog)
+        attach-ability-modal  (s/use-attach-ability-modal)
+        dispatch              (use-dispatch)
 
         played-by                                         (:played-by attach-ability-modal)
         players                                           (use-memo
@@ -209,7 +217,7 @@
   Renders the standard action modal when the user has selected cards to discard
   and is choosing which standard action to play."
   []
-  (let [{:keys [send]}                 (use-game-context)
+  (let [{:keys [send]}                 (s/use-selection)
         {:keys [standard-action-step]} (use-game-derived)
 
         on-select                      (use-callback
@@ -234,10 +242,12 @@
   1. Select count (1-5 cards)
   2. Assign each card to TOP/BOTTOM/DISCARD"
   []
-  (let [{:keys [game-state catalog actions peek-machine send-peek]}
-        (use-game-context)
+  (let [game-state                      (s/use-game-state)
+        catalog                         (s/use-catalog)
+        actions                         (s/use-actions)
+        {:keys [machine send]}          (s/use-peek-machine)
 
-        target-team                                                 (get-in peek-machine [:data :target-team])
+        target-team                     (get-in machine [:data :target-team])
         examined-cards                                              (when target-team
                                                                       (get-in game-state [:players target-team :deck :examined]))
 
@@ -246,8 +256,8 @@
                                                                        (-> ((:examine-cards actions) team count)
                                                                            (.catch #(js/console.error "Examine cards failed:" %))))
                                                                      [actions])]
-    ($ peek-deck-modal {:machine-state   peek-machine
-                        :send            send-peek
+    ($ peek-deck-modal {:machine-state   machine
+                        :send            send
                         :examined-cards  examined-cards
                         :catalog         catalog
                         :on-peek         on-peek})))
@@ -262,7 +272,10 @@
   - team: :HOME or :AWAY
   - on-info-click: fn [card-slug] for card detail modal"
   [{:keys [team on-info-click]}]
-  (let [{:keys [game-state catalog my-team send]}             (use-game-context)
+  (let [game-state                                            (s/use-game-state)
+        catalog                                               (s/use-catalog)
+        my-team                                               (s/use-my-team)
+        {:keys [send]}                                        (s/use-selection)
         {:keys [home-players away-players score
                 active-player selected-player-id setup-mode]} (use-game-derived)
         dispatch                                              (use-dispatch)
@@ -574,10 +587,23 @@
 (defui bottom-bar-section
   "Bottom bar with hand and actions."
   []
-  (let [{:keys [game-state catalog my-team is-my-turn actions send
-                selection-mode selection-data send-discard send-substitute
-                detail-modal send-peek]}
-        (use-game-context)
+  (let [game-state                         (s/use-game-state)
+        catalog                            (s/use-catalog)
+        my-team                            (s/use-my-team)
+        is-my-turn                         (s/use-is-my-turn)
+        actions                            (s/use-actions)
+        selection                          (s/use-selection)
+        discard                            (s/use-discard-machine)
+        substitute                         (s/use-substitute-machine)
+        peek                               (s/use-peek-machine)
+        detail-modal                       (s/use-detail-modal)
+
+        send                               (:send selection)
+        selection-mode                     (:mode selection)
+        selection-data                     (:data selection)
+        send-discard                       (:send discard)
+        send-substitute                    (:send substitute)
+        send-peek                          (:send peek)
 
         {:keys [phase selected-player-id selected-card pass-active discard-active
                 discard-cards setup-placed-count my-setup-complete both-teams-ready
@@ -729,9 +755,12 @@
   - team: :HOME or :AWAY
   - on-info-click: fn [card-slug] for card detail modal"
   [{:keys [team on-info-click]}]
-  (let [{:keys [game-state catalog my-team send]} (use-game-context)
+  (let [game-state                              (s/use-game-state)
+        catalog                                 (s/use-catalog)
+        my-team                                 (s/use-my-team)
+        {:keys [send]}                          (s/use-selection)
         {:keys [home-players away-players score
-                active-player]}                   (use-game-derived)
+                active-player]}                 (use-game-derived)
 
         players                                   (if (= team :team/HOME) home-players away-players)
         team-label                                (if (= team :team/HOME) "Home" "Away")

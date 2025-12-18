@@ -19,54 +19,19 @@
    [bashketball-game-ui.hooks.use-game-actions :refer [use-game-actions]]
    [bashketball-game-ui.hooks.use-game-ui :as ui]
    [bashketball-ui.core]
-   [uix.core :refer [$ defui create-context use-context use-state use-effect use-memo use-callback use-ref]]))
+   [uix.core :refer [$ defui create-context use-state use-effect use-memo use-callback use-ref]]))
 
 (def game-context
-  "React context for game state."
+  "React context for game state.
+
+  Contains all game-related state including:
+  - Core: game, game-state, catalog, my-team, is-my-turn, actions, loading, error, connected
+  - Selection machine: selection-mode, selection-data, send, can-send?
+  - Modal machines: discard-machine, substitute-machine, peek-machine (+ send/can-send for each)
+  - UI modals: detail-modal, fate-reveal, create-token-modal, attach-ability-modal
+
+  Access via focused selector hooks in [[bashketball-game-ui.hooks.selectors]]."
   (create-context nil))
-
-(defn use-game-context
-  "Returns current game context value.
-
-  Returns map with:
-  - `:game` - Current game record (decoded)
-  - `:game-state` - Inner game state from bashketball-game
-  - `:catalog` - Card catalog map `{slug -> card}` from [[build-catalog]]
-  - `:my-team` - :team/HOME or :team/AWAY for current user
-  - `:is-my-turn` - boolean indicating if it's the user's turn
-  - `:actions` - Action dispatch functions from [[use-game-actions]]
-  - `:loading` - Initial load state
-  - `:error` - Error object if any
-  - `:connected` - SSE connection status
-
-  Selection machine:
-  - `:selection-mode` - Current selection machine state keyword
-  - `:selection-data` - Selection machine data (selected player, cards, etc.)
-  - `:send` - Function to send events to selection machine
-  - `:can-send?` - Predicate to check if event type is valid
-
-  Discard machine:
-  - `:discard-machine` - Full machine state `{:state :data}`
-  - `:send-discard` - Function to send events to discard machine
-  - `:can-send-discard?` - Predicate to check if event type is valid
-
-  Substitute machine:
-  - `:substitute-machine` - Full machine state `{:state :data}`
-  - `:send-substitute` - Function to send events to substitute machine
-  - `:can-send-substitute?` - Predicate to check if event type is valid
-
-  Peek machine:
-  - `:peek-machine` - Full machine state `{:state :data}`
-  - `:send-peek` - Function to send events to peek machine
-  - `:can-send-peek?` - Predicate to check if event type is valid
-
-  UI hooks:
-  - `:detail-modal` - Card detail modal state from [[ui/use-detail-modal]]
-  - `:fate-reveal` - Fate reveal modal state from [[ui/use-fate-reveal]]
-  - `:create-token-modal` - Create token modal state from [[ui/use-create-token-modal]]
-  - `:attach-ability-modal` - Attach ability modal state from [[ui/use-attach-ability-modal]]"
-  []
-  (use-context game-context))
 
 (defn- determine-my-team
   "Determines which team the user is playing as."
