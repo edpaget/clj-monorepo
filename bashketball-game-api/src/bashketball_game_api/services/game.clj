@@ -303,24 +303,24 @@
                   new-state      (-> (game-actions/apply-action hydrated-state action)
                                      strip-hydrated-cards)
                   updated-game   (in-transaction tx-manager
-                                   (let [seq-num (game-event/next-sequence-num game-event-repo game-id)]
-                                     (proto/create! game-event-repo
-                                                    {:game-id game-id
-                                                     :player-id user-id
-                                                     :event-type (name (:type action))
-                                                     :event-data action
-                                                     :sequence-num seq-num}))
-                                   (if (game-over? new-state)
-                                     (let [winner-team (if (> (get-in new-state [:score :home])
-                                                              (get-in new-state [:score :away]))
-                                                         :home :away)
-                                           winner-id   (if (= winner-team :home)
-                                                         (:player-1-id game)
-                                                         (:player-2-id game))]
-                                       (proto/update! game-repo game-id {:game-state new-state})
-                                       (game-utils/end-game! game-repo game-id
-                                                             :game-status/COMPLETED winner-id))
-                                     (proto/update! game-repo game-id {:game-state new-state})))]
+                                                 (let [seq-num (game-event/next-sequence-num game-event-repo game-id)]
+                                                   (proto/create! game-event-repo
+                                                                  {:game-id game-id
+                                                                   :player-id user-id
+                                                                   :event-type (name (:type action))
+                                                                   :event-data action
+                                                                   :sequence-num seq-num}))
+                                                 (if (game-over? new-state)
+                                                   (let [winner-team (if (> (get-in new-state [:score :home])
+                                                                            (get-in new-state [:score :away]))
+                                                                       :home :away)
+                                                         winner-id   (if (= winner-team :home)
+                                                                       (:player-1-id game)
+                                                                       (:player-2-id game))]
+                                                     (proto/update! game-repo game-id {:game-state new-state})
+                                                     (game-utils/end-game! game-repo game-id
+                                                                           :game-status/COMPLETED winner-id))
+                                                   (proto/update! game-repo game-id {:game-state new-state})))]
               (subs/publish! subscription-manager [:game game-id]
                              {:type :state-changed
                               :data {:game-id (str game-id)}})

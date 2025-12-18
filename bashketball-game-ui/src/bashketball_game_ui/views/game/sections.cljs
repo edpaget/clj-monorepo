@@ -126,24 +126,24 @@
 (defui play-area-section
   "Shared play area section showing staged cards awaiting resolution."
   []
-  (let [catalog                   (s/use-catalog)
-        detail-modal              (s/use-detail-modal)
-        create-token-modal        (s/use-create-token-modal)
-        {:keys [play-area]}       (use-game-derived)
-        dispatch                  (use-dispatch)
+  (let [catalog             (s/use-catalog)
+        detail-modal        (s/use-detail-modal)
+        create-token-modal  (s/use-create-token-modal)
+        {:keys [play-area]} (use-game-derived)
+        dispatch            (use-dispatch)
 
-        on-resolve                                        (use-callback
-                                                           (fn [instance-id]
-                                                             (dispatch {:type :resolve-card :instance-id instance-id}))
-                                                           [dispatch])
+        on-resolve          (use-callback
+                             (fn [instance-id]
+                               (dispatch {:type :resolve-card :instance-id instance-id}))
+                             [dispatch])
 
-        on-attach                                         (use-callback
-                                                           (fn [instance-id card-slug played-by]
-                                                             (dispatch {:type :open-attach-modal
-                                                                        :instance-id instance-id
-                                                                        :card-slug   card-slug
-                                                                        :played-by   played-by}))
-                                                           [dispatch])]
+        on-attach           (use-callback
+                             (fn [instance-id card-slug played-by]
+                               (dispatch {:type :open-attach-modal
+                                          :instance-id instance-id
+                                          :card-slug   card-slug
+                                          :played-by   played-by}))
+                             [dispatch])]
     (when (seq play-area)
       ($ play-area-panel {:play-area       play-area
                           :catalog         catalog
@@ -162,21 +162,21 @@
         create-token-modal            (s/use-create-token-modal)
         {:keys [my-on-court-players]} (use-game-derived)
 
-        players                                      (use-memo
-                                                      #(mapv (fn [p] {:id (:id p) :name (:name p)})
-                                                             (or my-on-court-players []))
-                                                      [my-on-court-players])
+        players                       (use-memo
+                                       #(mapv (fn [p] {:id (:id p) :name (:name p)})
+                                              (or my-on-court-players []))
+                                       [my-on-court-players])
 
-        on-create                                    (use-callback
-                                                      (fn [{:keys [name placement target-player-id]}]
-                                                        (let [token-card {:slug      (str "token-" (random-uuid))
-                                                                          :name      name
-                                                                          :card-type "TEAM_ASSET_CARD"
-                                                                          :token     true}]
-                                                          (-> ((:create-token actions) my-team token-card placement target-player-id)
-                                                              (.then #((:close create-token-modal)))
-                                                              (.catch #(js/console.error "Token creation failed:" %)))))
-                                                      [my-team actions create-token-modal])]
+        on-create                     (use-callback
+                                       (fn [{:keys [name placement target-player-id]}]
+                                         (let [token-card {:slug      (str "token-" (random-uuid))
+                                                           :name      name
+                                                           :card-type "TEAM_ASSET_CARD"
+                                                           :token     true}]
+                                           (-> ((:create-token actions) my-team token-card placement target-player-id)
+                                               (.then #((:close create-token-modal)))
+                                               (.catch #(js/console.error "Token creation failed:" %)))))
+                                       [my-team actions create-token-modal])]
     ($ token-modal/create-token-modal {:open?     (:open? create-token-modal)
                                        :players   players
                                        :on-create on-create
@@ -187,23 +187,23 @@
 
   Renders the attach ability modal and handles ability resolution via dispatch."
   []
-  (let [game-state            (s/use-game-state)
-        catalog               (s/use-catalog)
-        attach-ability-modal  (s/use-attach-ability-modal)
-        dispatch              (use-dispatch)
+  (let [game-state           (s/use-game-state)
+        catalog              (s/use-catalog)
+        attach-ability-modal (s/use-attach-ability-modal)
+        dispatch             (use-dispatch)
 
-        played-by                                         (:played-by attach-ability-modal)
-        players                                           (use-memo
-                                                           #(let [team-players (get-in game-state [:players played-by :team :players])]
-                                                              (->> (vals team-players)
-                                                                   (filter :position)
-                                                                   (mapv (fn [p] {:id (:id p) :name (:name p)}))))
-                                                           [game-state played-by])
+        played-by            (:played-by attach-ability-modal)
+        players              (use-memo
+                              #(let [team-players (get-in game-state [:players played-by :team :players])]
+                                 (->> (vals team-players)
+                                      (filter :position)
+                                      (mapv (fn [p] {:id (:id p) :name (:name p)}))))
+                              [game-state played-by])
 
-        on-resolve-ability                                (use-callback
-                                                           (fn [target-player-id]
-                                                             (dispatch {:type :resolve-ability :target-player-id target-player-id}))
-                                                           [dispatch])]
+        on-resolve-ability   (use-callback
+                              (fn [target-player-id]
+                                (dispatch {:type :resolve-ability :target-player-id target-player-id}))
+                              [dispatch])]
     ($ attach-modal/attach-ability-modal {:open?      (:open? attach-ability-modal)
                                           :card-slug  (:card-slug attach-ability-modal)
                                           :players    players
@@ -242,20 +242,20 @@
   1. Select count (1-5 cards)
   2. Assign each card to TOP/BOTTOM/DISCARD"
   []
-  (let [game-state                      (s/use-game-state)
-        catalog                         (s/use-catalog)
-        actions                         (s/use-actions)
-        {:keys [machine send]}          (s/use-peek-machine)
+  (let [game-state             (s/use-game-state)
+        catalog                (s/use-catalog)
+        actions                (s/use-actions)
+        {:keys [machine send]} (s/use-peek-machine)
 
-        target-team                     (get-in machine [:data :target-team])
-        examined-cards                                              (when target-team
-                                                                      (get-in game-state [:players target-team :deck :examined]))
+        target-team            (get-in machine [:data :target-team])
+        examined-cards         (when target-team
+                                 (get-in game-state [:players target-team :deck :examined]))
 
-        on-peek                                                     (use-callback
-                                                                     (fn [team count]
-                                                                       (-> ((:examine-cards actions) team count)
-                                                                           (.catch #(js/console.error "Examine cards failed:" %))))
-                                                                     [actions])]
+        on-peek                (use-callback
+                                (fn [team count]
+                                  (-> ((:examine-cards actions) team count)
+                                      (.catch #(js/console.error "Examine cards failed:" %))))
+                                [actions])]
     ($ peek-deck-modal {:machine-state   machine
                         :send            send
                         :examined-cards  examined-cards
@@ -587,23 +587,23 @@
 (defui bottom-bar-section
   "Bottom bar with hand and actions."
   []
-  (let [game-state                         (s/use-game-state)
-        catalog                            (s/use-catalog)
-        my-team                            (s/use-my-team)
-        is-my-turn                         (s/use-is-my-turn)
-        actions                            (s/use-actions)
-        selection                          (s/use-selection)
-        discard                            (s/use-discard-machine)
-        substitute                         (s/use-substitute-machine)
-        peek                               (s/use-peek-machine)
-        detail-modal                       (s/use-detail-modal)
+  (let [game-state                                                                  (s/use-game-state)
+        catalog                                                                     (s/use-catalog)
+        my-team                                                                     (s/use-my-team)
+        is-my-turn                                                                  (s/use-is-my-turn)
+        actions                                                                     (s/use-actions)
+        selection                                                                   (s/use-selection)
+        discard                                                                     (s/use-discard-machine)
+        substitute                                                                  (s/use-substitute-machine)
+        peek                                                                        (s/use-peek-machine)
+        detail-modal                                                                (s/use-detail-modal)
 
-        send                               (:send selection)
-        selection-mode                     (:mode selection)
-        selection-data                     (:data selection)
-        send-discard                       (:send discard)
-        send-substitute                    (:send substitute)
-        send-peek                          (:send peek)
+        send                                                                        (:send selection)
+        selection-mode                                                              (:mode selection)
+        selection-data                                                              (:data selection)
+        send-discard                                                                (:send discard)
+        send-substitute                                                             (:send substitute)
+        send-peek                                                                   (:send peek)
 
         {:keys [phase selected-player-id selected-card pass-active discard-active
                 discard-cards setup-placed-count my-setup-complete both-teams-ready
@@ -762,35 +762,35 @@
         {:keys [home-players away-players score
                 active-player]}                 (use-game-derived)
 
-        players                                   (if (= team :team/HOME) home-players away-players)
-        team-label                                (if (= team :team/HOME) "Home" "Away")
-        team-color                                (if (= team :team/HOME) "bg-blue-500" "bg-red-500")
-        is-active                                 (= active-player team)
-        is-my-team                                (= team my-team)
+        players                                 (if (= team :team/HOME) home-players away-players)
+        team-label                              (if (= team :team/HOME) "Home" "Away")
+        team-color                              (if (= team :team/HOME) "bg-blue-500" "bg-red-500")
+        is-active                               (= active-player team)
+        is-my-team                              (= team my-team)
 
         ;; Filter to only on-court players
-        on-court                                  (use-memo
-                                                   #(into {}
-                                                          (filter (fn [[_id p]] (some? (:position p))))
-                                                          players)
-                                                   [players])
+        on-court                                (use-memo
+                                                 #(into {}
+                                                        (filter (fn [[_id p]] (some? (:position p))))
+                                                        players)
+                                                 [players])
 
-        player-indices                            (use-memo
-                                                   #(sel/build-player-index-map on-court)
-                                                   [on-court])
+        player-indices                          (use-memo
+                                                 #(sel/build-player-index-map on-court)
+                                                 [on-court])
 
-        player                                    (get-in game-state [:players team])
-        raw-assets                                (or (:assets player) [])
-        assets                                    (use-memo
-                                                   #(mapv (fn [asset]
-                                                            (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
-                                                          raw-assets)
-                                                   [raw-assets catalog])
+        player                                  (get-in game-state [:players team])
+        raw-assets                              (or (:assets player) [])
+        assets                                  (use-memo
+                                                 #(mapv (fn [asset]
+                                                          (assoc asset :name (get-in catalog [(:card-slug asset) :name])))
+                                                        raw-assets)
+                                                 [raw-assets catalog])
 
-        on-player-click                           (use-callback
-                                                   (fn [player-id]
-                                                     (send {:type :click-player :data {:player-id player-id}}))
-                                                   [send])]
+        on-player-click                         (use-callback
+                                                 (fn [player-id]
+                                                   (send {:type :click-player :data {:player-id player-id}}))
+                                                 [send])]
 
     ($ :div {:class (cn "flex-1 p-2 rounded-lg border"
                         (if is-active "bg-slate-50 border-slate-300" "bg-white border-slate-200"))}

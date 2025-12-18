@@ -76,11 +76,11 @@
 
 ;; Test component that uses selector hooks
 (defui test-consumer []
-  (let [game                    (s/use-game)
-        my-team                 (s/use-my-team)
-        is-my-turn              (s/use-is-my-turn)
-        actions                 (s/use-actions)
-        {:keys [loading]}       (s/use-connection-status)]
+  (let [game              (s/use-game)
+        my-team           (s/use-my-team)
+        is-my-turn        (s/use-is-my-turn)
+        actions           (s/use-actions)
+        {:keys [loading]} (s/use-connection-status)]
     ($ :div {:data-testid "context-consumer"}
        ($ :span {:data-testid "loading"} (str loading))
        ($ :span {:data-testid "my-team"} (str my-team))

@@ -28,22 +28,22 @@
   Uses three-column layout on large screens (≥1024px), stacked layout
   on smaller screens."
   []
-  (let [game                                                           (s/use-game)
-        game-state                                                     (s/use-game-state)
-        {:keys [loading error]}                                        (s/use-connection-status)
-        detail-modal                                                   (s/use-detail-modal)
-        fate-reveal                                                    (s/use-fate-reveal)
-        {:keys [machine send]}                                         (s/use-substitute-machine)
+  (let [game                                             (s/use-game)
+        game-state                                       (s/use-game-state)
+        {:keys [loading error]}                          (s/use-connection-status)
+        detail-modal                                     (s/use-detail-modal)
+        fate-reveal                                      (s/use-fate-reveal)
+        {:keys [machine send]}                           (s/use-substitute-machine)
 
         {:keys [my-on-court-players my-off-court-players
                 home-players away-players]}
         (use-game-derived)
 
-        on-info-click                                                  (:show detail-modal)
+        on-info-click                                    (:show detail-modal)
 
         ;; Modal state for log and roster
-        [log-open? set-log-open]                                       (use-state false)
-        [roster-open? set-roster-open]                                 (use-state false)]
+        [log-open? set-log-open]                         (use-state false)
+        [roster-open? set-roster-open]                   (use-state false)]
 
     (cond
       loading
