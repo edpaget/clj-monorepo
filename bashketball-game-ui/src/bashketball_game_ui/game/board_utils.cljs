@@ -33,20 +33,6 @@
                 (* size (Math/sqrt 3) 0.5 (mod r 2)))]
     [x y]))
 
-(defn pixel->hex
-  "Converts pixel [x y] to nearest axial hex [q r].
-
-  Uses flat-top orientation with odd-column offset layout (horizontal board)."
-  [[px py]]
-  (let [size hex-size
-        ;; Inverse of hex->pixel with swapped axes
-        r    (/ px (* size 1.5))
-        q    (- (/ py (* size (Math/sqrt 3)))
-                (* 0.5 (mod (Math/round r) 2)))
-        rr   (Math/round r)
-        qq   (Math/round q)]
-    [(int qq) (int rr)]))
-
 (defn hex-corners
   "Returns the six corner points for a hex at the given pixel center.
 
@@ -82,14 +68,6 @@
     (or (= r 3) (= r 10))                  {:terrain :three-point-line :side (if (= r 3) :team/HOME :team/AWAY)}
     (contains? center-court-positions [q r]) {:terrain :center-court}
     :else                                  {:terrain :court}))
-
-(defn terrain-side
-  "Returns :team/HOME or :team/AWAY for position based on court half, or nil for center."
-  [[_q r]]
-  (cond
-    (<= r 6) :team/HOME
-    (>= r 7) :team/AWAY
-    :else nil))
 
 (def hex-half-height
   "Half the height of a flat-top hex."

@@ -42,33 +42,3 @@
      :data (:data state)
      :send send
      :can? can?}))
-
-(defn use-selection-machine-standalone
-  "Standalone version that doesn't require dispatch context.
-
-  For use in components that handle actions themselves.
-  Returns same interface as [[use-selection-machine]] but with `:action`
-  in the return value from send instead of auto-dispatching."
-  []
-  (let [[state set-state]             (uix/use-state (sm/init))
-        [last-action set-last-action] (uix/use-state nil)
-
-        send                          (uix/use-callback
-                                       (fn [event]
-                                         (set-state
-                                          (fn [current]
-                                            (let [result (sm/transition current event)]
-                                              (set-last-action (:action result))
-                                              (select-keys result [:state :data])))))
-                                       [])
-
-        can?                          (uix/use-callback
-                                       (fn [event-type]
-                                         (contains? (sm/valid-events (:state state)) event-type))
-                                       [state])]
-
-    {:mode   (:state state)
-     :data   (:data state)
-     :send   send
-     :can?   can?
-     :action last-action}))

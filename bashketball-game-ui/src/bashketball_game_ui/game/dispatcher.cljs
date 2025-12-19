@@ -37,64 +37,46 @@
       (let [player-id (:player-id from)
             q         (:q to)
             r         (:r to)]
-        (-> ((:move-player actions) player-id q r)
-            (.then #(js/console.log "Move result:" %))
-            (.catch #(js/console.error "Move error:" %))))
+        ((:move-player actions) player-id q r))
 
       :set-ball-loose
       (let [q (:q to)
             r (:r to)]
-        (-> ((:set-ball-loose actions) q r)
-            (.then #(js/console.log "Ball move result:" %))
-            (.catch #(js/console.error "Ball move error:" %))))
+        ((:set-ball-loose actions) q r))
 
       :set-ball-possessed
       (let [player-id (:player-id to)]
-        (-> ((:set-ball-possessed actions) player-id)
-            (.then #(js/console.log "Ball possession result:" %))
-            (.catch #(js/console.error "Ball possession error:" %))))
+        ((:set-ball-possessed actions) player-id))
 
       :pass-to-player
       (when-let [origin (get-ball-holder-position)]
         (let [player-id (:player-id to)]
-          (-> ((:pass-ball actions) origin player-id)
-              (.then #(js/console.log "Pass result:" %))
-              (.catch #(js/console.error "Pass error:" %)))))
+          ((:pass-ball actions) origin player-id)))
 
       :pass-to-hex
       (when-let [origin (get-ball-holder-position)]
         (let [target [(:q to) (:r to)]]
-          (-> ((:pass-ball actions) origin target)
-              (.then #(js/console.log "Pass to hex result:" %))
-              (.catch #(js/console.error "Pass to hex error:" %)))))
+          ((:pass-ball actions) origin target)))
 
       :standard-action
       (let [cards     (:cards from)
             card-slug (:card-slug to)]
-        (-> ((:stage-virtual-standard-action actions) my-team cards card-slug)
-            (.then #(js/console.log "Standard action staged:" %))
-            (.catch #(js/console.error "Standard action error:" %))))
+        ((:stage-virtual-standard-action actions) my-team cards card-slug))
 
       ;; === State machine actions (modal) ===
       :substitute
       (let [on-court-id  (:on-court-id action)
             off-court-id (:off-court-id action)]
-        (-> ((:substitute actions) on-court-id off-court-id)
-            (.then #(js/console.log "Substitute result:" %))
-            (.catch #(js/console.error "Substitute error:" %))))
+        ((:substitute actions) on-court-id off-court-id))
 
       :discard-cards
       (let [cards (:cards action)]
-        (-> ((:discard-cards actions) my-team (vec cards))
-            (.then #(js/console.log "Discard result:" %))
-            (.catch #(js/console.error "Discard error:" %))))
+        ((:discard-cards actions) my-team (vec cards)))
 
       :resolve-peek
       (let [target-team (:target-team action)
             placements  (:placements action)]
-        (-> ((:resolve-examined-cards actions) target-team placements)
-            (.then #(js/console.log "Peek resolve result:" %))
-            (.catch #(js/console.error "Peek resolve error:" %))))
+        ((:resolve-examined-cards actions) target-team placements))
 
       ;; === Handler actions ===
       :end-turn
@@ -132,9 +114,7 @@
       (when attach-ability-modal
         (let [instance-id      (:instance-id attach-ability-modal)
               target-player-id (:target-player-id action)]
-          (-> ((:resolve-card actions) instance-id target-player-id)
-              (.then #(js/console.log "Ability resolved:" %))
-              (.catch #(js/console.error "Ability resolve error:" %)))
+          ((:resolve-card actions) instance-id target-player-id)
           ((:close attach-ability-modal))))
 
       :draw
@@ -175,8 +155,7 @@
         (-> ((:reveal-fate actions) my-team)
             (.then (fn [result]
                      (when-let [fate (-> result :data :submit-action :revealed-fate)]
-                       ((:show fate-reveal) fate))))
-            (.catch #(js/console.error "Reveal fate error:" %))))
+                       ((:show fate-reveal) fate))))))
 
       :shuffle
       ((:shuffle-deck actions) my-team)
@@ -187,9 +166,7 @@
       :move-asset
       (let [instance-id (:instance-id action)
             destination (:destination action)]
-        (-> ((:move-asset actions) my-team instance-id destination)
-            (.then #(js/console.log "Asset moved:" %))
-            (.catch #(js/console.error "Move asset error:" %))))
+        ((:move-asset actions) my-team instance-id destination))
 
       :target-click
       (when-let [game-state (and get-game-state (get-game-state))]
@@ -198,14 +175,10 @@
           (cond
             (:position target)
             (let [[q r] (:position target)]
-              (-> ((:set-ball-loose actions) q r)
-                  (.then #(js/console.log "Resolve to position:" %))
-                  (.catch #(js/console.error "Resolve error:" %))))
+              ((:set-ball-loose actions) q r))
 
             (:player-id target)
-            (-> ((:set-ball-possessed actions) (:player-id target))
-                (.then #(js/console.log "Resolve to player:" %))
-                (.catch #(js/console.error "Resolve error:" %))))))
+            ((:set-ball-possessed actions) (:player-id target)))))
 
       :toggle-exhausted
       (when-let [game-state (and get-game-state (get-game-state))]
@@ -215,12 +188,8 @@
               player      (or home-player away-player)
               exhausted?  (:exhausted player)]
           (if exhausted?
-            (-> ((:refresh-player actions) player-id)
-                (.then #(js/console.log "Player refreshed:" %))
-                (.catch #(js/console.error "Refresh error:" %)))
-            (-> ((:exhaust-player actions) player-id)
-                (.then #(js/console.log "Player exhausted:" %))
-                (.catch #(js/console.error "Exhaust error:" %))))))
+            ((:refresh-player actions) player-id)
+            ((:exhaust-player actions) player-id))))
 
       ;; === UI modal actions ===
       :show-detail-modal
@@ -250,5 +219,5 @@
       (when attach-ability-modal
         ((:close attach-ability-modal)))
 
-      ;; Unknown action
-      (js/console.warn "Unknown action type:" type action))))
+      ;; Unknown action - silently ignore
+      nil)))

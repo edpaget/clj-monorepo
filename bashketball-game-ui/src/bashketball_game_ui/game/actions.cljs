@@ -18,7 +18,6 @@
   [game-state team]
   (when-let [holder-id (get-in game-state [:ball :holder-id])]
     (let [team-players (get-in game-state [:players team :team :players])]
-      (prn team-players)
       (contains? team-players holder-id))))
 
 (defn player-has-ball?

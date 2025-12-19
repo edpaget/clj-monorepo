@@ -31,18 +31,6 @@
     (t/is (vector? result))
     (t/is (= 2 (count result)))))
 
-(t/deftest pixel->hex-roundtrip-test
-  (let [original  [2 5]
-        pixel     (board-utils/hex->pixel original)
-        converted (board-utils/pixel->hex pixel)]
-    (t/is (= original converted))))
-
-(t/deftest pixel->hex-roundtrip-edge-test
-  (let [original  [4 13]
-        pixel     (board-utils/hex->pixel original)
-        converted (board-utils/pixel->hex pixel)]
-    (t/is (= original converted))))
-
 ;; =============================================================================
 ;; Valid position tests
 ;; =============================================================================
@@ -99,20 +87,6 @@
   (let [terrain (board-utils/terrain-at [2 7])]
     (t/is (= :center-court (:terrain terrain)))
     (t/is (nil? (:side terrain)))))
-
-;; =============================================================================
-;; Terrain side tests
-;; =============================================================================
-
-(t/deftest terrain-side-home-test
-  (t/is (= :team/HOME (board-utils/terrain-side [2 0])))
-  (t/is (= :team/HOME (board-utils/terrain-side [2 3])))
-  (t/is (= :team/HOME (board-utils/terrain-side [2 6]))))
-
-(t/deftest terrain-side-away-test
-  (t/is (= :team/AWAY (board-utils/terrain-side [2 13])))
-  (t/is (= :team/AWAY (board-utils/terrain-side [2 10])))
-  (t/is (= :team/AWAY (board-utils/terrain-side [2 7]))))
 
 ;; =============================================================================
 ;; Hex geometry tests
