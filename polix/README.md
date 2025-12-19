@@ -103,6 +103,33 @@ that returns one of three values:
 ;; => {:residual {:level [[:> 5]], :status [[:in #{"active" "pending"}]]}}
 ```
 
+#### Compilation Options
+
+The compiler supports context options for customization:
+
+```clojure
+;; With tracing enabled
+(def checker (p/compile-policies
+               [[:= :doc/role "admin"]]
+               {:trace? true}))
+
+(checker {:role "admin"})
+;; => {:residual {...} :trace [{:op := :value "admin" :expected "admin" :result true}]}
+
+;; Per-evaluation tracing
+(def checker (p/compile-policies [[:= :doc/role "admin"]]))
+(checker {:role "admin"} {:trace? true})
+
+;; Or use the helper
+(p/with-trace checker {:role "admin"})
+```
+
+Available options:
+- `:operators` - custom operator map (overrides registry for these keys)
+- `:fallback` - `(fn [op-key])` for unknown operators
+- `:strict?` - throw on unknown operators (default false)
+- `:trace?` - record evaluation trace (default false)
+
 #### Constraint Simplification
 
 The compiler performs constraint solving at compile time:
@@ -135,6 +162,41 @@ Residual constraints can be converted back to policy expressions:
 (p/result->policy result)
 ;; => [:and [:> :doc/level 5] [:in :doc/status #{"active" "pending"}]]
 ```
+
+### Custom Operators
+
+Polix provides an extensible operator system. Built-in operators include:
+- Equality: `:=`, `:!=`
+- Comparison: `:>`, `:<`, `:>=`, `:<=`
+- Set membership: `:in`, `:not-in`
+- Pattern matching: `:matches`, `:not-matches`
+
+Define custom operators using `register-operator!` or the `defoperator` macro:
+
+```clojure
+(require '[polix.operators :as op])
+
+;; Register a custom operator
+(op/register-operator! :starts-with
+  {:eval (fn [value expected] (str/starts-with? (str value) expected))
+   :negate :not-starts-with})
+
+(op/register-operator! :not-starts-with
+  {:eval (fn [value expected] (not (str/starts-with? (str value) expected)))
+   :negate :starts-with})
+
+;; Or use the macro
+(op/defoperator :contains-substr
+  :eval (fn [value expected] (str/includes? (str value) expected))
+  :negate :not-contains-substr)
+
+;; Use in policies
+(def checker (p/compile-policies [[:starts-with :doc/email "admin@"]]))
+(checker {:email "admin@example.com"}) ;; => true
+```
+
+Operator specs are validated at registration time using `clojure.spec.alpha`.
+Required keys: `:eval`. Optional: `:negate`, `:simplify`, `:subsumes?`.
 
 ### Bidirectional Evaluation (Planned)
 

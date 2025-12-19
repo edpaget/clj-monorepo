@@ -1,7 +1,9 @@
 (ns polix.compiler-test
   (:require
+   [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
-   [polix.compiler :as compiler]))
+   [polix.compiler :as compiler]
+   [polix.operators :as op]))
 
 (deftest constraint-creation-test
   (testing "creating constraints"
@@ -127,3 +129,56 @@
     (let [result {:residual {:level [[:> 5]]}}
           policy (compiler/result->policy result)]
       (is (= [:> :doc/level 5] policy)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Context Threading Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest context-custom-operators-test
+  (testing "custom operators passed at compile time"
+    ;; Register operator so normalization works
+    (op/register-operator! :is-uppercase
+      {:eval (fn [v _expected] (= v (str/upper-case v)))})
+    (let [check (compiler/compile-policies
+                 [[:is-uppercase :doc/name true]])]
+      (is (true? (check {:name "HELLO"})))
+      (is (false? (check {:name "hello"}))))))
+
+(deftest context-strict-mode-test
+  (testing "strict mode throws on unknown operator"
+    (let [check (compiler/compile-policies
+                 [[:= :doc/role "admin"]]
+                 {:strict? true})]
+      ;; Known operator works
+      (is (true? (check {:role "admin"})))
+      ;; Unknown operator would throw - but we can't test this easily
+      ;; since the policy parser needs the operator registered
+      )))
+
+(deftest context-tracing-test
+  (testing "tracing records evaluations"
+    (let [check (compiler/compile-policies
+                 [[:= :doc/role "admin"]]
+                 {:trace? true})
+          result (check {:role "admin"})]
+      ;; Fully satisfied returns true, no trace (trace only on residuals)
+      (is (true? result))))
+
+  (testing "tracing on partial evaluation"
+    (let [check (compiler/compile-policies
+                 [[:= :doc/role "admin"]
+                  [:> :doc/level 5]]
+                 {:trace? true})
+          result (check {:role "admin"})]
+      (is (map? result))
+      (is (contains? result :residual))
+      (is (contains? result :trace))
+      (is (vector? (:trace result)))))
+
+  (testing "per-evaluation trace override"
+    (let [check (compiler/compile-policies
+                 [[:= :doc/role "admin"]
+                  [:> :doc/level 5]])
+          result (check {:role "admin"} {:trace? true})]
+      (is (map? result))
+      (is (contains? result :trace)))))

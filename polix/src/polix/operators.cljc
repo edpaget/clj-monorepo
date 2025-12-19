@@ -28,32 +28,58 @@
         {:eval (fn [value expected] ...)
          :simplify (fn [constraints] ...)
          :negate :my-op-negated})"
+  (:refer-clojure :exclude [eval])
   (:require
-   [clojure.set]
-   [clojure.string :as str]))
+   #?(:clj [clojure.spec.alpha :as s]
+      :cljs [cljs.spec.alpha :as s])
+   [clojure.set]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Operator Protocol
 ;;; ---------------------------------------------------------------------------
 
 (defprotocol IOperator
-  "Protocol for constraint operators."
+  "Protocol for constraint operators.
 
-  (op-eval [this value expected]
+   Import this namespace with `:as op` to use `op/eval`, `op/negate`, etc."
+
+  (eval [this value expected]
     "Evaluates whether `value` satisfies the constraint with `expected`.
      Returns true, false, or nil if evaluation is not possible.")
 
-  (op-negate [this constraint]
+  (negate [this constraint]
     "Returns the negated form of `constraint`.
      May return a new constraint or nil if negation is not supported.")
 
-  (op-simplify [this constraints]
+  (simplify [this constraints]
     "Simplifies a collection of constraints with this operator on the same key.
      Returns {:simplified [...]} or {:contradicted [...]}.")
 
-  (op-subsumes? [this c1 c2]
+  (subsumes? [this c1 c2]
     "Returns true if constraint c1 subsumes c2 (c1 implies c2).
      Used to eliminate redundant constraints."))
+
+;;; ---------------------------------------------------------------------------
+;;; Operator Spec (Validation)
+;;; ---------------------------------------------------------------------------
+
+(s/def ::eval fn?)
+(s/def ::negate keyword?)
+(s/def ::simplify fn?)
+(s/def ::subsumes? fn?)
+
+(s/def ::operator-spec
+  (s/keys :req-un [::eval]
+          :opt-un [::negate ::simplify ::subsumes?]))
+
+(defn validate-operator-spec!
+  "Validates operator spec against schema, throws on invalid."
+  [op-key spec]
+  (when-not (s/valid? ::operator-spec spec)
+    (throw (ex-info "Invalid operator specification"
+                    {:op-key op-key
+                     :spec spec
+                     :problems (s/explain-data ::operator-spec spec)}))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Default Operator Implementation
@@ -62,20 +88,20 @@
 (defrecord Operator [op-key eval-fn negate-key simplify-fn subsumes-fn]
   IOperator
 
-  (op-eval [_ value expected]
+  (eval [_ value expected]
     (when eval-fn
       (eval-fn value expected)))
 
-  (op-negate [_ constraint]
+  (negate [_ constraint]
     (when negate-key
       (assoc constraint :op negate-key)))
 
-  (op-simplify [_ constraints]
+  (simplify [_ constraints]
     (if simplify-fn
       (simplify-fn constraints)
       {:simplified constraints}))
 
-  (op-subsumes? [_ c1 c2]
+  (subsumes? [_ c1 c2]
     (if subsumes-fn
       (subsumes-fn c1 c2)
       false)))
@@ -87,16 +113,19 @@
 (defonce ^:private registry (atom {}))
 
 (defn register-operator!
-  "Registers an operator in the global registry.
+  "Registers an operator in the global registry with spec validation.
 
    `op-key` is the operator keyword (e.g., `:=`, `:my-app/custom-op`).
 
-   `spec` is a map with optional keys:
-   - `:eval` - `(fn [value expected] -> boolean?)` evaluation function
+   `spec` is a map with required and optional keys:
+   - `:eval` - (required) `(fn [value expected] -> boolean?)` evaluation function
    - `:negate` - keyword of the negated operator
    - `:simplify` - `(fn [constraints] -> {:simplified [...]} | {:contradicted [...]})`
-   - `:subsumes?` - `(fn [c1 c2] -> boolean?)` subsumption check"
+   - `:subsumes?` - `(fn [c1 c2] -> boolean?)` subsumption check
+
+   Throws if spec is invalid (e.g., missing :eval or wrong types)."
   [op-key spec]
+  (validate-operator-spec! op-key spec)
   (let [operator (->Operator
                   op-key
                   (:eval spec)
@@ -110,6 +139,58 @@
   "Returns the operator for `op-key`, or nil if not found."
   [op-key]
   (get @registry op-key))
+
+;;; ---------------------------------------------------------------------------
+;;; Operator Context
+;;; ---------------------------------------------------------------------------
+
+(defrecord OperatorContext [operators   ; Map of op-key -> IOperator (overrides registry)
+                            fallback    ; (fn [op-key] -> IOperator or nil)
+                            strict?     ; Error on unknown operators?
+                            trace?      ; Record evaluation trace?
+                            trace])     ; Atom for trace accumulation
+
+(defn make-context
+  "Creates an operator context for evaluation.
+
+   Options:
+   - `:operators` - operator map (overrides registry for these keys)
+   - `:fallback` - `(fn [op-key])` for unknown operators
+   - `:strict?` - throw on unknown operators (default false)
+   - `:trace?` - record evaluation trace (default false)"
+  ([] (make-context {}))
+  ([{:keys [operators fallback strict? trace?]
+     :or {strict? false trace? false}}]
+   (->OperatorContext
+    operators
+    fallback
+    strict?
+    trace?
+    (when trace? (atom [])))))
+
+(defn get-operator-in-context
+  "Gets operator from context, checking context operators, registry, then fallback."
+  [ctx op-key]
+  (or (when-let [ops (:operators ctx)]
+        (get ops op-key))
+      (get @registry op-key)
+      (when-let [fb (:fallback ctx)]
+        (fb op-key))
+      (when (:strict? ctx)
+        (throw (ex-info "Unknown operator" {:op op-key})))))
+
+(defn eval-in-context
+  "Evaluates a constraint using operators from context."
+  [ctx constraint value]
+  (let [op-key (:op constraint)
+        expected (:value constraint)]
+    (if-let [operator (get-operator-in-context ctx op-key)]
+      (let [result (eval operator value expected)]
+        (when (:trace? ctx)
+          (swap! (:trace ctx) conj
+                 {:op op-key :value value :expected expected :result result}))
+        result)
+      nil)))
 
 (defn operator-keys
   "Returns all registered operator keys."
@@ -133,20 +214,20 @@
   (let [op-key (:op constraint)
         expected (:value constraint)]
     (if-let [operator (get-operator op-key)]
-      (op-eval operator value expected)
+      (eval operator value expected)
       nil)))
 
 (defn negate-constraint
   "Returns the negated form of a constraint, or nil if not supported."
   [constraint]
   (when-let [operator (get-operator (:op constraint))]
-    (op-negate operator constraint)))
+    (negate operator constraint)))
 
 (defn simplify-constraints
   "Simplifies constraints with the same operator on the same key."
   [op-key constraints]
   (if-let [operator (get-operator op-key)]
-    (op-simplify operator constraints)
+    (simplify operator constraints)
     {:simplified constraints}))
 
 ;;; ---------------------------------------------------------------------------
@@ -206,10 +287,10 @@
          :simplify (fn [cs] {:simplified cs}))"
   [op-key & {:keys [eval negate simplify subsumes?]}]
   `(register-operator! ~op-key
-                       {:eval ~eval
-                        :negate ~negate
-                        :simplify ~simplify
-                        :subsumes? ~subsumes?}))
+                       (cond-> {:eval ~eval}
+                         ~negate (assoc :negate ~negate)
+                         ~simplify (assoc :simplify ~simplify)
+                         ~subsumes? (assoc :subsumes? ~subsumes?))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Built-in Operators

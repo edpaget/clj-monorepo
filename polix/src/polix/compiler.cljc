@@ -26,6 +26,7 @@
    [cats.core :as m]
    [cats.monad.either :as either]
    [polix.ast :as ast]
+   [polix.operators :as op]
    [polix.parser :as parser]))
 
 ;;; ---------------------------------------------------------------------------
@@ -48,9 +49,11 @@
 ;;; AST to Constraint Normalization
 ;;; ---------------------------------------------------------------------------
 
-(def comparison-ops
-  "Set of comparison operators."
-  #{:= :!= :< :> :<= :>= :in :not-in :matches})
+(defn comparison-op?
+  "Returns true if op is a registered comparison operator (not a boolean connective)."
+  [op]
+  (and (not (contains? #{:and :or :not} op))
+       (op/get-operator op)))
 
 (def boolean-ops
   "Set of boolean connective operators."
@@ -131,8 +134,8 @@
         {:op :not
          :child (normalize-ast (first children))}
 
-        ;; Comparison operators
-        (contains? comparison-ops op)
+        ;; Comparison operators (any registered non-boolean operator)
+        (comparison-op? op)
         (if-let [c (normalize-comparison op children)]
           {:op :constraint :constraint c}
           {:op :complex :ast ast})
@@ -239,23 +242,16 @@
 ;;; ---------------------------------------------------------------------------
 
 (defn eval-constraint
-  "Evaluates a single constraint against a value.
-   Returns true if satisfied, false if contradicted."
+  "Evaluates a single constraint against a value using the operator registry.
+
+   Returns true if satisfied, false if contradicted, nil if operator unknown."
   [constraint value]
-  (let [op       (:op constraint)
-        expected (:value constraint)]
-    (case op
-      := (= value expected)
-      :!= (not= value expected)
-      :< (< value expected)
-      :> (> value expected)
-      :<= (<= value expected)
-      :>= (>= value expected)
-      :in (contains? expected value)
-      :not-in (not (contains? expected value))
-      :matches (boolean (re-matches (re-pattern expected) (str value)))
-      ;; Unknown op - can't evaluate
-      nil)))
+  (op/eval-constraint constraint value))
+
+(defn- eval-constraint-in-context
+  "Evaluates a single constraint using operators from context."
+  [ctx constraint value]
+  (op/eval-in-context ctx constraint value))
 
 (defn eval-constraints-for-key
   "Evaluates all constraints for a key against a value.
@@ -266,6 +262,18 @@
     {:residual constraints}
     ;; Evaluate each constraint
     (let [results (map #(eval-constraint % value) constraints)]
+      (cond
+        (some false? results) :contradicted
+        (every? true? results) :satisfied
+        :else {:residual (map second (filter #(nil? (first %))
+                                             (map vector results constraints)))}))))
+
+(defn- eval-constraints-for-key-in-context
+  "Evaluates all constraints for a key using operators from context."
+  [ctx constraints value value-present?]
+  (if-not value-present?
+    {:residual constraints}
+    (let [results (map #(eval-constraint-in-context ctx % value) constraints)]
       (cond
         (some false? results) :contradicted
         (every? true? results) :satisfied
@@ -305,6 +313,34 @@
              residuals)
            (= :contradicted result)))))))
 
+(defn- evaluate-document-with-context
+  "Evaluates a constraint set using operators from context."
+  [constraint-set document ctx]
+  (let [doc-keys (set (keys document))]
+    (loop [keys-to-check     (keys (dissoc constraint-set ::complex))
+           residuals         {}
+           any-contradicted? false]
+      (if (or any-contradicted? (empty? keys-to-check))
+        (let [base-result (cond
+                            any-contradicted? false
+                            (seq residuals) {:residual residuals}
+                            :else true)]
+          ;; Include trace if enabled
+          (if (and (:trace? ctx) (map? base-result))
+            (assoc base-result :trace @(:trace ctx))
+            base-result))
+        (let [k              (first keys-to-check)
+              constraints    (get constraint-set k)
+              value-present? (contains? doc-keys k)
+              value          (get document k)
+              result         (eval-constraints-for-key-in-context ctx constraints value value-present?)]
+          (recur
+           (rest keys-to-check)
+           (if (map? result)
+             (assoc residuals k (mapv (fn [c] [(:op c) (:value c)]) (:residual result)))
+             residuals)
+           (= :contradicted result)))))))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Policy Compilation
 ;;; ---------------------------------------------------------------------------
@@ -329,11 +365,21 @@
 (defn compile-policies
   "Compiles multiple policies into an optimized evaluation function.
 
-   Takes a sequence of policy expressions and returns a function that:
-   - Takes a document (map)
-   - Returns true, false, or {:residual {...}}
+   Takes a sequence of policy expressions and optional options map.
+   Returns a function that takes a document and returns true, false,
+   or `{:residual {...}}`.
+
+   Options:
+   - `:operators` - custom operators map (overrides registry)
+   - `:fallback` - `(fn [op-key])` for unknown operators
+   - `:strict?` - throw on unknown operators (default false)
+   - `:trace?` - record evaluation trace (default false)
 
    Policies are merged with AND semantics - all must be satisfied.
+
+   The returned function accepts either:
+   - `(check document)` - use compile-time context
+   - `(check document opts)` - override context per-evaluation
 
    Example:
 
@@ -343,16 +389,25 @@
 
        (check {:role \"admin\" :level 10})  ;; => true
        (check {:role \"guest\" :level 10}) ;; => false
-       (check {:role \"admin\"})           ;; => {:residual {:level [[:> 5]]}}"
-  [policy-exprs]
-  (let [merge-result (merge-policies policy-exprs)]
-    (if (:contradicted merge-result)
-      ;; Policies are inherently contradictory
-      (constantly false)
-      ;; Generate evaluation function
-      (let [constraint-set (:simplified merge-result)]
-        (fn evaluate [document]
-          (evaluate-document constraint-set document))))))
+       (check {:role \"admin\"})           ;; => {:residual {:level [[:> 5]]}}
+
+       ;; With tracing
+       (def check-trace (compile-policies policies {:trace? true}))
+       (check-trace {:role \"admin\"})
+       ;; => {:residual {...} :trace [{:op := :value \"admin\" ...} ...]}"
+  ([policy-exprs] (compile-policies policy-exprs {}))
+  ([policy-exprs opts]
+   (let [merge-result (merge-policies policy-exprs)]
+     (if (:contradicted merge-result)
+       (constantly false)
+       (let [constraint-set (:simplified merge-result)
+             compile-ctx (op/make-context opts)]
+         (fn evaluate
+           ([document]
+            (evaluate-document-with-context constraint-set document compile-ctx))
+           ([document eval-opts]
+            (let [eval-ctx (op/make-context (merge opts eval-opts))]
+              (evaluate-document-with-context constraint-set document eval-ctx)))))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Residual Document Creation
@@ -387,3 +442,25 @@
       (if (= 1 (count constraints))
         (first constraints)
         (into [:and] constraints)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Tracing Helper
+;;; ---------------------------------------------------------------------------
+
+(defn with-trace
+  "Evaluates a compiled policy with tracing enabled.
+
+   Returns the evaluation result with `:trace` key containing a vector
+   of `{:op :value :expected :result}` maps for each constraint evaluated.
+
+   Example:
+
+       (def check (compile-policies [[:= :doc/role \"admin\"]]))
+       (with-trace check {:role \"admin\"})
+       ;; => true (fully satisfied, no trace needed)
+
+       (def check2 (compile-policies [[:= :doc/role \"admin\"] [:> :doc/level 5]]))
+       (with-trace check2 {:role \"admin\"})
+       ;; => {:residual {:level [[:> 5]]} :trace [{:op := :value \"admin\" ...}]}"
+  [compiled-fn document]
+  (compiled-fn document {:trace? true}))

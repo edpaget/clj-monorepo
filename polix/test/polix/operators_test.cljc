@@ -88,3 +88,22 @@
       (is (contains? (set keys) :=))
       (is (contains? (set keys) :>))
       (is (contains? (set keys) :in)))))
+
+(deftest spec-validation-test
+  (testing "missing :eval throws"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs ExceptionInfo)
+                          #"Invalid operator specification"
+                          (ops/register-operator! :bad-op {}))))
+
+  (testing "invalid :eval type throws"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs ExceptionInfo)
+                          #"Invalid operator specification"
+                          (ops/register-operator! :bad-op {:eval "not-a-fn"}))))
+
+  (testing "invalid :negate type throws"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs ExceptionInfo)
+                          #"Invalid operator specification"
+                          (ops/register-operator! :bad-op {:eval identity :negate "not-a-keyword"})))))
