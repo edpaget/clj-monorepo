@@ -15,7 +15,8 @@
    [:id :string]
    [:name :string]
    [:description :string]
-   [:card-count :int]])
+   [:card-count :int]
+   [:card-slugs [:vector :string]]])
 
 (def Deck
   "Reference to Deck schema for nested deck in claim response."
@@ -65,7 +66,8 @@
   {:id (clojure.core/name id)
    :name name
    :description description
-   :card-count (count card-slugs)})
+   :card-count (count card-slugs)
+   :card-slugs card-slugs})
 
 ;; ---------------------------------------------------------------------------
 ;; Query Resolvers

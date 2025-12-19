@@ -7,6 +7,17 @@
    [bashketball-game-ui.graphql.mutations :as mutations]
    [bashketball-game-ui.graphql.queries :as queries]))
 
+(defn use-starter-decks
+  "Fetches all starter deck definitions with card slugs.
+
+  Returns a map with `:starter-decks`, `:loading`, and `:error`."
+  []
+  (let [{:keys [data loading error]}
+        (gql/use-query queries/STARTER_DECKS_QUERY)]
+    {:starter-decks (some-> data :starter-decks)
+     :loading       loading
+     :error         error}))
+
 (defn use-available-starter-decks
   "Fetches starter decks the user hasn't claimed yet.
 

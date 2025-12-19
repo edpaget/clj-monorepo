@@ -36,7 +36,13 @@
     "text-blue-600 font-medium"
     "text-gray-600 hover:text-gray-900"))
 
-(defui nav-links
+(defui public-nav-links
+  "Navigation links visible to all users."
+  []
+  ($ :nav {:class "flex items-center gap-4"}
+     ($ router/nav-link {:to "/rules/introduction" :class nav-link-class} "Rules")))
+
+(defui auth-nav-links
   "Navigation links for authenticated users."
   []
   ($ :nav {:class "flex items-center gap-4"}
@@ -55,8 +61,9 @@
              ($ router/link {:to "/"}
                 ($ :h1 {:class "text-2xl font-bold text-gray-900"}
                    config/app-name))
-             (when logged-in?
-               ($ nav-links)))
+             (if logged-in?
+               ($ auth-nav-links)
+               ($ public-nav-links)))
           (cond
             loading?
             ($ :span {:class "text-sm text-gray-500"} "Loading...")

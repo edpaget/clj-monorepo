@@ -607,6 +607,20 @@
 ;; ---------------------------------------------------------------------------
 ;; Starter Deck Queries
 
+(def STARTER_DECKS_QUERY
+  "Query for all starter deck definitions with card slugs."
+  (apollo/gql "
+    query StarterDecks {
+      starterDecks {
+        id
+        name
+        description
+        cardCount
+        cardSlugs
+      }
+    }
+  "))
+
 (def AVAILABLE_STARTER_DECKS_QUERY
   "Query for starter decks the user hasn't claimed yet."
   (apollo/gql "

@@ -5,8 +5,8 @@
   (:require
    [bashketball-game-ui.content.macros :refer [inline-content-registry]]))
 
-(def content
-  "Map of all content keyed by [category slug]."
+(def markdown-content
+  "Map of markdown content keyed by [category slug]."
   (inline-content-registry
    ["rules/introduction.md"
     "rules/core-concepts.md"
@@ -19,6 +19,20 @@
     "rules/the-court.md"
     "rules/team-construction.md"
     "rules/game-flow.md"]))
+
+(def dynamic-content
+  "Map of dynamic content entries that use custom components."
+  {["rules" "starter-decks"]
+   {:category    "rules"
+    :slug        "starter-decks"
+    :frontmatter {:title       "Starter Decks"
+                  :description "Pre-built decks to learn the game"
+                  :order       10}
+    :dynamic?    true}})
+
+(def content
+  "Map of all content keyed by [category slug]."
+  (merge markdown-content dynamic-content))
 
 (defn get-content
   "Retrieves content by category and slug."
