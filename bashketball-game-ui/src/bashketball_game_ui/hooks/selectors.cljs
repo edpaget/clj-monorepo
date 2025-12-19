@@ -2,46 +2,50 @@
   "Focused selector hooks for game context.
 
   Provides granular access to game context values, enabling components
-  to subscribe to only the data they need. Use these instead of
-  destructuring the full context to reduce unnecessary re-renders."
+  to subscribe to only the data they need. Each hook uses the appropriate
+  split context to minimize re-renders:
+  - Config hooks use [[game-config-context]] (static data)
+  - State hooks use [[game-state-context]] (dynamic state)
+  - UI hooks use [[ui-state-context]] (interaction state)"
   (:require
-   [bashketball-game-ui.context.game :refer [game-context]]
-   [uix.core :refer [use-context]]))
+   [bashketball-game-ui.context.game-config :refer [use-game-config]]
+   [bashketball-game-ui.context.game-state :refer [use-game-state-ctx]]
+   [bashketball-game-ui.context.ui-state :refer [use-ui-state]]))
 
 (defn use-game
   "Returns the current game record."
   []
-  (:game (use-context game-context)))
+  (:game (use-game-config)))
 
 (defn use-game-state
   "Returns the inner game state from bashketball-game."
   []
-  (:game-state (use-context game-context)))
+  (:game-state (use-game-state-ctx)))
 
 (defn use-catalog
   "Returns the card catalog map `{slug -> card}`."
   []
-  (:catalog (use-context game-context)))
+  (:catalog (use-game-config)))
 
 (defn use-my-team
   "Returns the current user's team keyword (:team/HOME or :team/AWAY)."
   []
-  (:my-team (use-context game-context)))
+  (:my-team (use-game-config)))
 
 (defn use-is-my-turn
   "Returns true if it's the current user's turn to act."
   []
-  (:is-my-turn (use-context game-context)))
+  (:is-my-turn (use-game-state-ctx)))
 
 (defn use-actions
   "Returns the actions dispatch functions from use-game-actions."
   []
-  (:actions (use-context game-context)))
+  (:actions (use-game-config)))
 
 (defn use-connection-status
   "Returns connection status map with :loading, :error, and :connected."
   []
-  (let [ctx (use-context game-context)]
+  (let [ctx (use-game-state-ctx)]
     {:loading   (:loading ctx)
      :error     (:error ctx)
      :connected (:connected ctx)}))
@@ -55,7 +59,7 @@
   - :send - Function to send events
   - :can-send? - Predicate to check if event type is valid"
   []
-  (let [ctx (use-context game-context)]
+  (let [ctx (use-ui-state)]
     {:mode      (:selection-mode ctx)
      :data      (:selection-data ctx)
      :send      (:send ctx)
@@ -69,7 +73,7 @@
   - :send - Function to send events
   - :can-send? - Predicate to check if event type is valid"
   []
-  (let [ctx (use-context game-context)]
+  (let [ctx (use-ui-state)]
     {:machine   (:discard-machine ctx)
      :send      (:send-discard ctx)
      :can-send? (:can-send-discard? ctx)}))
@@ -82,7 +86,7 @@
   - :send - Function to send events
   - :can-send? - Predicate to check if event type is valid"
   []
-  (let [ctx (use-context game-context)]
+  (let [ctx (use-ui-state)]
     {:machine   (:substitute-machine ctx)
      :send      (:send-substitute ctx)
      :can-send? (:can-send-substitute? ctx)}))
@@ -95,7 +99,7 @@
   - :send - Function to send events
   - :can-send? - Predicate to check if event type is valid"
   []
-  (let [ctx (use-context game-context)]
+  (let [ctx (use-ui-state)]
     {:machine   (:peek-machine ctx)
      :send      (:send-peek ctx)
      :can-send? (:can-send-peek? ctx)}))
@@ -103,19 +107,19 @@
 (defn use-detail-modal
   "Returns detail modal state with :open?, :card-slug, :show, :close."
   []
-  (:detail-modal (use-context game-context)))
+  (:detail-modal (use-ui-state)))
 
 (defn use-fate-reveal
   "Returns fate reveal modal state with :open?, :fate, :show, :close."
   []
-  (:fate-reveal (use-context game-context)))
+  (:fate-reveal (use-ui-state)))
 
 (defn use-create-token-modal
   "Returns create token modal state with :open?, :show, :close."
   []
-  (:create-token-modal (use-context game-context)))
+  (:create-token-modal (use-ui-state)))
 
 (defn use-attach-ability-modal
   "Returns attach ability modal state with :open?, :instance-id, :card-slug, :played-by, :show, :close."
   []
-  (:attach-ability-modal (use-context game-context)))
+  (:attach-ability-modal (use-ui-state)))

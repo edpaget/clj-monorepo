@@ -3,9 +3,17 @@
 
   Provides real-time game state via SSE subscription and action
   dispatch functions to child components.
-  Uses automatic __typename-based decoding."
+  Uses automatic __typename-based decoding.
+
+  Context is split by update frequency:
+  - [[game-config-context]] - static data (game, my-team, catalog, actions)
+  - [[game-state-context]] - dynamic state (game-state, is-my-turn, connection)
+  - [[ui-state-context]] - UI interaction state (machines, modals)"
   (:require
    [bashketball-game-ui.context.dispatch :refer [dispatch-provider]]
+   [bashketball-game-ui.context.game-config :refer [game-config-context]]
+   [bashketball-game-ui.context.game-state :refer [game-state-context]]
+   [bashketball-game-ui.context.ui-state :refer [ui-state-context]]
    [bashketball-game-ui.game.actions :as actions]
    [bashketball-game-ui.game.discard-machine :as dm]
    [bashketball-game-ui.game.dispatcher :as dispatcher]
@@ -19,19 +27,7 @@
    [bashketball-game-ui.hooks.use-game-actions :refer [use-game-actions]]
    [bashketball-game-ui.hooks.use-game-ui :as ui]
    [bashketball-ui.core]
-   [uix.core :refer [$ defui create-context use-state use-effect use-memo use-callback use-ref]]))
-
-(def game-context
-  "React context for game state.
-
-  Contains all game-related state including:
-  - Core: game, game-state, catalog, my-team, is-my-turn, actions, loading, error, connected
-  - Selection machine: selection-mode, selection-data, send, can-send?
-  - Modal machines: discard-machine, substitute-machine, peek-machine (+ send/can-send for each)
-  - UI modals: detail-modal, fate-reveal, create-token-modal, attach-ability-modal
-
-  Access via focused selector hooks in [[bashketball-game-ui.hooks.selectors]]."
-  (create-context nil))
+   [uix.core :refer [$ defui use-state use-effect use-memo use-callback use-ref]]))
 
 (defn- determine-my-team
   "Determines which team the user is playing as."
@@ -215,7 +211,6 @@
                                                                         (reset! send-ref send)
                                                                         (reset! send-discard-ref send-discard))]
 
-    (prn subscription-result)
     ;; Handle subscription events - refetch on state changes
     (use-effect
      (fn []
@@ -228,43 +223,59 @@
                             "GAME_ENDED"}
                           (:type event))
            (when refetch
-             (prn "REFETCHING")
              (refetch))))
        js/undefined)
      [connected subscription-result refetch])
 
-    ($ dispatch-provider
-       {:dispatch dispatch-action}
-       ($ (:Provider game-context)
-          {:value {:game                  game
-                   :game-state            game-state
-                   :catalog               catalog
-                   :my-team               my-team
-                   :is-my-turn            is-turn
-                   :actions               actions
-                   :loading               (and loading (not connected))
-                   :error                 (or error (:error subscription-result))
-                   :connected             connected
-                   ;; Selection machine
-                   :selection-mode        (:state machine-state)
-                   :selection-data        (:data machine-state)
-                   :send                  send
-                   :can-send?             can-send?
-                   ;; Discard machine
-                   :discard-machine       discard-machine
-                   :send-discard          send-discard
-                   :can-send-discard?     can-send-discard?
-                   ;; Substitute machine
-                   :substitute-machine    substitute-machine
-                   :send-substitute       send-substitute
-                   :can-send-substitute?  can-send-substitute?
-                   ;; Peek machine
-                   :peek-machine          peek-machine
-                   :send-peek             send-peek
-                   :can-send-peek?        can-send-peek?
-                   ;; Remaining UI hooks
-                   :detail-modal          detail-modal
-                   :fate-reveal           fate-reveal
-                   :create-token-modal    create-token-modal
-                   :attach-ability-modal  attach-ability-modal}}
-          children))))
+    (let [;; Static config - rarely changes after game load
+          config-value (use-memo
+                        #(identity {:game    game
+                                    :my-team my-team
+                                    :catalog catalog
+                                    :actions actions})
+                        [game my-team catalog actions])
+
+          ;; Dynamic state - changes on every SSE event/mutation
+          state-value  (use-memo
+                        #(identity {:game-state game-state
+                                    :is-my-turn is-turn
+                                    :loading    (and loading (not connected))
+                                    :error      (or error (:error subscription-result))
+                                    :connected  connected})
+                        [game-state is-turn loading connected error subscription-result])
+
+          ;; UI state - changes on user interactions
+          ui-value     (use-memo
+                        #(identity {:selection-mode        (:state machine-state)
+                                    :selection-data        (:data machine-state)
+                                    :send                  send
+                                    :can-send?             can-send?
+                                    :discard-machine       discard-machine
+                                    :send-discard          send-discard
+                                    :can-send-discard?     can-send-discard?
+                                    :substitute-machine    substitute-machine
+                                    :send-substitute       send-substitute
+                                    :can-send-substitute?  can-send-substitute?
+                                    :peek-machine          peek-machine
+                                    :send-peek             send-peek
+                                    :can-send-peek?        can-send-peek?
+                                    :detail-modal          detail-modal
+                                    :fate-reveal           fate-reveal
+                                    :create-token-modal    create-token-modal
+                                    :attach-ability-modal  attach-ability-modal})
+                        [machine-state send can-send?
+                         discard-machine send-discard can-send-discard?
+                         substitute-machine send-substitute can-send-substitute?
+                         peek-machine send-peek can-send-peek?
+                         detail-modal fate-reveal create-token-modal attach-ability-modal])]
+
+      ;; Nested providers - outermost changes least frequently
+      ($ (.-Provider game-config-context)
+         {:value config-value}
+         ($ dispatch-provider
+            {:dispatch dispatch-action}
+            ($ (.-Provider game-state-context)
+               {:value state-value}
+               ($ (.-Provider ui-state-context)
+                  {:value ui-value}
+                  children)))))))
