@@ -5,8 +5,7 @@
    [clojure.test :refer [deftest is testing]]
    [polix.ast :as ast]
    [polix.core :as core])
-  (:import
-   (polix.policy Policy)))
+  #?(:clj (:import (polix.policy Policy))))
 
 (deftest map-document-get-test
   (testing "getting values from document"
@@ -82,7 +81,7 @@
 
 (deftest thunkable-test
   (testing "identifying forms that should be thunked"
-    (is (true? (core/thunkable? #'core/map-document)))
+    #?(:clj (is (true? (core/thunkable? #'core/map-document))))
     (is (true? (core/thunkable? '(+ 1 2))))
     (is (false? (core/thunkable? :doc/foo)))
     (is (false? (core/thunkable? "literal")))
@@ -107,11 +106,12 @@
       (is (= "admin" (:value node)))
       (is (= [0 2] (:position node)))))
 
-  (testing "classifying thunks"
-    (let [node (core/classify-token #'core/map-document [1 0])]
-      (is (= ::ast/thunk (:type node)))
-      (is (fn? (:value node)))
-      (is (= [1 0] (:position node))))))
+  #?(:clj
+     (testing "classifying thunks"
+       (let [node (core/classify-token #'core/map-document [1 0])]
+         (is (= ::ast/thunk (:type node)))
+         (is (fn? (:value node)))
+         (is (= [1 0] (:position node)))))))
 
 (deftest parse-policy-literal-test
   (testing "parsing simple literals"
@@ -218,14 +218,16 @@
 
 (deftest defpolicy-test
   (testing "policy with docstring"
-    (is (instance? Policy TestPolicy))
+    #?(:clj (is (instance? Policy TestPolicy))
+       :cljs (is (and (map? TestPolicy) (:name TestPolicy) (:ast TestPolicy))))
     (is (= 'TestPolicy (:name TestPolicy)))
     (is (= "A test policy for testing" (:docstring TestPolicy)))
     (is (= #{:actor-role} (:schema TestPolicy)))
     (is (some? (:ast TestPolicy))))
 
   (testing "policy without docstring"
-    (is (instance? Policy TestPolicyWithoutDocstring))
+    #?(:clj (is (instance? Policy TestPolicyWithoutDocstring))
+       :cljs (is (and (map? TestPolicyWithoutDocstring) (:name TestPolicyWithoutDocstring) (:ast TestPolicyWithoutDocstring))))
     (is (= 'TestPolicyWithoutDocstring (:name TestPolicyWithoutDocstring)))
     (is (nil? (:docstring TestPolicyWithoutDocstring)))
     (is (= #{:role :name} (:schema TestPolicyWithoutDocstring)))

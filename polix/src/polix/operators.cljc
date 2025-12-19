@@ -29,6 +29,7 @@
          :simplify (fn [constraints] ...)
          :negate :my-op-negated})"
   (:require
+   [clojure.set]
    [clojure.string :as str]))
 
 ;;; ---------------------------------------------------------------------------

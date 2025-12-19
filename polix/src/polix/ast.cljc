@@ -4,10 +4,7 @@
   Provides the core AST node representation used throughout policy parsing
   and evaluation.")
 
-(defrecord ASTNode [type value position children]
-  Object
-  (toString [_]
-    (str "{:type " type " :value " value " :position " position " :children " children "}")))
+(defrecord ASTNode [type value position children])
 
 (defn ast-node
   "Creates an AST node with position tracking.

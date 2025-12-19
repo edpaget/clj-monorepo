@@ -33,7 +33,7 @@
   Vars and non-empty lists (function calls) should be thunked."
   [form]
   (boolean
-   (or (var? form)
+   (or #?(:clj (var? form) :cljs false)
        (and (list? form) (seq form)))))
 
 (defn classify-token

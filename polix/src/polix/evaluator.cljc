@@ -61,9 +61,9 @@
     (let [thunk-fn (:value node)
           result   (thunk-fn)]
       (m/return either/context result))
-    (catch Exception e
+    (catch #?(:clj Exception :cljs :default) e
       (either/left {:error :thunk-evaluation-error
-                    :message (str "Error evaluating thunk: " (.getMessage e))
+                    :message (str "Error evaluating thunk: " (ex-message e))
                     :position (:position node)
                     :exception e}))))
 
@@ -75,9 +75,9 @@
       (try
         (let [evaluated-args (map #(m/extract (%)) arg-thunks)]
           (m/return (apply operator evaluated-args)))
-        (catch Exception e
+        (catch #?(:clj Exception :cljs :default) e
           (either/left {:error :operator-error
-                        :message (str "Error applying operator " fn-name ": " (.getMessage e))
+                        :message (str "Error applying operator " fn-name ": " (ex-message e))
                         :position (:position node)
                         :operator fn-name
                         :exception e})))
