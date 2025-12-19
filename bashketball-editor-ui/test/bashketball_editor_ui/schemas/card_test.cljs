@@ -14,7 +14,8 @@
                       :speed 6
                       :size :size/MD
                       :deck-size 5
-                      :abilities ["Slam Dunk" "Fast Break"]}]
+                      :abilities ["Slam Dunk" "Fast Break"]
+                      :player-subtypes [:player-subtype/HUMAN]}]
       (t/is (m/validate card/PlayerCard valid-card)))))
 
 (t/deftest player-card-requires-name-test
@@ -57,7 +58,8 @@
                   :sht 1 :pss 1 :def 1 :speed 1
                   :size :size/SM
                   :deck-size 5
-                  :abilities []}
+                  :abilities []
+                  :player-subtypes [:player-subtype/HUMAN]}
           play   {:card-type :card-type/PLAY_CARD
                   :name "Play"
                   :fate 2

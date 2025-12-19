@@ -135,6 +135,7 @@
           cardSubtypes
           fate
           coaching
+          signal
         }
         ... on TeamAssetCard {
           slug

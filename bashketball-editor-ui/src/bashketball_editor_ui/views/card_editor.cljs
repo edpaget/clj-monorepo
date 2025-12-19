@@ -106,7 +106,8 @@
 
    "COACHING_CARD"
    [{:key :fate :label "Fate" :type :stat}
-    {:key :coaching :label "Coaching Text" :type :textarea :rows 4}]
+    {:key :coaching :label "Coaching Text" :type :textarea :rows 4}
+    {:key :signal :label "Signal Text" :type :textarea :rows 4}]
 
    "TEAM_ASSET_CARD"
    [{:key :fate :label "Fate" :type :stat}

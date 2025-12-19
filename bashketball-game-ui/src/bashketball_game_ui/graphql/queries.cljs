@@ -92,6 +92,7 @@
         cardType
         fate
         coaching
+        signal
       }
       ... on TeamAssetCard {
         slug
@@ -176,6 +177,7 @@
         cardType
         fate
         coaching
+        signal
       }
       ... on TeamAssetCard {
         slug
@@ -252,6 +254,7 @@
         cardType
         fate
         coaching
+        signal
       }
       ... on TeamAssetCard {
         slug
@@ -340,6 +343,7 @@
         cardType
         fate
         coaching
+        signal
       }
       ... on TeamAssetCard {
         slug
@@ -592,6 +596,7 @@
         cardType
         fate
         coaching
+        signal
       }
       ... on TeamAssetCard {
         slug

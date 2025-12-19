@@ -122,7 +122,8 @@
    [:image-prompt {:optional true} :string]
    [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate [:int {:min 0 :max 10}]]
-   [:coaching :string]])
+   [:coaching :string]
+   [:signal {:optional true} :string]])
 
 (def StandardActionCard
   "Schema for standard action cards with offense/defense text."

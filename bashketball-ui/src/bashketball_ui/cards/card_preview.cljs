@@ -124,7 +124,9 @@
 (defui coaching-card-display
   "Display coaching card specific fields."
   [{:keys [card]}]
-  ($ text-block {:label "Coaching" :value (:coaching card)}))
+  ($ :div {:class "flex flex-col gap-2"}
+     ($ text-block {:label "Coaching" :value (:coaching card)})
+     ($ text-block {:label "Signal" :value (:signal card)})))
 
 (defui team-asset-card-display
   "Display team asset card specific fields."

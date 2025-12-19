@@ -90,7 +90,8 @@
    [:image-prompt {:optional true} [:maybe :string]]
    [:card-subtypes {:optional true} [:vector CardSubtype]]
    [:fate {:optional true} :int]
-   [:coaching {:optional true} :string]])
+   [:coaching {:optional true} :string]
+   [:signal {:optional true} :string]])
 
 (def StandardActionCardInput
   "Input schema for creating/updating standard action cards."
@@ -140,6 +141,7 @@
    [:defense {:optional true} :string]
    [:play {:optional true} :string]
    [:coaching {:optional true} :string]
+   [:signal {:optional true} :string]
    [:asset-power {:optional true} :string]])
 
 ;; =============================================================================

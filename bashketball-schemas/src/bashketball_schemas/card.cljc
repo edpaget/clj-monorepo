@@ -88,10 +88,13 @@
    [:defense :string]])
 
 (def CoachingCardFields
-  "Fields specific to coaching cards."
+  "Fields specific to coaching cards.
+
+   `:signal` is an optional effect triggered during the signal phase."
   [:map
    [:fate :int]
-   [:coaching :string]])
+   [:coaching :string]
+   [:signal {:optional true} [:maybe :string]]])
 
 (def TeamAssetCardFields
   "Fields specific to team asset cards."
