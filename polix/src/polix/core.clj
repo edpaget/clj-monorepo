@@ -22,12 +22,25 @@
         (cats.core/extract result))
         ;=> true
 
+  ## Compiled Policies
+
+  For optimized evaluation with three-valued logic:
+
+      (def checker (polix/compile-policies
+                     [[:= :doc/role \"admin\"]
+                      [:> :doc/level 5]]))
+
+      (checker {:role \"admin\" :level 10})  ;=> true
+      (checker {:role \"guest\"})            ;=> false
+      (checker {:role \"admin\"})            ;=> {:residual {:level [[:> 5]]}}
+
   ## Main Concepts
 
   - **Document**: Key-value store for policy evaluation data
   - **Policy**: Declarative rule defined via `defpolicy`
   - **AST**: Abstract syntax tree representation of policies
   - **Evaluator**: Evaluates AST nodes against documents
+  - **Compiler**: Merges and optimizes policies for three-valued evaluation
 
   ## Namespaces
 
@@ -37,9 +50,11 @@
   - [[polix.ast]] - AST data structures
   - [[polix.parser]] - Policy DSL parser
   - [[polix.evaluator]] - Evaluation engine
-  - [[polix.policy]] - Policy definition macros"
+  - [[polix.policy]] - Policy definition macros
+  - [[polix.compiler]] - Policy compilation and constraint solving"
   (:require
    [polix.ast :as ast]
+   [polix.compiler :as compiler]
    [polix.document :as document]
    [polix.evaluator :as evaluator]
    [polix.parser :as parser]
@@ -99,3 +114,9 @@
 (def uri ::ast/uri)
 (def function-call ::ast/function-call)
 (def thunk ::ast/thunk)
+
+;; Re-export compiler functions
+(def compile-policies compiler/compile-policies)
+(def merge-policies compiler/merge-policies)
+(def residual->constraints compiler/residual->constraints)
+(def result->policy compiler/result->policy)

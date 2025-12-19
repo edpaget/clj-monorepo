@@ -1,50 +1,179 @@
 # Polix
 
-Polix is a dsl for writing declarative *policies* -- simple terminating programs that evalute to a boolean true/false value. Polix operates against a set of *URIs of Resources* and a *Document* a key-value data structure. A policy asserts that a given *Document* resolves to full set of *URIs of Resources* when the provided policy is applied, returning true and returning false if it does not. 
+Polix is a DSL for writing declarative **policies** - terminating programs that evaluate constraints against **Documents** (key-value data structures). At its core, Polix treats both policies and documents as constraint systems that can be unified and evaluated bidirectionally.
 
-Polix can evalute policies in a bidirectional manner. Polix can describe the document that would resolve to the provided URI given a policy, and Polix can describe the set of resources that a given document and policy would resolve to. 
+## Core Concepts
 
-The *Document* provides an key-value interface but can be implemented either as a static datastructure or by mapping to another data store like a sql database. The *Document* can also be composed from one or more documents. 
+### Unified Constraint Model
+
+In Polix, **Documents and Policies are equivalent** - both are constraint systems:
+
+- A **Document** can return concrete values (like `"admin"`) or constraints (like `[:= "admin"]`)
+- A **Policy** is a Document containing constraints at specific keys
+- Concrete values are syntactic sugar for equality constraints: `{:role "admin"}` ≡ `{:role [:= "admin"]}`
+- Evaluation is **constraint unification** - checking if constraints are mutually satisfiable
+
+### Documents
+
+The **Document** protocol provides a key-value interface that can be implemented as static data structures or backed by external stores (SQL databases, etc.). Documents can also be composed. 
 
 ```clojure
 (defprotocol Document
-  (project [this & keys])
-  (get [this key])
-  (store [this key])
-  (merge [this other-document]))
+  (doc-get [this key])
+  (doc-keys [this])
+  (doc-project [this ks])
+  (doc-merge [this other]))
 ```
 
-A document describes it's schema -- right now what keys are available. Merging two documents operates from left-to-right.
+Documents describe their schema (available keys). Merging operates left-to-right with right precedence.
 
-A *Policy* a combination of a schema -- what document keys are necessary to fulfill this policy -- and a a policy to apply to the document. Policy documents are written as a vector DSL similar to honeysql or malli. 
+### Policies
 
-``` clojure
-(defpolicy MyGreatPolicy
-  "Docstring"
-  [:or [:= :doc/actor-role "admin"]
-   [:match :uri/uri "myprotcol:" :doc/actor-name "/*"]])
-```
+A **Policy** combines a schema (required document keys) with constraint expressions. Policies are written as a vector DSL similar to HoneySQL or Malli.
 
-Policies can be evaluated with three functions:
-
-``` clojure
-(asserts? MyGreatPolicy Document "myprotocol:edpaget/polix") ;; => returns true if MyGreatPolicy implies "myprotocol:edpaget/polix"
-
-(implied MyGreatPolicy Document) ;; => returns a #{} of uris implied by the policy and document
-
-(implied MyGreatPolicy "myprotocol:edpaget/polix") ;; => returns the Document implied by the uri
-```
-
-An `Evaluator` is a function can be supplied as the first argument to any of these functions to customize the behavior the policy engine. The *default-evaluator* dynamic var will be used when an evalutor is not supplied.
-
-## Usage
+The `:doc/` prefix in policy expressions indicates document lookup - it's policy syntax, not part of the actual document keys.
 
 ```clojure
-(require '[polix.core :as polix])
-
-(polix/hello "World")
-;; => "Hello, World!"
+(defpolicy MyGreatPolicy
+  "Checks if actor is admin or matches URI pattern"
+  [:or
+   [:= :doc/actor-role "admin"]
+   [:uri-match :doc/actioning-uri "myprotocol:" :doc/actor-name "/*"]])
 ```
+
+This creates a Policy with:
+- Automatically extracted schema: `#{:actor-role :actioning-uri :actor-name}`
+- Parsed AST for evaluation
+- Compile-time validation
+
+## Operations
+
+### Evaluation (Current Implementation)
+
+The `evaluate` function checks constraints against a document:
+
+```clojure
+(require '[polix.core :as p])
+
+;; Create a document
+(def doc (p/->MapDocument {:actor-role "admin"}))
+
+;; Evaluate policy against document
+(p/evaluate (:ast MyGreatPolicy) doc)
+;; => Either[error, result]
+```
+
+**Note**: Currently requires operators to be passed in context:
+
+```clojure
+(p/evaluate (:ast MyGreatPolicy)
+            doc
+            (p/->DefaultEvaluator)
+            {:environment {:= = :or (fn [& args] (some identity args))}})
+```
+
+### Compiled Policies with Three-Valued Evaluation
+
+The `compile-policies` function merges multiple policies into an optimized function
+that returns one of three values:
+
+- `true` - document fully satisfies all constraints
+- `false` - document contradicts at least one constraint
+- `{:residual {...}}` - partial match with remaining constraints
+
+```clojure
+(require '[polix.core :as p])
+
+;; Compile multiple policies (ANDed together)
+(def checker (p/compile-policies
+               [[:= :doc/role "admin"]
+                [:> :doc/level 5]
+                [:in :doc/status #{"active" "pending"}]]))
+
+;; Full satisfaction
+(checker {:role "admin" :level 10 :status "active"})
+;; => true
+
+;; Contradiction
+(checker {:role "guest" :level 10 :status "active"})
+;; => false
+
+;; Partial - returns residual constraints
+(checker {:role "admin"})
+;; => {:residual {:level [[:> 5]], :status [[:in #{"active" "pending"}]]}}
+```
+
+#### Constraint Simplification
+
+The compiler performs constraint solving at compile time:
+
+```clojure
+;; Range constraints are simplified to tightest bounds
+(def range-check (p/compile-policies
+                   [[:> :doc/x 3]
+                    [:> :doc/x 5]   ; subsumes [:> :doc/x 3]
+                    [:< :doc/x 10]]))
+
+;; Contradictions are detected at compile time
+(def impossible (p/compile-policies
+                  [[:= :doc/role "admin"]
+                   [:= :doc/role "guest"]]))
+;; => (constantly false) - always returns false
+```
+
+#### Working with Residuals
+
+Residual constraints can be converted back to policy expressions:
+
+```clojure
+(let [result (checker {:role "admin"})]
+  (when (map? result)
+    (p/residual->constraints (:residual result))))
+;; => [[:> :doc/level 5] [:in :doc/status #{"active" "pending"}]]
+
+;; Or get a simplified policy expression
+(p/result->policy result)
+;; => [:and [:> :doc/level 5] [:in :doc/status #{"active" "pending"}]]
+```
+
+### Bidirectional Evaluation (Planned)
+
+**Status**: Partially implemented via `compile-policies`. The residual output provides
+the "implied" constraints. Full bidirectional evaluation with constraint unification
+is planned. See `CURRENT_STATE.md` for implementation roadmap.
+
+The `implied` function will return constraints that would satisfy a policy given a desired result:
+
+```clojure
+;; Planned API
+(implied MyGreatPolicy true)
+;; Should return: Document with constraints like
+;; {:actor-role [:= "admin"]
+;;  :actioning-uri [:uri-match "myprotocol:" :doc/actor-name "/*"]}
+
+;; With partial document
+(implied MyGreatPolicy
+         (->MapDocument {:actor-role "admin" :actor-name "test-actor"})
+         true)
+;; Should return: {:actioning-uri "myprotocol:test-actor/*"}
+```
+
+### Evaluators
+
+An **Evaluator** customizes how policies are processed. Evaluators can:
+- Transform AST to different representations (SQL, etc.)
+- Provide custom operator implementations
+- Optimize evaluation for specific backends
+
+```clojure
+(defrecord SQLEvaluator []
+  p/Evaluator
+  (eval-node [this node document context]
+    ;; Transform to SQL WHERE clause
+    ...))
+```
+
+**Current Status**: Only `DefaultEvaluator` exists. SQL and other evaluators are planned.
 
 ## Development
 
