@@ -28,13 +28,16 @@
 (defn load-starter-decks-config
   "Loads starter deck definitions from the classpath.
 
+  First attempts to load from the cards JAR at `cards/starter-decks.edn`.
+  Falls back to local resources at `starter-decks.edn` if not found in JAR.
   Returns a map with `:starter-decks` key containing a vector of
   starter deck definitions. Throws if config is invalid or not found."
   []
-  (let [resource (io/resource "starter-decks.edn")]
+  (let [resource (or (io/resource "cards/starter-decks.edn")
+                     (io/resource "starter-decks.edn"))]
     (when-not resource
       (throw (ex-info "Starter decks config not found on classpath"
-                      {:resource "starter-decks.edn"})))
+                      {:searched ["cards/starter-decks.edn" "starter-decks.edn"]})))
     (let [config (-> resource slurp edn/read-string)]
       (when-not (m/validate StarterDecksConfig config)
         (throw (ex-info "Invalid starter decks config"
