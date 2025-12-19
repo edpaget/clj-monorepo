@@ -4,13 +4,13 @@ description: "How players exert influence over adjacent hexes"
 order: 3
 ---
 
-Players exert a Zone of Control (ZoC) in a one hex radius. Actions by other players are affected by this ZoC:
+Unexhausted players exert a Zone of Control (ZoC) in a one hex radius. Actions by other players are affected by this ZoC:
 
 - Moves through a ZoC cost extra movement points
 - Attempting to shoot while within a ZoC affects your Advantage/Disadvantage
 - A pass that travels through a ZoC affects your Advantage/Disadvantage
 
-**Important:** Exhausted players do not exert a Zone of Control.
+**Important:** Only unexhausted players exert a Zone of Control. Exhausted players do not exert ZoC, creating gaps in defensive coverage.
 
 ## Stacking Rule
 
@@ -20,7 +20,7 @@ Multiple sources of Advantage and Disadvantage cancel each other one-for-one. Th
 
 ## Movement Through ZoC
 
-Moving through an opponent's Zone of Control costs extra movement points.
+Moving through an opponent's Zone of Control costs extra movement points. (Movement itself is free and doesn't exhaust.)
 
 | Defender vs You | Additional Movement Cost |
 |-----------------|-------------------------|
@@ -53,3 +53,14 @@ An uncontested pass (no defenders in the path) grants Advantage. If any defender
 | Smaller defender (per ZoC) | Double Disadvantage |
 
 **Example:** A Large passer throwing through one Medium and one Small defender's ZoC has: Disadvantage (MD) + Double Disadvantage (SM) = Double Disadvantage (capped).
+
+## Strategic Implications
+
+| Situation | Implication |
+|-----------|-------------|
+| Defender is unexhausted | Has ZoC, threatens passing lanes and shots |
+| Defender attempts block/steal | Becomes exhausted, loses ZoC, creates gap |
+| Defender holds position | Keeps ZoC but hasn't actively contested |
+| Screen succeeds | Both players exhaust, creating gaps in coverage |
+
+This creates real decisions: commit to a defensive action and risk losing ZoC, or hold position and hope ZoC penalties are enough to stop the play.

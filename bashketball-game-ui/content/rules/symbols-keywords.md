@@ -9,7 +9,7 @@ order: 7
 | Symbol | Name | Meaning |
 |--------|------|---------|
 | ⬡ | Hex | Unit of distance on the court. "Within 4⬡" means 4 or fewer hexes away. |
-| ↷ | Exhaust | Turn the player card sideways. An exhausted player cannot act until they unexhaust. |
+| ↷ | Exhaust | Turn the player card sideways. An exhausted player does not exert Zone of Control. |
 | ✓ | Success | Effect applies when the action succeeds. |
 | ✗ | Failure | Effect applies when the action fails. |
 | ✓+N | Success by N+ | Effect applies when fate exceeds difficulty by N or more. |
@@ -31,5 +31,3 @@ order: 7
 **Screen/Check** — A physical contest between two players. Which effect is active depends on ball possession: use **Screen** (offense) if your team has the ball, use **Check** (defense) if the opponent has the ball.
 
 **Skip next unexhaust** — The affected player remains exhausted during the next unexhaust phase.
-
-**Retain** — Do not discard this card at the end of your turn.

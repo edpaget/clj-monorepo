@@ -29,34 +29,44 @@ The winner of the tip-off:
 
 ## Turn Structure
 
-A turn consists of five Phases:
+A turn consists of three phases:
 
 ### 1. Upkeep
 
-Cards controlled by this player that were exhausted are now no longer exhausted. At the end of this phase the acting player gains **3 Actions** and draws **5 Cards**.
+All of your exhausted players become unexhausted.
 
-### 2. Start of Turn
+### 2. Main
 
-During this phase any cards with text "At the beginning of your turn" or "At the beginning of your opponent's turn" trigger. Cards owned by the acting player trigger first in whatever order the acting player wishes, then their opponent chooses the order their triggers resolve in (if they have any).
+During the main phase you may do any of the following in any order, any number of times:
 
-### 3. Actions
+| Action | Cost |
+|--------|------|
+| Move a player up to their Speed | Free |
+| Play a card | Discard 1 card from hand |
+| Use a Standard Action | Discard 3 cards from hand |
 
-In the main part of a turn a player may take their actions. An action can be used to do one of four things:
+**Movement:** You may move any of your players at any time during your main phase. Movement is free—it doesn't cost any cards or cause exhaustion. Move as many players as you want, each up to their Speed stat.
 
-| Action | Description |
-|--------|-------------|
-| **Move a Player** | Move up to their movement speed. |
-| **Play a Card** | Costs at least 1 action. Some cards may specify additional action costs. |
-| **Take a Standard Action** | Spend 1 Action + discard 2 cards to use any Standard Action. |
-| **Pay Asset/Ability Costs** | Use effects that say "Spend 1 Action: Effect". Only during Action phase. |
+**Playing Cards:** To play a card, discard 1 card from your hand (this is the "fuel" for the play). When you discard a Coaching card as fuel, its Signal effect triggers.
 
-### 4. Discard
+**Standard Actions:** Standard Actions cost 3 cards discarded from hand instead of 1.
 
-The acting player loses their remaining actions and discards unplayed cards from their hand. Cards with "On discard" effects trigger in this phase.
+### 3. Draw
 
-### 5. End of Turn
+Draw 3 cards from your deck. If you have more than 8 cards in hand, discard down to 8.
 
-During this phase any cards with text "At the end of your turn" or "At the end of your opponent's turn" trigger. Cards owned by the acting player trigger first in whatever order the acting player wishes, then their opponent chooses the order their triggers resolve in (if they have any).
+## Hand Management
+
+Your hand persists between turns—you keep unplayed cards. The hand limit is 8 cards (discard down at end of turn if over).
+
+### Drawing Cards
+
+| Source | When |
+|--------|------|
+| End of turn | Draw 3 cards |
+| Succeed by 2+ on any action | Draw 1 card immediately |
+| Opponent scores | Draw 2 cards immediately |
+| Card effects | As printed |
 
 ## Scoring
 

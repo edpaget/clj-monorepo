@@ -4,7 +4,7 @@ description: "The three universal actions available to all teams"
 order: 5
 ---
 
-There are 3 Standard Action Cards: **Shoot / Block**, **Pass / Steal**, and **Screen / Check**. At any point during a turn, a player can discard 2 cards from their hand and spend an action to perform any of the Standard Actions.
+There are 3 Standard Action Cards: **Shoot / Block**, **Pass / Steal**, and **Screen / Check**. At any point during your turn, you can discard 3 cards from your hand to use any Standard Action without having the card in your deck.
 
 | Action | Offense | Defense |
 |--------|---------|---------|
@@ -35,4 +35,6 @@ There are 3 Standard Action Cards: **Shoot / Block**, **Pass / Steal**, and **Sc
 
 ## Exhaust
 
-Some actions may cause a Team Player to become Exhausted. Cards may say they cause a player to be exhausted. An exhausted player does not exert ZoC. Some Team Assets may be exhausted after using their ability. During a player's upkeep phase, exhausted cards become un-exhausted.
+Some actions may cause a Team Player to become Exhausted (↷). An exhausted player does not exert Zone of Control. This creates real decisions: commit to a block/steal and lose ZoC, or hold position to maintain ZoC coverage.
+
+During a player's Upkeep phase, all of their exhausted players become unexhausted.
