@@ -182,7 +182,7 @@
 (defn eval-in-context
   "Evaluates a constraint using operators from context."
   [ctx constraint value]
-  (let [op-key (:op constraint)
+  (let [op-key   (:op constraint)
         expected (:value constraint)]
     (if-let [operator (get-operator-in-context ctx op-key)]
       (let [result (eval operator value expected)]
@@ -211,7 +211,7 @@
 
    Returns true if satisfied, false if contradicted, nil if operator unknown."
   [constraint value]
-  (let [op-key (:op constraint)
+  (let [op-key   (:op constraint)
         expected (:value constraint)]
     (if-let [operator (get-operator op-key)]
       (eval operator value expected)
@@ -247,7 +247,7 @@
   [constraints]
   (if (empty? constraints)
     {:simplified []}
-    (let [sorted (sort-by :value > constraints)
+    (let [sorted   (sort-by :value > constraints)
           tightest (first sorted)]
       {:simplified [tightest]})))
 
@@ -256,14 +256,14 @@
   [constraints]
   (if (empty? constraints)
     {:simplified []}
-    (let [sorted (sort-by :value < constraints)
+    (let [sorted   (sort-by :value < constraints)
           tightest (first sorted)]
       {:simplified [tightest]})))
 
 (defn- simplify-in
   "Simplifies :in constraints - intersection of sets."
   [constraints]
-  (let [sets (map :value constraints)
+  (let [sets         (map :value constraints)
         intersection (apply clojure.set/intersection sets)]
     (if (empty? intersection)
       {:contradicted constraints}
@@ -302,66 +302,66 @@
 
   ;; Equality
   (register-operator! :=
-    {:eval (fn [value expected] (= value expected))
-     :negate :!=
-     :simplify simplify-equality
-     :subsumes? (fn [c1 c2] (= (:value c1) (:value c2)))})
+                      {:eval (fn [value expected] (= value expected))
+                       :negate :!=
+                       :simplify simplify-equality
+                       :subsumes? (fn [c1 c2] (= (:value c1) (:value c2)))})
 
   (register-operator! :!=
-    {:eval (fn [value expected] (not= value expected))
-     :negate :=})
+                      {:eval (fn [value expected] (not= value expected))
+                       :negate :=})
 
   ;; Comparisons
   (register-operator! :>
-    {:eval (fn [value expected] (> value expected))
-     :negate :<=
-     :simplify simplify-lower-bounds
-     :subsumes? (fn [c1 c2] (>= (:value c1) (:value c2)))})
+                      {:eval (fn [value expected] (> value expected))
+                       :negate :<=
+                       :simplify simplify-lower-bounds
+                       :subsumes? (fn [c1 c2] (>= (:value c1) (:value c2)))})
 
   (register-operator! :>=
-    {:eval (fn [value expected] (>= value expected))
-     :negate :<
-     :simplify simplify-lower-bounds
-     :subsumes? (fn [c1 c2] (>= (:value c1) (:value c2)))})
+                      {:eval (fn [value expected] (>= value expected))
+                       :negate :<
+                       :simplify simplify-lower-bounds
+                       :subsumes? (fn [c1 c2] (>= (:value c1) (:value c2)))})
 
   (register-operator! :<
-    {:eval (fn [value expected] (< value expected))
-     :negate :>=
-     :simplify simplify-upper-bounds
-     :subsumes? (fn [c1 c2] (<= (:value c1) (:value c2)))})
+                      {:eval (fn [value expected] (< value expected))
+                       :negate :>=
+                       :simplify simplify-upper-bounds
+                       :subsumes? (fn [c1 c2] (<= (:value c1) (:value c2)))})
 
   (register-operator! :<=
-    {:eval (fn [value expected] (<= value expected))
-     :negate :>
-     :simplify simplify-upper-bounds
-     :subsumes? (fn [c1 c2] (<= (:value c1) (:value c2)))})
+                      {:eval (fn [value expected] (<= value expected))
+                       :negate :>
+                       :simplify simplify-upper-bounds
+                       :subsumes? (fn [c1 c2] (<= (:value c1) (:value c2)))})
 
   ;; Set membership
   (register-operator! :in
-    {:eval (fn [value expected] (contains? expected value))
-     :negate :not-in
-     :simplify simplify-in})
+                      {:eval (fn [value expected] (contains? expected value))
+                       :negate :not-in
+                       :simplify simplify-in})
 
   (register-operator! :not-in
-    {:eval (fn [value expected] (not (contains? expected value)))
-     :negate :in})
+                      {:eval (fn [value expected] (not (contains? expected value)))
+                       :negate :in})
 
   ;; Pattern matching
   (register-operator! :matches
-    {:eval (fn [value expected]
-             (boolean (re-matches (if (string? expected)
-                                    (re-pattern expected)
-                                    expected)
-                                  (str value))))
-     :negate :not-matches})
+                      {:eval (fn [value expected]
+                               (boolean (re-matches (if (string? expected)
+                                                      (re-pattern expected)
+                                                      expected)
+                                                    (str value))))
+                       :negate :not-matches})
 
   (register-operator! :not-matches
-    {:eval (fn [value expected]
-             (not (re-matches (if (string? expected)
-                                (re-pattern expected)
-                                expected)
-                              (str value))))
-     :negate :matches}))
+                      {:eval (fn [value expected]
+                               (not (re-matches (if (string? expected)
+                                                  (re-pattern expected)
+                                                  expected)
+                                                (str value))))
+                       :negate :matches}))
 
 ;; Register builtins on namespace load
 (register-builtins!)

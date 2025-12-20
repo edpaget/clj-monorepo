@@ -24,6 +24,7 @@
       ;; => {:residual {:level [[:> 5]], :status [[:in #{\"active\" \"pending\"}]]}}"
   (:require
    [polix.ast :as ast]
+   [polix.engine :as engine]
    [polix.operators :as op]
    [polix.parser :as parser]
    [polix.result :as r]))
@@ -247,32 +248,13 @@
   [constraint value]
   (op/eval-constraint constraint value))
 
-(defn- eval-constraint-in-context
-  "Evaluates a single constraint using operators from context."
-  [ctx constraint value]
-  (op/eval-in-context ctx constraint value))
-
 (defn eval-constraints-for-key
   "Evaluates all constraints for a key against a value.
    Returns :satisfied, :contradicted, or the constraints if value is nil."
   [constraints value value-present?]
   (if-not value-present?
-    ;; Value not present - return constraints as residual
     {:residual constraints}
-    ;; Evaluate each constraint
     (let [results (map #(eval-constraint % value) constraints)]
-      (cond
-        (some false? results) :contradicted
-        (every? true? results) :satisfied
-        :else {:residual (map second (filter #(nil? (first %))
-                                             (map vector results constraints)))}))))
-
-(defn- eval-constraints-for-key-in-context
-  "Evaluates all constraints for a key using operators from context."
-  [ctx constraints value value-present?]
-  (if-not value-present?
-    {:residual constraints}
-    (let [results (map #(eval-constraint-in-context ctx % value) constraints)]
       (cond
         (some false? results) :contradicted
         (every? true? results) :satisfied
@@ -286,59 +268,24 @@
 (defn evaluate-document
   "Evaluates a simplified constraint set against a document.
 
+   Delegates to [[polix.engine/evaluate-constraint-set]] for unified evaluation.
+
    Returns:
    - true if all constraints are satisfied
    - false if any constraint is contradicted
    - {:residual {...}} if some constraints cannot be evaluated"
   [constraint-set document]
-  (let [doc-keys (set (keys document))]
-    (loop [keys-to-check     (keys (dissoc constraint-set ::complex))
-           residuals         {}
-           any-contradicted? false]
-      (if (or any-contradicted? (empty? keys-to-check))
-        (cond
-          any-contradicted? false
-          (seq residuals) {:residual residuals}
-          :else true)
-        (let [k              (first keys-to-check)
-              constraints    (get constraint-set k)
-              value-present? (contains? doc-keys k)
-              value          (get document k)
-              result         (eval-constraints-for-key constraints value value-present?)]
-          (recur
-           (rest keys-to-check)
-           (if (map? result)
-             (assoc residuals k (mapv (fn [c] [(:op c) (:value c)]) (:residual result)))
-             residuals)
-           (= :contradicted result)))))))
+  (engine/evaluate-constraint-set constraint-set document))
 
 (defn- evaluate-document-with-context
-  "Evaluates a constraint set using operators from context."
+  "Evaluates a constraint set using operators from context.
+
+   Delegates to [[polix.engine/evaluate-constraint-set]] for unified evaluation."
   [constraint-set document ctx]
-  (let [doc-keys (set (keys document))]
-    (loop [keys-to-check     (keys (dissoc constraint-set ::complex))
-           residuals         {}
-           any-contradicted? false]
-      (if (or any-contradicted? (empty? keys-to-check))
-        (let [base-result (cond
-                            any-contradicted? false
-                            (seq residuals) {:residual residuals}
-                            :else true)]
-          ;; Include trace if enabled
-          (if (and (:trace? ctx) (map? base-result))
-            (assoc base-result :trace @(:trace ctx))
-            base-result))
-        (let [k              (first keys-to-check)
-              constraints    (get constraint-set k)
-              value-present? (contains? doc-keys k)
-              value          (get document k)
-              result         (eval-constraints-for-key-in-context ctx constraints value value-present?)]
-          (recur
-           (rest keys-to-check)
-           (if (map? result)
-             (assoc residuals k (mapv (fn [c] [(:op c) (:value c)]) (:residual result)))
-             residuals)
-           (= :contradicted result)))))))
+  (let [result (engine/evaluate-constraint-set constraint-set document ctx)]
+    (if (and (:trace? ctx) (:trace ctx) (engine/residual? result))
+      (assoc result :trace @(:trace ctx))
+      result)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Policy Compilation
@@ -400,7 +347,7 @@
      (if (:contradicted merge-result)
        (constantly false)
        (let [constraint-set (:simplified merge-result)
-             compile-ctx (op/make-context opts)]
+             compile-ctx    (op/make-context opts)]
          (fn evaluate
            ([document]
             (evaluate-document-with-context constraint-set document compile-ctx))

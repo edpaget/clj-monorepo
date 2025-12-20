@@ -32,7 +32,7 @@
 
 (deftest operator-negation-test
   (testing "negating equality"
-    (let [c {:op := :key :role :value "admin"}
+    (let [c       {:op := :key :role :value "admin"}
           negated (ops/negate-constraint c)]
       (is (= :!= (:op negated)))
       (is (= "admin" (:value negated)))))
@@ -46,12 +46,12 @@
 (deftest custom-operator-test
   (testing "registering and using custom operator"
     (ops/register-operator! :starts-with
-      {:eval (fn [value expected] (str/starts-with? (str value) expected))
-       :negate :not-starts-with})
+                            {:eval (fn [value expected] (str/starts-with? (str value) expected))
+                             :negate :not-starts-with})
 
     (ops/register-operator! :not-starts-with
-      {:eval (fn [value expected] (not (str/starts-with? (str value) expected)))
-       :negate :starts-with})
+                            {:eval (fn [value expected] (not (str/starts-with? (str value) expected)))
+                             :negate :starts-with})
 
     (is (true? (ops/eval-constraint {:op :starts-with :value "admin"} "admin-user")))
     (is (false? (ops/eval-constraint {:op :starts-with :value "admin"} "guest-user")))
@@ -62,7 +62,7 @@
 (deftest custom-operator-in-compiler-test
   (testing "custom operator works with compile-policies"
     (ops/register-operator! :ends-with
-      {:eval (fn [value expected] (str/ends-with? (str value) expected))})
+                            {:eval (fn [value expected] (str/ends-with? (str value) expected))})
 
     (let [check (compiler/compile-policies [[:ends-with :doc/email "@example.com"]])]
       (is (true? (check {:email "user@example.com"})))

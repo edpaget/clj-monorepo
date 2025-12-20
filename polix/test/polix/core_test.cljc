@@ -180,13 +180,10 @@
     (let [policy-ast         (core/unwrap (core/parse-policy :doc/status))
           result-with-nil    (core/evaluate policy-ast {:status nil})
           result-without-key (core/evaluate policy-ast {})]
-      (is (core/ok? result-with-nil))
-      (is (nil? (core/unwrap result-with-nil)))
-      (is (core/error? result-without-key))
-      (is (= :missing-document-key (:error (core/unwrap result-without-key))))))
+      (is (nil? result-with-nil))
+      (is (core/residual? result-without-key))))
 
   (testing "evaluating doc-accessor with false value"
     (let [policy-ast (core/unwrap (core/parse-policy :doc/active))
           result     (core/evaluate policy-ast {:active false})]
-      (is (core/ok? result))
-      (is (false? (core/unwrap result))))))
+      (is (false? result)))))

@@ -138,7 +138,7 @@
   (testing "custom operators passed at compile time"
     ;; Register operator so normalization works
     (op/register-operator! :is-uppercase
-      {:eval (fn [v _expected] (= v (str/upper-case v)))})
+                           {:eval (fn [v _expected] (= v (str/upper-case v)))})
     (let [check (compiler/compile-policies
                  [[:is-uppercase :doc/name true]])]
       (is (true? (check {:name "HELLO"})))
@@ -157,18 +157,18 @@
 
 (deftest context-tracing-test
   (testing "tracing records evaluations"
-    (let [check (compiler/compile-policies
-                 [[:= :doc/role "admin"]]
-                 {:trace? true})
+    (let [check  (compiler/compile-policies
+                  [[:= :doc/role "admin"]]
+                  {:trace? true})
           result (check {:role "admin"})]
       ;; Fully satisfied returns true, no trace (trace only on residuals)
       (is (true? result))))
 
   (testing "tracing on partial evaluation"
-    (let [check (compiler/compile-policies
-                 [[:= :doc/role "admin"]
-                  [:> :doc/level 5]]
-                 {:trace? true})
+    (let [check  (compiler/compile-policies
+                  [[:= :doc/role "admin"]
+                   [:> :doc/level 5]]
+                  {:trace? true})
           result (check {:role "admin"})]
       (is (map? result))
       (is (contains? result :residual))
@@ -176,9 +176,9 @@
       (is (vector? (:trace result)))))
 
   (testing "per-evaluation trace override"
-    (let [check (compiler/compile-policies
-                 [[:= :doc/role "admin"]
-                  [:> :doc/level 5]])
+    (let [check  (compiler/compile-policies
+                  [[:= :doc/role "admin"]
+                   [:> :doc/level 5]])
           result (check {:role "admin"} {:trace? true})]
       (is (map? result))
       (is (contains? result :trace)))))

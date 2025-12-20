@@ -17,13 +17,18 @@
 
   Evaluate a policy:
 
-      (let [result (polix/evaluate (:ast AdminOnly) {:role \"admin\"})]
-        (polix/unwrap result))
-        ;=> true
+      (polix/evaluate (:ast AdminOnly) {:role \"admin\"})
+      ;=> true
+
+      (polix/evaluate (:ast AdminOnly) {:role \"guest\"})
+      ;=> false
+
+      (polix/evaluate (:ast AdminOnly) {})
+      ;=> {:residual {:role [[:= \"admin\"]]}}
 
   ## Compiled Policies
 
-  For optimized evaluation with three-valued logic:
+  For optimized evaluation with constraint merging and simplification:
 
       (def checker (polix/compile-policies
                      [[:= :doc/role \"admin\"]
@@ -38,8 +43,8 @@
   - **Document**: Any associative data structure (map, record, etc.)
   - **Policy**: Declarative rule defined via `defpolicy`
   - **AST**: Abstract syntax tree representation of policies
-  - **Evaluator**: Evaluates AST nodes against documents
-  - **Compiler**: Merges and optimizes policies for three-valued evaluation
+  - **Engine**: Evaluates AST/constraints with three-valued logic
+  - **Compiler**: Merges and optimizes policies before evaluation
 
   ## Namespaces
 
@@ -47,13 +52,13 @@
 
   - [[polix.ast]] - AST data structures
   - [[polix.parser]] - Policy DSL parser
-  - [[polix.evaluator]] - Evaluation engine
+  - [[polix.engine]] - Unified evaluation engine (three-valued: true/false/residual)
   - [[polix.policy]] - Policy definition macros
   - [[polix.compiler]] - Policy compilation and constraint solving"
   (:require
    [polix.ast :as ast]
    [polix.compiler :as compiler]
-   [polix.evaluator :as evaluator]
+   [polix.engine :as engine]
    [polix.parser :as parser]
    [polix.policy :as policy]
    [polix.result :as result]))
@@ -78,13 +83,11 @@
 (def thunkable? parser/thunkable?)
 (def classify-token parser/classify-token)
 
-;; Re-export evaluator
-(def Evaluator evaluator/Evaluator)
-(def eval-node evaluator/eval-node)
-(def evaluate evaluator/evaluate)
-(def default-evaluator evaluator/default-evaluator)
-(def ->DefaultEvaluator evaluator/->DefaultEvaluator)
-(def map->DefaultEvaluator evaluator/map->DefaultEvaluator)
+;; Re-export engine functions
+(def evaluate engine/evaluate)
+(def residual? engine/residual?)
+(def complex? engine/complex?)
+(def result-type engine/result-type)
 
 ;; Re-export policy constructors (Policy record is imported above)
 (def ->Policy policy/->Policy)
