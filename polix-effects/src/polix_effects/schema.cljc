@@ -110,17 +110,94 @@
    [:type [:= :polix-effects/dissoc-in]]
    [:path [:or Path Reference]]])
 
+(def MergeInEffect
+  "Merges a map into the value at a path."
+  [:map
+   [:type [:= :polix-effects/merge-in]]
+   [:path [:or Path Reference]]
+   [:value ValueOrRef]])
+
+;;; ---------------------------------------------------------------------------
+;;; Collection Effect Schemas
+;;; ---------------------------------------------------------------------------
+
+(def ConjInEffect
+  "Adds a value to a collection at a path."
+  [:map
+   [:type [:= :polix-effects/conj-in]]
+   [:path [:or Path Reference]]
+   [:value ValueOrRef]])
+
+(def RemoveInEffect
+  "Removes items from a collection matching a predicate."
+  [:map
+   [:type [:= :polix-effects/remove-in]]
+   [:path [:or Path Reference]]
+   [:predicate [:or :keyword [:fn fn?] :map]]])
+
+(def MoveEffect
+  "Moves items from one collection to another."
+  [:map
+   [:type [:= :polix-effects/move]]
+   [:from-path [:or Path Reference]]
+   [:to-path [:or Path Reference]]
+   [:predicate [:or :keyword [:fn fn?] :map]]])
+
+;;; ---------------------------------------------------------------------------
+;;; Composite Effect Schemas
+;;; ---------------------------------------------------------------------------
+
+(def TransactionEffect
+  "Applies effects atomically, rolling back on failure."
+  [:map
+   [:type [:= :polix-effects/transaction]]
+   [:effects [:vector [:ref ::Effect]]]])
+
+(def LetEffect
+  "Binds values for use in a nested effect."
+  [:map
+   [:type [:= :polix-effects/let]]
+   [:bindings [:vector :any]]
+   [:effect [:ref ::Effect]]])
+
+(def ConditionalEffect
+  "Evaluates a polix policy condition and applies then or else effect.
+
+  The condition is a polix policy expression evaluated against the current state.
+  If true, applies the `:then` effect. If false or residual, applies the `:else`
+  effect. Both branches are optional - if missing, acts as noop for that branch."
+  [:map
+   [:type [:= :polix-effects/conditional]]
+   [:condition :any]
+   [:then {:optional true} [:ref ::Effect]]
+   [:else {:optional true} [:ref ::Effect]]])
+
+;;; ---------------------------------------------------------------------------
+;;; Effect Multi-Schema
+;;; ---------------------------------------------------------------------------
+
 (def Effect
   "Multi-schema dispatching on `:type` to validate effect structures.
 
   Built-in effects use the `:polix-effects/*` namespace. The schema is
   extensible - domain-specific effects can be added to the registry."
   [:multi {:dispatch :type}
+   ;; Control flow
    [:polix-effects/noop NoopEffect]
    [:polix-effects/sequence SequenceEffect]
+   ;; State mutations
    [:polix-effects/assoc-in AssocInEffect]
    [:polix-effects/update-in UpdateInEffect]
-   [:polix-effects/dissoc-in DissocInEffect]])
+   [:polix-effects/dissoc-in DissocInEffect]
+   [:polix-effects/merge-in MergeInEffect]
+   ;; Collections
+   [:polix-effects/conj-in ConjInEffect]
+   [:polix-effects/remove-in RemoveInEffect]
+   [:polix-effects/move MoveEffect]
+   ;; Composite
+   [:polix-effects/transaction TransactionEffect]
+   [:polix-effects/let LetEffect]
+   [:polix-effects/conditional ConditionalEffect]])
 
 ;;; ---------------------------------------------------------------------------
 ;;; Registry Setup

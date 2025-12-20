@@ -2,7 +2,8 @@
 
  :deps
  {org.clojure/clojure {:mvn/version "1.12.0"}
-  metosin/malli {:mvn/version "0.16.4"}}
+  metosin/malli {:mvn/version "0.16.4"}
+  polix/polix {:local/root "../polix"}}
 
  :aliases
  {:dev
@@ -15,7 +16,4 @@
    :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1"
                                                        :git/sha "dfb30dd"}}
    :main-opts ["-m" "cognitect.test-runner"]
-   :exec-fn cognitect.test-runner.api/test}
-
-  :polix
-  {:extra-deps {polix/polix {:local/root "../polix"}}}}}
+   :exec-fn cognitect.test-runner.api/test}}}
