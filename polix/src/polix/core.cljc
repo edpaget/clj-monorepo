@@ -17,9 +17,8 @@
 
   Evaluate a policy:
 
-      (let [document (polix/map-document {:role \"admin\"})
-            result (polix/evaluate (:ast AdminOnly) document)]
-        (cats.core/extract result))
+      (let [result (polix/evaluate (:ast AdminOnly) {:role \"admin\"})]
+        (polix/unwrap result))
         ;=> true
 
   ## Compiled Policies
@@ -36,7 +35,7 @@
 
   ## Main Concepts
 
-  - **Document**: Key-value store for policy evaluation data
+  - **Document**: Any associative data structure (map, record, etc.)
   - **Policy**: Declarative rule defined via `defpolicy`
   - **AST**: Abstract syntax tree representation of policies
   - **Evaluator**: Evaluates AST nodes against documents
@@ -46,7 +45,6 @@
 
   The implementation is split across multiple namespaces:
 
-  - [[polix.document]] - Document protocol and implementations
   - [[polix.ast]] - AST data structures
   - [[polix.parser]] - Policy DSL parser
   - [[polix.evaluator]] - Evaluation engine
@@ -55,30 +53,22 @@
   (:require
    [polix.ast :as ast]
    [polix.compiler :as compiler]
-   [polix.document :as document]
    [polix.evaluator :as evaluator]
    [polix.parser :as parser]
-   [polix.policy :as policy]))
-
-;; Re-export Document protocol
-(def Document document/Document)
-(def doc-get document/doc-get)
-(def doc-keys document/doc-keys)
-(def doc-project document/doc-project)
-(def doc-merge document/doc-merge)
-
-;; Re-export Document functions
-(def doc-contains? document/doc-contains?)
-
-;; Re-export Document constructors
-(def map-document document/map-document)
-(def ->MapDocument document/->MapDocument)
-(def map->MapDocument document/map->MapDocument)
+   [polix.policy :as policy]
+   [polix.result :as result]))
 
 ;; Re-export AST constructors
 (def ast-node ast/ast-node)
 (def ->ASTNode ast/->ASTNode)
 (def map->ASTNode ast/map->ASTNode)
+
+;; Re-export result functions
+(def ok result/ok)
+(def error result/error)
+(def ok? result/ok?)
+(def error? result/error?)
+(def unwrap result/unwrap)
 
 ;; Re-export parser functions
 (def parse-policy parser/parse-policy)

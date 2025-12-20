@@ -23,11 +23,10 @@
       (checker {:role \"admin\"})
       ;; => {:residual {:level [[:> 5]], :status [[:in #{\"active\" \"pending\"}]]}}"
   (:require
-   [cats.core :as m]
-   [cats.monad.either :as either]
    [polix.ast :as ast]
    [polix.operators :as op]
-   [polix.parser :as parser]))
+   [polix.parser :as parser]
+   [polix.result :as r]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Representation
@@ -349,9 +348,9 @@
   "Normalizes a policy expression (vector DSL) to constraint structure."
   [expr]
   (let [parse-result (parser/parse-policy expr)]
-    (if (either/left? parse-result)
-      (throw (ex-info "Failed to parse policy" (m/extract parse-result)))
-      (normalize-ast (m/extract parse-result)))))
+    (if (r/error? parse-result)
+      (throw (ex-info "Failed to parse policy" (r/unwrap parse-result)))
+      (normalize-ast (r/unwrap parse-result)))))
 
 (defn merge-policies
   "Merges multiple policy expressions into a single constraint set.

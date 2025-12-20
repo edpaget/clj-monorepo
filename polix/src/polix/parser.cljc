@@ -5,9 +5,8 @@
   that can be evaluated. Supports document accessors, URI accessors, function
   calls, literals, and thunks for delayed evaluation."
   (:require
-   [cats.core :as m]
-   [cats.monad.either :as either]
-   [polix.ast :as ast]))
+   [polix.ast :as ast]
+   [polix.result :as r]))
 
 (defn doc-accessor?
   "Returns `true` if `k` is a document accessor keyword.
@@ -66,7 +65,7 @@
   (or (keyword? v) (symbol? v)))
 
 (defn parse-policy
-  "Parses a policy DSL expression `expr` into an AST with Either monad error handling.
+  "Parses a policy DSL expression `expr` into an AST.
 
   The DSL supports:
   - Document accessors: `:doc/key-name`
@@ -77,34 +76,36 @@
 
   Takes an optional `position` vector `[start end]` for tracking location (defaults to `[0 0]`).
 
-  Returns `Either[error-map, ASTNode]` - `Right` with AST on success, `Left` with error on failure."
+  Returns `{:ok ASTNode}` on success or `{:error error-map}` on failure."
   ([expr]
    (parse-policy expr [0 0]))
   ([expr position]
    (cond
      (vector? expr)
      (if (empty? expr)
-       (m/return either/context (ast/ast-node ::ast/literal expr position))
+       (r/ok (ast/ast-node ::ast/literal expr position))
        (let [fn-name (first expr)]
          (if-not (valid-function-name? fn-name)
-           (either/left {:error :invalid-function-name
-                         :message (str "Function name must be a keyword or symbol, got: " (pr-str fn-name))
-                         :position position
-                         :value fn-name})
-           (let [args (rest expr)]
-             (m/mlet [parsed-args (m/sequence
-                                   (map-indexed
-                                    (fn [idx arg]
-                                      (let [arg-pos [(first position) (+ (second position) idx 1)]]
-                                        (parse-policy arg arg-pos)))
-                                    args))]
-                     (m/return (ast/ast-node ::ast/function-call
-                                             fn-name
-                                             position
-                                             (vec parsed-args))))))))
+           (r/error {:error :invalid-function-name
+                     :message (str "Function name must be a keyword or symbol, got: " (pr-str fn-name))
+                     :position position
+                     :value fn-name})
+           (let [args        (rest expr)
+                 parsed-args (r/sequence-results
+                              (map-indexed
+                               (fn [idx arg]
+                                 (let [arg-pos [(first position) (+ (second position) idx 1)]]
+                                   (parse-policy arg arg-pos)))
+                               args))]
+             (if (r/error? parsed-args)
+               parsed-args
+               (r/ok (ast/ast-node ::ast/function-call
+                                   fn-name
+                                   position
+                                   (vec (r/unwrap parsed-args)))))))))
 
      :else
-     (m/return either/context (classify-token expr position)))))
+     (r/ok (classify-token expr position)))))
 
 (defn extract-doc-keys
   "Extracts all document accessor keys from a policy `ast`.

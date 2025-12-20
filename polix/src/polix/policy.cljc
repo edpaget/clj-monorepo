@@ -4,9 +4,8 @@
   Provides the `defpolicy` macro for defining declarative policies and the
   `Policy` record for representing compiled policies."
   (:require
-   [cats.core :as m]
-   [cats.monad.either :as either]
-   [polix.parser :as parser]))
+   [polix.parser :as parser]
+   [polix.result :as r]))
 
 (defrecord Policy [name docstring schema ast])
 
@@ -32,12 +31,12 @@
   (let [[docstring expr] (if (string? (first args))
                            [(first args) (second args)]
                            [nil (first args)])
-        ast              (-> (parser/parse-policy expr)
-                             (either/branch-left
-                              (fn [error]
-                                (throw (ex-info (str "Policy parse error: " (:message error))
-                                                (assoc error :policy-name name)))))
-                             (m/extract))
+        parse-result     (parser/parse-policy expr)
+        _                (when (r/error? parse-result)
+                           (let [error (r/unwrap parse-result)]
+                             (throw (ex-info (str "Policy parse error: " (:message error))
+                                             (assoc error :policy-name name)))))
+        ast              (r/unwrap parse-result)
         schema           (parser/extract-doc-keys ast)]
     `(def ~name
        ~@(when docstring [docstring])
