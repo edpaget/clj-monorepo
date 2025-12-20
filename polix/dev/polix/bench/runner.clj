@@ -17,8 +17,7 @@
    [polix.compiler :as compiler]
    [polix.engine :as engine]
    [polix.operators :as op]
-   [polix.parser :as parser]
-   [polix.result :as r])
+   [polix.parser :as parser])
   (:import
    [java.time Instant]))
 

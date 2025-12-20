@@ -25,3 +25,7 @@ package-lock.json
 *.md
 !bashketball-game-ui/content/**/*.md
 !bashketball-game-ui/test/fixtures/**/*.md
+
+# Benchmark results
+**/benchmark-results.json
+**/benchmark-baseline.json

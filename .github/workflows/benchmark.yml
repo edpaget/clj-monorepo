@@ -1,0 +1,131 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'polix/**'
+      - '.github/workflows/benchmark.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'polix/**'
+      - '.github/workflows/benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  benchmark:
+    name: Run Polix Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          cli: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: ${{ runner.os }}-clojure-bench-${{ hashFiles('**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-clojure-bench-
+            ${{ runner.os }}-clojure-
+
+      - name: Download baseline (if exists)
+        uses: actions/cache@v5
+        id: baseline-cache
+        with:
+          path: polix/benchmark-baseline.json
+          key: benchmark-baseline-${{ github.base_ref || 'main' }}
+          restore-keys: |
+            benchmark-baseline-main
+
+      - name: Run benchmarks
+        run: clojure -X:polix-bench :output '"polix/benchmark-results.json"'
+
+      - name: Compare with baseline
+        if: steps.baseline-cache.outputs.cache-hit == 'true' && github.event_name == 'pull_request'
+        id: compare
+        run: |
+          clojure -X:polix-bench :output '"polix/benchmark-results.json"' :baseline '"polix/benchmark-baseline.json"' :threshold '0.15' || echo "regression=true" >> $GITHUB_OUTPUT
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: polix/benchmark-results.json
+          retention-days: 30
+
+      - name: Update baseline on main
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: cp polix/benchmark-results.json polix/benchmark-baseline.json
+
+      - name: Save baseline to cache
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: polix/benchmark-baseline.json
+          key: benchmark-baseline-main-${{ github.sha }}
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('polix/benchmark-results.json', 'utf8'));
+
+            let body = '## Polix Benchmark Results\n\n';
+            body += '| Benchmark | Mean (ns) | Std Dev |\n';
+            body += '|-----------|----------:|--------:|\n';
+
+            for (const bench of results.benchmarks) {
+              body += `| ${bench.name} | ${bench.results['mean-ns'].toLocaleString()} | ±${bench.results['std-dev'].toLocaleString()} |\n`;
+            }
+
+            body += `\n_Generated at ${results.timestamp}_`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Polix Benchmark Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
