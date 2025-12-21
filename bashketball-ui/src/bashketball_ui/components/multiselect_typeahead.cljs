@@ -75,11 +75,11 @@
                                  class)}
              ($ :div {:class "flex flex-wrap gap-1 flex-1"}
                 (if (seq selected-options)
-                  (for [{:keys [value label]} selected-options]
-                    ($ tag {:key value
-                            :label label
+                  (for [{opt-value :value opt-label :label} selected-options]
+                    ($ tag {:key opt-value
+                            :label opt-label
                             :on-remove (fn []
-                                         (on-change (vec (remove #{value} (or value [])))))}))
+                                         (on-change (vec (remove #{opt-value} (or value [])))))}))
                   ($ :span {:class "text-gray-500"} placeholder)))
              ($ ChevronDown {:className "h-4 w-4 opacity-50 flex-shrink-0 ml-2"})))
        ($ Popover/Portal
@@ -96,16 +96,16 @@
                            :on-change #(set-search! (.. % -target -value))}))
              ($ :div {:class "max-h-60 overflow-y-auto p-1"}
                 (if (seq filtered-options)
-                  (for [{:keys [value label]} filtered-options]
+                  (for [{opt-value :value opt-label :label} filtered-options]
                     ($ option-item
-                       {:key value
-                        :label label
-                        :selected? (contains? selected-set value)
+                       {:key opt-value
+                        :label opt-label
+                        :selected? (contains? selected-set opt-value)
                         :on-select (fn []
                                      (let [current (or value [])
-                                           new-val (if (contains? selected-set value)
-                                                     (vec (remove #{value} current))
-                                                     (conj (vec current) value))]
+                                           new-val (if (contains? selected-set opt-value)
+                                                     (vec (remove #{opt-value} current))
+                                                     (conj (vec current) opt-value))]
                                        (on-change new-val)))}))
                   ($ :div {:class "px-3 py-2 text-sm text-gray-500"}
                      "No results found"))))))))
