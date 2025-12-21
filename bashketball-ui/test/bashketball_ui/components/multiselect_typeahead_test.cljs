@@ -87,9 +87,9 @@
   (uix-tlr/render ($ tag {:label "Test Tag" :on-remove identity}))
   (t/is (some? (screen/get-by-text "Test Tag"))))
 
-(t/deftest tag-has-remove-button-test
+(t/deftest tag-has-remove-element-test
   (uix-tlr/render ($ tag {:label "Removable" :on-remove identity}))
-  (t/is (some? (screen/get-by-role "button"))))
+  (t/is (some? (screen/get-by-role "button" {:name "Remove Removable"}))))
 
 (t/deftest tag-remove-button-calls-on-remove-test
   (t/async done
@@ -97,7 +97,7 @@
                  _       (uix-tlr/render ($ tag {:label "Remove Me"
                                                  :on-remove #(reset! removed true)}))
                  usr     (user/setup)]
-             (-> (user/click usr (screen/get-by-role "button"))
+             (-> (user/click usr (screen/get-by-role "button" {:name "Remove Remove Me"}))
                  (.then (fn []
                           (t/is @removed)
                           (done)))
@@ -151,7 +151,7 @@
              (t/is (some? (screen/get-by-text "Apple")))
              (t/is (some? (screen/get-by-text "Banana")))
              (let [apple-tag     (screen/get-by-text "Apple")
-                   remove-button (.. apple-tag -parentElement (querySelector "button"))]
+                   remove-button (.. apple-tag -parentElement (querySelector "[role='button']"))]
                (-> (user/click usr remove-button)
                    (.then (fn []
                             (t/is (nil? (screen/query-by-text "Apple")))

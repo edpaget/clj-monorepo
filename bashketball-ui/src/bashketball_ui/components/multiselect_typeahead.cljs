@@ -14,11 +14,19 @@
   [{:keys [label on-remove]}]
   ($ :span {:class "inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-sm"}
      label
-     ($ :button {:type "button"
-                 :class "hover:bg-blue-200 rounded-full p-0.5"
-                 :on-click (fn [e]
-                             (.stopPropagation e)
-                             (on-remove))}
+     ($ :span {:role "button"
+               :tabIndex 0
+               :aria-label (str "Remove " label)
+               :class "hover:bg-blue-200 rounded-full p-0.5 cursor-pointer"
+               :on-click (fn [e]
+                           (.stopPropagation e)
+                           (on-remove))
+               :on-key-down (fn [e]
+                              (when (or (= (.-key e) "Enter")
+                                        (= (.-key e) " "))
+                                (.preventDefault e)
+                                (.stopPropagation e)
+                                (on-remove)))}
         ($ X {:className "h-3 w-3"}))))
 
 (defui option-item
@@ -27,11 +35,20 @@
   ($ :div {:class (cn "flex items-center gap-2 px-3 py-2 cursor-pointer rounded-sm"
                       "hover:bg-gray-100"
                       (when selected? "bg-gray-50"))
-           :on-click on-select}
+           :role "option"
+           :aria-selected selected?
+           :tabIndex 0
+           :on-click on-select
+           :on-key-down (fn [e]
+                          (when (or (= (.-key e) "Enter")
+                                    (= (.-key e) " "))
+                            (.preventDefault e)
+                            (on-select)))}
      ($ :div {:class (cn "w-4 h-4 border rounded flex items-center justify-center"
                          (if selected?
                            "bg-blue-600 border-blue-600"
-                           "border-gray-300"))}
+                           "border-gray-300"))
+              :aria-hidden true}
         (when selected?
           ($ Check {:className "h-3 w-3 text-white"})))
      ($ :span {:class "text-sm"} label)))
@@ -90,11 +107,15 @@
              ($ :div {:class "p-2 border-b border-gray-100"}
                 ($ :input {:ref input-ref
                            :type "text"
+                           :aria-label "Search options"
                            :class "w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-950"
                            :placeholder search-placeholder
                            :value search
                            :on-change #(set-search! (.. % -target -value))}))
-             ($ :div {:class "max-h-60 overflow-y-auto p-1"}
+             ($ :div {:class "max-h-60 overflow-y-auto p-1"
+                      :role "listbox"
+                      :aria-label "Available options"
+                      :aria-multiselectable true}
                 (if (seq filtered-options)
                   (for [{opt-value :value opt-label :label} filtered-options]
                     ($ option-item

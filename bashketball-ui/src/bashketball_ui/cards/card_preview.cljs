@@ -22,7 +22,7 @@
   [{:keys [label value]}]
   (when (seq value)
     ($ :div {:class "space-y-0.5"}
-       ($ :div {:class "text-[10px] font-medium text-gray-500 uppercase"} label)
+       ($ :h4 {:class "text-[10px] font-medium text-gray-500 uppercase"} label)
        ($ :div {:class "text-gray-900 whitespace-pre-wrap leading-tight"} value))))
 
 (defui abilities-list
@@ -34,8 +34,9 @@
                         :else nil)]
     (when (seq abilities-vec)
       ($ :div {:class "space-y-0.5"}
-         ($ :div {:class "text-[10px] font-medium text-gray-500 uppercase"} "Abilities")
-         ($ :ul {:class "list-disc list-inside space-y-0.5"}
+         ($ :h4 {:class "text-[10px] font-medium text-gray-500 uppercase"} "Abilities")
+         ($ :ul {:class "list-disc list-inside space-y-0.5"
+                 :aria-label "Card abilities"}
             (for [[idx ability] (map-indexed vector abilities-vec)]
               ($ :li {:key idx :class "text-gray-900 leading-tight"} ability)))))))
 
@@ -92,7 +93,9 @@
   (let [abilities       (or (:abilities card) [])
         player-subtypes (or (:player-subtypes card) (:playerSubtypes card) [])]
     ($ :<>
-       ($ :div {:class "grid grid-cols-5 gap-1 p-1.5 bg-gray-100 rounded"}
+       ($ :div {:class "grid grid-cols-5 gap-1 p-1.5 bg-gray-100 rounded"
+                :role "group"
+                :aria-label "Player statistics"}
           ($ stat-display {:label "SHT" :value (:sht card)})
           ($ stat-display {:label "PSS" :value (:pss card)})
           ($ stat-display {:label "DEF" :value (:def card)})
@@ -180,16 +183,20 @@
         name              (:name card)
         image-prompt      (or (:image-prompt card) (:imagePrompt card))
         card-subtypes     (or (:card-subtypes card) (:cardSubtypes card) [])]
-    ($ :div {:class (str "aspect-[5/7] w-80 bg-gradient-to-b from-gray-100 to-gray-200 rounded-xl border-4 border-gray-800 shadow-xl overflow-hidden flex flex-col " class)}
-       ($ :div {:class "bg-gradient-to-r from-gray-700 to-gray-800 px-4 py-2 relative"}
-          ($ :div {:class "absolute top-2 right-3 flex items-center gap-1.5"}
+    ($ :article {:class (str "aspect-[5/7] w-80 bg-gradient-to-b from-gray-100 to-gray-200 rounded-xl border-4 border-gray-800 shadow-xl overflow-hidden flex flex-col " class)
+                 :aria-label (str (if (seq name) name "Card") " card")}
+       ($ :header {:class "bg-gradient-to-r from-gray-700 to-gray-800 px-4 py-2 relative"}
+          ($ :div {:class "absolute top-2 right-3 flex items-center gap-1.5"
+                   :aria-label "Card stats"}
              (when deck-size
                ($ :div {:class "w-6 h-6 bg-blue-500 rounded flex items-center justify-center text-white font-bold text-xs shadow-md"
-                        :title "Deck size"}
+                        :title "Deck size"
+                        :aria-label (str "Deck size: " deck-size)}
                   deck-size))
              (when fate
                ($ :div {:class "w-6 h-6 bg-amber-400 rounded flex items-center justify-center text-gray-900 font-bold text-xs shadow-md"
-                        :title "Fate"}
+                        :title "Fate"
+                        :aria-label (str "Fate: " fate)}
                   fate)))
           ($ :h2 {:class "text-white font-bold text-lg truncate pr-16"}
              (if (seq name) name "Card Name")))

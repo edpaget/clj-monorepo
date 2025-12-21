@@ -19,6 +19,7 @@
   ($ :button
      {:type "button"
       :title title
+      :aria-label (str "Insert " title)
       :on-click on-click
       :class "px-2 py-1 text-lg border border-gray-200 rounded hover:bg-gray-100
               focus:outline-none focus:ring-1 focus:ring-gray-400 transition-colors"}
@@ -30,9 +31,11 @@
   Takes an `on-insert` callback that receives the icon string to insert.
   The parent component is responsible for handling cursor position and
   value updates."
-  [{:keys [on-insert icons]}]
+  [{:keys [on-insert icons aria-label]}]
   (let [icons (or icons game-icons)]
-    ($ :div {:class "flex gap-1 mb-1"}
+    ($ :div {:class "flex gap-1 mb-1"
+             :role "toolbar"
+             :aria-label (or aria-label "Insert special characters")}
        (for [{:keys [icon label title]} icons]
          ($ icon-button
             {:key label
