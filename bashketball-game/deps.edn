@@ -4,7 +4,9 @@
   org.clojure/clojurescript {:mvn/version "1.12.134"}
   thheller/shadow-cljs {:mvn/version "3.2.1"}
   metosin/malli {:mvn/version "0.20.0"}
-  local/bashketball-schemas {:local/root "../bashketball-schemas"}}
+  local/bashketball-schemas {:local/root "../bashketball-schemas"}
+  local/polix {:local/root "../polix"}
+  local/polix-effects {:local/root "../polix-effects"}}
  :aliases
  {:dev
   {:extra-paths ["dev"]
