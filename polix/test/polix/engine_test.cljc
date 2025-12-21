@@ -506,3 +506,129 @@
     (is (= false (engine/evaluate
                   [:exists [:u :doc/users] [:in :u/status #{"active" "pending"}]]
                   {:users [{:status "closed"} {:status "expired"}]})))))
+
+;;; ---------------------------------------------------------------------------
+;;; Filtered Quantifier Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest forall-filter-excludes-test
+  (testing "filter excludes non-matching elements"
+    (is (= true (engine/evaluate
+                  [:forall [:u :doc/users :where [:= :u/active true]]
+                   [:= :u/role "admin"]]
+                  {:users [{:active true :role "admin"}
+                           {:active false :role "guest"}]})))))
+
+(deftest forall-filter-all-must-satisfy-test
+  (testing "all filtered elements must satisfy body"
+    (is (= false (engine/evaluate
+                   [:forall [:u :doc/users :where [:= :u/active true]]
+                    [:= :u/role "admin"]]
+                   {:users [{:active true :role "admin"}
+                            {:active true :role "guest"}]})))))
+
+(deftest forall-filter-empty-after-filter-test
+  (testing "empty after filter is vacuously true"
+    (is (= true (engine/evaluate
+                  [:forall [:u :doc/users :where [:= :u/active true]]
+                   [:= :u/role "admin"]]
+                  {:users [{:active false :role "guest"}
+                           {:active false :role "user"}]})))))
+
+(deftest forall-filter-residual-body-fails-test
+  (testing "filter residual with body that would fail"
+    (let [result (engine/evaluate
+                   [:forall [:u :doc/users :where [:= :u/active true]]
+                    [:= :u/role "admin"]]
+                   {:users [{:active true :role "admin"}
+                            {:role "guest"}]})]
+      (is (engine/residual? result)))))
+
+(deftest forall-filter-residual-body-passes-test
+  (testing "filter residual with body that passes - safe for forall"
+    (is (= true (engine/evaluate
+                  [:forall [:u :doc/users :where [:= :u/active true]]
+                   [:= :u/role "admin"]]
+                  {:users [{:active true :role "admin"}
+                           {:role "admin"}]})))))
+
+(deftest exists-filter-finds-match-test
+  (testing "finds matching element after filter"
+    (is (= true (engine/evaluate
+                  [:exists [:u :doc/users :where [:= :u/active true]]
+                   [:= :u/role "admin"]]
+                  {:users [{:active false :role "admin"}
+                           {:active true :role "admin"}]})))))
+
+(deftest exists-filter-no-match-test
+  (testing "no matching element after filter"
+    (is (= false (engine/evaluate
+                   [:exists [:u :doc/users :where [:= :u/active true]]
+                    [:= :u/role "admin"]]
+                   {:users [{:active true :role "guest"}
+                            {:active false :role "admin"}]})))))
+
+(deftest exists-filter-empty-after-filter-test
+  (testing "empty after filter - false"
+    (is (= false (engine/evaluate
+                   [:exists [:u :doc/users :where [:= :u/active true]]
+                    [:= :u/role "admin"]]
+                   {:users [{:active false :role "admin"}]})))))
+
+(deftest nested-quantifiers-with-filters-test
+  (testing "forall with nested exists, both filtered"
+    (is (= true (engine/evaluate
+                  [:forall [:team :doc/teams :where [:= :team/active true]]
+                   [:exists [:m :team/members :where [:> :m/level 3]]
+                    [:= :m/role "lead"]]]
+                  {:teams [{:active true
+                            :members [{:level 5 :role "lead"}
+                                      {:level 2 :role "dev"}]}
+                           {:active false
+                            :members [{:level 1 :role "intern"}]}]})))))
+
+;;; ---------------------------------------------------------------------------
+;;; Value Function Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest fn-count-simple-test
+  (testing "simple count"
+    (is (= true (engine/evaluate
+                  [:= [:fn/count :doc/users] 3]
+                  {:users [{} {} {}]})))))
+
+(deftest fn-count-comparison-test
+  (testing "count in comparison"
+    (is (= true (engine/evaluate
+                  [:>= [:fn/count :doc/users] 2]
+                  {:users [{} {} {}]})))
+    (is (= false (engine/evaluate
+                   [:> [:fn/count :doc/users] 5]
+                   {:users [{} {} {}]})))))
+
+(deftest fn-count-with-filter-test
+  (testing "count with filter"
+    (is (= true (engine/evaluate
+                  [:= [:fn/count [:u :doc/users :where [:= :u/active true]]] 2]
+                  {:users [{:active true}
+                           {:active false}
+                           {:active true}]})))))
+
+(deftest fn-count-missing-collection-test
+  (testing "count with missing collection - residual"
+    (let [result (engine/evaluate [:fn/count :doc/users] {})]
+      (is (engine/residual? result)))))
+
+(deftest fn-count-non-sequential-test
+  (testing "count of non-sequential is 0"
+    (is (= true (engine/evaluate
+                  [:= [:fn/count :doc/users] 0]
+                  {:users "not-a-list"})))))
+
+(deftest fn-count-filter-residual-test
+  (testing "count with filter residual"
+    (let [result (engine/evaluate
+                   [:fn/count [:u :doc/users :where [:= :u/active true]]]
+                   {:users [{:active true} {}]})]
+      (is (engine/residual? result))
+      (is (= 1 (:partial-count result))))))

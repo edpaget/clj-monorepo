@@ -325,7 +325,7 @@
                                    (merge-residual-paths residuals indexed)))
 
                           :else
-                          (recur (rest elements) (inc index) residuals)))))))))))))
+                          (recur (rest elements) (inc index) residuals))))))))))))))
 
 (defn- evaluate-exists
   "Evaluates exists quantifier with optional filter and three-valued logic.
@@ -415,7 +415,7 @@
                                    (merge-residual-paths residuals indexed)))
 
                           :else
-                          (recur (rest elements) (inc index) residuals)))))))))))))
+                          (recur (rest elements) (inc index) residuals))))))))))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Evaluation
