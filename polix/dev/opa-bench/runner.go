@@ -106,6 +106,53 @@ func prepareQuantifierPolicies() ([]PreparedPolicy, error) {
 	return prepared, nil
 }
 
+func prepareCountFilterPolicy(name string, ruleName string) (PreparedPolicy, error) {
+	ctx := context.Background()
+
+	policyBytes, err := policies.ReadFile("policies/count_filter.rego")
+	if err != nil {
+		return PreparedPolicy{}, fmt.Errorf("reading count_filter.rego: %w", err)
+	}
+
+	query, err := rego.New(
+		rego.Query("data.policy.count_filter."+ruleName),
+		rego.Module("count_filter.rego", string(policyBytes)),
+	).PrepareForEval(ctx)
+	if err != nil {
+		return PreparedPolicy{}, fmt.Errorf("preparing %s: %w", name, err)
+	}
+
+	return PreparedPolicy{Name: name, Query: query}, nil
+}
+
+func prepareCountFilterPolicies() ([]PreparedPolicy, error) {
+	countFilterDefs := []struct {
+		name     string
+		ruleName string
+	}{
+		{"count_simple", "count_simple"},
+		{"count_medium", "count_medium"},
+		{"count_large", "count_large"},
+		{"count_nested", "count_nested"},
+		{"count_with_comparison", "count_with_comparison"},
+		{"forall_filtered", "forall_filtered"},
+		{"exists_filtered", "exists_filtered"},
+		{"count_filtered", "count_filtered"},
+		{"count_filtered_complex", "count_filtered_complex"},
+		{"nested_filtered", "nested_filtered"},
+	}
+
+	var prepared []PreparedPolicy
+	for _, def := range countFilterDefs {
+		p, err := prepareCountFilterPolicy(def.name, def.ruleName)
+		if err != nil {
+			return nil, err
+		}
+		prepared = append(prepared, p)
+	}
+	return prepared, nil
+}
+
 func mean(samples []float64) float64 {
 	sum := 0.0
 	for _, s := range samples {
@@ -233,6 +280,67 @@ func runAllBenchmarks() ([]BenchmarkResult, error) {
 	for _, b := range quantifierBenchmarks {
 		fmt.Printf("  %s...", b.name)
 		result := runBenchmark(b.name, quantifierMap[b.policy], b.doc)
+		results = append(results, result)
+		fmt.Printf(" %d ns\n", result.Results["mean-ns"])
+	}
+
+	// Run count and filtered benchmarks
+	fmt.Println("Preparing count/filter policies...")
+	countFilterPolicies, err := prepareCountFilterPolicies()
+	if err != nil {
+		return nil, err
+	}
+
+	countFilterMap := make(map[string]rego.PreparedEvalQuery)
+	for _, p := range countFilterPolicies {
+		countFilterMap[p.Name] = p.Query
+	}
+
+	countBenchmarks := []benchDef{
+		{"opa/count/simple-5-satisfied", "count_simple", docUsers5AllActive},
+		{"opa/count/simple-5-contradicted", "count_simple", map[string]interface{}{"users": makeUsers(3, true)}},
+		{"opa/count/medium-20-satisfied", "count_medium", docUsers20AllVerified},
+		{"opa/count/large-100-satisfied", "count_large", docUsers100AllActive},
+		{"opa/count/nested-path", "count_nested", docOrgWithMembers},
+		{"opa/count/with-comparison", "count_with_comparison", map[string]interface{}{
+			"users":  makeUsers(5, true),
+			"active": true,
+		}},
+	}
+
+	fmt.Println("Running count benchmarks...")
+	for _, b := range countBenchmarks {
+		fmt.Printf("  %s...", b.name)
+		result := runBenchmark(b.name, countFilterMap[b.policy], b.doc)
+		results = append(results, result)
+		fmt.Printf(" %d ns\n", result.Results["mean-ns"])
+	}
+
+	filteredBenchmarks := []benchDef{
+		// Forall with filter
+		{"opa/filtered/forall-small-satisfied", "forall_filtered", docUsers5AllActiveVerified},
+		{"opa/filtered/forall-small-mixed", "forall_filtered", docUsers5MixedActive},
+		{"opa/filtered/forall-medium", "forall_filtered", docUsers20HalfActive},
+		{"opa/filtered/forall-large", "forall_filtered", docUsers100MostlyActive},
+		// Exists with filter
+		{"opa/filtered/exists-small-satisfied", "exists_filtered", docUsers5ActiveWithAdmin},
+		{"opa/filtered/exists-small-contradicted", "exists_filtered", docUsers5ActiveNoAdmin},
+		{"opa/filtered/exists-large-early", "exists_filtered", docUsers100ActiveFirstAdmin},
+		{"opa/filtered/exists-large-late", "exists_filtered", docUsers100ActiveLastAdmin},
+		// Count with filter
+		{"opa/filtered/count-simple", "count_filtered", docUsers5MixedActive},
+		{"opa/filtered/count-medium", "count_filtered", docUsers20HalfActive},
+		{"opa/filtered/count-large", "count_filtered", docUsers100MostlyActive},
+		{"opa/filtered/count-complex", "count_filtered_complex", docUsers100MostlyActive},
+		// Nested with filter
+		{"opa/filtered/nested-satisfied", "nested_filtered", docTeams5ActiveWithLeads},
+		{"opa/filtered/nested-contradicted", "nested_filtered", docTeams5ActiveMissingLead},
+	}
+
+	fmt.Println("Running filtered binding benchmarks...")
+	for _, b := range filteredBenchmarks {
+		fmt.Printf("  %s...", b.name)
+		result := runBenchmark(b.name, countFilterMap[b.policy], b.doc)
 		results = append(results, result)
 		fmt.Printf(" %d ns\n", result.Results["mean-ns"])
 	}

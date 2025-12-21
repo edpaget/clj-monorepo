@@ -289,12 +289,12 @@
   "Compares AST evaluation vs compiled evaluation for a policy.
    Returns ratio of AST time to compiled time."
   [policy-expr document]
-  (let [ast           (r/unwrap (parser/parse-policy policy-expr))
-        check         (compiler/compile-policies [policy-expr])
-        ast-result    (with-results #(engine/evaluate ast document))
+  (let [ast             (r/unwrap (parser/parse-policy policy-expr))
+        check           (compiler/compile-policies [policy-expr])
+        ast-result      (with-results #(engine/evaluate ast document))
         compiled-result (with-results #(check document))
-        ast-mean      (first (:mean ast-result))
-        compiled-mean (first (:mean compiled-result))]
+        ast-mean        (first (:mean ast-result))
+        compiled-mean   (first (:mean compiled-result))]
     {:ast-ns       (* ast-mean 1e9)
      :compiled-ns  (* compiled-mean 1e9)
      :speedup      (/ ast-mean compiled-mean)}))

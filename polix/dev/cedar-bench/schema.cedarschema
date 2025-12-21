@@ -20,6 +20,11 @@ entity User {
     // Quantifier benchmark attributes
     roles: Set<String>,
     "active-flags": Set<String>,
+    // Count benchmark attributes
+    "user-ids": Set<String>,
+    "active-user-ids": Set<String>,
+    "org-member-ids": Set<String>,
+    active: Bool,
 };
 
 entity Resource {};

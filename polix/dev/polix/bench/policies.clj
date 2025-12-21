@@ -41,7 +41,7 @@
   "Medium complexity with nested OR."
   [:and
    [:or [:= :doc/role "admin"]
-        [:= :doc/role "moderator"]]
+    [:= :doc/role "moderator"]]
    [:> :doc/level 3]
    [:in :doc/department #{"engineering" "security"}]
    [:not [:= :doc/suspended true]]])
@@ -90,13 +90,13 @@
    [:not [:= :doc/blocked true]]
    [:in :doc/source #{"api" "web" "mobile" "sdk"}]
    [:or [:= :doc/authenticated true]
-        [:in :doc/path #{"/" "/health" "/public"}]]
+    [:in :doc/path #{"/" "/health" "/public"}]]
    [:not [:in :doc/ip-country #{"XX" "YY"}]]
    [:>= :doc/rate-limit-remaining 1]
    [:< :doc/request-size 10485760]
    [:in :doc/content-type #{"application/json" "text/plain" "multipart/form-data"}]
    [:or [:= :doc/internal true]
-        [:and [:> :doc/api-version 1] [:<= :doc/api-version 3]]]
+    [:and [:> :doc/api-version 1] [:<= :doc/api-version 3]]]
    [:not [:= :doc/deprecated-endpoint true]]
    [:in :doc/protocol #{"http" "https"}]])
 
@@ -249,3 +249,133 @@
   "5 teams, one without a lead."
   {:teams (conj (vec (repeat 4 {:members [{:role "lead"}]}))
                 {:members [{:role "dev"} {:role "dev"}]})})
+
+;;; ---------------------------------------------------------------------------
+;;; Count Function Policies
+;;; ---------------------------------------------------------------------------
+
+(def count-simple
+  "Count collection size."
+  [:>= [:fn/count :doc/users] 5])
+
+(def count-medium
+  "Count medium collection."
+  [:>= [:fn/count :doc/users] 20])
+
+(def count-large
+  "Count large collection."
+  [:>= [:fn/count :doc/users] 100])
+
+(def count-nested-path
+  "Count nested collection."
+  [:>= [:fn/count :doc/org.members] 5])
+
+(def count-with-comparison
+  "Count with additional comparison."
+  [:and
+   [:>= [:fn/count :doc/users] 5]
+   [:= :doc/active true]])
+
+;;; ---------------------------------------------------------------------------
+;;; Filtered Binding Policies
+;;; ---------------------------------------------------------------------------
+
+(def forall-filtered
+  "Forall with filtered binding - all active users must have verified profile."
+  [:forall [:u :doc/users :where [:= :u/active true]]
+   [:= :u/profile.verified true]])
+
+(def exists-filtered
+  "Exists with filtered binding - at least one active user is admin."
+  [:exists [:u :doc/users :where [:= :u/active true]]
+   [:= :u/role "admin"]])
+
+(def count-filtered
+  "Count with filtered binding - count active users."
+  [:>= [:fn/count [:u :doc/users :where [:= :u/active true]]] 3])
+
+(def count-filtered-complex
+  "Count with complex filter - count users with high score."
+  [:>= [:fn/count [:u :doc/users :where [:and [:= :u/active true] [:> :u/score 80]]]] 2])
+
+(def nested-filtered
+  "Nested quantifiers with filtered bindings."
+  [:forall [:team :doc/teams :where [:= :team/active true]]
+   [:exists [:m :team/members :where [:> :m/level 5]]
+    [:= :m/role "lead"]]])
+
+;;; ---------------------------------------------------------------------------
+;;; Count and Filter Documents
+;;; ---------------------------------------------------------------------------
+
+(def doc-users-5-all-active-verified
+  "5 users, all active with verified profiles."
+  {:users (vec (repeat 5 {:active true :role "user" :score 90
+                          :profile {:verified true}}))})
+
+(def doc-users-5-mixed-active
+  "5 users, 3 active with verified profiles, 2 inactive."
+  {:users (into (vec (repeat 3 {:active true :role "user" :score 90
+                                :profile {:verified true}}))
+                (repeat 2 {:active false :role "user" :score 50
+                           :profile {:verified false}}))})
+
+(def doc-users-20-half-active
+  "20 users, 10 active, 10 inactive."
+  {:users (into (vec (repeat 10 {:active true :role "user" :score 90
+                                 :profile {:verified true}}))
+                (repeat 10 {:active false :role "user" :score 50
+                            :profile {:verified false}}))})
+
+(def doc-users-100-mostly-active
+  "100 users, 80 active, 20 inactive."
+  {:users (into (vec (repeat 80 {:active true :role "user" :score 90
+                                 :profile {:verified true}}))
+                (repeat 20 {:active false :role "user" :score 50
+                            :profile {:verified false}}))})
+
+(def doc-users-5-active-with-admin
+  "5 active users, first is admin."
+  {:users (into [{:active true :role "admin" :score 95
+                  :profile {:verified true}}]
+                (repeat 4 {:active true :role "user" :score 85
+                           :profile {:verified true}}))})
+
+(def doc-users-5-active-no-admin
+  "5 active users, none are admin."
+  {:users (vec (repeat 5 {:active true :role "user" :score 85
+                          :profile {:verified true}}))})
+
+(def doc-users-100-active-first-admin
+  "100 active users, first is admin."
+  {:users (into [{:active true :role "admin" :score 95
+                  :profile {:verified true}}]
+                (repeat 99 {:active true :role "user" :score 85
+                            :profile {:verified true}}))})
+
+(def doc-users-100-active-last-admin
+  "100 active users, last is admin."
+  {:users (conj (vec (repeat 99 {:active true :role "user" :score 85
+                                 :profile {:verified true}}))
+                {:active true :role "admin" :score 95
+                 :profile {:verified true}})})
+
+(def doc-org-with-members
+  "Organization with nested members collection."
+  {:org {:name "Acme" :members (vec (repeat 10 {:name "User" :level 5}))}
+   :active true})
+
+(def doc-teams-5-active-with-leads
+  "5 active teams, each with high-level lead."
+  {:teams (vec (repeat 5 {:active true
+                          :members [{:role "dev" :level 3}
+                                    {:role "lead" :level 8}
+                                    {:role "dev" :level 4}]}))})
+
+(def doc-teams-5-active-missing-lead
+  "5 active teams, one without high-level lead."
+  {:teams (conj (vec (repeat 4 {:active true
+                                :members [{:role "lead" :level 8}]}))
+                {:active true
+                 :members [{:role "dev" :level 3}
+                           {:role "dev" :level 4}]})})

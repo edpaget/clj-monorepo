@@ -10,6 +10,7 @@ pub const SIMPLE_POLICY: &str = include_str!("../policies/simple.cedar");
 pub const MEDIUM_POLICY: &str = include_str!("../policies/medium.cedar");
 pub const COMPLEX_POLICY: &str = include_str!("../policies/complex.cedar");
 pub const QUANTIFIER_POLICY: &str = include_str!("../policies/quantifier.cedar");
+pub const COUNT_FILTER_POLICY: &str = include_str!("../policies/count_filter.cedar");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkResult {
@@ -95,6 +96,29 @@ fn parse_complex_policy_set() -> PolicySet {
 }
 
 fn create_entities_json(user_attrs: &str) -> Entities {
+    // Parse the user_attrs to add missing fields if needed
+    let attrs_with_defaults = if user_attrs.contains("\"user-ids\"") {
+        user_attrs.to_string()
+    } else {
+        // Add the count benchmark attributes with defaults
+        let mut attrs: serde_json::Value = serde_json::from_str(user_attrs).expect("Invalid user attrs JSON");
+        if let Some(obj) = attrs.as_object_mut() {
+            if !obj.contains_key("user-ids") {
+                obj.insert("user-ids".to_string(), serde_json::json!([]));
+            }
+            if !obj.contains_key("active-user-ids") {
+                obj.insert("active-user-ids".to_string(), serde_json::json!([]));
+            }
+            if !obj.contains_key("org-member-ids") {
+                obj.insert("org-member-ids".to_string(), serde_json::json!([]));
+            }
+            if !obj.contains_key("active") {
+                obj.insert("active".to_string(), serde_json::json!(true));
+            }
+        }
+        attrs.to_string()
+    };
+
     let entities_json = format!(
         r#"[
             {{
@@ -108,7 +132,7 @@ fn create_entities_json(user_attrs: &str) -> Entities {
                 "parents": []
             }}
         ]"#,
-        user_attrs
+        attrs_with_defaults
     );
     Entities::from_json_str(&entities_json, Some(&parse_schema())).expect("Failed to create entities")
 }
@@ -143,7 +167,11 @@ fn create_quantifier_entities(flags: &[&str]) -> Entities {
                     "subscription": "free",
                     "trial": false,
                     "roles": ["user"],
-                    "active-flags": [{}]
+                    "active-flags": [{}],
+                    "user-ids": [],
+                    "active-user-ids": [],
+                    "org-member-ids": [],
+                    "active": true
                 }},
                 "parents": []
             }},
@@ -317,6 +345,144 @@ pub fn quantifier_benchmarks() -> Vec<PreparedBenchmark> {
         quantifier_small_contradicted(),
         quantifier_large_satisfied(),
         quantifier_large_contradicted(),
+    ]
+}
+
+// Count benchmarks using Cedar's set containsAll operation
+// Note: Cedar doesn't have iteration-based count/filter like OPA/Polix
+// These benchmarks use set operations as the closest equivalent
+
+fn create_count_entities(user_ids: &[&str], active_user_ids: &[&str], org_member_ids: &[&str], active: bool) -> Entities {
+    let user_ids_json: String = user_ids.iter()
+        .map(|id| format!("\"{}\"", id))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let active_user_ids_json: String = active_user_ids.iter()
+        .map(|id| format!("\"{}\"", id))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let org_member_ids_json: String = org_member_ids.iter()
+        .map(|id| format!("\"{}\"", id))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let entities_json = format!(
+        r#"[
+            {{
+                "uid": {{ "type": "User", "id": "test-user" }},
+                "attrs": {{
+                    "role": "user",
+                    "level": 1,
+                    "status": "active",
+                    "age": 30,
+                    "score": 50,
+                    "department": "engineering",
+                    "clearance": 1,
+                    "tenure": 1,
+                    "karma": 100,
+                    "warnings": 0,
+                    "reputation": 100,
+                    "verified": true,
+                    "region": "us",
+                    "restricted-flag": "",
+                    "account-age": 100,
+                    "trust-score": 50,
+                    "subscription": "free",
+                    "trial": false,
+                    "roles": ["user"],
+                    "active-flags": [],
+                    "user-ids": [{}],
+                    "active-user-ids": [{}],
+                    "org-member-ids": [{}],
+                    "active": {}
+                }},
+                "parents": []
+            }},
+            {{
+                "uid": {{ "type": "Resource", "id": "test-resource" }},
+                "attrs": {{}},
+                "parents": []
+            }}
+        ]"#,
+        user_ids_json, active_user_ids_json, org_member_ids_json, active
+    );
+    Entities::from_json_str(&entities_json, Some(&parse_schema())).expect("Failed to create count entities")
+}
+
+fn parse_count_filter_policy_set() -> PolicySet {
+    let policy = Policy::parse(None, COUNT_FILTER_POLICY).expect("Failed to parse count filter policy");
+    let mut policy_set = PolicySet::new();
+    policy_set.add(policy).expect("Failed to add count filter policy");
+    policy_set
+}
+
+pub fn count_small_satisfied() -> PreparedBenchmark {
+    // 5 user IDs present
+    let user_ids: Vec<&str> = (1..=5).map(|i| Box::leak(format!("u{}", i).into_boxed_str()) as &str).collect();
+    PreparedBenchmark {
+        name: "cedar/count/containsall-small-satisfied".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_count_filter_policy_set(),
+        entities: create_count_entities(&user_ids, &[], &[], true),
+        request: create_request(),
+    }
+}
+
+pub fn count_small_contradicted() -> PreparedBenchmark {
+    // Only 3 user IDs (missing u4, u5)
+    let user_ids: Vec<&str> = (1..=3).map(|i| Box::leak(format!("u{}", i).into_boxed_str()) as &str).collect();
+    PreparedBenchmark {
+        name: "cedar/count/containsall-small-contradicted".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_count_filter_policy_set(),
+        entities: create_count_entities(&user_ids, &[], &[], true),
+        request: create_request(),
+    }
+}
+
+pub fn count_medium_satisfied() -> PreparedBenchmark {
+    // 20 user IDs (includes required 5)
+    let user_ids: Vec<&str> = (1..=20).map(|i| Box::leak(format!("u{}", i).into_boxed_str()) as &str).collect();
+    PreparedBenchmark {
+        name: "cedar/count/containsall-medium-satisfied".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_count_filter_policy_set(),
+        entities: create_count_entities(&user_ids, &[], &[], true),
+        request: create_request(),
+    }
+}
+
+pub fn count_large_satisfied() -> PreparedBenchmark {
+    // 100 user IDs (includes required 5)
+    let user_ids: Vec<&str> = (1..=100).map(|i| Box::leak(format!("u{}", i).into_boxed_str()) as &str).collect();
+    PreparedBenchmark {
+        name: "cedar/count/containsall-large-satisfied".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_count_filter_policy_set(),
+        entities: create_count_entities(&user_ids, &[], &[], true),
+        request: create_request(),
+    }
+}
+
+pub fn count_large_contradicted() -> PreparedBenchmark {
+    // 100 user IDs but missing required ones (u6-u105 instead of u1-u5)
+    let user_ids: Vec<&str> = (6..=105).map(|i| Box::leak(format!("u{}", i).into_boxed_str()) as &str).collect();
+    PreparedBenchmark {
+        name: "cedar/count/containsall-large-contradicted".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_count_filter_policy_set(),
+        entities: create_count_entities(&user_ids, &[], &[], true),
+        request: create_request(),
+    }
+}
+
+pub fn count_benchmarks() -> Vec<PreparedBenchmark> {
+    vec![
+        count_small_satisfied(),
+        count_small_contradicted(),
+        count_medium_satisfied(),
+        count_large_satisfied(),
+        count_large_contradicted(),
     ]
 }
 

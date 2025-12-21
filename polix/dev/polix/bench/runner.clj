@@ -106,10 +106,10 @@
 (defn quantifier-benchmarks
   "Runs quantifier benchmarks."
   []
-  (let [forall-checker  (compiler/compile-policies [p/forall-simple])
-        forall-nested   (compiler/compile-policies [p/forall-nested-path])
-        exists-checker  (compiler/compile-policies [p/exists-simple])
-        nested-checker  (compiler/compile-policies [p/nested-forall-exists])]
+  (let [forall-checker (compiler/compile-policies [p/forall-simple])
+        forall-nested  (compiler/compile-policies [p/forall-nested-path])
+        exists-checker (compiler/compile-policies [p/exists-simple])
+        nested-checker (compiler/compile-policies [p/nested-forall-exists])]
     [;; Forall benchmarks
      (bench-fn "quantifier/forall-small-satisfied"
                (forall-checker p/doc-users-5-all-active))
@@ -134,6 +134,68 @@
      (bench-fn "quantifier/nested-contradicted"
                (nested-checker p/doc-teams-one-missing-lead))]))
 
+(defn count-benchmarks
+  "Runs count function benchmarks."
+  []
+  (let [count-simple-checker  (compiler/compile-policies [p/count-simple])
+        count-medium-checker  (compiler/compile-policies [p/count-medium])
+        count-large-checker   (compiler/compile-policies [p/count-large])
+        count-nested-checker  (compiler/compile-policies [p/count-nested-path])
+        count-compare-checker (compiler/compile-policies [p/count-with-comparison])]
+    [(bench-fn "count/simple-5-satisfied"
+               (count-simple-checker p/doc-users-5-all-active))
+     (bench-fn "count/simple-5-contradicted"
+               (count-simple-checker {:users (vec (repeat 3 {:active true}))}))
+     (bench-fn "count/medium-20-satisfied"
+               (count-medium-checker p/doc-users-20-all-verified))
+     (bench-fn "count/large-100-satisfied"
+               (count-large-checker p/doc-users-100-all-active))
+     (bench-fn "count/nested-path"
+               (count-nested-checker p/doc-org-with-members))
+     (bench-fn "count/with-comparison"
+               (count-compare-checker (assoc p/doc-users-5-all-active :active true)))]))
+
+(defn filtered-binding-benchmarks
+  "Runs filtered binding benchmarks."
+  []
+  (let [forall-filtered-checker (compiler/compile-policies [p/forall-filtered])
+        exists-filtered-checker (compiler/compile-policies [p/exists-filtered])
+        count-filtered-checker  (compiler/compile-policies [p/count-filtered])
+        count-complex-checker   (compiler/compile-policies [p/count-filtered-complex])
+        nested-filtered-checker (compiler/compile-policies [p/nested-filtered])]
+    [;; Forall with filter
+     (bench-fn "filtered/forall-small-satisfied"
+               (forall-filtered-checker p/doc-users-5-all-active-verified))
+     (bench-fn "filtered/forall-small-mixed"
+               (forall-filtered-checker p/doc-users-5-mixed-active))
+     (bench-fn "filtered/forall-medium"
+               (forall-filtered-checker p/doc-users-20-half-active))
+     (bench-fn "filtered/forall-large"
+               (forall-filtered-checker p/doc-users-100-mostly-active))
+     ;; Exists with filter
+     (bench-fn "filtered/exists-small-satisfied"
+               (exists-filtered-checker p/doc-users-5-active-with-admin))
+     (bench-fn "filtered/exists-small-contradicted"
+               (exists-filtered-checker p/doc-users-5-active-no-admin))
+     (bench-fn "filtered/exists-large-early"
+               (exists-filtered-checker p/doc-users-100-active-first-admin))
+     (bench-fn "filtered/exists-large-late"
+               (exists-filtered-checker p/doc-users-100-active-last-admin))
+     ;; Count with filter
+     (bench-fn "filtered/count-simple"
+               (count-filtered-checker p/doc-users-5-mixed-active))
+     (bench-fn "filtered/count-medium"
+               (count-filtered-checker p/doc-users-20-half-active))
+     (bench-fn "filtered/count-large"
+               (count-filtered-checker p/doc-users-100-mostly-active))
+     (bench-fn "filtered/count-complex"
+               (count-complex-checker p/doc-users-100-mostly-active))
+     ;; Nested with filter
+     (bench-fn "filtered/nested-satisfied"
+               (nested-filtered-checker p/doc-teams-5-active-with-leads))
+     (bench-fn "filtered/nested-contradicted"
+               (nested-filtered-checker p/doc-teams-5-active-missing-lead))]))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Regression Detection
 ;;; ---------------------------------------------------------------------------
@@ -145,12 +207,12 @@
   (let [baseline-map (into {} (map (juxt :name identity) baseline))
         current-map  (into {} (map (juxt :name identity) current))]
     (for [[name result] current-map
-          :let [base (get baseline-map name)
-                current-mean (get-in result [:results :mean-ns])
-                base-mean (when base (get-in base [:results :mean-ns]))
-                delta (when base-mean
-                        (double (/ (- current-mean base-mean) base-mean)))]
-          :when (and delta (> delta threshold))]
+          :let          [base (get baseline-map name)
+                         current-mean (get-in result [:results :mean-ns])
+                         base-mean (when base (get-in base [:results :mean-ns]))
+                         delta (when base-mean
+                                 (double (/ (- current-mean base-mean) base-mean)))]
+          :when         (and delta (> delta threshold))]
       {:name name
        :baseline-ns base-mean
        :current-ns current-mean
@@ -191,12 +253,20 @@
             (print "  Quantifiers...") (flush)
             (let [quantifier-results (quantifier-benchmarks)]
               (println " done")
-              (concat parse-results
-                      compile-results
-                      ast-results
-                      compiled-results
-                      operator-results
-                      quantifier-results))))))))
+              (print "  Count...") (flush)
+              (let [count-results (count-benchmarks)]
+                (println " done")
+                (print "  Filtered Bindings...") (flush)
+                (let [filtered-results (filtered-binding-benchmarks)]
+                  (println " done")
+                  (concat parse-results
+                          compile-results
+                          ast-results
+                          compiled-results
+                          operator-results
+                          quantifier-results
+                          count-results
+                          filtered-results))))))))))
 
 (defn run-ci
   "Main entry point for CI benchmark runner.
