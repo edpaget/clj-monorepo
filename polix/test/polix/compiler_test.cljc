@@ -156,13 +156,26 @@
       )))
 
 (deftest context-tracing-test
-  (testing "tracing records evaluations"
+  (testing "tracing on fully satisfied policy"
     (let [check  (compiler/compile-policies
                   [[:= :doc/role "admin"]]
                   {:trace? true})
           result (check {:role "admin"})]
-      ;; Fully satisfied returns true, no trace (trace only on residuals)
-      (is (true? result))))
+      (is (map? result))
+      (is (true? (:result result)))
+      (is (contains? result :trace))
+      (is (vector? (:trace result)))
+      (is (= 1 (count (:trace result))))))
+
+  (testing "tracing on contradicted policy"
+    (let [check  (compiler/compile-policies
+                  [[:= :doc/role "admin"]]
+                  {:trace? true})
+          result (check {:role "guest"})]
+      (is (map? result))
+      (is (false? (:result result)))
+      (is (contains? result :trace))
+      (is (vector? (:trace result)))))
 
   (testing "tracing on partial evaluation"
     (let [check  (compiler/compile-policies
@@ -171,7 +184,8 @@
                   {:trace? true})
           result (check {:role "admin"})]
       (is (map? result))
-      (is (contains? result :residual))
+      (is (map? (:result result)))
+      (is (contains? (:result result) :residual))
       (is (contains? result :trace))
       (is (vector? (:trace result)))))
 
@@ -181,7 +195,8 @@
                    [:> :doc/level 5]])
           result (check {:role "admin"} {:trace? true})]
       (is (map? result))
-      (is (contains? result :trace)))))
+      (is (contains? result :trace))
+      (is (contains? result :result)))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Nested Path Tests

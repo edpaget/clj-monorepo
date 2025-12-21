@@ -144,6 +144,16 @@
     (is (not (parser/quantifier-op? :=)))
     (is (not (parser/quantifier-op? :some)))))
 
+(deftest fn-accessor-test
+  (testing "recognizes function accessors"
+    (is (parser/fn-accessor? :fn/count))
+    (is (parser/fn-accessor? :fn/sum))
+    (is (parser/fn-accessor? :fn/min)))
+  (testing "rejects non-fn accessors"
+    (is (not (parser/fn-accessor? :doc/users)))
+    (is (not (parser/fn-accessor? :u/role)))
+    (is (not (parser/fn-accessor? :count)))))
+
 ;;; ---------------------------------------------------------------------------
 ;;; parse-binding Tests
 ;;; ---------------------------------------------------------------------------
@@ -183,10 +193,6 @@
     (let [result (parser/parse-binding [:u] [0 0])]
       (is (r/error? result))
       (is (= :invalid-binding (:error (r/unwrap result))))))
-  (testing "rejects three-element binding"
-    (let [result (parser/parse-binding [:u :doc/users :extra] [0 0])]
-      (is (r/error? result))
-      (is (= :invalid-binding (:error (r/unwrap result))))))
   (testing "rejects non-symbol/keyword name"
     (let [result (parser/parse-binding [123 :doc/users] [0 0])]
       (is (r/error? result))
@@ -195,6 +201,44 @@
     (let [result (parser/parse-binding [:u "users"] [0 0])]
       (is (r/error? result))
       (is (= :invalid-collection-path (:error (r/unwrap result)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Filtered Binding Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest parse-binding-with-where-test
+  (testing "parses binding with :where clause"
+    (let [result (parser/parse-binding [:u :doc/users :where [:= :u/active true]] [0 0])]
+      (is (r/ok? result))
+      (let [binding (r/unwrap result)]
+        (is (= :u (:name binding)))
+        (is (= "doc" (:namespace binding)))
+        (is (= [:users] (:path binding)))
+        (is (some? (:where binding)))
+        (is (= ::ast/function-call (:type (:where binding))))))))
+
+(deftest parse-binding-where-complex-predicate-test
+  (testing "parses binding with complex :where predicate"
+    (let [result (parser/parse-binding
+                   [:u :doc/users :where [:and [:= :u/active true] [:> :u/age 18]]]
+                   [0 0])]
+      (is (r/ok? result))
+      (let [binding (r/unwrap result)]
+        (is (= :and (:value (:where binding))))))))
+
+(deftest parse-binding-where-error-cases-test
+  (testing "rejects :where without predicate"
+    (let [result (parser/parse-binding [:u :doc/users :where] [0 0])]
+      (is (r/error? result))
+      (is (= :invalid-where-clause (:error (r/unwrap result))))))
+  (testing "rejects extra elements without :where"
+    (let [result (parser/parse-binding [:u :doc/users :extra] [0 0])]
+      (is (r/error? result))
+      (is (= :invalid-binding (:error (r/unwrap result))))))
+  (testing "rejects too many elements"
+    (let [result (parser/parse-binding [:u :doc/users :where [:= :u/x 1] :extra] [0 0])]
+      (is (r/error? result))
+      (is (= :invalid-binding (:error (r/unwrap result)))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Quantifier Parsing Tests
@@ -266,3 +310,95 @@
     (let [result (parser/parse-policy [:forall "not-a-binding" [:= :u/x 1]])]
       (is (r/error? result))
       (is (= :invalid-binding (:error (r/unwrap result)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Quantifier with Filter Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest parse-forall-with-filter-test
+  (testing "parses forall with :where clause"
+    (let [result (parser/parse-policy
+                   [:forall [:u :doc/users :where [:= :u/active true]]
+                    [:= :u/role "admin"]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/quantifier (:type ast)))
+        (is (= :forall (:value ast)))
+        (is (some? (get-in ast [:metadata :binding :where])))))))
+
+(deftest parse-exists-with-filter-test
+  (testing "parses exists with :where clause"
+    (let [result (parser/parse-policy
+                   [:exists [:t :doc/teams :where [:> :t/size 3]]
+                    [:= :t/status "active"]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/quantifier (:type ast)))
+        (is (= :exists (:value ast)))
+        (is (some? (get-in ast [:metadata :binding :where])))))))
+
+(deftest parse-nested-quantifiers-with-filters-test
+  (testing "parses nested quantifiers with filters"
+    (let [result (parser/parse-policy
+                   [:forall [:team :doc/teams :where [:= :team/active true]]
+                    [:exists [:m :team/members :where [:> :m/level 5]]
+                     [:= :m/role "lead"]]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)
+            inner (first (:children ast))]
+        (is (some? (get-in ast [:metadata :binding :where])))
+        (is (some? (get-in inner [:metadata :binding :where])))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Value Function Parsing Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest parse-fn-count-simple-test
+  (testing "parses simple fn/count"
+    (let [result (parser/parse-policy [:fn/count :doc/users])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/value-fn (:type ast)))
+        (is (= :count (:value ast)))
+        (is (= [:users] (get-in ast [:metadata :binding :path])))
+        (is (= "doc" (get-in ast [:metadata :binding :namespace])))))))
+
+(deftest parse-fn-count-nested-path-test
+  (testing "parses fn/count with nested path"
+    (let [result (parser/parse-policy [:fn/count :doc/org.members])]
+      (is (r/ok? result))
+      (is (= [:org :members] (get-in (r/unwrap result) [:metadata :binding :path]))))))
+
+(deftest parse-fn-count-with-filter-test
+  (testing "parses fn/count with filtered binding"
+    (let [result (parser/parse-policy
+                   [:fn/count [:u :doc/users :where [:= :u/active true]]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/value-fn (:type ast)))
+        (is (= :count (:value ast)))
+        (is (= :u (get-in ast [:metadata :binding :name])))
+        (is (some? (get-in ast [:metadata :binding :where])))))))
+
+(deftest parse-fn-count-in-comparison-test
+  (testing "fn/count in comparison expression"
+    (let [result (parser/parse-policy [:>= [:fn/count :doc/users] 5])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/function-call (:type ast)))
+        (is (= :>= (:value ast)))
+        (is (= ::ast/value-fn (:type (first (:children ast)))))))))
+
+(deftest parse-fn-count-error-cases-test
+  (testing "rejects fn/count without argument"
+    (let [result (parser/parse-policy [:fn/count])]
+      (is (r/error? result))
+      (is (= :invalid-value-fn (:error (r/unwrap result))))))
+  (testing "rejects fn/count with multiple arguments"
+    (let [result (parser/parse-policy [:fn/count :doc/users :doc/teams])]
+      (is (r/error? result))
+      (is (= :invalid-value-fn (:error (r/unwrap result))))))
+  (testing "rejects fn/count with invalid argument"
+    (let [result (parser/parse-policy [:fn/count "not-a-path"])]
+      (is (r/error? result))
+      (is (= :invalid-value-fn-arg (:error (r/unwrap result)))))))

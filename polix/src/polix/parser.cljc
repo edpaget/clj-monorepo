@@ -30,10 +30,21 @@
        (not= "doc" (namespace k))
        (not= "fn" (namespace k))))
 
+(defn fn-accessor?
+  "Returns `true` if `k` is a function accessor keyword.
+
+  Function accessors are namespaced keywords with namespace `\"fn\"`,
+  such as `:fn/count` or `:fn/sum`."
+  [k]
+  (and (keyword? k)
+       (= "fn" (namespace k))))
+
 (defn quantifier-op?
   "Returns `true` if `op` is a quantifier operator (`:forall` or `:exists`)."
   [op]
   (contains? #{:forall :exists} op))
+
+(declare parse-policy)
 
 (defn parse-doc-path
   "Parses a dot-separated path string into a vector of keywords.
@@ -65,7 +76,11 @@
     (r/ok (mapv keyword (str/split path-str #"\.")))))
 
 (defn parse-binding
-  "Parses a quantifier binding form `[name collection-path]`.
+  "Parses a quantifier binding form.
+
+  Supports two forms:
+  - `[name collection-path]` - basic binding
+  - `[name collection-path :where predicate]` - filtered binding
 
   The binding form specifies a variable name and the collection to iterate over.
   The name can be a symbol or keyword, and the collection path must be a
@@ -74,26 +89,33 @@
       (parse-binding '[u :doc/users] [0 0])
       ;=> {:ok {:name :u, :namespace \"doc\", :path [:users]}}
 
-      (parse-binding '[m :team/members] [0 0])
-      ;=> {:ok {:name :m, :namespace \"team\", :path [:members]}}
+      (parse-binding '[u :doc/users :where [:= :u/active true]] [0 0])
+      ;=> {:ok {:name :u, :namespace \"doc\", :path [:users], :where <ast>}}
 
   Returns `{:ok binding-map}` on success or `{:error error-map}` on failure."
   [binding-form position]
   (cond
     (not (vector? binding-form))
     (r/error {:error :invalid-binding
-              :message "Binding must be a vector [name collection-path]"
+              :message "Binding must be a vector"
               :position position
               :value binding-form})
 
-    (not= 2 (count binding-form))
+    (< (count binding-form) 2)
     (r/error {:error :invalid-binding
-              :message "Binding must have exactly 2 elements [name collection-path]"
+              :message "Binding must have at least 2 elements [name collection-path]"
+              :position position
+              :value binding-form})
+
+    (> (count binding-form) 4)
+    (r/error {:error :invalid-binding
+              :message "Binding has too many elements"
               :position position
               :value binding-form})
 
     :else
-    (let [[binding-name coll-path] binding-form]
+    (let [[binding-name coll-path & rest-args] binding-form
+          has-where? (= :where (first rest-args))]
       (cond
         (not (or (symbol? binding-name) (keyword? binding-name)))
         (r/error {:error :invalid-binding-name
@@ -107,15 +129,35 @@
                   :position position
                   :value coll-path})
 
+        (and has-where? (nil? (second rest-args)))
+        (r/error {:error :invalid-where-clause
+                  :message ":where clause requires a predicate expression"
+                  :position position
+                  :value binding-form})
+
+        (and (not has-where?) (seq rest-args))
+        (r/error {:error :invalid-binding
+                  :message "Unexpected elements in binding form (did you mean to use :where?)"
+                  :position position
+                  :value binding-form})
+
         :else
         (let [path-result (parse-doc-path (name coll-path))]
           (if (r/error? path-result)
             (r/error (assoc (r/unwrap path-result) :position position))
-            (r/ok {:name (if (symbol? binding-name)
-                           (keyword binding-name)
-                           binding-name)
-                   :namespace (namespace coll-path)
-                   :path (r/unwrap path-result)})))))))
+            (let [base-binding {:name (if (symbol? binding-name)
+                                        (keyword binding-name)
+                                        binding-name)
+                                :namespace (namespace coll-path)
+                                :path (r/unwrap path-result)}]
+              (if-not has-where?
+                (r/ok base-binding)
+                (let [where-expr (second rest-args)
+                      where-result (parse-policy where-expr
+                                                 [(first position) (+ (second position) 3)])]
+                  (if (r/error? where-result)
+                    where-result
+                    (r/ok (assoc base-binding :where (r/unwrap where-result)))))))))))))
 
 (defn thunkable?
   "Returns `true` if `form` should be wrapped in a thunk for delayed evaluation.
@@ -174,8 +216,6 @@
   [v]
   (or (keyword? v) (symbol? v)))
 
-(declare parse-policy)
-
 (defn- parse-quantifier
   "Parses a quantifier expression `[:forall [name path] body]` or `[:exists ...]`.
 
@@ -207,6 +247,51 @@
                                 [(r/unwrap body-result)]
                                 {:binding (r/unwrap binding-result)}))))))))
 
+(defn- parse-value-fn
+  "Parses a value function expression like `[:fn/count ...]`.
+
+  Value functions take a single argument which is either:
+  - A simple collection path: `:doc/users`
+  - A filtered binding: `[:u :doc/users :where [...]]`
+
+  Returns `{:ok ASTNode}` with type `::ast/value-fn` on success."
+  [fn-name args position]
+  (let [fn-type (keyword (name fn-name))]
+    (if (not= 1 (count args))
+      (r/error {:error :invalid-value-fn
+                :message (str fn-name " takes exactly 1 argument (collection path or binding)")
+                :position position})
+      (let [arg (first args)]
+        (cond
+          ;; Simple path: [:fn/count :doc/users]
+          (or (doc-accessor? arg) (binding-accessor? arg))
+          (let [path-result (parse-doc-path (name arg))]
+            (if (r/error? path-result)
+              (r/error (assoc (r/unwrap path-result) :position position))
+              (r/ok (ast/ast-node ::ast/value-fn
+                                  fn-type
+                                  position
+                                  nil
+                                  {:binding {:namespace (namespace arg)
+                                             :path (r/unwrap path-result)}}))))
+
+          ;; Filtered binding: [:fn/count [:u :doc/users :where [...]]]
+          (vector? arg)
+          (let [binding-result (parse-binding arg [(first position) (inc (second position))])]
+            (if (r/error? binding-result)
+              binding-result
+              (r/ok (ast/ast-node ::ast/value-fn
+                                  fn-type
+                                  position
+                                  nil
+                                  {:binding (r/unwrap binding-result)}))))
+
+          :else
+          (r/error {:error :invalid-value-fn-arg
+                    :message (str fn-name " argument must be a collection path or filtered binding")
+                    :position position
+                    :value arg}))))))
+
 (defn parse-policy
   "Parses a policy DSL expression `expr` into an AST.
 
@@ -215,6 +300,7 @@
   - Binding accessors: `:u/field` (within quantifier bodies)
   - Function calls: `[:fn-name arg1 arg2 ...]`
   - Quantifiers: `[:forall [u :doc/users] body]`, `[:exists [t :doc/teams] body]`
+  - Value functions: `[:fn/count :doc/users]`, `[:fn/count [:u :doc/users :where [...]]]`
   - Literals: strings, numbers, keywords, etc.
   - Thunks: Clojure vars and function calls wrapped for delayed evaluation
 
@@ -234,8 +320,14 @@
                      :message (str "Function name must be a keyword or symbol, got: " (pr-str fn-name))
                      :position position
                      :value fn-name})
-           (if (quantifier-op? fn-name)
+           (cond
+             (quantifier-op? fn-name)
              (parse-quantifier fn-name (rest expr) position)
+
+             (fn-accessor? fn-name)
+             (parse-value-fn fn-name (rest expr) position)
+
+             :else
              (let [args        (rest expr)
                    parsed-args (r/sequence-results
                                 (map-indexed

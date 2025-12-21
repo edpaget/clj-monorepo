@@ -309,7 +309,10 @@
   "Evaluates a constraint set using operators from context.
 
    Evaluates both simple constraints (via constraint-set) and complex nodes
-   (via engine evaluation), combining results with AND semantics."
+   (via engine evaluation), combining results with AND semantics.
+
+   When `:trace?` is enabled in ctx, returns `{:result <value> :trace [...]}`
+   where `<value>` is true, false, or `{:residual ...}`."
   [constraint-set document ctx]
   (let [complex-nodes (get constraint-set ::complex)
         constraint-result (engine/evaluate-constraint-set
@@ -318,8 +321,8 @@
                        constraint-result
                        (let [complex-result (evaluate-complex-nodes complex-nodes document ctx)]
                          (engine/eval-and [constraint-result complex-result])))]
-    (if (and (:trace? ctx) (:trace ctx) (engine/residual? final-result))
-      (assoc final-result :trace @(:trace ctx))
+    (if (and (:trace? ctx) (:trace ctx))
+      {:result final-result :trace @(:trace ctx)}
       final-result)))
 
 ;;; ---------------------------------------------------------------------------
@@ -362,6 +365,10 @@
    - `(check document)` - use compile-time context
    - `(check document opts)` - override context per-evaluation
 
+   When `:trace?` is enabled (at compile-time or per-evaluation), returns
+   `{:result <value> :trace [...]}` where `:result` is the normal evaluation
+   outcome and `:trace` is a vector of evaluation steps.
+
    Example:
 
        (def check (compile-policies
@@ -373,9 +380,8 @@
        (check {:role \"admin\"})           ;; => {:residual {:level [[:> 5]]}}
 
        ;; With tracing
-       (def check-trace (compile-policies policies {:trace? true}))
-       (check-trace {:role \"admin\"})
-       ;; => {:residual {...} :trace [{:op := :value \"admin\" ...} ...]}"
+       (check {:role \"admin\"} {:trace? true})
+       ;; => {:result true :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}"
   ([policy-exprs] (compile-policies policy-exprs {}))
   ([policy-exprs opts]
    (let [merge-result (merge-policies policy-exprs)]
@@ -431,17 +437,19 @@
 (defn with-trace
   "Evaluates a compiled policy with tracing enabled.
 
-   Returns the evaluation result with `:trace` key containing a vector
-   of `{:op :value :expected :result}` maps for each constraint evaluated.
+   Returns `{:result <value> :trace [...]}` where `:result` is the evaluation
+   outcome (true, false, or `{:residual ...}`) and `:trace` is a vector of
+   `{:op :value :expected :result}` maps for each constraint evaluated.
 
    Example:
 
        (def check (compile-policies [[:= :doc/role \"admin\"]]))
        (with-trace check {:role \"admin\"})
-       ;; => true (fully satisfied, no trace needed)
+       ;; => {:result true :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}
 
        (def check2 (compile-policies [[:= :doc/role \"admin\"] [:> :doc/level 5]]))
        (with-trace check2 {:role \"admin\"})
-       ;; => {:residual {:level [[:> 5]]} :trace [{:op := :value \"admin\" ...}]}"
+       ;; => {:result {:residual {:level [[:> 5]]}}
+       ;;     :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}"
   [compiled-fn document]
   (compiled-fn document {:trace? true}))
