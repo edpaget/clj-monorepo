@@ -84,6 +84,7 @@
 
 ;; Re-export engine functions
 (def evaluate engine/evaluate)
+(def implied engine/implied)
 (def residual? engine/residual?)
 (def complex? engine/complex?)
 (def result-type engine/result-type)

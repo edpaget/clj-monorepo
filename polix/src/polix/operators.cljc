@@ -65,12 +65,13 @@
 
 (s/def ::eval fn?)
 (s/def ::negate keyword?)
+(s/def ::flip keyword?)
 (s/def ::simplify fn?)
 (s/def ::subsumes? fn?)
 
 (s/def ::operator-spec
   (s/keys :req-un [::eval]
-          :opt-un [::negate ::simplify ::subsumes?]))
+          :opt-un [::negate ::flip ::simplify ::subsumes?]))
 
 (defn validate-operator-spec!
   "Validates operator spec against schema, throws on invalid."
@@ -85,7 +86,7 @@
 ;;; Default Operator Implementation
 ;;; ---------------------------------------------------------------------------
 
-(defrecord Operator [op-key eval-fn negate-key simplify-fn subsumes-fn]
+(defrecord Operator [op-key eval-fn negate-key flip-key simplify-fn subsumes-fn]
   IOperator
 
   (eval [_ value expected]
@@ -120,6 +121,7 @@
    `spec` is a map with required and optional keys:
    - `:eval` - (required) `(fn [value expected] -> boolean?)` evaluation function
    - `:negate` - keyword of the negated operator
+   - `:flip` - keyword of the flipped operator for reversed operands
    - `:simplify` - `(fn [constraints] -> {:simplified [...]} | {:contradicted [...]})`
    - `:subsumes?` - `(fn [c1 c2] -> boolean?)` subsumption check
 
@@ -130,6 +132,7 @@
                   op-key
                   (:eval spec)
                   (:negate spec)
+                  (:flip spec)
                   (:simplify spec)
                   (:subsumes? spec))]
     (swap! registry assoc op-key operator)
@@ -139,6 +142,34 @@
   "Returns the operator for `op-key`, or nil if not found."
   [op-key]
   (get @registry op-key))
+
+(defn negate-op
+  "Returns the negated operator keyword for `op-key`, or nil if not supported.
+
+  Uses the `:negate` key from the operator's registration spec.
+
+      (negate-op :=)   ;=> :!=
+      (negate-op :>)   ;=> :<=
+      (negate-op :in)  ;=> :not-in"
+  [op-key]
+  (when-let [operator (get-operator op-key)]
+    (:negate-key operator)))
+
+(defn flip-op
+  "Returns the flipped operator keyword for reversed operands.
+
+  Used when the operand order is reversed (e.g., `[:> 5 :doc/x]` becomes
+  `[:< :doc/x 5]`). Returns `op-key` unchanged for symmetric operators
+  like `:=` and `:!=`.
+
+      (flip-op :>)   ;=> :<
+      (flip-op :<)   ;=> :>
+      (flip-op :>=)  ;=> :<=
+      (flip-op :=)   ;=> :=  (symmetric)"
+  [op-key]
+  (if-let [operator (get-operator op-key)]
+    (or (:flip-key operator) op-key)
+    op-key))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Operator Context
@@ -284,11 +315,17 @@
 
        (defoperator :between
          :eval (fn [value [low high]] (and (>= value low) (<= value high)))
-         :simplify (fn [cs] {:simplified cs}))"
-  [op-key & {:keys [eval negate simplify subsumes?]}]
+         :simplify (fn [cs] {:simplified cs}))
+
+       (defoperator :my-greater-than
+         :eval (fn [value expected] (> value expected))
+         :negate :my-less-or-equal
+         :flip :my-less-than)"
+  [op-key & {:keys [eval negate flip simplify subsumes?]}]
   `(register-operator! ~op-key
                        (cond-> {:eval ~eval}
                          ~negate (assoc :negate ~negate)
+                         ~flip (assoc :flip ~flip)
                          ~simplify (assoc :simplify ~simplify)
                          ~subsumes? (assoc :subsumes? ~subsumes?))))
 
@@ -311,28 +348,32 @@
                       {:eval (fn [value expected] (not= value expected))
                        :negate :=})
 
-  ;; Comparisons
+  ;; Comparisons (asymmetric - need :flip for reversed operands)
   (register-operator! :>
                       {:eval (fn [value expected] (> value expected))
                        :negate :<=
+                       :flip :<
                        :simplify simplify-lower-bounds
                        :subsumes? (fn [c1 c2] (>= (:value c1) (:value c2)))})
 
   (register-operator! :>=
                       {:eval (fn [value expected] (>= value expected))
                        :negate :<
+                       :flip :<=
                        :simplify simplify-lower-bounds
                        :subsumes? (fn [c1 c2] (>= (:value c1) (:value c2)))})
 
   (register-operator! :<
                       {:eval (fn [value expected] (< value expected))
                        :negate :>=
+                       :flip :>
                        :simplify simplify-upper-bounds
                        :subsumes? (fn [c1 c2] (<= (:value c1) (:value c2)))})
 
   (register-operator! :<=
                       {:eval (fn [value expected] (<= value expected))
                        :negate :>
+                       :flip :>=
                        :simplify simplify-upper-bounds
                        :subsumes? (fn [c1 c2] (<= (:value c1) (:value c2)))})
 

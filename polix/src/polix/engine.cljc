@@ -376,6 +376,34 @@
                 result))
             {:residual {path [[flipped-op expected]]}}))
 
+        ;; [:= :doc/a :doc/b] - cross-key comparison
+        (and (= ::ast/doc-accessor left-type)
+             (= ::ast/doc-accessor right-type))
+        (let [left-path      (:value left)
+              right-path     (:value right)
+              left-resolved  (resolve-accessor-value left document ctx)
+              right-resolved (resolve-accessor-value right document ctx)
+              left-found?    (:found left-resolved)
+              right-found?   (:found right-resolved)]
+          (cond
+            ;; Both values present - evaluate directly
+            (and left-found? right-found?)
+            (let [left-val   (:value left-resolved)
+                  right-val  (:value right-resolved)
+                  constraint {:op op-key :value right-val}
+                  result     (evaluate-constraint ctx constraint left-val)]
+              (if (nil? result)
+                {:complex {:op op-key :cross-key true :left left-path :right right-path}}
+                result))
+
+            ;; One or both missing - return cross-key residual
+            :else
+            {:residual {::cross-key [{:op         op-key
+                                      :left-path  left-path
+                                      :right-path right-path
+                                      :left-value (when left-found? (:value left-resolved))
+                                      :right-value (when right-found? (:value right-resolved))}]}}))
+
         :else nil))))
 
 (defmethod eval-ast-3v ::ast/function-call
@@ -458,14 +486,27 @@
   "Converts a residual map back to policy expressions.
 
    Takes `{[:level] [[:> 5]], [:user :status] [[:in #{\"a\" \"b\"}]]}`
-   Returns `[[:> :doc/level 5] [:in :doc/user.status #{\"a\" \"b\"}]]`"
+   Returns `[[:> :doc/level 5] [:in :doc/user.status #{\"a\" \"b\"}]]`
+
+   Also handles cross-key constraints:
+   `{::cross-key [{:op := :left-path [:a] :right-path [:b]}]}`
+   Returns `[[:= :doc/a :doc/b]]`"
   [residual]
-  (mapcat
-   (fn [[path constraints]]
-     (map (fn [[op value]]
-            [op (path->doc-accessor path) value])
-          constraints))
-   residual))
+  (let [standard-constraints
+        (mapcat
+         (fn [[path constraints]]
+           (when (vector? path) ; Skip ::cross-key namespace key
+             (map (fn [[op value]]
+                    [op (path->doc-accessor path) value])
+                  constraints)))
+         (dissoc residual ::cross-key))
+
+        cross-key-constraints
+        (map (fn [{:keys [op left-path right-path]}]
+               [op (path->doc-accessor left-path) (path->doc-accessor right-path)])
+             (get residual ::cross-key []))]
+
+    (concat standard-constraints cross-key-constraints)))
 
 (defn result->policy
   "Converts an evaluation result to a simplified policy expression.
@@ -484,3 +525,142 @@
         (first constraints)
         (into [:and] constraints)))
     (complex? result) [:complex (:complex result)]))
+
+;;; ---------------------------------------------------------------------------
+;;; Implied (Bidirectional) Evaluation
+;;; ---------------------------------------------------------------------------
+
+(defn- negate-residual
+  "Negates all constraints in a residual map.
+
+  Used by `implied` when the desired result is `false` - we need to
+  return constraints that would contradict the policy."
+  [residual]
+  (let [negated-standard
+        (reduce-kv
+         (fn [acc path constraints]
+           (if (vector? path)
+             (let [negated (keep (fn [[op value]]
+                                   (when-let [neg-op (op/negate-op op)]
+                                     [neg-op value]))
+                                 constraints)]
+               (if (seq negated)
+                 (assoc acc path (vec negated))
+                 (assoc acc path [[:complex {:cannot-negate constraints}]])))
+             acc))
+         {}
+         (dissoc residual ::cross-key))
+
+        negated-cross-key
+        (keep (fn [{:keys [op] :as ck}]
+                (when-let [neg-op (op/negate-op op)]
+                  (assoc ck :op neg-op)))
+              (get residual ::cross-key []))]
+    (cond-> negated-standard
+      (seq negated-cross-key)
+      (assoc ::cross-key negated-cross-key))))
+
+(defn- handle-complex-for-implied
+  "Special handling for complex results that can still be inverted.
+
+  Some complex results from `evaluate` can be handled by `implied`:
+  - NOT of residual: can negate inner or return as-is
+  - OR with residual children: to make false, negate all children
+
+  Returns the constraint map if handled, nil otherwise."
+  [complex-result desired]
+  (let [{:keys [op child children]} (:complex complex-result)]
+    (case op
+      ;; NOT: to make true, inner must be false (negate inner residual)
+      ;;      to make false, inner must be true (inner residual as-is)
+      :not
+      (when (residual? child)
+        (if desired
+          (negate-residual (:residual child))   ; NOT true = inner false
+          (:residual child)))                   ; NOT false = inner true
+
+      ;; OR: to make true, any child can be true (complex - disjunction)
+      ;;     to make false, ALL children must be false (merge negated)
+      :or
+      (when (and (not desired)
+                 (every? #(or (residual? %) (false? %)) children))
+        (let [residuals (filter residual? children)
+              negated   (map #(negate-residual (:residual %)) residuals)]
+          (if (some #(and (map? %) (contains? % :complex)) negated)
+            nil  ; Can't fully negate some constraint
+            (apply merge-with into negated))))
+
+      ;; Default - can't handle
+      nil)))
+
+(defn- negate-complex
+  "Attempts to negate a complex result.
+
+  First tries `handle-complex-for-implied` for known patterns (NOT, OR false).
+  Otherwise returns a complex result indicating the limitation."
+  [complex-result]
+  (or (handle-complex-for-implied complex-result false)
+      {:complex {:negated-complex (:complex complex-result)}}))
+
+(defn implied
+  "Given a policy and desired result, returns constraints that would satisfy it.
+
+  Leverages [[evaluate]] with an empty document to extract all constraints
+  as residuals, then optionally negates them.
+
+  `desired-result` can be:
+  - `true` - return constraints that would satisfy the policy
+  - `false` - return constraints that would contradict the policy
+  - `{:residual ...}` - return constraints needed to complete a partial evaluation
+
+  Returns:
+  - `{[:path] [[:op value]], ...}` - constraint map
+  - `{:complex ...}` - when inversion not possible (OR true, quantifiers, etc.)
+  - `{}` - when already satisfied (no additional constraints needed)
+
+  ## Examples
+
+      ;; Basic inversion
+      (implied [:= :doc/role \"admin\"] true)
+      ;=> {[:role] [[:= \"admin\"]]}
+
+      (implied [:= :doc/role \"admin\"] false)
+      ;=> {[:role] [[:!= \"admin\"]]}
+
+      ;; Compound policies
+      (implied [:and [:= :doc/role \"admin\"] [:> :doc/level 5]] true)
+      ;=> {[:role] [[:= \"admin\"]], [:level] [[:> 5]]}
+
+      ;; Residual continuation - what else is needed?
+      (let [result (evaluate policy {:role \"admin\"})]  ; partial doc
+        (when (residual? result)
+          (implied policy result)))
+      ;=> {[:level] [[:> 5]]}  ; the remaining constraints"
+  ([policy desired-result]
+   (implied policy desired-result {}))
+  ([policy desired-result opts]
+   (cond
+     ;; Residual input - extract and optionally negate
+     (residual? desired-result)
+     (if (:negate? opts)
+       (negate-residual (:residual desired-result))
+       (:residual desired-result))
+
+     ;; true - evaluate with empty doc to get all constraints as residual
+     (true? desired-result)
+     (let [result (evaluate policy {} opts)]
+       (cond
+         (true? result)     {}  ; Tautology - always true, no constraints needed
+         (false? result)    {:complex {:contradiction true}}  ; Impossible
+         (residual? result) (:residual result)
+         (complex? result)  (or (handle-complex-for-implied result true)
+                                result)))
+
+     ;; false - get constraints for true, then negate them
+     (false? desired-result)
+     (let [result (evaluate policy {} opts)]
+       (cond
+         (true? result)     {:complex {:contradiction true}}  ; Can't make tautology false
+         (false? result)    {}  ; Already false, no constraints needed
+         (residual? result) (negate-residual (:residual result))
+         (complex? result)  (negate-complex result))))))

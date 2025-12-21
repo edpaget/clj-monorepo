@@ -43,6 +43,36 @@
     (is (= :>= (:op (ops/negate-constraint {:op :< :value 5}))))
     (is (= :> (:op (ops/negate-constraint {:op :<= :value 5}))))))
 
+(deftest negate-op-test
+  (testing "negate-op returns negated operator keyword"
+    (is (= :!= (ops/negate-op :=)))
+    (is (= := (ops/negate-op :!=)))
+    (is (= :<= (ops/negate-op :>)))
+    (is (= :< (ops/negate-op :>=)))
+    (is (= :>= (ops/negate-op :<)))
+    (is (= :> (ops/negate-op :<=)))
+    (is (= :not-in (ops/negate-op :in)))
+    (is (= :in (ops/negate-op :not-in))))
+
+  (testing "negate-op returns nil for unknown operator"
+    (is (nil? (ops/negate-op :unknown-op)))))
+
+(deftest flip-op-test
+  (testing "flip-op returns flipped operator for asymmetric ops"
+    (is (= :< (ops/flip-op :>)))
+    (is (= :> (ops/flip-op :<)))
+    (is (= :<= (ops/flip-op :>=)))
+    (is (= :>= (ops/flip-op :<=))))
+
+  (testing "flip-op returns same operator for symmetric ops"
+    (is (= := (ops/flip-op :=)))
+    (is (= :!= (ops/flip-op :!=)))
+    (is (= :in (ops/flip-op :in)))
+    (is (= :not-in (ops/flip-op :not-in))))
+
+  (testing "flip-op returns op-key for unknown operator"
+    (is (= :unknown-op (ops/flip-op :unknown-op)))))
+
 (deftest custom-operator-test
   (testing "registering and using custom operator"
     (ops/register-operator! :starts-with

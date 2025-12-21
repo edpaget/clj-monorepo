@@ -50,6 +50,16 @@
   [x]
   (instance? Constraint x))
 
+(defrecord CrossKeyConstraint [left-key op right-key]
+  ;; Represents a constraint comparing two document paths.
+  ;; e.g., [:= :doc/a :doc/b] → (->CrossKeyConstraint [:a] := [:b])
+  )
+
+(defn cross-key-constraint?
+  "Returns true if x is a CrossKeyConstraint."
+  [x]
+  (instance? CrossKeyConstraint x))
+
 ;;; ---------------------------------------------------------------------------
 ;;; AST to Constraint Normalization
 ;;; ---------------------------------------------------------------------------
@@ -89,8 +99,12 @@
     op))
 
 (defn- normalize-comparison
-  "Normalizes a comparison AST node to a Constraint.
-   Returns nil if the node is not a simple comparison."
+  "Normalizes a comparison AST node to a Constraint or CrossKeyConstraint.
+
+  Returns:
+  - `Constraint` for `[:= :doc/key value]` or `[:= value :doc/key]`
+  - `CrossKeyConstraint` for `[:= :doc/a :doc/b]`
+  - `nil` for unsupported forms"
   [op children]
   (when (= 2 (count children))
     (let [[left right] children
@@ -106,6 +120,10 @@
         ;; [:= value :doc/key] - flip comparison
         (and left-lit right-key)
         (constraint right-key (flip-op op) left-lit)
+
+        ;; [:= :doc/a :doc/b] - cross-key comparison
+        (and left-key right-key)
+        (->CrossKeyConstraint left-key op right-key)
 
         :else nil))))
 

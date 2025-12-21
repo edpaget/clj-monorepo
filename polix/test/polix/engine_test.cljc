@@ -632,3 +632,158 @@
                   {:users [{:active true} {}]})]
       (is (engine/residual? result))
       (is (= 1 (:partial-count result))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Implied Function Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest implied-equality-true-test
+  (testing "implied for equality with true result"
+    (is (= {[:role] [[:= "admin"]]}
+           (engine/implied [:= :doc/role "admin"] true)))))
+
+(deftest implied-equality-false-test
+  (testing "implied for equality with false result"
+    (is (= {[:role] [[:!= "admin"]]}
+           (engine/implied [:= :doc/role "admin"] false)))))
+
+(deftest implied-comparison-true-test
+  (testing "implied for comparison with true result"
+    (is (= {[:level] [[:> 5]]}
+           (engine/implied [:> :doc/level 5] true)))))
+
+(deftest implied-comparison-false-test
+  (testing "implied for comparison with false result"
+    (is (= {[:level] [[:<= 5]]}
+           (engine/implied [:> :doc/level 5] false)))))
+
+(deftest implied-and-true-test
+  (testing "implied for AND with true result merges constraints"
+    (is (= {[:role] [[:= "admin"]] [:level] [[:> 5]]}
+           (engine/implied [:and [:= :doc/role "admin"] [:> :doc/level 5]] true)))))
+
+(deftest implied-and-false-test
+  (testing "implied for AND with false result negates all constraints"
+    ;; To make AND false, we negate all constraints (make everything fail).
+    ;; This is one valid solution - semantically, only ONE needs to be false,
+    ;; but negating all is a concrete answer rather than returning complex.
+    (is (= {[:a] [[:!= 1]] [:b] [[:!= 2]]}
+           (engine/implied [:and [:= :doc/a 1] [:= :doc/b 2]] false)))))
+
+(deftest implied-or-true-test
+  (testing "implied for OR with true result is complex"
+    (let [result (engine/implied [:or [:= :doc/a 1] [:= :doc/b 2]] true)]
+      (is (engine/complex? result)))))
+
+(deftest implied-or-false-test
+  (testing "implied for OR with false result merges negated constraints"
+    (is (= {[:a] [[:!= 1]] [:b] [[:!= 2]]}
+           (engine/implied [:or [:= :doc/a 1] [:= :doc/b 2]] false)))))
+
+(deftest implied-not-true-test
+  (testing "implied for NOT with true result negates"
+    (is (= {[:role] [[:!= "admin"]]}
+           (engine/implied [:not [:= :doc/role "admin"]] true)))))
+
+(deftest implied-not-false-test
+  (testing "implied for NOT with false result keeps original"
+    (is (= {[:role] [[:= "admin"]]}
+           (engine/implied [:not [:= :doc/role "admin"]] false)))))
+
+(deftest implied-from-residual-test
+  (testing "residual as input returns remaining constraints"
+    (let [residual {:residual {[:level] [[:> 5]]}}]
+      (is (= {[:level] [[:> 5]]}
+             (engine/implied nil residual))))))
+
+(deftest implied-from-residual-negate-test
+  (testing "residual with negate option"
+    (let [residual {:residual {[:level] [[:> 5]]}}]
+      (is (= {[:level] [[:<= 5]]}
+             (engine/implied nil residual {:negate? true}))))))
+
+(deftest implied-chained-evaluation-test
+  (testing "chained evaluation and implied"
+    (let [policy [:and [:= :doc/role "admin"] [:> :doc/level 5]]
+          result (engine/evaluate policy {:role "admin"})]
+      (is (engine/residual? result))
+      (is (= {[:level] [[:> 5]]}
+             (engine/implied policy result))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Implied/Evaluate Equivalence Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest implied-evaluate-equivalence-test
+  (testing "implied true equals evaluate residual for simple policies"
+    (doseq [policy [[:= :doc/a 1]
+                    [:> :doc/level 5]
+                    [:and [:= :doc/a 1] [:= :doc/b 2]]
+                    [:in :doc/status #{"a" "b"}]]]
+      (let [eval-result (engine/evaluate policy {})
+            impl-result (engine/implied policy true)]
+        (is (= (:residual eval-result) impl-result)
+            (str "Mismatch for " policy))))))
+
+(deftest implied-negate-test
+  (testing "implied false negates simple constraints"
+    (is (= {[:a] [[:!= 1]]}
+           (engine/implied [:= :doc/a 1] false))))
+  (testing "implied false negates comparison"
+    (is (= {[:level] [[:<= 5]]}
+           (engine/implied [:> :doc/level 5] false))))
+  (testing "implied false negates AND (all constraints)"
+    (is (= {[:a] [[:!= 1]] [:b] [[:!= 2]]}
+           (engine/implied [:and [:= :doc/a 1] [:= :doc/b 2]] false)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Cross-Key Constraint Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest cross-key-equality-both-present-test
+  (testing "cross-key equality with both values present and equal"
+    (is (= true (engine/evaluate [:= :doc/a :doc/b] {:a 5 :b 5}))))
+  (testing "cross-key equality with both values present and unequal"
+    (is (= false (engine/evaluate [:= :doc/a :doc/b] {:a 5 :b 10})))))
+
+(deftest cross-key-equality-one-missing-test
+  (testing "cross-key equality with left value missing"
+    (let [result (engine/evaluate [:= :doc/a :doc/b] {:b 5})]
+      (is (engine/residual? result))
+      (is (contains? (:residual result) :polix.engine/cross-key))))
+  (testing "cross-key equality with right value missing"
+    (let [result (engine/evaluate [:= :doc/a :doc/b] {:a 5})]
+      (is (engine/residual? result))
+      (is (contains? (:residual result) :polix.engine/cross-key)))))
+
+(deftest cross-key-comparison-test
+  (testing "cross-key greater-than"
+    (is (= true (engine/evaluate [:> :doc/a :doc/b] {:a 10 :b 5})))
+    (is (= false (engine/evaluate [:> :doc/a :doc/b] {:a 5 :b 10}))))
+  (testing "cross-key less-than"
+    (is (= true (engine/evaluate [:< :doc/a :doc/b] {:a 5 :b 10})))
+    (is (= false (engine/evaluate [:< :doc/a :doc/b] {:a 10 :b 5})))))
+
+(deftest cross-key-inequality-test
+  (testing "cross-key inequality"
+    (is (= true (engine/evaluate [:!= :doc/a :doc/b] {:a 5 :b 10})))
+    (is (= false (engine/evaluate [:!= :doc/a :doc/b] {:a 5 :b 5})))))
+
+(deftest cross-key-implied-test
+  (testing "implied for cross-key constraint"
+    (let [result (engine/implied [:= :doc/a :doc/b] true)]
+      (is (contains? result :polix.engine/cross-key))
+      (is (= := (:op (first (:polix.engine/cross-key result))))))))
+
+(deftest cross-key-implied-negated-test
+  (testing "implied for cross-key with false result"
+    (let [result (engine/implied [:= :doc/a :doc/b] false)]
+      (is (contains? result :polix.engine/cross-key))
+      (is (= :!= (:op (first (:polix.engine/cross-key result))))))))
+
+(deftest residual->constraints-cross-key-test
+  (testing "converts cross-key residual to constraints"
+    (let [residual {:polix.engine/cross-key [{:op := :left-path [:a] :right-path [:b]}]}
+          constraints (engine/residual->constraints residual)]
+      (is (= 1 (count constraints)))
+      (is (= [:= :doc/a :doc/b] (first constraints))))))
