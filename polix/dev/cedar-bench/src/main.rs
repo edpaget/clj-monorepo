@@ -1,4 +1,4 @@
-use cedar_bench::{all_benchmarks, run_benchmark, ResultsOutput};
+use cedar_bench::{all_benchmarks, quantifier_benchmarks, run_benchmark, ResultsOutput};
 use chrono::Utc;
 use clap::Parser;
 use std::fs;
@@ -29,6 +29,14 @@ fn main() {
 
     println!("Running benchmarks...");
     for bench in &benchmarks {
+        print!("  {}...", bench.name);
+        let result = run_benchmark(bench, args.warmup, args.samples);
+        println!(" {} ns", result.results.mean_ns);
+        results.push(result);
+    }
+
+    println!("Running quantifier benchmarks...");
+    for bench in &quantifier_benchmarks() {
         print!("  {}...", bench.name);
         let result = run_benchmark(bench, args.warmup, args.samples);
         println!(" {} ns", result.results.mean_ns);

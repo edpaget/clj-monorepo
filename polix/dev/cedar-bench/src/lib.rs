@@ -9,6 +9,7 @@ pub const SCHEMA_SRC: &str = include_str!("../schema.cedarschema");
 pub const SIMPLE_POLICY: &str = include_str!("../policies/simple.cedar");
 pub const MEDIUM_POLICY: &str = include_str!("../policies/medium.cedar");
 pub const COMPLEX_POLICY: &str = include_str!("../policies/complex.cedar");
+pub const QUANTIFIER_POLICY: &str = include_str!("../policies/quantifier.cedar");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkResult {
@@ -112,6 +113,51 @@ fn create_entities_json(user_attrs: &str) -> Entities {
     Entities::from_json_str(&entities_json, Some(&parse_schema())).expect("Failed to create entities")
 }
 
+fn create_quantifier_entities(flags: &[&str]) -> Entities {
+    let flags_json: String = flags.iter()
+        .map(|f| format!("\"{}\"", f))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let entities_json = format!(
+        r#"[
+            {{
+                "uid": {{ "type": "User", "id": "test-user" }},
+                "attrs": {{
+                    "role": "user",
+                    "level": 1,
+                    "status": "active",
+                    "age": 30,
+                    "score": 50,
+                    "department": "engineering",
+                    "clearance": 1,
+                    "tenure": 1,
+                    "karma": 100,
+                    "warnings": 0,
+                    "reputation": 100,
+                    "verified": true,
+                    "region": "us",
+                    "restricted-flag": "",
+                    "account-age": 100,
+                    "trust-score": 50,
+                    "subscription": "free",
+                    "trial": false,
+                    "roles": ["user"],
+                    "active-flags": [{}]
+                }},
+                "parents": []
+            }},
+            {{
+                "uid": {{ "type": "Resource", "id": "test-resource" }},
+                "attrs": {{}},
+                "parents": []
+            }}
+        ]"#,
+        flags_json
+    );
+    Entities::from_json_str(&entities_json, Some(&parse_schema())).expect("Failed to create quantifier entities")
+}
+
 fn create_request() -> Request {
     Request::new(
         user_uid("test-user"),
@@ -124,7 +170,7 @@ fn create_request() -> Request {
 }
 
 pub fn simple_satisfied() -> PreparedBenchmark {
-    let attrs = r#"{ "role": "admin", "level": 10, "status": "active", "age": 30, "score": 95, "department": "engineering", "clearance": 5, "tenure": 6, "karma": 500, "warnings": 0, "reputation": 500, "verified": true, "region": "us", "restricted-flag": "", "account-age": 400, "trust-score": 95, "subscription": "premium", "trial": false }"#;
+    let attrs = r#"{ "role": "admin", "level": 10, "status": "active", "age": 30, "score": 95, "department": "engineering", "clearance": 5, "tenure": 6, "karma": 500, "warnings": 0, "reputation": 500, "verified": true, "region": "us", "restricted-flag": "", "account-age": 400, "trust-score": 95, "subscription": "premium", "trial": false, "roles": [], "active-flags": [] }"#;
     PreparedBenchmark {
         name: "cedar/simple-satisfied".to_string(),
         authorizer: Authorizer::new(),
@@ -135,7 +181,7 @@ pub fn simple_satisfied() -> PreparedBenchmark {
 }
 
 pub fn simple_contradicted() -> PreparedBenchmark {
-    let attrs = r#"{ "role": "guest", "level": 2, "status": "banned", "age": 30, "score": 50, "department": "marketing", "clearance": 1, "tenure": 1, "karma": 100, "warnings": 5, "reputation": 100, "verified": false, "region": "other", "restricted-flag": "flagged", "account-age": 30, "trust-score": 50, "subscription": "free", "trial": true }"#;
+    let attrs = r#"{ "role": "guest", "level": 2, "status": "banned", "age": 30, "score": 50, "department": "marketing", "clearance": 1, "tenure": 1, "karma": 100, "warnings": 5, "reputation": 100, "verified": false, "region": "other", "restricted-flag": "flagged", "account-age": 30, "trust-score": 50, "subscription": "free", "trial": true, "roles": [], "active-flags": [] }"#;
     PreparedBenchmark {
         name: "cedar/simple-contradicted".to_string(),
         authorizer: Authorizer::new(),
@@ -146,7 +192,7 @@ pub fn simple_contradicted() -> PreparedBenchmark {
 }
 
 pub fn medium_satisfied() -> PreparedBenchmark {
-    let attrs = r#"{ "role": "admin", "level": 10, "status": "active", "age": 30, "score": 95, "department": "engineering", "clearance": 5, "tenure": 6, "karma": 500, "warnings": 0, "reputation": 500, "verified": true, "region": "us", "restricted-flag": "", "account-age": 400, "trust-score": 95, "subscription": "premium", "trial": false }"#;
+    let attrs = r#"{ "role": "admin", "level": 10, "status": "active", "age": 30, "score": 95, "department": "engineering", "clearance": 5, "tenure": 6, "karma": 500, "warnings": 0, "reputation": 500, "verified": true, "region": "us", "restricted-flag": "", "account-age": 400, "trust-score": 95, "subscription": "premium", "trial": false, "roles": [], "active-flags": [] }"#;
     PreparedBenchmark {
         name: "cedar/medium-satisfied".to_string(),
         authorizer: Authorizer::new(),
@@ -157,7 +203,7 @@ pub fn medium_satisfied() -> PreparedBenchmark {
 }
 
 pub fn medium_partial() -> PreparedBenchmark {
-    let attrs = r#"{ "role": "admin", "level": 3, "status": "inactive", "age": 70, "score": 50, "department": "marketing", "clearance": 1, "tenure": 1, "karma": 100, "warnings": 5, "reputation": 100, "verified": false, "region": "other", "restricted-flag": "", "account-age": 30, "trust-score": 50, "subscription": "free", "trial": false }"#;
+    let attrs = r#"{ "role": "admin", "level": 3, "status": "inactive", "age": 70, "score": 50, "department": "marketing", "clearance": 1, "tenure": 1, "karma": 100, "warnings": 5, "reputation": 100, "verified": false, "region": "other", "restricted-flag": "", "account-age": 30, "trust-score": 50, "subscription": "free", "trial": false, "roles": [], "active-flags": [] }"#;
     PreparedBenchmark {
         name: "cedar/medium-partial".to_string(),
         authorizer: Authorizer::new(),
@@ -168,7 +214,7 @@ pub fn medium_partial() -> PreparedBenchmark {
 }
 
 pub fn complex_satisfied() -> PreparedBenchmark {
-    let attrs = r#"{ "role": "admin", "level": 15, "status": "active", "age": 30, "score": 95, "department": "security", "clearance": 5, "tenure": 6, "karma": 500, "warnings": 0, "reputation": 500, "verified": true, "region": "us", "restricted-flag": "", "account-age": 400, "trust-score": 95, "subscription": "premium", "trial": false }"#;
+    let attrs = r#"{ "role": "admin", "level": 15, "status": "active", "age": 30, "score": 95, "department": "security", "clearance": 5, "tenure": 6, "karma": 500, "warnings": 0, "reputation": 500, "verified": true, "region": "us", "restricted-flag": "", "account-age": 400, "trust-score": 95, "subscription": "premium", "trial": false, "roles": [], "active-flags": [] }"#;
     PreparedBenchmark {
         name: "cedar/complex-satisfied".to_string(),
         authorizer: Authorizer::new(),
@@ -179,12 +225,77 @@ pub fn complex_satisfied() -> PreparedBenchmark {
 }
 
 pub fn complex_partial() -> PreparedBenchmark {
-    let attrs = r#"{ "role": "admin", "level": 15, "status": "inactive", "age": 30, "score": 50, "department": "marketing", "clearance": 1, "tenure": 1, "karma": 100, "warnings": 5, "reputation": 100, "verified": false, "region": "other", "restricted-flag": "", "account-age": 30, "trust-score": 50, "subscription": "free", "trial": false }"#;
+    let attrs = r#"{ "role": "admin", "level": 15, "status": "inactive", "age": 30, "score": 50, "department": "marketing", "clearance": 1, "tenure": 1, "karma": 100, "warnings": 5, "reputation": 100, "verified": false, "region": "other", "restricted-flag": "", "account-age": 30, "trust-score": 50, "subscription": "free", "trial": false, "roles": [], "active-flags": [] }"#;
     PreparedBenchmark {
         name: "cedar/complex-partial".to_string(),
         authorizer: Authorizer::new(),
         policy_set: parse_complex_policy_set(),
         entities: create_entities_json(attrs),
+        request: create_request(),
+    }
+}
+
+// Quantifier benchmarks using Cedar's set containsAll operation
+// Note: Cedar doesn't have iteration-based quantifiers like OPA/Polix
+// These benchmarks use containsAll as the closest equivalent to forall
+
+fn parse_quantifier_policy_set() -> PolicySet {
+    let policy = Policy::parse(None, QUANTIFIER_POLICY).expect("Failed to parse quantifier policy");
+    let mut policy_set = PolicySet::new();
+    policy_set.add(policy).expect("Failed to add quantifier policy");
+    policy_set
+}
+
+pub fn quantifier_small_satisfied() -> PreparedBenchmark {
+    // All 5 required flags are present
+    let flags = &["flag1", "flag2", "flag3", "flag4", "flag5"];
+    PreparedBenchmark {
+        name: "cedar/quantifier/containsall-small-satisfied".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_quantifier_policy_set(),
+        entities: create_quantifier_entities(flags),
+        request: create_request(),
+    }
+}
+
+pub fn quantifier_small_contradicted() -> PreparedBenchmark {
+    // Only 4 of 5 required flags present
+    let flags = &["flag1", "flag2", "flag3", "flag4"];
+    PreparedBenchmark {
+        name: "cedar/quantifier/containsall-small-contradicted".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_quantifier_policy_set(),
+        entities: create_quantifier_entities(flags),
+        request: create_request(),
+    }
+}
+
+pub fn quantifier_large_satisfied() -> PreparedBenchmark {
+    // All 5 required + 95 extra flags (100 total)
+    let mut flags: Vec<&str> = vec!["flag1", "flag2", "flag3", "flag4", "flag5"];
+    for i in 6..=100 {
+        flags.push(Box::leak(format!("extra{}", i).into_boxed_str()));
+    }
+    PreparedBenchmark {
+        name: "cedar/quantifier/containsall-large-satisfied".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_quantifier_policy_set(),
+        entities: create_quantifier_entities(&flags),
+        request: create_request(),
+    }
+}
+
+pub fn quantifier_large_contradicted() -> PreparedBenchmark {
+    // 100 extra flags but missing required flags
+    let mut flags: Vec<&str> = vec![];
+    for i in 1..=100 {
+        flags.push(Box::leak(format!("extra{}", i).into_boxed_str()));
+    }
+    PreparedBenchmark {
+        name: "cedar/quantifier/containsall-large-contradicted".to_string(),
+        authorizer: Authorizer::new(),
+        policy_set: parse_quantifier_policy_set(),
+        entities: create_quantifier_entities(&flags),
         request: create_request(),
     }
 }
@@ -197,6 +308,15 @@ pub fn all_benchmarks() -> Vec<PreparedBenchmark> {
         medium_partial(),
         complex_satisfied(),
         complex_partial(),
+    ]
+}
+
+pub fn quantifier_benchmarks() -> Vec<PreparedBenchmark> {
+    vec![
+        quantifier_small_satisfied(),
+        quantifier_small_contradicted(),
+        quantifier_large_satisfied(),
+        quantifier_large_contradicted(),
     ]
 }
 

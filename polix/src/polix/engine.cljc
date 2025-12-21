@@ -499,14 +499,16 @@
       :not (eval-not (eval-ast-3v (first children) document ctx))
 
       ;; Try constraint-based evaluation for comparisons
-      (or (comparison-to-constraint op-key children document ctx)
-          ;; Fall back to full evaluation for complex cases
-          (let [evaluated-args (evaluate-children children document ctx)]
-            (if (some #(or (residual? %) (complex? %)) evaluated-args)
-              {:complex {:op op-key :children evaluated-args}}
-              (if-let [operator (op/get-operator-in-context ctx op-key)]
-                (apply op/eval operator evaluated-args)
-                {:complex {:op op-key :children evaluated-args}})))))))
+      ;; Use if-some to handle false results correctly (false is a valid result)
+      (if-some [result (comparison-to-constraint op-key children document ctx)]
+        result
+        ;; Fall back to full evaluation for complex cases
+        (let [evaluated-args (evaluate-children children document ctx)]
+          (if (some #(or (residual? %) (complex? %)) evaluated-args)
+            {:complex {:op op-key :children evaluated-args}}
+            (if-let [operator (op/get-operator-in-context ctx op-key)]
+              (apply op/eval operator evaluated-args)
+              {:complex {:op op-key :children evaluated-args}})))))))
 
 (defmethod eval-ast-3v :default
   [node _document _ctx]

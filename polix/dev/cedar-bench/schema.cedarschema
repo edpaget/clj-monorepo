@@ -17,6 +17,9 @@ entity User {
     "trust-score": Long,
     subscription: String,
     trial: Bool,
+    // Quantifier benchmark attributes
+    roles: Set<String>,
+    "active-flags": Set<String>,
 };
 
 entity Resource {};

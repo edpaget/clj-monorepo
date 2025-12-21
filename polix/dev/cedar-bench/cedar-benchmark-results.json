@@ -1,14 +1,14 @@
 {
-  "timestamp": "2025-12-21T01:46:17.749834000Z",
+  "timestamp": "2025-12-21T04:26:18.229660000Z",
   "engine": "cedar",
   "benchmarks": [
     {
       "name": "cedar/simple-satisfied",
       "results": {
-        "mean-ns": 1101,
-        "std-dev": 36,
-        "lower-q": 1083,
-        "upper-q": 1125,
+        "mean-ns": 1520,
+        "std-dev": 48,
+        "lower-q": 1500,
+        "upper-q": 1542,
         "samples": 1000,
         "gc-count": null
       }
@@ -16,10 +16,10 @@
     {
       "name": "cedar/simple-contradicted",
       "results": {
-        "mean-ns": 929,
-        "std-dev": 59,
-        "lower-q": 916,
-        "upper-q": 958,
+        "mean-ns": 1260,
+        "std-dev": 51,
+        "lower-q": 1250,
+        "upper-q": 1292,
         "samples": 1000,
         "gc-count": null
       }
@@ -27,10 +27,10 @@
     {
       "name": "cedar/medium-satisfied",
       "results": {
-        "mean-ns": 1945,
-        "std-dev": 67,
-        "lower-q": 1916,
-        "upper-q": 1959,
+        "mean-ns": 2496,
+        "std-dev": 100,
+        "lower-q": 2458,
+        "upper-q": 2500,
         "samples": 1000,
         "gc-count": null
       }
@@ -38,10 +38,10 @@
     {
       "name": "cedar/medium-partial",
       "results": {
-        "mean-ns": 1204,
-        "std-dev": 92,
-        "lower-q": 1166,
-        "upper-q": 1208,
+        "mean-ns": 1515,
+        "std-dev": 430,
+        "lower-q": 1458,
+        "upper-q": 1500,
         "samples": 1000,
         "gc-count": null
       }
@@ -49,10 +49,10 @@
     {
       "name": "cedar/complex-satisfied",
       "results": {
-        "mean-ns": 3758,
-        "std-dev": 228,
-        "lower-q": 3667,
-        "upper-q": 3792,
+        "mean-ns": 4673,
+        "std-dev": 218,
+        "lower-q": 4500,
+        "upper-q": 4792,
         "samples": 1000,
         "gc-count": null
       }
@@ -60,10 +60,54 @@
     {
       "name": "cedar/complex-partial",
       "results": {
-        "mean-ns": 3310,
-        "std-dev": 157,
-        "lower-q": 3250,
-        "upper-q": 3333,
+        "mean-ns": 3937,
+        "std-dev": 238,
+        "lower-q": 3875,
+        "upper-q": 3959,
+        "samples": 1000,
+        "gc-count": null
+      }
+    },
+    {
+      "name": "cedar/quantifier/containsall-small-satisfied",
+      "results": {
+        "mean-ns": 1850,
+        "std-dev": 71,
+        "lower-q": 1833,
+        "upper-q": 1875,
+        "samples": 1000,
+        "gc-count": null
+      }
+    },
+    {
+      "name": "cedar/quantifier/containsall-small-contradicted",
+      "results": {
+        "mean-ns": 1509,
+        "std-dev": 141,
+        "lower-q": 1500,
+        "upper-q": 1541,
+        "samples": 1000,
+        "gc-count": null
+      }
+    },
+    {
+      "name": "cedar/quantifier/containsall-large-satisfied",
+      "results": {
+        "mean-ns": 1799,
+        "std-dev": 94,
+        "lower-q": 1750,
+        "upper-q": 1833,
+        "samples": 1000,
+        "gc-count": null
+      }
+    },
+    {
+      "name": "cedar/quantifier/containsall-large-contradicted",
+      "results": {
+        "mean-ns": 1541,
+        "std-dev": 83,
+        "lower-q": 1500,
+        "upper-q": 1542,
         "samples": 1000,
         "gc-count": null
       }
