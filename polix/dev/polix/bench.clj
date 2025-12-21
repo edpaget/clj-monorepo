@@ -199,6 +199,59 @@
       (run-bench (op/eval-in-context ctx {:op :matches :value pattern} "admin-123")))))
 
 ;;; ---------------------------------------------------------------------------
+;;; Quantifier Benchmarks
+;;; ---------------------------------------------------------------------------
+
+(defn bench-quantifier-forall
+  "Benchmarks forall quantifier evaluation."
+  []
+  (let [forall-checker (compiler/compile-policies [p/forall-simple])]
+    (println "\n=== Quantifier: Forall Small Satisfied ===")
+    (run-bench (forall-checker p/doc-users-5-all-active))
+    (println "\n=== Quantifier: Forall Small Contradicted ===")
+    (run-bench (forall-checker p/doc-users-5-one-inactive)))
+
+  (let [forall-nested (compiler/compile-policies [p/forall-nested-path])]
+    (println "\n=== Quantifier: Forall Medium Satisfied ===")
+    (run-bench (forall-nested p/doc-users-20-all-verified)))
+
+  (let [forall-simple (compiler/compile-policies [p/forall-simple])]
+    (println "\n=== Quantifier: Forall Large Satisfied ===")
+    (run-bench (forall-simple p/doc-users-100-all-active))))
+
+(defn bench-quantifier-exists
+  "Benchmarks exists quantifier evaluation."
+  []
+  (let [exists-checker (compiler/compile-policies [p/exists-simple])]
+    (println "\n=== Quantifier: Exists Small Satisfied ===")
+    (run-bench (exists-checker p/doc-users-5-first-admin))
+    (println "\n=== Quantifier: Exists Small Contradicted ===")
+    (run-bench (exists-checker p/doc-users-5-no-admin))
+    (println "\n=== Quantifier: Exists Large Early Exit ===")
+    (run-bench (exists-checker p/doc-users-100-first-admin))
+    (println "\n=== Quantifier: Exists Large Late Exit ===")
+    (run-bench (exists-checker p/doc-users-100-last-admin))))
+
+(defn bench-quantifier-nested
+  "Benchmarks nested quantifier evaluation."
+  []
+  (let [nested-checker (compiler/compile-policies [p/nested-forall-exists])]
+    (println "\n=== Quantifier: Nested Satisfied ===")
+    (run-bench (nested-checker p/doc-teams-all-have-lead))
+    (println "\n=== Quantifier: Nested Contradicted ===")
+    (run-bench (nested-checker p/doc-teams-one-missing-lead))))
+
+(defn bench-quantifiers
+  "Runs all quantifier benchmarks."
+  []
+  (println "\n--- Forall Quantifier ---")
+  (bench-quantifier-forall)
+  (println "\n--- Exists Quantifier ---")
+  (bench-quantifier-exists)
+  (println "\n--- Nested Quantifiers ---")
+  (bench-quantifier-nested))
+
+;;; ---------------------------------------------------------------------------
 ;;; Full Benchmark Suite
 ;;; ---------------------------------------------------------------------------
 
@@ -216,6 +269,8 @@
   (bench-eval-all)
   (println "\n### OPERATORS ###")
   (bench-operators)
+  (println "\n### QUANTIFIERS ###")
+  (bench-quantifiers)
   (println "\n========================================")
   (println "BENCHMARK COMPLETE")
   (println "========================================"))

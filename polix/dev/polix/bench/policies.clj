@@ -175,3 +175,77 @@
    :n5  (repeat 5 simple-equality)
    :n10 (repeat 10 simple-equality)
    :n50 (repeat 50 simple-equality)})
+
+;;; ---------------------------------------------------------------------------
+;;; Quantifier Policies
+;;; ---------------------------------------------------------------------------
+
+(def forall-simple
+  "Forall with simple constraint - all users must be active."
+  [:forall [:u :doc/users] [:= :u/active true]])
+
+(def forall-nested-path
+  "Forall with nested path access - all users must have verified profile."
+  [:forall [:u :doc/users] [:= :u/profile.verified true]])
+
+(def forall-multiple-constraints
+  "Forall with AND body - all users must be active with score > 50."
+  [:forall [:u :doc/users]
+   [:and
+    [:= :u/active true]
+    [:> :u/score 50]]])
+
+(def exists-simple
+  "Exists with simple constraint - at least one admin."
+  [:exists [:u :doc/users] [:= :u/role "admin"]])
+
+(def nested-forall-exists
+  "Nested quantifiers - every team must have at least one lead."
+  [:forall [:team :doc/teams]
+   [:exists [:member :team/members]
+    [:= :member/role "lead"]]])
+
+;;; ---------------------------------------------------------------------------
+;;; Quantifier Documents
+;;; ---------------------------------------------------------------------------
+
+(def doc-users-5-all-active
+  "5 users, all active."
+  {:users (vec (repeat 5 {:active true :score 80 :profile {:verified true}}))})
+
+(def doc-users-5-one-inactive
+  "5 users, one inactive."
+  {:users (conj (vec (repeat 4 {:active true})) {:active false})})
+
+(def doc-users-20-all-verified
+  "20 users with verified profiles."
+  {:users (vec (repeat 20 {:active true :profile {:verified true}}))})
+
+(def doc-users-100-all-active
+  "100 users, all active."
+  {:users (vec (repeat 100 {:active true}))})
+
+(def doc-users-5-first-admin
+  "5 users, first is admin."
+  {:users (into [{:role "admin"}] (repeat 4 {:role "user"}))})
+
+(def doc-users-5-no-admin
+  "5 users, no admins."
+  {:users (vec (repeat 5 {:role "user"}))})
+
+(def doc-users-100-first-admin
+  "100 users, first is admin (early exit)."
+  {:users (into [{:role "admin"}] (repeat 99 {:role "user"}))})
+
+(def doc-users-100-last-admin
+  "100 users, last is admin (late exit)."
+  {:users (conj (vec (repeat 99 {:role "user"})) {:role "admin"})})
+
+(def doc-teams-all-have-lead
+  "5 teams, each with members including a lead."
+  {:teams (vec (repeat 5 {:members [{:role "dev"} {:role "lead"} {:role "dev"}]}))})
+
+(def doc-teams-one-missing-lead
+  "5 teams, one without a lead."
+  {:teams (conj (vec (repeat 4 {:members [{:role "lead"}]}))
+                {:members [{:role "dev"} {:role "dev"}]})})

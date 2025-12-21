@@ -33,10 +33,15 @@
 ;;; Constraint Representation
 ;;; ---------------------------------------------------------------------------
 
-(defrecord Constraint [key op value])
+(defrecord Constraint [key op value]
+  ;; `key` is a path vector (e.g., `[:user :name]`) representing nested access
+  )
 
 (defn constraint
-  "Creates a normalized constraint."
+  "Creates a normalized constraint.
+
+  The `key` parameter is a path vector (e.g., `[:role]` or `[:user :name]`)
+  representing the document path to constrain."
   [key op value]
   (->Constraint key op value))
 
@@ -60,7 +65,9 @@
   #{:and :or :not})
 
 (defn- extract-key
-  "Extracts the document key from an AST node."
+  "Extracts the document path from an AST node.
+
+  Returns a path vector (e.g., `[:user :name]`) for doc-accessor nodes."
   [node]
   (when (= ::ast/doc-accessor (:type node))
     (:value node)))
@@ -110,14 +117,17 @@
   "Converts a policy AST to a normalized constraint structure.
 
    Returns a map with:
-   - `:op` - `:and`, `:or`, or `:constraint`
+   - `:op` - `:and`, `:or`, `:constraint`, `:quantifier`, or `:complex`
    - `:constraints` - for `:and`/`:or`, vector of child structures
    - `:constraint` - for `:constraint`, the Constraint record
-   - `:negated` - boolean for negated constraints"
+   - `:negated` - boolean for negated constraints
+   - `:ast` - for `:quantifier` and `:complex`, the original AST node"
   [ast]
-  (if-not (= ::ast/function-call (:type ast))
-    ;; Leaf node - shouldn't happen at top level, treat as literal true
-    {:op :literal :value true}
+  (case (:type ast)
+    ::ast/quantifier
+    {:op :quantifier :ast ast}
+
+    ::ast/function-call
     (let [op       (:value ast)
           children (:children ast)]
       (cond
@@ -142,7 +152,10 @@
 
         ;; Unknown operator - keep as complex
         :else
-        {:op :complex :ast ast}))))
+        {:op :complex :ast ast}))
+
+    ;; Default - leaf node, treat as literal true
+    {:op :literal :value true}))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Merging
@@ -156,6 +169,7 @@
     :and (mapcat collect-constraints (:children normalized))
     :constraint [(:constraint normalized)]
     :literal []
+    :quantifier [{:complex normalized}]
     ;; For OR and complex, we can't easily flatten
     [{:complex normalized}]))
 
@@ -277,15 +291,36 @@
   [constraint-set document]
   (engine/evaluate-constraint-set constraint-set document))
 
+(defn- evaluate-complex-nodes
+  "Evaluates complex AST nodes that couldn't be normalized to constraints.
+
+  Complex nodes include quantifiers and other expressions that require
+  runtime evaluation by the engine. Each complex-node is `{:complex normalized}`
+  where normalized contains `:ast` key with the original AST."
+  [complex-nodes document ctx]
+  (let [results (map (fn [node]
+                       (let [normalized (:complex node)
+                             ast (:ast normalized)]
+                         (engine/eval-ast-3v ast document ctx)))
+                     complex-nodes)]
+    (engine/eval-and results)))
+
 (defn- evaluate-document-with-context
   "Evaluates a constraint set using operators from context.
 
-   Delegates to [[polix.engine/evaluate-constraint-set]] for unified evaluation."
+   Evaluates both simple constraints (via constraint-set) and complex nodes
+   (via engine evaluation), combining results with AND semantics."
   [constraint-set document ctx]
-  (let [result (engine/evaluate-constraint-set constraint-set document ctx)]
-    (if (and (:trace? ctx) (:trace ctx) (engine/residual? result))
-      (assoc result :trace @(:trace ctx))
-      result)))
+  (let [complex-nodes (get constraint-set ::complex)
+        constraint-result (engine/evaluate-constraint-set
+                           (dissoc constraint-set ::complex) document ctx)
+        final-result (if (or (false? constraint-result) (empty? complex-nodes))
+                       constraint-result
+                       (let [complex-result (evaluate-complex-nodes complex-nodes document ctx)]
+                         (engine/eval-and [constraint-result complex-result])))]
+    (if (and (:trace? ctx) (:trace ctx) (engine/residual? final-result))
+      (assoc final-result :trace @(:trace ctx))
+      final-result)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Policy Compilation
@@ -362,13 +397,13 @@
 (defn residual->constraints
   "Converts a residual map back to policy expressions.
 
-   Takes {:level [[:> 5]], :status [[:in #{\"a\" \"b\"}]]}
-   Returns [[:> :doc/level 5] [:in :doc/status #{\"a\" \"b\"}]]"
+   Takes {[:level] [[:> 5]], [:user :status] [[:in #{\"a\" \"b\"}]]}
+   Returns [[:> :doc/level 5] [:in :doc/user.status #{\"a\" \"b\"}]]"
   [residual]
   (mapcat
-   (fn [[key constraints]]
+   (fn [[path constraints]]
      (map (fn [[op value]]
-            [op (keyword "doc" (name key)) value])
+            [op (engine/path->doc-accessor path) value])
           constraints))
    residual))
 

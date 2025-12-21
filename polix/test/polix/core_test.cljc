@@ -10,16 +10,8 @@
     (is (true? (core/doc-accessor? :doc/actor-role)))
     (is (true? (core/doc-accessor? :doc/actor-name)))
     (is (false? (core/doc-accessor? :actor-role)))
-    (is (false? (core/doc-accessor? :uri/uri)))
+    (is (false? (core/doc-accessor? :other/thing)))
     (is (false? (core/doc-accessor? "not-a-keyword")))))
-
-(deftest uri-accessor-test
-  (testing "identifying URI accessors"
-    (is (true? (core/uri-accessor? :uri/uri)))
-    (is (true? (core/uri-accessor? :uri/resource)))
-    (is (false? (core/uri-accessor? :doc/actor-role)))
-    (is (false? (core/uri-accessor? :other/thing)))
-    (is (false? (core/uri-accessor? "not-a-keyword")))))
 
 (deftest thunkable-test
   (testing "identifying forms that should be thunked"
@@ -31,29 +23,36 @@
 
 (deftest classify-token-test
   (testing "classifying document accessors"
-    (let [node (core/classify-token :doc/actor-role [0 1])]
-      (is (= ::ast/doc-accessor (:type node)))
-      (is (= :actor-role (:value node)))
-      (is (= [0 1] (:position node)))))
+    (let [result (core/classify-token :doc/actor-role [0 1])]
+      (is (core/ok? result))
+      (let [node (core/unwrap result)]
+        (is (= ::ast/doc-accessor (:type node)))
+        (is (= [:actor-role] (:value node)))
+        (is (= [0 1] (:position node))))))
 
-  (testing "classifying URI accessors"
-    (let [node (core/classify-token :uri/uri [0 1])]
-      (is (= ::ast/uri (:type node)))
-      (is (= :uri (:value node)))
-      (is (= [0 1] (:position node)))))
+  (testing "classifying nested document accessors"
+    (let [result (core/classify-token :doc/user.profile.name [0 1])]
+      (is (core/ok? result))
+      (let [node (core/unwrap result)]
+        (is (= ::ast/doc-accessor (:type node)))
+        (is (= [:user :profile :name] (:value node))))))
 
   (testing "classifying literals"
-    (let [node (core/classify-token "admin" [0 2])]
-      (is (= ::ast/literal (:type node)))
-      (is (= "admin" (:value node)))
-      (is (= [0 2] (:position node)))))
+    (let [result (core/classify-token "admin" [0 2])]
+      (is (core/ok? result))
+      (let [node (core/unwrap result)]
+        (is (= ::ast/literal (:type node)))
+        (is (= "admin" (:value node)))
+        (is (= [0 2] (:position node))))))
 
   #?(:clj
      (testing "classifying thunks"
-       (let [node (core/classify-token #'core/evaluate [1 0])]
-         (is (= ::ast/thunk (:type node)))
-         (is (fn? (:value node)))
-         (is (= [1 0] (:position node)))))))
+       (let [result (core/classify-token #'core/evaluate [1 0])]
+         (is (core/ok? result))
+         (let [node (core/unwrap result)]
+           (is (= ::ast/thunk (:type node)))
+           (is (fn? (:value node)))
+           (is (= [1 0] (:position node))))))))
 
 (deftest parse-policy-literal-test
   (testing "parsing simple literals"
@@ -65,7 +64,7 @@
   (testing "parsing document accessors"
     (let [result (core/parse-policy :doc/actor-role)]
       (is (core/ok? result))
-      (is (= (core/ast-node ::ast/doc-accessor :actor-role [0 0])
+      (is (= (core/ast-node ::ast/doc-accessor [:actor-role] [0 0])
              (core/unwrap result))))))
 
 (deftest parse-policy-function-call-test
@@ -75,7 +74,7 @@
       (is (= (core/ast-node ::ast/function-call
                             :=
                             [0 0]
-                            [(core/ast-node ::ast/doc-accessor :actor-role [0 1])
+                            [(core/ast-node ::ast/doc-accessor [:actor-role] [0 1])
                              (core/ast-node ::ast/literal "admin" [0 2])])
              (core/unwrap result)))))
 
@@ -89,41 +88,39 @@
                             [(core/ast-node ::ast/function-call
                                             :=
                                             [0 1]
-                                            [(core/ast-node ::ast/doc-accessor :actor-role [0 2])
+                                            [(core/ast-node ::ast/doc-accessor [:actor-role] [0 2])
                                              (core/ast-node ::ast/literal "admin" [0 3])])
                              (core/ast-node ::ast/function-call
                                             :=
                                             [0 2]
-                                            [(core/ast-node ::ast/doc-accessor :actor-role [0 3])
+                                            [(core/ast-node ::ast/doc-accessor [:actor-role] [0 3])
                                              (core/ast-node ::ast/literal "user" [0 4])])])
              (core/unwrap result)))))
 
   (testing "parsing function call with multiple arguments"
-    (let [result (core/parse-policy [:match :uri/uri "prefix:" :doc/actor-name "/*"])]
+    (let [result (core/parse-policy [:in :doc/actor-role #{"admin" "user" "guest"}])]
       (is (core/ok? result))
       (is (= (core/ast-node ::ast/function-call
-                            :match
+                            :in
                             [0 0]
-                            [(core/ast-node ::ast/uri :uri [0 1])
-                             (core/ast-node ::ast/literal "prefix:" [0 2])
-                             (core/ast-node ::ast/doc-accessor :actor-name [0 3])
-                             (core/ast-node ::ast/literal "/*" [0 4])])
+                            [(core/ast-node ::ast/doc-accessor [:actor-role] [0 1])
+                             (core/ast-node ::ast/literal #{"admin" "user" "guest"} [0 2])])
              (core/unwrap result))))))
 
 (deftest extract-doc-keys-test
   (testing "extracting document keys from simple policy"
     (let [result (core/parse-policy [:= :doc/actor-role "admin"])
           ast    (core/unwrap result)]
-      (is (= #{:actor-role} (core/extract-doc-keys ast)))))
+      (is (= #{[:actor-role]} (core/extract-doc-keys ast)))))
 
   (testing "extracting document keys from nested policy"
     (let [result (core/parse-policy [:or [:= :doc/actor-role "admin"]
                                      [:= :doc/actor-name "bob"]])
           ast    (core/unwrap result)]
-      (is (= #{:actor-role :actor-name} (core/extract-doc-keys ast)))))
+      (is (= #{[:actor-role] [:actor-name]} (core/extract-doc-keys ast)))))
 
   (testing "extracting no keys from policy with only literals"
-    (let [result (core/parse-policy [:match :uri/uri "prefix:"])
+    (let [result (core/parse-policy [:= "a" "b"])
           ast    (core/unwrap result)]
       (is (= #{} (core/extract-doc-keys ast))))))
 
@@ -164,7 +161,7 @@
        :cljs (is (and (map? TestPolicy) (:name TestPolicy) (:ast TestPolicy))))
     (is (= 'TestPolicy (:name TestPolicy)))
     (is (= "A test policy for testing" (:docstring TestPolicy)))
-    (is (= #{:actor-role} (:schema TestPolicy)))
+    (is (= #{[:actor-role]} (:schema TestPolicy)))
     (is (some? (:ast TestPolicy))))
 
   (testing "policy without docstring"
@@ -172,7 +169,7 @@
        :cljs (is (and (map? TestPolicyWithoutDocstring) (:name TestPolicyWithoutDocstring) (:ast TestPolicyWithoutDocstring))))
     (is (= 'TestPolicyWithoutDocstring (:name TestPolicyWithoutDocstring)))
     (is (nil? (:docstring TestPolicyWithoutDocstring)))
-    (is (= #{:role :name} (:schema TestPolicyWithoutDocstring)))
+    (is (= #{[:role] [:name]} (:schema TestPolicyWithoutDocstring)))
     (is (some? (:ast TestPolicyWithoutDocstring)))))
 
 (deftest evaluate-with-nil-values-test

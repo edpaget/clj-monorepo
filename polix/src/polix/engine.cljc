@@ -21,11 +21,17 @@
 
       ;; Missing keys return residuals
       (engine/evaluate ast {})
-      ;; => {:residual {:role [[:= \"admin\"]]}}
+      ;; => {:residual {[:role] [[:= \"admin\"]]}}
+
+      ;; Nested paths
+      (let [ast (r/unwrap (parser/parse-policy [:= :doc/user.name \"Alice\"]))]
+        (engine/evaluate ast {:user {:name \"Alice\"}}))
+      ;; => true
 
   Uses [[polix.operators]] registry as primary operator source with support
   for context overrides via the `:operators` option."
   (:require
+   [clojure.string :as str]
    [polix.ast :as ast]
    [polix.operators :as op]
    [polix.parser :as parser]
@@ -57,6 +63,55 @@
     :else :value))
 
 ;;; ---------------------------------------------------------------------------
+;;; Path Utilities
+;;; ---------------------------------------------------------------------------
+
+(defn path-exists?
+  "Returns true if the full path exists in the document.
+
+  Unlike `get-in`, this distinguishes between a nil value at the path
+  and a missing key. Returns true only if all keys in the path exist,
+  even if the final value is nil.
+
+      (path-exists? {:user {:name \"Alice\"}} [:user :name])  ;=> true
+      (path-exists? {:user {:name nil}} [:user :name])       ;=> true
+      (path-exists? {:user {}} [:user :name])                ;=> false
+      (path-exists? {} [:user :name])                        ;=> false"
+  [document path]
+  (loop [current   document
+         remaining path]
+    (if (empty? remaining)
+      true
+      (let [k (first remaining)]
+        (if (and (associative? current) (contains? current k))
+          (recur (get current k) (rest remaining))
+          false)))))
+
+(defn path->doc-accessor
+  "Converts a path vector back to a doc accessor keyword.
+
+      (path->doc-accessor [:role])       ;=> :doc/role
+      (path->doc-accessor [:user :name]) ;=> :doc/user.name"
+  [path]
+  (keyword "doc" (str/join "." (map name path))))
+
+;;; ---------------------------------------------------------------------------
+;;; Binding Context
+;;; ---------------------------------------------------------------------------
+
+(defn with-binding
+  "Adds a binding to the evaluation context.
+
+  Bindings are used by quantifiers to track the current element being iterated."
+  [ctx binding-name value]
+  (assoc-in ctx [:bindings binding-name] value))
+
+(defn get-binding
+  "Gets a binding value from context, or nil if not found."
+  [ctx binding-name]
+  (get-in ctx [:bindings binding-name]))
+
+;;; ---------------------------------------------------------------------------
 ;;; Residual Merging
 ;;; ---------------------------------------------------------------------------
 
@@ -69,6 +124,24 @@
       (merge-with into acc residual))
     {}
     residuals)})
+
+(defn- index-residual
+  "Transforms residual paths to include collection index.
+
+  Takes a residual result and prefixes all paths with the collection path
+  and element index, e.g., `{[:role] [...]}` becomes `{[:users 0 :role] [...]}`."
+  [residual-result coll-path index]
+  (let [indexed-path (conj coll-path index)]
+    {:residual
+     (into {}
+           (map (fn [[path constraints]]
+                  [(vec (concat indexed-path path)) constraints])
+                (:residual residual-result)))}))
+
+(defn- merge-residual-paths
+  "Merges residual path maps from multiple residual results."
+  [acc residual-result]
+  (merge-with into acc (:residual residual-result)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Three-Valued Boolean Logic
@@ -119,6 +192,127 @@
     :else {:complex {:op :not :child result}}))
 
 ;;; ---------------------------------------------------------------------------
+;;; Quantifier Evaluation
+;;; ---------------------------------------------------------------------------
+
+(declare eval-ast-3v)
+
+(defn- resolve-collection
+  "Resolves the collection for a quantifier binding.
+
+  Returns `{:ok collection}` if found, or `{:missing path}` if the collection
+  path doesn't exist, or `{:invalid value}` if the value is not sequential."
+  [binding document ctx]
+  (let [{:keys [namespace path]} binding
+        source (if (= "doc" namespace)
+                 document
+                 (get-binding ctx (keyword namespace)))]
+    (cond
+      (nil? source)
+      {:missing path}
+
+      (not (path-exists? source path))
+      {:missing path}
+
+      :else
+      (let [coll (get-in source path)]
+        (if (sequential? coll)
+          {:ok coll}
+          {:invalid coll})))))
+
+(defn- evaluate-forall
+  "Evaluates forall quantifier with three-valued logic.
+
+   - All elements satisfy → true
+   - Any element contradicts → false (short-circuit)
+   - Empty collection → true (vacuous truth)
+   - Collection missing → residual
+   - Non-sequential value → false (type mismatch)
+   - Some elements residual, none false → residual with indexed paths"
+  [binding body document ctx]
+  (let [coll-result (resolve-collection binding document ctx)
+        {:keys [name path]} binding]
+    (cond
+      (:missing coll-result)
+      {:residual {path [[:forall binding body]]}}
+
+      (:invalid coll-result)
+      false
+
+      :else
+      (let [coll (:ok coll-result)]
+        (if (empty? coll)
+          true
+          (loop [elements (seq coll)
+                 index 0
+                 residuals {}]
+            (if (empty? elements)
+              (if (empty? residuals)
+                true
+                {:residual residuals})
+              (let [elem (first elements)
+                    elem-ctx (with-binding ctx name elem)
+                    result (eval-ast-3v body document elem-ctx)]
+                (cond
+                  (false? result)
+                  false
+
+                  (residual? result)
+                  (let [indexed (index-residual result path index)]
+                    (recur (rest elements)
+                           (inc index)
+                           (merge-residual-paths residuals indexed)))
+
+                  :else
+                  (recur (rest elements) (inc index) residuals))))))))))
+
+(defn- evaluate-exists
+  "Evaluates exists quantifier with three-valued logic.
+
+   - Any element satisfies → true (short-circuit)
+   - All elements contradict → false
+   - Empty collection → false
+   - Collection missing → residual
+   - Non-sequential value → false (type mismatch)
+   - Some elements residual, none true → residual with indexed paths"
+  [binding body document ctx]
+  (let [coll-result (resolve-collection binding document ctx)
+        {:keys [name path]} binding]
+    (cond
+      (:missing coll-result)
+      {:residual {path [[:exists binding body]]}}
+
+      (:invalid coll-result)
+      false
+
+      :else
+      (let [coll (:ok coll-result)]
+        (if (empty? coll)
+          false
+          (loop [elements (seq coll)
+                 index 0
+                 residuals {}]
+            (if (empty? elements)
+              (if (empty? residuals)
+                false
+                {:residual residuals})
+              (let [elem (first elements)
+                    elem-ctx (with-binding ctx name elem)
+                    result (eval-ast-3v body document elem-ctx)]
+                (cond
+                  (true? result)
+                  true
+
+                  (residual? result)
+                  (let [indexed (index-residual result path index)]
+                    (recur (rest elements)
+                           (inc index)
+                           (merge-residual-paths residuals indexed)))
+
+                  :else
+                  (recur (rest elements) (inc index) residuals))))))))))
+
+;;; ---------------------------------------------------------------------------
 ;;; Constraint Evaluation
 ;;; ---------------------------------------------------------------------------
 
@@ -157,7 +351,8 @@
 (defn evaluate-constraint-set
   "Evaluates a constraint set against a document.
 
-   A constraint set is a map of `{key -> [constraints], ::complex -> [nodes]}`.
+   A constraint set is a map of `{path -> [constraints], ::complex -> [nodes]}`.
+   Paths are vectors of keywords representing nested document access.
 
    Returns:
    - true if all constraints satisfied
@@ -166,26 +361,25 @@
   ([constraint-set document]
    (evaluate-constraint-set constraint-set document (op/make-context)))
   ([constraint-set document ctx]
-   (let [doc-keys (set (keys document))]
-     (loop [keys-to-check     (keys (dissoc constraint-set ::complex))
-            residuals         {}
-            any-contradicted? false]
-       (if (or any-contradicted? (empty? keys-to-check))
-         (cond
-           any-contradicted? false
-           (seq residuals) {:residual residuals}
-           :else true)
-         (let [k              (first keys-to-check)
-               constraints    (get constraint-set k)
-               value-present? (contains? doc-keys k)
-               value          (get document k)
-               result         (evaluate-constraints-for-key ctx constraints value value-present?)]
-           (recur
-            (rest keys-to-check)
-            (if (residual? result)
-              (assoc residuals k (:residual result))
-              residuals)
-            (false? result))))))))
+   (loop [paths-to-check    (keys (dissoc constraint-set ::complex))
+          residuals         {}
+          any-contradicted? false]
+     (if (or any-contradicted? (empty? paths-to-check))
+       (cond
+         any-contradicted? false
+         (seq residuals) {:residual residuals}
+         :else true)
+       (let [path           (first paths-to-check)
+             constraints    (get constraint-set path)
+             value-present? (path-exists? document path)
+             value          (get-in document path)
+             result         (evaluate-constraints-for-key ctx constraints value value-present?)]
+         (recur
+          (rest paths-to-check)
+          (if (residual? result)
+            (assoc residuals path (:residual result))
+            residuals)
+          (false? result)))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Three-Valued AST Evaluation
@@ -202,22 +396,53 @@
   (:value node))
 
 (defmethod eval-ast-3v ::ast/doc-accessor
-  [node document _ctx]
-  (let [key (:value node)]
-    (if (contains? document key)
-      (get document key)
-      {:residual {key [[:any]]}})))
+  [node document ctx]
+  (let [path (:value node)
+        binding-ns (get-in node [:metadata :binding-ns])]
+    (if binding-ns
+      ;; Binding accessor - look up in context
+      (let [binding-name (keyword binding-ns)
+            bound-value (get-binding ctx binding-name)]
+        (if (nil? bound-value)
+          {:residual {path [[:binding binding-name :any]]}}
+          (if (path-exists? bound-value path)
+            (get-in bound-value path)
+            {:residual {path [[:any]]}})))
+      ;; Document accessor
+      (if (path-exists? document path)
+        (get-in document path)
+        {:residual {path [[:any]]}}))))
 
-(defmethod eval-ast-3v ::ast/uri
-  [_node _document ctx]
-  (if-let [uri (:uri ctx)]
-    uri
-    {:residual {:uri [[:any]]}}))
+(defmethod eval-ast-3v ::ast/quantifier
+  [node document ctx]
+  (let [quantifier-type (:value node)
+        binding (get-in node [:metadata :binding])
+        body (first (:children node))]
+    (case quantifier-type
+      :forall (evaluate-forall binding body document ctx)
+      :exists (evaluate-exists binding body document ctx))))
 
 (defn- evaluate-children
   "Evaluates all child nodes of a function call."
   [children document ctx]
   (mapv #(eval-ast-3v % document ctx) children))
+
+(defn- resolve-accessor-value
+  "Resolves the value for a doc-accessor node, handling both document and binding accessors."
+  [accessor-node document ctx]
+  (let [path (:value accessor-node)
+        binding-ns (get-in accessor-node [:metadata :binding-ns])]
+    (if binding-ns
+      ;; Binding accessor
+      (let [binding-name (keyword binding-ns)
+            bound-value (get-binding ctx binding-name)]
+        (if (and bound-value (path-exists? bound-value path))
+          {:found true :value (get-in bound-value path)}
+          {:found false}))
+      ;; Document accessor
+      (if (path-exists? document path)
+        {:found true :value (get-in document path)}
+        {:found false}))))
 
 (defn- comparison-to-constraint
   "Converts a comparison function call to a constraint if possible."
@@ -227,37 +452,39 @@
           left-type    (:type left)
           right-type   (:type right)]
       (cond
-        ;; [:= :doc/key value]
+        ;; [:= :doc/key value] or [:= :u/key value]
         (and (= ::ast/doc-accessor left-type)
              (= ::ast/literal right-type))
-        (let [key      (:value left)
-              expected (:value right)]
-          (if (contains? document key)
+        (let [path       (:value left)
+              expected   (:value right)
+              resolved   (resolve-accessor-value left document ctx)]
+          (if (:found resolved)
             (let [constraint {:op op-key :value expected}
-                  result     (evaluate-constraint ctx constraint (get document key))]
+                  result     (evaluate-constraint ctx constraint (:value resolved))]
               (if (nil? result)
                 {:complex {:op op-key :ast {:left left :right right}}}
                 result))
-            {:residual {key [[op-key expected]]}}))
+            {:residual {path [[op-key expected]]}}))
 
         ;; [:= value :doc/key] - flipped
         (and (= ::ast/literal left-type)
              (= ::ast/doc-accessor right-type))
-        (let [key        (:value right)
+        (let [path       (:value right)
               expected   (:value left)
               flipped-op (case op-key
                            :< :>
                            :> :<
                            :<= :>=
                            :>= :<=
-                           op-key)]
-          (if (contains? document key)
+                           op-key)
+              resolved   (resolve-accessor-value right document ctx)]
+          (if (:found resolved)
             (let [constraint {:op flipped-op :value expected}
-                  result     (evaluate-constraint ctx constraint (get document key))]
+                  result     (evaluate-constraint ctx constraint (:value resolved))]
               (if (nil? result)
                 {:complex {:op flipped-op :ast {:left left :right right}}}
                 result))
-            {:residual {key [[flipped-op expected]]}}))
+            {:residual {path [[flipped-op expected]]}}))
 
         :else nil))))
 
@@ -295,7 +522,7 @@
    Takes:
    - `policy` - AST node, constraint set, or policy expression vector
    - `document` - Associative data structure to evaluate against
-   - `opts` - Optional map with `:operators`, `:fallback`, `:strict?`, `:trace?`, `:uri`
+   - `opts` - Optional map with `:operators`, `:fallback`, `:strict?`, `:trace?`
 
    Returns:
    - `true` if fully satisfied
@@ -309,15 +536,11 @@
        ;; => true
 
        ;; With options
-       (evaluate ast document {:strict? true})
-
-       ;; With URI context
-       (evaluate ast document {:uri \"/api/users\"})"
+       (evaluate ast document {:strict? true})"
   ([policy document]
    (evaluate policy document {}))
   ([policy document opts]
-   (let [ctx (-> (op/make-context opts)
-                 (assoc :uri (:uri opts)))]
+   (let [ctx (op/make-context opts)]
      (cond
        ;; AST node
        (and (map? policy) (:type policy))
@@ -342,13 +565,13 @@
 (defn residual->constraints
   "Converts a residual map back to policy expressions.
 
-   Takes `{:level [[:> 5]], :status [[:in #{\"a\" \"b\"}]]}`
-   Returns `[[:> :doc/level 5] [:in :doc/status #{\"a\" \"b\"}]]`"
+   Takes `{[:level] [[:> 5]], [:user :status] [[:in #{\"a\" \"b\"}]]}`
+   Returns `[[:> :doc/level 5] [:in :doc/user.status #{\"a\" \"b\"}]]`"
   [residual]
   (mapcat
-   (fn [[key constraints]]
+   (fn [[path constraints]]
      (map (fn [[op value]]
-            [op (keyword "doc" (name key)) value])
+            [op (path->doc-accessor path) value])
           constraints))
    residual))
 

@@ -3,7 +3,7 @@
 
   Polix provides a vector-based DSL for defining policies that evaluate
   against documents. Policies support document accessors (`:doc/key`),
-  URI accessors (`:uri/resource`), function calls, and literals.
+  function calls, and literals.
 
   ## Quick Start
 
@@ -79,7 +79,6 @@
 (def parse-policy parser/parse-policy)
 (def extract-doc-keys parser/extract-doc-keys)
 (def doc-accessor? parser/doc-accessor?)
-(def uri-accessor? parser/uri-accessor?)
 (def thunkable? parser/thunkable?)
 (def classify-token parser/classify-token)
 
@@ -104,7 +103,6 @@
 ;; Re-export AST node type keywords for convenience
 (def literal ::ast/literal)
 (def doc-accessor ::ast/doc-accessor)
-(def uri ::ast/uri)
 (def function-call ::ast/function-call)
 (def thunk ::ast/thunk)
 

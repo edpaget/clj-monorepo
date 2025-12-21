@@ -17,7 +17,7 @@
   (testing "normalizing equality constraint"
     (let [result (compiler/normalize-policy-expr [:= :doc/role "admin"])]
       (is (= :constraint (:op result)))
-      (is (= :role (get-in result [:constraint :key])))
+      (is (= [:role] (get-in result [:constraint :key])))
       (is (= := (get-in result [:constraint :op])))
       (is (= "admin" (get-in result [:constraint :value]))))))
 
@@ -42,7 +42,7 @@
           result (check {})]
       (is (map? result))
       (is (contains? result :residual))
-      (is (= {:role [[:= "admin"]]} (:residual result))))))
+      (is (= {[:role] [[:= "admin"]]} (:residual result))))))
 
 (deftest compile-multiple-constraints-test
   (testing "AND of multiple constraints - all satisfied"
@@ -63,7 +63,7 @@
                    [:> :doc/level 5]])
           result (check {:role "admin"})]
       (is (map? result))
-      (is (contains? (:residual result) :level)))))
+      (is (contains? (:residual result) [:level])))))
 
 (deftest compile-range-constraints-test
   (testing "range constraint - satisfied"
@@ -112,7 +112,7 @@
 
 (deftest residual-to-constraints-test
   (testing "converting residual back to policy"
-    (let [residual    {:level [[:> 5]] :status [[:in #{"a" "b"}]]}
+    (let [residual    {[:level] [[:> 5]] [:status] [[:in #{"a" "b"}]]}
           constraints (compiler/residual->constraints residual)]
       (is (= 2 (count constraints)))
       (is (some #(= [:> :doc/level 5] %) constraints))
@@ -126,7 +126,7 @@
     (is (= [:contradiction] (compiler/result->policy false))))
 
   (testing "residual gives simplified constraints"
-    (let [result {:residual {:level [[:> 5]]}}
+    (let [result {:residual {[:level] [[:> 5]]}}
           policy (compiler/result->policy result)]
       (is (= [:> :doc/level 5] policy)))))
 
@@ -182,3 +182,120 @@
           result (check {:role "admin"} {:trace? true})]
       (is (map? result))
       (is (contains? result :trace)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Nested Path Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest compile-nested-path-test
+  (testing "compiled policy with nested path - satisfied"
+    (let [checker (compiler/compile-policies [[:= :doc/user.role "admin"]])]
+      (is (= true (checker {:user {:role "admin"}})))))
+  (testing "compiled policy with nested path - contradicted"
+    (let [checker (compiler/compile-policies [[:= :doc/user.role "admin"]])]
+      (is (= false (checker {:user {:role "guest"}})))))
+  (testing "compiled policy with nested path - residual"
+    (let [checker (compiler/compile-policies [[:= :doc/user.role "admin"]])
+          result  (checker {:user {}})]
+      (is (map? result))
+      (is (contains? result :residual)))))
+
+(deftest nested-path-constraint-merging-test
+  (testing "constraints on same nested path merge"
+    (let [checker (compiler/compile-policies
+                   [[:> :doc/user.level 5]
+                    [:< :doc/user.level 10]])]
+      (is (= true (checker {:user {:level 7}})))
+      (is (= false (checker {:user {:level 3}})))
+      (is (= false (checker {:user {:level 12}})))))
+  (testing "constraints on different nested paths"
+    (let [checker (compiler/compile-policies
+                   [[:= :doc/user.role "admin"]
+                    [:> :doc/user.level 5]])]
+      (is (= true (checker {:user {:role "admin" :level 10}})))
+      (is (= false (checker {:user {:role "guest" :level 10}}))))))
+
+(deftest deeply-nested-path-test
+  (testing "deeply nested paths work"
+    (let [checker (compiler/compile-policies
+                   [[:= :doc/org.team.member.role "lead"]])]
+      (is (= true (checker {:org {:team {:member {:role "lead"}}}})))
+      (is (= false (checker {:org {:team {:member {:role "member"}}}}))))))
+
+(deftest mixed-path-depths-test
+  (testing "mix of shallow and nested paths"
+    (let [checker (compiler/compile-policies
+                   [[:= :doc/type "user"]
+                    [:= :doc/user.role "admin"]])]
+      (is (= true (checker {:type "user" :user {:role "admin"}})))
+      (is (= false (checker {:type "order" :user {:role "admin"}}))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Quantifier Compilation Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest compile-forall-policy-test
+  (testing "compiled forall - all satisfy"
+    (let [checker (compiler/compile-policies
+                   [[:forall [:u :doc/users] [:= :u/role "admin"]]])]
+      (is (= true (checker {:users [{:role "admin"} {:role "admin"}]})))))
+  (testing "compiled forall - one contradicts"
+    (let [checker (compiler/compile-policies
+                   [[:forall [:u :doc/users] [:= :u/role "admin"]]])]
+      (is (= false (checker {:users [{:role "admin"} {:role "guest"}]})))))
+  (testing "compiled forall - empty collection (vacuous)"
+    (let [checker (compiler/compile-policies
+                   [[:forall [:u :doc/users] [:= :u/role "admin"]]])]
+      (is (= true (checker {:users []}))))))
+
+(deftest compile-exists-policy-test
+  (testing "compiled exists - one satisfies"
+    (let [checker (compiler/compile-policies
+                   [[:exists [:u :doc/users] [:= :u/role "admin"]]])]
+      (is (= true (checker {:users [{:role "guest"} {:role "admin"}]})))))
+  (testing "compiled exists - none satisfy"
+    (let [checker (compiler/compile-policies
+                   [[:exists [:u :doc/users] [:= :u/role "admin"]]])]
+      (is (= false (checker {:users [{:role "guest"} {:role "user"}]})))))
+  (testing "compiled exists - empty collection"
+    (let [checker (compiler/compile-policies
+                   [[:exists [:u :doc/users] [:= :u/role "admin"]]])]
+      (is (= false (checker {:users []}))))))
+
+(deftest compile-quantifier-with-constraints-test
+  (testing "quantifier combined with simple constraints"
+    (let [checker (compiler/compile-policies
+                   [[:= :doc/status "active"]
+                    [:forall [:u :doc/users] [:= :u/role "member"]]])]
+      (is (= true (checker {:status "active"
+                            :users [{:role "member"}]})))
+      (is (= false (checker {:status "inactive"
+                             :users [{:role "member"}]})))
+      (is (= false (checker {:status "active"
+                             :users [{:role "admin"}]}))))))
+
+(deftest compile-quantifier-residual-test
+  (testing "quantifier with missing collection returns residual"
+    (let [checker (compiler/compile-policies
+                   [[:forall [:u :doc/users] [:= :u/role "admin"]]])
+          result  (checker {})]
+      (is (map? result))
+      (is (contains? result :residual))))
+  (testing "mixed constraints with quantifier residual"
+    (let [checker (compiler/compile-policies
+                   [[:= :doc/status "active"]
+                    [:forall [:u :doc/users] [:= :u/role "admin"]]])
+          result  (checker {:status "active"})]
+      (is (map? result))
+      (is (contains? result :residual)))))
+
+(deftest compile-nested-quantifiers-test
+  (testing "nested quantifiers through compiler"
+    (let [checker (compiler/compile-policies
+                   [[:forall [:team :doc/teams]
+                     [:exists [:member :team/members]
+                      [:= :member/role "lead"]]]])]
+      (is (= true (checker {:teams [{:members [{:role "lead"}]}
+                                    {:members [{:role "dev"} {:role "lead"}]}]})))
+      (is (= false (checker {:teams [{:members [{:role "lead"}]}
+                                     {:members [{:role "dev"}]}]}))))))

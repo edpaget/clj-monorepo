@@ -103,6 +103,37 @@
      (bench-fn "operator/in-set" (op/eval-in-context ctx {:op :in :value #{"a" "b" "c"}} "b"))
      (bench-fn "operator/regex" (op/eval-in-context ctx {:op :matches :value pattern} "admin-123"))]))
 
+(defn quantifier-benchmarks
+  "Runs quantifier benchmarks."
+  []
+  (let [forall-checker  (compiler/compile-policies [p/forall-simple])
+        forall-nested   (compiler/compile-policies [p/forall-nested-path])
+        exists-checker  (compiler/compile-policies [p/exists-simple])
+        nested-checker  (compiler/compile-policies [p/nested-forall-exists])]
+    [;; Forall benchmarks
+     (bench-fn "quantifier/forall-small-satisfied"
+               (forall-checker p/doc-users-5-all-active))
+     (bench-fn "quantifier/forall-small-contradicted"
+               (forall-checker p/doc-users-5-one-inactive))
+     (bench-fn "quantifier/forall-medium-satisfied"
+               (forall-nested p/doc-users-20-all-verified))
+     (bench-fn "quantifier/forall-large-satisfied"
+               (forall-checker p/doc-users-100-all-active))
+     ;; Exists benchmarks
+     (bench-fn "quantifier/exists-small-satisfied"
+               (exists-checker p/doc-users-5-first-admin))
+     (bench-fn "quantifier/exists-small-contradicted"
+               (exists-checker p/doc-users-5-no-admin))
+     (bench-fn "quantifier/exists-large-early-exit"
+               (exists-checker p/doc-users-100-first-admin))
+     (bench-fn "quantifier/exists-large-late-exit"
+               (exists-checker p/doc-users-100-last-admin))
+     ;; Nested quantifier benchmarks
+     (bench-fn "quantifier/nested-satisfied"
+               (nested-checker p/doc-teams-all-have-lead))
+     (bench-fn "quantifier/nested-contradicted"
+               (nested-checker p/doc-teams-one-missing-lead))]))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Regression Detection
 ;;; ---------------------------------------------------------------------------
@@ -157,11 +188,15 @@
           (print "  Operators...") (flush)
           (let [operator-results (operator-benchmarks)]
             (println " done")
-            (concat parse-results
-                    compile-results
-                    ast-results
-                    compiled-results
-                    operator-results)))))))
+            (print "  Quantifiers...") (flush)
+            (let [quantifier-results (quantifier-benchmarks)]
+              (println " done")
+              (concat parse-results
+                      compile-results
+                      ast-results
+                      compiled-results
+                      operator-results
+                      quantifier-results))))))))
 
 (defn run-ci
   "Main entry point for CI benchmark runner.

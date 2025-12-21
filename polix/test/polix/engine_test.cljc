@@ -71,16 +71,16 @@
 
 (deftest evaluate-constraint-set-test
   (testing "simple equality satisfied"
-    (let [constraint-set {:role [{:op := :value "admin"}]}]
+    (let [constraint-set {[:role] [{:op := :value "admin"}]}]
       (is (= true (engine/evaluate-constraint-set constraint-set {:role "admin"})))))
   (testing "simple equality contradicted"
-    (let [constraint-set {:role [{:op := :value "admin"}]}]
+    (let [constraint-set {[:role] [{:op := :value "admin"}]}]
       (is (= false (engine/evaluate-constraint-set constraint-set {:role "guest"})))))
   (testing "missing key returns residual"
-    (let [constraint-set {:role [{:op := :value "admin"}]}
+    (let [constraint-set {[:role] [{:op := :value "admin"}]}
           result         (engine/evaluate-constraint-set constraint-set {})]
       (is (engine/residual? result))
-      (is (= {:role [[:= "admin"]]} (:residual result))))))
+      (is (= {[:role] [[:= "admin"]]} (:residual result))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; AST Evaluation Tests
@@ -212,7 +212,7 @@
 
 (deftest residual->constraints-test
   (testing "converts residual to policy expressions"
-    (let [residual    {:level [[:> 5]] :status [[:in #{"a" "b"}]]}
+    (let [residual    {[:level] [[:> 5]] [:status] [[:in #{"a" "b"}]]}
           constraints (engine/residual->constraints residual)]
       (is (= 2 (count constraints)))
       (is (some #(= [:> :doc/level 5] %) constraints))
@@ -225,4 +225,284 @@
     (is (= [:contradiction] (engine/result->policy false))))
   (testing "single residual returns constraint"
     (is (= [:> :doc/level 5]
-           (engine/result->policy {:residual {:level [[:> 5]]}})))))
+           (engine/result->policy {:residual {[:level] [[:> 5]]}})))))
+
+;;; ---------------------------------------------------------------------------
+;;; Path Utility Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest path-exists?-test
+  (testing "shallow path exists"
+    (is (engine/path-exists? {:role "admin"} [:role])))
+  (testing "nested path exists"
+    (is (engine/path-exists? {:user {:name "Alice"}} [:user :name])))
+  (testing "deeply nested path exists"
+    (is (engine/path-exists? {:a {:b {:c "value"}}} [:a :b :c])))
+  (testing "partial path - missing leaf"
+    (is (not (engine/path-exists? {:user {}} [:user :name]))))
+  (testing "missing root"
+    (is (not (engine/path-exists? {} [:user :name]))))
+  (testing "nil value counts as exists"
+    (is (engine/path-exists? {:user {:name nil}} [:user :name])))
+  (testing "false value counts as exists"
+    (is (engine/path-exists? {:active false} [:active])))
+  (testing "non-map at intermediate path"
+    (is (not (engine/path-exists? {:user "string"} [:user :name])))))
+
+(deftest path->doc-accessor-test
+  (testing "single element path"
+    (is (= :doc/role (engine/path->doc-accessor [:role]))))
+  (testing "two element path"
+    (is (= :doc/user.name (engine/path->doc-accessor [:user :name]))))
+  (testing "deep path"
+    (is (= :doc/a.b.c.d (engine/path->doc-accessor [:a :b :c :d])))))
+
+;;; ---------------------------------------------------------------------------
+;;; Nested Path Evaluation Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest eval-nested-doc-accessor-test
+  (testing "nested access returns value"
+    (let [ast (r/unwrap (parser/parse-policy :doc/user.name))]
+      (is (= "Alice" (engine/evaluate ast {:user {:name "Alice"}})))))
+  (testing "deeply nested access"
+    (let [ast (r/unwrap (parser/parse-policy :doc/a.b.c))]
+      (is (= "deep" (engine/evaluate ast {:a {:b {:c "deep"}}})))))
+  (testing "partial path returns residual"
+    (let [ast    (r/unwrap (parser/parse-policy :doc/user.name))
+          result (engine/evaluate ast {:user {}})]
+      (is (engine/residual? result))
+      (is (= {[:user :name] [[:any]]} (:residual result)))))
+  (testing "missing root returns residual"
+    (let [ast    (r/unwrap (parser/parse-policy :doc/user.name))
+          result (engine/evaluate ast {})]
+      (is (engine/residual? result)))))
+
+(deftest eval-nested-comparison-test
+  (testing "nested equality satisfied"
+    (let [ast (r/unwrap (parser/parse-policy [:= :doc/user.role "admin"]))]
+      (is (= true (engine/evaluate ast {:user {:role "admin"}})))))
+  (testing "nested equality contradicted"
+    (let [ast (r/unwrap (parser/parse-policy [:= :doc/user.role "admin"]))]
+      (is (= false (engine/evaluate ast {:user {:role "guest"}})))))
+  (testing "nested equality residual"
+    (let [ast    (r/unwrap (parser/parse-policy [:= :doc/user.role "admin"]))
+          result (engine/evaluate ast {:user {}})]
+      (is (engine/residual? result))
+      (is (= {[:user :role] [[:= "admin"]]} (:residual result)))))
+  (testing "nested comparison with missing root"
+    (let [ast    (r/unwrap (parser/parse-policy [:> :doc/user.level 5]))
+          result (engine/evaluate ast {})]
+      (is (engine/residual? result)))))
+
+(deftest eval-nested-and-test
+  (testing "AND with multiple nested paths"
+    (let [ast (r/unwrap (parser/parse-policy
+                         [:and
+                          [:= :doc/user.role "admin"]
+                          [:= :doc/user.active true]]))]
+      (is (= true (engine/evaluate ast {:user {:role "admin" :active true}})))
+      (is (= false (engine/evaluate ast {:user {:role "guest" :active true}})))))
+  (testing "AND with partial nested data"
+    (let [ast    (r/unwrap (parser/parse-policy
+                            [:and
+                             [:= :doc/user.role "admin"]
+                             [:= :doc/user.level 5]]))
+          result (engine/evaluate ast {:user {:role "admin"}})]
+      (is (engine/residual? result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Residual Conversion with Paths
+;;; ---------------------------------------------------------------------------
+
+(deftest residual->constraints-nested-test
+  (testing "converts nested path residual"
+    (let [residual    {[:user :role] [[:= "admin"]]}
+          constraints (engine/residual->constraints residual)]
+      (is (= [[:= :doc/user.role "admin"]] constraints))))
+  (testing "converts multiple nested paths"
+    (let [residual    {[:user :role] [[:= "admin"]]
+                       [:user :level] [[:> 5]]}
+          constraints (engine/residual->constraints residual)]
+      (is (= 2 (count constraints)))
+      (is (some #(= [:= :doc/user.role "admin"] %) constraints))
+      (is (some #(= [:> :doc/user.level 5] %) constraints)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Binding Context Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest with-binding-test
+  (testing "adds binding to context"
+    (let [ctx  {}
+          ctx' (engine/with-binding ctx :u {:name "Alice"})]
+      (is (= {:name "Alice"} (engine/get-binding ctx' :u))))))
+
+(deftest get-binding-test
+  (testing "returns nil for missing binding"
+    (is (nil? (engine/get-binding {} :u))))
+  (testing "returns bound value"
+    (let [ctx (engine/with-binding {} :u {:role "admin"})]
+      (is (= {:role "admin"} (engine/get-binding ctx :u))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Forall Evaluation Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest forall-all-satisfy-test
+  (testing "all elements satisfy - returns true"
+    (is (= true (engine/evaluate
+                 [:forall [:u :doc/users] [:= :u/role "admin"]]
+                 {:users [{:role "admin"} {:role "admin"}]})))))
+
+(deftest forall-one-contradicts-test
+  (testing "one element contradicts - returns false"
+    (is (= false (engine/evaluate
+                  [:forall [:u :doc/users] [:= :u/role "admin"]]
+                  {:users [{:role "admin"} {:role "guest"}]})))))
+
+(deftest forall-empty-collection-test
+  (testing "empty collection - returns true (vacuous truth)"
+    (is (= true (engine/evaluate
+                 [:forall [:u :doc/users] [:= :u/role "admin"]]
+                 {:users []})))))
+
+(deftest forall-missing-collection-test
+  (testing "missing collection - returns residual"
+    (let [result (engine/evaluate
+                  [:forall [:u :doc/users] [:= :u/role "admin"]]
+                  {})]
+      (is (engine/residual? result))
+      (is (contains? (:residual result) [:users])))))
+
+(deftest forall-non-sequential-test
+  (testing "non-sequential collection - returns false"
+    (is (= false (engine/evaluate
+                  [:forall [:u :doc/users] [:= :u/role "admin"]]
+                  {:users "not-a-list"})))))
+
+(deftest forall-partial-elements-test
+  (testing "partial elements - returns residual with indices"
+    (let [result (engine/evaluate
+                  [:forall [:u :doc/users] [:= :u/role "admin"]]
+                  {:users [{:role "admin"} {:name "Bob"}]})]
+      (is (engine/residual? result))
+      (is (contains? (:residual result) [:users 1 :role])))))
+
+(deftest forall-nested-path-test
+  (testing "forall with nested path access in body"
+    (is (= true (engine/evaluate
+                 [:forall [:u :doc/users] [:= :u/profile.verified true]]
+                 {:users [{:profile {:verified true}}
+                          {:profile {:verified true}}]})))))
+
+;;; ---------------------------------------------------------------------------
+;;; Exists Evaluation Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest exists-one-satisfies-test
+  (testing "one element satisfies - returns true"
+    (is (= true (engine/evaluate
+                 [:exists [:u :doc/users] [:= :u/role "admin"]]
+                 {:users [{:role "guest"} {:role "admin"}]})))))
+
+(deftest exists-none-satisfy-test
+  (testing "no elements satisfy - returns false"
+    (is (= false (engine/evaluate
+                  [:exists [:u :doc/users] [:= :u/role "admin"]]
+                  {:users [{:role "guest"} {:role "user"}]})))))
+
+(deftest exists-empty-collection-test
+  (testing "empty collection - returns false"
+    (is (= false (engine/evaluate
+                  [:exists [:u :doc/users] [:= :u/role "admin"]]
+                  {:users []})))))
+
+(deftest exists-missing-collection-test
+  (testing "missing collection - returns residual"
+    (let [result (engine/evaluate
+                  [:exists [:u :doc/users] [:= :u/role "admin"]]
+                  {})]
+      (is (engine/residual? result)))))
+
+(deftest exists-non-sequential-test
+  (testing "non-sequential collection - returns false"
+    (is (= false (engine/evaluate
+                  [:exists [:u :doc/users] [:= :u/role "admin"]]
+                  {:users "not-a-list"})))))
+
+(deftest exists-partial-elements-test
+  (testing "some residual, none true - returns residual"
+    (let [result (engine/evaluate
+                  [:exists [:u :doc/users] [:= :u/role "admin"]]
+                  {:users [{:name "Bob"} {:name "Alice"}]})]
+      (is (engine/residual? result)))))
+
+(deftest exists-short-circuit-test
+  (testing "short-circuits on first true"
+    (is (= true (engine/evaluate
+                 [:exists [:u :doc/users] [:= :u/role "admin"]]
+                 {:users [{:role "admin"} {:name "missing-role"}]})))))
+
+;;; ---------------------------------------------------------------------------
+;;; Nested Quantifiers Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest nested-forall-exists-satisfied-test
+  (testing "every team has at least one lead - satisfied"
+    (is (= true (engine/evaluate
+                 [:forall [:team :doc/teams]
+                  [:exists [:member :team/members]
+                   [:= :member/role "lead"]]]
+                 {:teams [{:members [{:role "lead"}]}
+                          {:members [{:role "dev"} {:role "lead"}]}]})))))
+
+(deftest nested-forall-exists-contradicted-test
+  (testing "one team has no lead - contradicted"
+    (is (= false (engine/evaluate
+                  [:forall [:team :doc/teams]
+                   [:exists [:member :team/members]
+                    [:= :member/role "lead"]]]
+                  {:teams [{:members [{:role "lead"}]}
+                           {:members [{:role "dev"}]}]})))))
+
+(deftest nested-missing-inner-collection-test
+  (testing "nested with missing inner collection - residual"
+    (let [result (engine/evaluate
+                  [:forall [:team :doc/teams]
+                   [:exists [:member :team/members]
+                    [:= :member/role "lead"]]]
+                  {:teams [{:members [{:role "lead"}]}
+                           {:name "B"}]})]
+      (is (engine/residual? result)))))
+
+(deftest nested-exists-forall-test
+  (testing "exists team where all members are certified"
+    (is (= true (engine/evaluate
+                 [:exists [:team :doc/teams]
+                  [:forall [:member :team/members]
+                   [:= :member/certified true]]]
+                 {:teams [{:members [{:certified false}]}
+                          {:members [{:certified true} {:certified true}]}]})))))
+
+;;; ---------------------------------------------------------------------------
+;;; Quantifier with Comparison Operators
+;;; ---------------------------------------------------------------------------
+
+(deftest forall-with-greater-than-test
+  (testing "forall with > operator"
+    (is (= true (engine/evaluate
+                 [:forall [:u :doc/users] [:> :u/score 50]]
+                 {:users [{:score 75} {:score 100}]})))
+    (is (= false (engine/evaluate
+                  [:forall [:u :doc/users] [:> :u/score 50]]
+                  {:users [{:score 75} {:score 30}]})))))
+
+(deftest exists-with-in-operator-test
+  (testing "exists with :in operator"
+    (is (= true (engine/evaluate
+                 [:exists [:u :doc/users] [:in :u/status #{"active" "pending"}]]
+                 {:users [{:status "closed"} {:status "active"}]})))
+    (is (= false (engine/evaluate
+                  [:exists [:u :doc/users] [:in :u/status #{"active" "pending"}]]
+                  {:users [{:status "closed"} {:status "expired"}]})))))
