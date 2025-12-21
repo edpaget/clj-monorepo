@@ -1,0 +1,72 @@
+{
+  "timestamp": "2025-12-20T23:13:04.102292Z",
+  "engine": "opa",
+  "benchmarks": [
+    {
+      "name": "opa/simple-satisfied",
+      "results": {
+        "gc-count": null,
+        "lower-q": 6500,
+        "mean-ns": 9256,
+        "samples": 1000,
+        "std-dev": 18811,
+        "upper-q": 8750
+      }
+    },
+    {
+      "name": "opa/simple-contradicted",
+      "results": {
+        "gc-count": null,
+        "lower-q": 3750,
+        "mean-ns": 5111,
+        "samples": 1000,
+        "std-dev": 9193,
+        "upper-q": 4500
+      }
+    },
+    {
+      "name": "opa/medium-satisfied",
+      "results": {
+        "gc-count": null,
+        "lower-q": 9625,
+        "mean-ns": 12283,
+        "samples": 1000,
+        "std-dev": 14611,
+        "upper-q": 11542
+      }
+    },
+    {
+      "name": "opa/medium-partial",
+      "results": {
+        "gc-count": null,
+        "lower-q": 2459,
+        "mean-ns": 3177,
+        "samples": 1000,
+        "std-dev": 4360,
+        "upper-q": 3000
+      }
+    },
+    {
+      "name": "opa/complex-satisfied",
+      "results": {
+        "gc-count": null,
+        "lower-q": 9584,
+        "mean-ns": 12304,
+        "samples": 1000,
+        "std-dev": 14085,
+        "upper-q": 11666
+      }
+    },
+    {
+      "name": "opa/complex-partial",
+      "results": {
+        "gc-count": null,
+        "lower-q": 2750,
+        "mean-ns": 3688,
+        "samples": 1000,
+        "std-dev": 4815,
+        "upper-q": 3459
+      }
+    }
+  ]
+}

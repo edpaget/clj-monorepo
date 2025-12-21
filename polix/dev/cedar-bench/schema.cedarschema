@@ -1,0 +1,27 @@
+entity User {
+    role: String,
+    level: Long,
+    status: String,
+    age: Long,
+    score: Long,
+    department: String,
+    clearance: Long,
+    tenure: Long,
+    karma: Long,
+    warnings: Long,
+    reputation: Long,
+    verified: Bool,
+    region: String,
+    "restricted-flag": String,
+    "account-age": Long,
+    "trust-score": Long,
+    subscription: String,
+    trial: Bool,
+};
+
+entity Resource {};
+
+action "access" appliesTo {
+    principal: User,
+    resource: Resource,
+};
