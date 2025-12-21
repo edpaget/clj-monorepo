@@ -117,15 +117,18 @@
   "Converts a policy AST to a normalized constraint structure.
 
    Returns a map with:
-   - `:op` - `:and`, `:or`, `:constraint`, `:quantifier`, or `:complex`
+   - `:op` - `:and`, `:or`, `:constraint`, `:quantifier`, `:value-fn`, or `:complex`
    - `:constraints` - for `:and`/`:or`, vector of child structures
    - `:constraint` - for `:constraint`, the Constraint record
    - `:negated` - boolean for negated constraints
-   - `:ast` - for `:quantifier` and `:complex`, the original AST node"
+   - `:ast` - for `:quantifier`, `:value-fn`, and `:complex`, the original AST node"
   [ast]
   (case (:type ast)
     ::ast/quantifier
     {:op :quantifier :ast ast}
+
+    ::ast/value-fn
+    {:op :value-fn :ast ast}
 
     ::ast/function-call
     (let [op       (:value ast)
@@ -169,7 +172,7 @@
     :and (mapcat collect-constraints (:children normalized))
     :constraint [(:constraint normalized)]
     :literal []
-    :quantifier [{:complex normalized}]
+    (:quantifier :value-fn) [{:complex normalized}]
     ;; For OR and complex, we can't easily flatten
     [{:complex normalized}]))
 
@@ -300,7 +303,7 @@
   [complex-nodes document ctx]
   (let [results (map (fn [node]
                        (let [normalized (:complex node)
-                             ast (:ast normalized)]
+                             ast        (:ast normalized)]
                          (engine/eval-ast-3v ast document ctx)))
                      complex-nodes)]
     (engine/eval-and results)))
@@ -314,13 +317,13 @@
    When `:trace?` is enabled in ctx, returns `{:result <value> :trace [...]}`
    where `<value>` is true, false, or `{:residual ...}`."
   [constraint-set document ctx]
-  (let [complex-nodes (get constraint-set ::complex)
+  (let [complex-nodes     (get constraint-set ::complex)
         constraint-result (engine/evaluate-constraint-set
                            (dissoc constraint-set ::complex) document ctx)
-        final-result (if (or (false? constraint-result) (empty? complex-nodes))
-                       constraint-result
-                       (let [complex-result (evaluate-complex-nodes complex-nodes document ctx)]
-                         (engine/eval-and [constraint-result complex-result])))]
+        final-result      (if (or (false? constraint-result) (empty? complex-nodes))
+                            constraint-result
+                            (let [complex-result (evaluate-complex-nodes complex-nodes document ctx)]
+                              (engine/eval-and [constraint-result complex-result])))]
     (if (and (:trace? ctx) (:trace ctx))
       {:result final-result :trace @(:trace ctx)}
       final-result)))

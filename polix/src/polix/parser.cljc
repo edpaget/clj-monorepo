@@ -115,7 +115,7 @@
 
     :else
     (let [[binding-name coll-path & rest-args] binding-form
-          has-where? (= :where (first rest-args))]
+          has-where?                           (= :where (first rest-args))]
       (cond
         (not (or (symbol? binding-name) (keyword? binding-name)))
         (r/error {:error :invalid-binding-name
@@ -152,7 +152,7 @@
                                 :path (r/unwrap path-result)}]
               (if-not has-where?
                 (r/ok base-binding)
-                (let [where-expr (second rest-args)
+                (let [where-expr   (second rest-args)
                       where-result (parse-policy where-expr
                                                  [(first position) (+ (second position) 3)])]
                   (if (r/error? where-result)
@@ -198,10 +198,10 @@
       (if (r/error? path-result)
         (r/error (assoc (r/unwrap path-result) :position position))
         (r/ok (ast/ast-node ::ast/doc-accessor
-                           (r/unwrap path-result)
-                           position
-                           nil
-                           {:binding-ns (namespace token)}))))
+                            (r/unwrap path-result)
+                            position
+                            nil
+                            {:binding-ns (namespace token)}))))
 
     (thunkable? token)
     (r/ok (ast/ast-node ::ast/thunk (fn [] token) position))
@@ -233,8 +233,8 @@
               :position position})
 
     :else
-    (let [binding-form (first args)
-          body-expr (second args)
+    (let [binding-form   (first args)
+          body-expr      (second args)
           binding-result (parse-binding binding-form [(first position) (inc (second position))])]
       (if (r/error? binding-result)
         binding-result

@@ -220,8 +220,8 @@
 (deftest parse-binding-where-complex-predicate-test
   (testing "parses binding with complex :where predicate"
     (let [result (parser/parse-binding
-                   [:u :doc/users :where [:and [:= :u/active true] [:> :u/age 18]]]
-                   [0 0])]
+                  [:u :doc/users :where [:and [:= :u/active true] [:> :u/age 18]]]
+                  [0 0])]
       (is (r/ok? result))
       (let [binding (r/unwrap result)]
         (is (= :and (:value (:where binding))))))))
@@ -279,7 +279,7 @@
                    [:exists [:member :team/members]
                     [:= :member/role "lead"]]])]
       (is (r/ok? result))
-      (let [ast (r/unwrap result)
+      (let [ast   (r/unwrap result)
             inner (first (:children ast))]
         (is (= ::ast/quantifier (:type ast)))
         (is (= :forall (:value ast)))
@@ -289,9 +289,9 @@
 
 (deftest parse-binding-accessor-in-body-test
   (testing "binding accessor in body has correct metadata"
-    (let [result (parser/parse-policy [:forall [:u :doc/users] [:= :u/role "admin"]])
-          ast (r/unwrap result)
-          body (first (:children ast))
+    (let [result   (parser/parse-policy [:forall [:u :doc/users] [:= :u/role "admin"]])
+          ast      (r/unwrap result)
+          body     (first (:children ast))
           accessor (first (:children body))]
       (is (= ::ast/doc-accessor (:type accessor)))
       (is (= [:role] (:value accessor)))
@@ -318,8 +318,8 @@
 (deftest parse-forall-with-filter-test
   (testing "parses forall with :where clause"
     (let [result (parser/parse-policy
-                   [:forall [:u :doc/users :where [:= :u/active true]]
-                    [:= :u/role "admin"]])]
+                  [:forall [:u :doc/users :where [:= :u/active true]]
+                   [:= :u/role "admin"]])]
       (is (r/ok? result))
       (let [ast (r/unwrap result)]
         (is (= ::ast/quantifier (:type ast)))
@@ -329,8 +329,8 @@
 (deftest parse-exists-with-filter-test
   (testing "parses exists with :where clause"
     (let [result (parser/parse-policy
-                   [:exists [:t :doc/teams :where [:> :t/size 3]]
-                    [:= :t/status "active"]])]
+                  [:exists [:t :doc/teams :where [:> :t/size 3]]
+                   [:= :t/status "active"]])]
       (is (r/ok? result))
       (let [ast (r/unwrap result)]
         (is (= ::ast/quantifier (:type ast)))
@@ -340,11 +340,11 @@
 (deftest parse-nested-quantifiers-with-filters-test
   (testing "parses nested quantifiers with filters"
     (let [result (parser/parse-policy
-                   [:forall [:team :doc/teams :where [:= :team/active true]]
-                    [:exists [:m :team/members :where [:> :m/level 5]]
-                     [:= :m/role "lead"]]])]
+                  [:forall [:team :doc/teams :where [:= :team/active true]]
+                   [:exists [:m :team/members :where [:> :m/level 5]]
+                    [:= :m/role "lead"]]])]
       (is (r/ok? result))
-      (let [ast (r/unwrap result)
+      (let [ast   (r/unwrap result)
             inner (first (:children ast))]
         (is (some? (get-in ast [:metadata :binding :where])))
         (is (some? (get-in inner [:metadata :binding :where])))))))
@@ -372,7 +372,7 @@
 (deftest parse-fn-count-with-filter-test
   (testing "parses fn/count with filtered binding"
     (let [result (parser/parse-policy
-                   [:fn/count [:u :doc/users :where [:= :u/active true]]])]
+                  [:fn/count [:u :doc/users :where [:= :u/active true]]])]
       (is (r/ok? result))
       (let [ast (r/unwrap result)]
         (is (= ::ast/value-fn (:type ast)))

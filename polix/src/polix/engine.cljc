@@ -33,6 +33,7 @@
   (:require
    [clojure.string :as str]
    [polix.ast :as ast]
+   [polix.collection-ops :as coll-ops]
    [polix.operators :as op]
    [polix.parser :as parser]
    [polix.result :as r]))
@@ -125,24 +126,6 @@
     {}
     residuals)})
 
-(defn- index-residual
-  "Transforms residual paths to include collection index.
-
-  Takes a residual result and prefixes all paths with the collection path
-  and element index, e.g., `{[:role] [...]}` becomes `{[:users 0 :role] [...]}`."
-  [residual-result coll-path index]
-  (let [indexed-path (conj coll-path index)]
-    {:residual
-     (into {}
-           (map (fn [[path constraints]]
-                  [(vec (concat indexed-path path)) constraints])
-                (:residual residual-result)))}))
-
-(defn- merge-residual-paths
-  "Merges residual path maps from multiple residual results."
-  [acc residual-result]
-  (merge-with into acc (:residual residual-result)))
-
 ;;; ---------------------------------------------------------------------------
 ;;; Three-Valued Boolean Logic
 ;;; ---------------------------------------------------------------------------
@@ -192,230 +175,28 @@
     :else {:complex {:op :not :child result}}))
 
 ;;; ---------------------------------------------------------------------------
-;;; Quantifier Evaluation
+;;; Collection Operator Helpers
 ;;; ---------------------------------------------------------------------------
 
 (declare eval-ast-3v)
 
-(defn- resolve-collection
-  "Resolves the collection for a quantifier binding.
+(defn- traverse-fns
+  "Returns the function map needed by traverse-collection."
+  []
+  {:eval-ast-fn eval-ast-3v
+   :with-binding-fn with-binding
+   :get-binding-fn get-binding
+   :path-exists-fn path-exists?})
 
-  Returns `{:ok collection}` if found, or `{:missing path}` if the collection
-  path doesn't exist, or `{:invalid value}` if the value is not sequential."
-  [binding document ctx]
-  (let [{:keys [namespace path]} binding
-        source (if (= "doc" namespace)
-                 document
-                 (get-binding ctx (keyword namespace)))]
-    (cond
-      (nil? source)
-      {:missing path}
+(defn- evaluate-collection-op
+  "Evaluates a collection operation using the registered operator.
 
-      (not (path-exists? source path))
-      {:missing path}
-
-      :else
-      (let [coll (get-in source path)]
-        (if (sequential? coll)
-          {:ok coll}
-          {:invalid coll})))))
-
-(defn- evaluate-filter
-  "Evaluates a filter predicate for a single element.
-
-  Returns:
-  - `:include` if filter evaluates to true
-  - `:exclude` if filter evaluates to false
-  - `{:residual ...}` if filter has missing data"
-  [where-ast element document ctx binding-name]
-  (let [elem-ctx (with-binding ctx binding-name element)
-        result (eval-ast-3v where-ast document elem-ctx)]
-    (cond
-      (true? result) :include
-      (false? result) :exclude
-      (residual? result) result
-      result :include
-      :else :exclude)))
-
-(defn- evaluate-forall
-  "Evaluates forall quantifier with optional filter and three-valued logic.
-
-   - All elements satisfy → true
-   - Any element contradicts → false (short-circuit)
-   - Empty collection → true (vacuous truth)
-   - Collection missing → residual
-   - Non-sequential value → false (type mismatch)
-   - Some elements residual, none false → residual with indexed paths
-
-   With `:where` filter:
-   - Elements excluded by filter are skipped
-   - Filter residual + body would fail → residual (might include and fail)
-   - Filter residual + body passes → continue (safe for forall)"
-  [binding body document ctx]
-  (let [coll-result (resolve-collection binding document ctx)
-        {:keys [name path where]} binding]
-    (cond
-      (:missing coll-result)
-      {:residual {path [[:forall binding body]]}}
-
-      (:invalid coll-result)
-      false
-
-      :else
-      (let [coll (:ok coll-result)]
-        (if (empty? coll)
-          true
-          (loop [elements (seq coll)
-                 index 0
-                 residuals {}]
-            (if (empty? elements)
-              (if (empty? residuals)
-                true
-                {:residual residuals})
-              (let [elem (first elements)]
-                (if-not where
-                  ;; No filter - original behavior
-                  (let [elem-ctx (with-binding ctx name elem)
-                        result (eval-ast-3v body document elem-ctx)]
-                    (cond
-                      (false? result)
-                      false
-
-                      (residual? result)
-                      (let [indexed (index-residual result path index)]
-                        (recur (rest elements)
-                               (inc index)
-                               (merge-residual-paths residuals indexed)))
-
-                      :else
-                      (recur (rest elements) (inc index) residuals)))
-
-                  ;; With filter
-                  (let [filter-result (evaluate-filter where elem document ctx name)]
-                    (cond
-                      ;; Element excluded by filter - skip
-                      (= :exclude filter-result)
-                      (recur (rest elements) (inc index) residuals)
-
-                      ;; Filter has residual - element might be included
-                      (residual? filter-result)
-                      (let [elem-ctx (with-binding ctx name elem)
-                            body-result (eval-ast-3v body document elem-ctx)]
-                        (if (false? body-result)
-                          ;; Potential contradiction - record filter residual
-                          (let [indexed (index-residual filter-result path index)]
-                            (recur (rest elements)
-                                   (inc index)
-                                   (merge-residual-paths residuals indexed)))
-                          ;; Body passes or residual - safe to continue
-                          (recur (rest elements) (inc index) residuals)))
-
-                      ;; Element included by filter - evaluate body
-                      :else
-                      (let [elem-ctx (with-binding ctx name elem)
-                            result (eval-ast-3v body document elem-ctx)]
-                        (cond
-                          (false? result)
-                          false
-
-                          (residual? result)
-                          (let [indexed (index-residual result path index)]
-                            (recur (rest elements)
-                                   (inc index)
-                                   (merge-residual-paths residuals indexed)))
-
-                          :else
-                          (recur (rest elements) (inc index) residuals))))))))))))))
-
-(defn- evaluate-exists
-  "Evaluates exists quantifier with optional filter and three-valued logic.
-
-   - Any element satisfies → true (short-circuit)
-   - All elements contradict → false
-   - Empty collection → false
-   - Collection missing → residual
-   - Non-sequential value → false (type mismatch)
-   - Some elements residual, none true → residual with indexed paths
-
-   With `:where` filter:
-   - Elements excluded by filter are skipped
-   - Filter residual + body passes → residual (might include and pass)
-   - Filter residual + body fails → continue (safe for exists)"
-  [binding body document ctx]
-  (let [coll-result (resolve-collection binding document ctx)
-        {:keys [name path where]} binding]
-    (cond
-      (:missing coll-result)
-      {:residual {path [[:exists binding body]]}}
-
-      (:invalid coll-result)
-      false
-
-      :else
-      (let [coll (:ok coll-result)]
-        (if (empty? coll)
-          false
-          (loop [elements (seq coll)
-                 index 0
-                 residuals {}]
-            (if (empty? elements)
-              (if (empty? residuals)
-                false
-                {:residual residuals})
-              (let [elem (first elements)]
-                (if-not where
-                  ;; No filter - original behavior
-                  (let [elem-ctx (with-binding ctx name elem)
-                        result (eval-ast-3v body document elem-ctx)]
-                    (cond
-                      (true? result)
-                      true
-
-                      (residual? result)
-                      (let [indexed (index-residual result path index)]
-                        (recur (rest elements)
-                               (inc index)
-                               (merge-residual-paths residuals indexed)))
-
-                      :else
-                      (recur (rest elements) (inc index) residuals)))
-
-                  ;; With filter
-                  (let [filter-result (evaluate-filter where elem document ctx name)]
-                    (cond
-                      ;; Element excluded by filter - skip
-                      (= :exclude filter-result)
-                      (recur (rest elements) (inc index) residuals)
-
-                      ;; Filter has residual - element might be included
-                      (residual? filter-result)
-                      (let [elem-ctx (with-binding ctx name elem)
-                            body-result (eval-ast-3v body document elem-ctx)]
-                        (if (true? body-result)
-                          ;; Potential satisfaction - record filter residual
-                          (let [indexed (index-residual filter-result path index)]
-                            (recur (rest elements)
-                                   (inc index)
-                                   (merge-residual-paths residuals indexed)))
-                          ;; Body fails or residual - safe to continue
-                          (recur (rest elements) (inc index) residuals)))
-
-                      ;; Element included by filter - evaluate body
-                      :else
-                      (let [elem-ctx (with-binding ctx name elem)
-                            result (eval-ast-3v body document elem-ctx)]
-                        (cond
-                          (true? result)
-                          true
-
-                          (residual? result)
-                          (let [indexed (index-residual result path index)]
-                            (recur (rest elements)
-                                   (inc index)
-                                   (merge-residual-paths residuals indexed)))
-
-                          :else
-                          (recur (rest elements) (inc index) residuals))))))))))))))
+  Looks up the operator in the registry and calls traverse-collection.
+  Falls back to a complex result if the operator is unknown."
+  [op-key binding body document ctx]
+  (if-let [coll-op (coll-ops/get-collection-op op-key)]
+    (coll-ops/traverse-collection coll-op binding body document ctx (traverse-fns))
+    {:complex {:unknown-collection-op op-key}}))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Evaluation
@@ -502,12 +283,12 @@
 
 (defmethod eval-ast-3v ::ast/doc-accessor
   [node document ctx]
-  (let [path (:value node)
+  (let [path       (:value node)
         binding-ns (get-in node [:metadata :binding-ns])]
     (if binding-ns
       ;; Binding accessor - look up in context
       (let [binding-name (keyword binding-ns)
-            bound-value (get-binding ctx binding-name)]
+            bound-value  (get-binding ctx binding-name)]
         (if (nil? bound-value)
           {:residual {path [[:binding binding-name :any]]}}
           (if (path-exists? bound-value path)
@@ -521,67 +302,15 @@
 (defmethod eval-ast-3v ::ast/quantifier
   [node document ctx]
   (let [quantifier-type (:value node)
-        binding (get-in node [:metadata :binding])
-        body (first (:children node))]
-    (case quantifier-type
-      :forall (evaluate-forall binding body document ctx)
-      :exists (evaluate-exists binding body document ctx))))
-
-(defn- evaluate-count
-  "Evaluates :count value function with optional filter."
-  [binding document ctx]
-  (let [{:keys [namespace path name where]} binding
-        source (if (or (nil? namespace) (= "doc" namespace))
-                 document
-                 (get-binding ctx (keyword namespace)))]
-    (cond
-      (nil? source)
-      {:residual {path [[:fn/count (if where {:binding binding} :all)]]}}
-
-      (not (path-exists? source path))
-      {:residual {path [[:fn/count (if where {:binding binding} :all)]]}}
-
-      :else
-      (let [coll (get-in source path)]
-        (cond
-          (not (sequential? coll))
-          0
-
-          (nil? where)
-          (count coll)
-
-          :else
-          (loop [elements (seq coll)
-                 index 0
-                 counted 0
-                 residuals {}]
-            (if (empty? elements)
-              (if (empty? residuals)
-                counted
-                {:residual residuals :partial-count counted})
-              (let [elem (first elements)
-                    filter-result (evaluate-filter where elem document ctx name)]
-                (cond
-                  (= :exclude filter-result)
-                  (recur (rest elements) (inc index) counted residuals)
-
-                  (residual? filter-result)
-                  (let [indexed (index-residual filter-result path index)]
-                    (recur (rest elements)
-                           (inc index)
-                           counted
-                           (merge-residual-paths residuals indexed)))
-
-                  :else
-                  (recur (rest elements) (inc index) (inc counted) residuals))))))))))
+        binding         (get-in node [:metadata :binding])
+        body            (first (:children node))]
+    (evaluate-collection-op quantifier-type binding body document ctx)))
 
 (defmethod eval-ast-3v ::ast/value-fn
   [node document ctx]
   (let [fn-type (:value node)
         binding (get-in node [:metadata :binding])]
-    (case fn-type
-      :count (evaluate-count binding document ctx)
-      {:complex {:unknown-value-fn fn-type}})))
+    (evaluate-collection-op fn-type binding nil document ctx)))
 
 (defn- evaluate-children
   "Evaluates all child nodes of a function call."
@@ -591,12 +320,12 @@
 (defn- resolve-accessor-value
   "Resolves the value for a doc-accessor node, handling both document and binding accessors."
   [accessor-node document ctx]
-  (let [path (:value accessor-node)
+  (let [path       (:value accessor-node)
         binding-ns (get-in accessor-node [:metadata :binding-ns])]
     (if binding-ns
       ;; Binding accessor
       (let [binding-name (keyword binding-ns)
-            bound-value (get-binding ctx binding-name)]
+            bound-value  (get-binding ctx binding-name)]
         (if (and bound-value (path-exists? bound-value path))
           {:found true :value (get-in bound-value path)}
           {:found false}))
@@ -616,9 +345,9 @@
         ;; [:= :doc/key value] or [:= :u/key value]
         (and (= ::ast/doc-accessor left-type)
              (= ::ast/literal right-type))
-        (let [path       (:value left)
-              expected   (:value right)
-              resolved   (resolve-accessor-value left document ctx)]
+        (let [path     (:value left)
+              expected (:value right)
+              resolved (resolve-accessor-value left document ctx)]
           (if (:found resolved)
             (let [constraint {:op op-key :value expected}
                   result     (evaluate-constraint ctx constraint (:value resolved))]
