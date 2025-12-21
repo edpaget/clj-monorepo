@@ -27,10 +27,10 @@
     (let [trigger {:self "entity-1"
                    :owner "player-1"
                    :source "ability-1"}
-          event {:type :entity/damaged
-                 :target-id "entity-1"
-                 :amount 5}
-          doc (condition/build-trigger-document trigger event)]
+          event   {:type :entity/damaged
+                   :target-id "entity-1"
+                   :amount 5}
+          doc     (condition/build-trigger-document trigger event)]
       (is (= "entity-1" (:self doc)))
       (is (= "player-1" (:owner doc)))
       (is (= "ability-1" (:source doc)))
@@ -40,8 +40,8 @@
 
   (testing "handles nil bindings"
     (let [trigger {:self nil :owner nil :source "src"}
-          event {:type :test/event}
-          doc (condition/build-trigger-document trigger event)]
+          event   {:type :test/event}
+          doc     (condition/build-trigger-document trigger event)]
       (is (nil? (:self doc)))
       (is (nil? (:owner doc)))
       (is (= "src" (:source doc))))))
@@ -53,7 +53,7 @@
                    :source "ability-1"
                    :condition-fn (condition/compile-condition
                                   [:= :doc/target-id :doc/self])}
-          event {:type :entity/damaged :target-id "entity-1"}]
+          event   {:type :entity/damaged :target-id "entity-1"}]
       (is (true? (condition/evaluate-condition trigger event)))))
 
   (testing "evaluates raw condition"
@@ -61,12 +61,12 @@
                    :owner "player-1"
                    :source "ability-1"
                    :condition [:= :doc/target-id :doc/self]}
-          event {:type :entity/damaged :target-id "entity-1"}]
+          event   {:type :entity/damaged :target-id "entity-1"}]
       (is (true? (condition/evaluate-condition trigger event)))))
 
   (testing "returns true when no condition"
     (let [trigger {:self "entity-1" :owner "player-1" :source "ability-1"}
-          event {:type :entity/damaged}]
+          event   {:type :entity/damaged}]
       (is (true? (condition/evaluate-condition trigger event)))))
 
   (testing "returns false when condition not satisfied"
@@ -74,7 +74,7 @@
                    :owner "player-1"
                    :source "ability-1"
                    :condition [:= :doc/target-id :doc/self]}
-          event {:type :entity/damaged :target-id "entity-2"}]
+          event   {:type :entity/damaged :target-id "entity-2"}]
       (is (false? (condition/evaluate-condition trigger event)))))
 
   (testing "returns residual for incomplete evaluation"
@@ -84,7 +84,7 @@
                    :condition [:and
                                [:= :doc/target-id :doc/self]
                                [:> :doc/amount 10]]}
-          event {:type :entity/damaged :target-id "entity-1"}]
+          event   {:type :entity/damaged :target-id "entity-1"}]
       (let [result (condition/evaluate-condition trigger event)]
         (is (map? result))
         (is (contains? result :residual))))))

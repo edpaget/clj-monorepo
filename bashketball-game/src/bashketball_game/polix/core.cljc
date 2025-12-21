@@ -5,8 +5,8 @@
   with the polix libraries. Call once at application startup before evaluating
   any policies or applying any effects."
   (:require
-   [bashketball-game.polix.operators :as operators]
-   [bashketball-game.polix.effects :as effects]))
+   [bashketball-game.polix.effects :as effects]
+   [bashketball-game.polix.operators :as operators]))
 
 (defn initialize!
   "Initializes all bashketball polix integrations.

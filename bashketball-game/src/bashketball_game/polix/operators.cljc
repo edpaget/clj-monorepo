@@ -32,49 +32,49 @@
   []
 
   (op/register-operator! :bashketball/hex-distance
-    {:eval (fn [pos1 pos2]
-             (board/hex-distance pos1 pos2))})
+                         {:eval (fn [pos1 pos2]
+                                  (board/hex-distance pos1 pos2))})
 
   (op/register-operator! :bashketball/distance-to-basket
-    {:eval (fn [position team]
-             (let [basket (if (= team :team/HOME)
-                            [2 13]
-                            [2 0])]
-               (board/hex-distance position basket)))})
+                         {:eval (fn [position team]
+                                  (let [basket (if (= team :team/HOME)
+                                                 [2 13]
+                                                 [2 0])]
+                                    (board/hex-distance position basket)))})
 
   (op/register-operator! :bashketball/path-clear?
-    {:eval (fn [game-state start end]
-             (board/path-clear? (:board game-state) start end))})
+                         {:eval (fn [game-state start end]
+                                  (board/path-clear? (:board game-state) start end))})
 
   (op/register-operator! :bashketball/can-move-to?
-    {:eval (fn [game-state player-id position]
-             (movement/can-move-to? game-state player-id position))})
+                         {:eval (fn [game-state player-id position]
+                                  (movement/can-move-to? game-state player-id position))})
 
   (op/register-operator! :bashketball/valid-position?
-    {:eval (fn [position _]
-             (board/valid-position? position))})
+                         {:eval (fn [position _]
+                                  (board/valid-position? position))})
 
   (op/register-operator! :bashketball/player-exhausted?
-    {:eval (fn [game-state player-id]
-             (boolean (:exhausted (state/get-basketball-player game-state player-id))))})
+                         {:eval (fn [game-state player-id]
+                                  (boolean (:exhausted (state/get-basketball-player game-state player-id))))})
 
   (op/register-operator! :bashketball/player-on-court?
-    {:eval (fn [game-state player-id]
-             (some? (:position (state/get-basketball-player game-state player-id))))})
+                         {:eval (fn [game-state player-id]
+                                  (some? (:position (state/get-basketball-player game-state player-id))))})
 
   (op/register-operator! :bashketball/has-ball?
-    {:eval (fn [game-state player-id]
-             (let [ball (state/get-ball game-state)]
-               (and (= (:status ball) :ball-status/POSSESSED)
-                    (= (:holder-id ball) player-id))))})
+                         {:eval (fn [game-state player-id]
+                                  (let [ball (state/get-ball game-state)]
+                                    (and (= (:status ball) :ball-status/POSSESSED)
+                                         (= (:holder-id ball) player-id))))})
 
   (op/register-operator! :bashketball/player-team
-    {:eval (fn [game-state player-id]
-             (state/get-basketball-player-team game-state player-id))})
+                         {:eval (fn [game-state player-id]
+                                  (state/get-basketball-player-team game-state player-id))})
 
   (op/register-operator! :bashketball/count-on-court
-    {:eval (fn [game-state team]
-             (count (state/get-on-court-players game-state team)))}))
+                         {:eval (fn [game-state team]
+                                  (count (state/get-on-court-players game-state team)))}))
 
 (defn hex-distance
   "Computes hex distance between two positions.

@@ -56,8 +56,8 @@
   - `:self/team` - Team the player belongs to
   - `:self/has-ball` - Whether player has the ball"
   [game-state player-id]
-  (let [player (state/get-basketball-player game-state player-id)
-        ball (state/get-ball game-state)
+  (let [player   (state/get-basketball-player game-state player-id)
+        ball     (state/get-ball game-state)
         has-ball (and (= (:status ball) :ball-status/POSSESSED)
                       (= (:holder-id ball) player-id))]
     {:self/id player-id

@@ -16,16 +16,16 @@
   [state registry trigger event]
   (let [condition-result (condition/evaluate-condition trigger event)]
     (if (true? condition-result)
-      (let [ctx {:state state
-                 :event event
-                 :trigger trigger
-                 :self (:self trigger)
-                 :owner (:owner trigger)
-                 :source (:source trigger)}
+      (let [ctx           {:state state
+                           :event event
+                           :trigger trigger
+                           :self (:self trigger)
+                           :owner (:owner trigger)
+                           :source (:source trigger)}
             effect-result (effects/apply-effect state (:effect trigger) ctx)
-            new-registry (if (:once? trigger)
-                           (registry/unregister-trigger registry (:id trigger))
-                           registry)]
+            new-registry  (if (:once? trigger)
+                            (registry/unregister-trigger registry (:id trigger))
+                            registry)]
         {:state (:state effect-result)
          :registry new-registry
          :result {:trigger-id (:id trigger)
@@ -50,8 +50,8 @@
   (reduce
    (fn [{:keys [state registry results prevented?]} trigger]
      (let [{:keys [state registry result]} (process-trigger state registry trigger event)
-           new-prevented? (or prevented?
-                              (get-in result [:effect-result :prevented?]))]
+           new-prevented?                  (or prevented?
+                                               (get-in result [:effect-result :prevented?]))]
        {:state state
         :registry registry
         :results (conj results result)
@@ -91,14 +91,14 @@
   ;;     :prevented? false}
   ```"
   [{:keys [state registry]} event]
-  (let [triggers (registry/get-triggers-for-event registry (:type event))
+  (let [triggers                          (registry/get-triggers-for-event registry (:type event))
         {:keys [before instead after at]} (partition-by-timing triggers)
 
         ;; Process before triggers
-        before-result (process-trigger-group state registry before event)
+        before-result                     (process-trigger-group state registry before event)
 
         ;; If prevented, skip instead and after
-        prevented? (:prevented? before-result)]
+        prevented?                        (:prevented? before-result)]
     (if prevented?
       {:state (:state before-result)
        :registry (:registry before-result)
@@ -119,18 +119,18 @@
                               :prevented? false})
 
             ;; Process after triggers
-            after-result (process-trigger-group
-                          (:state instead-result)
-                          (:registry instead-result)
-                          after
-                          event)
+            after-result   (process-trigger-group
+                            (:state instead-result)
+                            (:registry instead-result)
+                            after
+                            event)
 
             ;; Process at triggers (same as after for now)
-            at-result (process-trigger-group
-                       (:state after-result)
-                       (:registry after-result)
-                       at
-                       event)]
+            at-result      (process-trigger-group
+                            (:state after-result)
+                            (:registry after-result)
+                            at
+                            event)]
         {:state (:state at-result)
          :registry (:registry at-result)
          :event event

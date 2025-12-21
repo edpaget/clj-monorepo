@@ -53,73 +53,73 @@
   []
 
   (fx/register-effect! :bashketball/move-player
-    (fn [state {:keys [player-id position]} ctx _opts]
-      (let [resolved-player-id (resolve-param player-id ctx state)
-            resolved-position (resolve-param position ctx state)
-            action {:type :bashketball/move-player
-                    :player-id resolved-player-id
-                    :position resolved-position}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action]))))
+                       (fn [state {:keys [player-id position]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-position  (resolve-param position ctx state)
+                               action             {:type :bashketball/move-player
+                                                   :player-id resolved-player-id
+                                                   :position resolved-position}
+                               new-state          (actions/apply-action state action)]
+                           (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/exhaust-player
-    (fn [state {:keys [player-id]} ctx _opts]
-      (let [resolved-player-id (resolve-param player-id ctx state)
-            action {:type :bashketball/exhaust-player
-                    :player-id resolved-player-id}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action]))))
+                       (fn [state {:keys [player-id]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               action             {:type :bashketball/exhaust-player
+                                                   :player-id resolved-player-id}
+                               new-state          (actions/apply-action state action)]
+                           (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/refresh-player
-    (fn [state {:keys [player-id]} ctx _opts]
-      (let [resolved-player-id (resolve-param player-id ctx state)
-            action {:type :bashketball/refresh-player
-                    :player-id resolved-player-id}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action]))))
+                       (fn [state {:keys [player-id]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               action             {:type :bashketball/refresh-player
+                                                   :player-id resolved-player-id}
+                               new-state          (actions/apply-action state action)]
+                           (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/give-ball
-    (fn [state {:keys [player-id]} ctx _opts]
-      (let [resolved-player-id (resolve-param player-id ctx state)
-            action {:type :bashketball/set-ball-possessed
-                    :holder-id resolved-player-id}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action]))))
+                       (fn [state {:keys [player-id]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               action             {:type :bashketball/set-ball-possessed
+                                                   :holder-id resolved-player-id}
+                               new-state          (actions/apply-action state action)]
+                           (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/loose-ball
-    (fn [state {:keys [position]} ctx _opts]
-      (let [resolved-position (resolve-param position ctx state)
-            action {:type :bashketball/set-ball-loose
-                    :position resolved-position}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action]))))
+                       (fn [state {:keys [position]} ctx _opts]
+                         (let [resolved-position (resolve-param position ctx state)
+                               action            {:type :bashketball/set-ball-loose
+                                                  :position resolved-position}
+                               new-state         (actions/apply-action state action)]
+                           (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/draw-cards
-    (fn [state {:keys [player count]} ctx _opts]
-      (let [resolved-player (resolve-param player ctx state)
-            resolved-count (resolve-param count ctx state)
-            action {:type :bashketball/draw-cards
-                    :player resolved-player
-                    :count resolved-count}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action]))))
+                       (fn [state {:keys [player count]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               resolved-count  (resolve-param count ctx state)
+                               action          {:type :bashketball/draw-cards
+                                                :player resolved-player
+                                                :count resolved-count}
+                               new-state       (actions/apply-action state action)]
+                           (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/discard-cards
-    (fn [state {:keys [player instance-ids]} ctx _opts]
-      (let [resolved-player (resolve-param player ctx state)
-            resolved-ids (resolve-param instance-ids ctx state)
-            action {:type :bashketball/discard-cards
-                    :player resolved-player
-                    :instance-ids resolved-ids}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action]))))
+                       (fn [state {:keys [player instance-ids]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               resolved-ids    (resolve-param instance-ids ctx state)
+                               action          {:type :bashketball/discard-cards
+                                                :player resolved-player
+                                                :instance-ids resolved-ids}
+                               new-state       (actions/apply-action state action)]
+                           (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/add-score
-    (fn [state {:keys [team points]} ctx _opts]
-      (let [resolved-team (resolve-param team ctx state)
-            resolved-points (resolve-param points ctx state)
-            action {:type :bashketball/add-score
-                    :team resolved-team
-                    :points resolved-points}
-            new-state (actions/apply-action state action)]
-        (fx/success new-state [action])))))
+                       (fn [state {:keys [team points]} ctx _opts]
+                         (let [resolved-team   (resolve-param team ctx state)
+                               resolved-points (resolve-param points ctx state)
+                               action          {:type :bashketball/add-score
+                                                :team resolved-team
+                                                :points resolved-points}
+                               new-state       (actions/apply-action state action)]
+                           (fx/success new-state [action])))))

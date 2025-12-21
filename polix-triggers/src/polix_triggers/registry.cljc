@@ -50,13 +50,13 @@
   key in the trigger definition."
   [registry trigger-def source-id owner self]
   (let [trigger-id (generate-id)
-        trigger (-> trigger-def
-                    (assoc :id trigger-id
-                           :source source-id
-                           :owner owner
-                           :self self)
-                    (update :priority #(or % 0))
-                    (update :once? #(or % false)))]
+        trigger    (-> trigger-def
+                       (assoc :id trigger-id
+                              :source source-id
+                              :owner owner
+                              :self self)
+                       (update :priority #(or % 0))
+                       (update :once? #(or % false)))]
     (-> registry
         (assoc-in [:triggers trigger-id] trigger)
         (update :index-by-event add-to-index trigger-id (:event-types trigger)))))

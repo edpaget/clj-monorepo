@@ -57,7 +57,7 @@
 (defn- eval-function-call
   "Evaluates a function call AST node."
   [node document]
-  (let [op-name (:value node)
+  (let [op-name  (:value node)
         children (:children node)]
     (case op-name
       :and (eval-and children document)
