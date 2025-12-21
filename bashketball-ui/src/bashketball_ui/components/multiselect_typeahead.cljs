@@ -102,7 +102,7 @@
                         :label label
                         :selected? (contains? selected-set value)
                         :on-select (fn []
-                                     (let [current (or (some-> on-change meta :value) value [])
+                                     (let [current (or value [])
                                            new-val (if (contains? selected-set value)
                                                      (vec (remove #{value} current))
                                                      (conj (vec current) value))]
