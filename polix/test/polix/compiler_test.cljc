@@ -34,9 +34,11 @@
     (let [check (compiler/compile-policies [[:= :doc/role "admin"]])]
       (is (= {} (check {:role "admin"})))))
 
-  (testing "simple equality - contradicted"
-    (let [check (compiler/compile-policies [[:= :doc/role "admin"]])]
-      (is (nil? (check {:role "guest"})))))
+  (testing "simple equality - conflict"
+    (let [check  (compiler/compile-policies [[:= :doc/role "admin"]])
+          result (check {:role "guest"})]
+      (is (res/has-conflicts? result))
+      (is (= [[:conflict [:= "admin"] "guest"]] (get result [:role])))))
 
   (testing "simple equality - missing key gives residual"
     (let [check  (compiler/compile-policies [[:= :doc/role "admin"]])
@@ -51,11 +53,12 @@
                   [:> :doc/level 5]])]
       (is (= {} (check {:role "admin" :level 10})))))
 
-  (testing "AND of multiple constraints - one contradicted"
-    (let [check (compiler/compile-policies
-                 [[:= :doc/role "admin"]
-                  [:> :doc/level 5]])]
-      (is (nil? (check {:role "admin" :level 3})))))
+  (testing "AND of multiple constraints - one conflict"
+    (let [check  (compiler/compile-policies
+                  [[:= :doc/role "admin"]
+                   [:> :doc/level 5]])
+          result (check {:role "admin" :level 3})]
+      (is (res/has-conflicts? result))))
 
   (testing "AND of multiple constraints - partial"
     (let [check  (compiler/compile-policies
@@ -70,14 +73,15 @@
     (let [check (compiler/compile-policies [[:> :doc/age 18]])]
       (is (= {} (check {:age 25})))))
 
-  (testing "range constraint - contradicted"
-    (let [check (compiler/compile-policies [[:> :doc/age 18]])]
-      (is (nil? (check {:age 16})))))
+  (testing "range constraint - conflict"
+    (let [check  (compiler/compile-policies [[:> :doc/age 18]])
+          result (check {:age 16})]
+      (is (res/has-conflicts? result))))
 
   (testing "range constraint - boundary"
     (let [check (compiler/compile-policies [[:>= :doc/age 18]])]
       (is (= {} (check {:age 18})))
-      (is (nil? (check {:age 17}))))))
+      (is (res/has-conflicts? (check {:age 17}))))))
 
 (deftest simplify-range-constraints-test
   (testing "merging range constraints keeps tightest bounds"
@@ -86,8 +90,8 @@
                   [:> :doc/x 5]
                   [:< :doc/x 10]])]
       (is (= {} (check {:x 7})))
-      (is (nil? (check {:x 4})))
-      (is (nil? (check {:x 11}))))))
+      (is (res/has-conflicts? (check {:x 4})))
+      (is (res/has-conflicts? (check {:x 11}))))))
 
 (deftest contradictory-policies-test
   (testing "contradictory equality constraints"
@@ -105,10 +109,11 @@
       (is (= {} (check {:status "active"})))
       (is (= {} (check {:status "pending"})))))
 
-  (testing "in constraint - contradicted"
-    (let [check (compiler/compile-policies
-                 [[:in :doc/status #{"active" "pending"}]])]
-      (is (nil? (check {:status "closed"}))))))
+  (testing "in constraint - conflict"
+    (let [check  (compiler/compile-policies
+                  [[:in :doc/status #{"active" "pending"}]])
+          result (check {:status "closed"})]
+      (is (res/has-conflicts? result)))))
 
 (deftest residual-to-constraints-test
   (testing "converting residual back to policy"
@@ -122,8 +127,12 @@
   (testing "satisfied result gives nil"
     (is (nil? (compiler/result->policy {}))))
 
-  (testing "contradiction result gives [:contradiction]"
+  (testing "legacy nil gives [:contradiction]"
     (is (= [:contradiction] (compiler/result->policy nil))))
+
+  (testing "conflict residual gives [:contradiction]"
+    (is (= [:contradiction]
+           (compiler/result->policy {[:x] [[:conflict [:= 1] 2]]}))))
 
   (testing "residual gives simplified constraints"
     (let [result {[:level] [[:> 5]]}
@@ -142,7 +151,7 @@
     (let [check (compiler/compile-policies
                  [[:is-uppercase :doc/name true]])]
       (is (= {} (check {:name "HELLO"})))
-      (is (nil? (check {:name "hello"}))))))
+      (is (res/has-conflicts? (check {:name "hello"}))))))
 
 (deftest context-strict-mode-test
   (testing "strict mode throws on unknown operator"
@@ -164,13 +173,13 @@
       (is (vector? (:trace result)))
       (is (= 1 (count (:trace result))))))
 
-  (testing "tracing on contradicted policy"
+  (testing "tracing on conflict policy"
     (let [check  (compiler/compile-policies
                   [[:= :doc/role "admin"]]
                   {:trace? true})
           result (check {:role "guest"})]
       (is (map? result))
-      (is (nil? (:result result)))
+      (is (res/has-conflicts? (:result result)))
       (is (contains? result :trace))
       (is (vector? (:trace result)))))
 
@@ -202,9 +211,10 @@
   (testing "compiled policy with nested path - satisfied"
     (let [checker (compiler/compile-policies [[:= :doc/user.role "admin"]])]
       (is (= {} (checker {:user {:role "admin"}})))))
-  (testing "compiled policy with nested path - contradicted"
-    (let [checker (compiler/compile-policies [[:= :doc/user.role "admin"]])]
-      (is (nil? (checker {:user {:role "guest"}})))))
+  (testing "compiled policy with nested path - conflict"
+    (let [checker (compiler/compile-policies [[:= :doc/user.role "admin"]])
+          result  (checker {:user {:role "guest"}})]
+      (is (res/has-conflicts? result))))
   (testing "compiled policy with nested path - residual"
     (let [checker (compiler/compile-policies [[:= :doc/user.role "admin"]])
           result  (checker {:user {}})]
@@ -216,21 +226,21 @@
                    [[:> :doc/user.level 5]
                     [:< :doc/user.level 10]])]
       (is (= {} (checker {:user {:level 7}})))
-      (is (nil? (checker {:user {:level 3}})))
-      (is (nil? (checker {:user {:level 12}})))))
+      (is (res/has-conflicts? (checker {:user {:level 3}})))
+      (is (res/has-conflicts? (checker {:user {:level 12}})))))
   (testing "constraints on different nested paths"
     (let [checker (compiler/compile-policies
                    [[:= :doc/user.role "admin"]
                     [:> :doc/user.level 5]])]
       (is (= {} (checker {:user {:role "admin" :level 10}})))
-      (is (nil? (checker {:user {:role "guest" :level 10}}))))))
+      (is (res/has-conflicts? (checker {:user {:role "guest" :level 10}}))))))
 
 (deftest deeply-nested-path-test
   (testing "deeply nested paths work"
     (let [checker (compiler/compile-policies
                    [[:= :doc/org.team.member.role "lead"]])]
       (is (= {} (checker {:org {:team {:member {:role "lead"}}}})))
-      (is (nil? (checker {:org {:team {:member {:role "member"}}}}))))))
+      (is (res/has-conflicts? (checker {:org {:team {:member {:role "member"}}}}))))))
 
 (deftest mixed-path-depths-test
   (testing "mix of shallow and nested paths"
@@ -238,7 +248,7 @@
                    [[:= :doc/type "user"]
                     [:= :doc/user.role "admin"]])]
       (is (= {} (checker {:type "user" :user {:role "admin"}})))
-      (is (nil? (checker {:type "order" :user {:role "admin"}}))))))
+      (is (res/has-conflicts? (checker {:type "order" :user {:role "admin"}}))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Quantifier Compilation Tests
@@ -249,10 +259,11 @@
     (let [checker (compiler/compile-policies
                    [[:forall [:u :doc/users] [:= :u/role "admin"]]])]
       (is (= {} (checker {:users [{:role "admin"} {:role "admin"}]})))))
-  (testing "compiled forall - one contradicts"
+  (testing "compiled forall - one conflict"
     (let [checker (compiler/compile-policies
-                   [[:forall [:u :doc/users] [:= :u/role "admin"]]])]
-      (is (nil? (checker {:users [{:role "admin"} {:role "guest"}]})))))
+                   [[:forall [:u :doc/users] [:= :u/role "admin"]]])
+          result  (checker {:users [{:role "admin"} {:role "guest"}]})]
+      (is (res/has-conflicts? result))))
   (testing "compiled forall - empty collection (vacuous)"
     (let [checker (compiler/compile-policies
                    [[:forall [:u :doc/users] [:= :u/role "admin"]]])]
@@ -265,12 +276,14 @@
       (is (= {} (checker {:users [{:role "guest"} {:role "admin"}]})))))
   (testing "compiled exists - none satisfy"
     (let [checker (compiler/compile-policies
-                   [[:exists [:u :doc/users] [:= :u/role "admin"]]])]
-      (is (nil? (checker {:users [{:role "guest"} {:role "user"}]})))))
+                   [[:exists [:u :doc/users] [:= :u/role "admin"]]])
+          result  (checker {:users [{:role "guest"} {:role "user"}]})]
+      (is (res/has-conflicts? result))))
   (testing "compiled exists - empty collection"
     (let [checker (compiler/compile-policies
-                   [[:exists [:u :doc/users] [:= :u/role "admin"]]])]
-      (is (nil? (checker {:users []}))))))
+                   [[:exists [:u :doc/users] [:= :u/role "admin"]]])
+          result  (checker {:users []})]
+      (is (res/has-conflicts? result)))))
 
 (deftest compile-quantifier-with-constraints-test
   (testing "quantifier combined with simple constraints"
@@ -279,10 +292,10 @@
                     [:forall [:u :doc/users] [:= :u/role "member"]]])]
       (is (= {} (checker {:status "active"
                           :users [{:role "member"}]})))
-      (is (nil? (checker {:status "inactive"
-                          :users [{:role "member"}]})))
-      (is (nil? (checker {:status "active"
-                          :users [{:role "admin"}]}))))))
+      (is (res/has-conflicts? (checker {:status "inactive"
+                                        :users [{:role "member"}]})))
+      (is (res/has-conflicts? (checker {:status "active"
+                                        :users [{:role "admin"}]}))))))
 
 (deftest compile-quantifier-residual-test
   (testing "quantifier with missing collection returns residual"
@@ -305,5 +318,6 @@
                       [:= :member/role "lead"]]]])]
       (is (= {} (checker {:teams [{:members [{:role "lead"}]}
                                   {:members [{:role "dev"} {:role "lead"}]}]})))
-      (is (nil? (checker {:teams [{:members [{:role "lead"}]}
-                                  {:members [{:role "dev"}]}]}))))))
+      (is (res/has-conflicts?
+           (checker {:teams [{:members [{:role "lead"}]}
+                             {:members [{:role "dev"}]}]}))))))

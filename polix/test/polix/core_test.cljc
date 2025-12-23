@@ -179,8 +179,9 @@
 (deftest unify-basic-test
   (testing "unify satisfied"
     (is (= {} (core/unify [:= :doc/role "admin"] {:role "admin"}))))
-  (testing "unify contradiction"
-    (is (nil? (core/unify [:= :doc/role "admin"] {:role "guest"}))))
+  (testing "unify conflict"
+    (let [result (core/unify [:= :doc/role "admin"] {:role "guest"})]
+      (is (core/has-conflicts? result))))
   (testing "unify residual"
     (let [result (core/unify [:= :doc/role "admin"] {})]
       (is (core/residual? result))
@@ -190,7 +191,7 @@
   (testing "unify with parsed AST"
     (let [ast (core/unwrap (core/parse-policy [:= :doc/role "admin"]))]
       (is (= {} (core/unify ast {:role "admin"})))
-      (is (nil? (core/unify ast {:role "guest"}))))))
+      (is (core/has-conflicts? (core/unify ast {:role "guest"}))))))
 
 (deftest residual-predicates-test
   (testing "satisfied?"

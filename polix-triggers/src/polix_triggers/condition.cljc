@@ -4,10 +4,9 @@
   Integrates polix policy parsing and evaluation for trigger conditions.
   Conditions are polix policy expressions that access trigger context and event
   data via the `:doc/` prefix."
-  (:require [cats.core :as m]
-            [cats.monad.either :as either]
-            [polix.ast :as ast]
-            [polix.parser :as parser]))
+  (:require [polix.ast :as ast]
+            [polix.parser :as parser]
+            [polix.result :as result]))
 
 (def ^:private operators
   "Operators available in condition expressions."
@@ -70,6 +69,17 @@
             (apply op args)))
         (throw (ex-info "Unknown operator" {:operator op-name}))))))
 
+(defn- path-exists?
+  "Checks if a path exists in the document (distinguishes nil values from missing keys)."
+  [document path]
+  (loop [current         document
+         [k & remaining] path]
+    (cond
+      (nil? k) true
+      (not (map? current)) false
+      (not (contains? current k)) false
+      :else (recur (get current k) remaining))))
+
 (defn- eval-ast
   "Recursively evaluates an AST node against a document."
   [node document]
@@ -78,10 +88,10 @@
     (:value node)
 
     ::ast/doc-accessor
-    (let [key (:value node)]
-      (if (contains? document key)
-        (get document key)
-        {:residual {key :missing}}))
+    (let [path (:value node)]
+      (if (path-exists? document path)
+        (get-in document path)
+        {:residual {path :missing}}))
 
     ::ast/function-call
     (eval-function-call node document)
@@ -99,11 +109,11 @@
   `{:residual {...}}` for missing keys."
   [condition]
   (let [parse-result (parser/parse-policy condition)]
-    (if (either/left? parse-result)
+    (if (result/error? parse-result)
       (throw (ex-info "Failed to parse condition"
                       {:condition condition
-                       :error (m/extract parse-result)}))
-      (let [ast (m/extract parse-result)]
+                       :error (result/unwrap parse-result)}))
+      (let [ast (result/unwrap parse-result)]
         (fn [document]
           (eval-ast ast document))))))
 

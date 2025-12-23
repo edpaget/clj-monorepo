@@ -21,10 +21,10 @@
       ;=> {}  ; satisfied
 
       (polix/unify (:ast AdminOnly) {:role \"guest\"})
-      ;=> nil  ; contradiction
+      ;=> {[:role] [[:conflict [:= \"admin\"] \"guest\"]]}  ; conflict
 
       (polix/unify (:ast AdminOnly) {})
-      ;=> {[:role] [[:= \"admin\"]]}  ; residual
+      ;=> {[:role] [[:= \"admin\"]]}  ; open residual
 
   ## Compiled Policies
 
@@ -35,7 +35,7 @@
                       [:> :doc/level 5]]))
 
       (checker {:role \"admin\" :level 10})  ;=> {}
-      (checker {:role \"guest\"})            ;=> nil
+      (checker {:role \"guest\"})            ;=> {[:role] [[:conflict [:= \"admin\"] \"guest\"]]}
       (checker {:role \"admin\"})            ;=> {[:level] [[:> 5]]}
 
   ## Result Types
@@ -43,11 +43,11 @@
   Unification and compiled policies return one of three result types:
 
   - `{}` (empty map) — satisfied, all constraints met
-  - `{:path [constraints]}` — residual, some constraints remain
-  - `nil` — contradiction, no document can satisfy the policy
+  - `{:path [constraints]}` — open residual, awaiting more data
+  - `{:path [[:conflict C witness]]}` — conflict, constraint violated
 
-  Use [[satisfied?]], [[residual?]], and [[contradiction?]] predicates
-  to check result types.
+  Use [[satisfied?]], [[residual?]], [[has-conflicts?]], and [[open-residual?]]
+  predicates to check result types.
 
   ## Main Concepts
 
@@ -109,8 +109,8 @@
   a document. Returns:
 
   - `{}` — satisfied (all constraints met)
-  - `{:path [constraints]}` — residual (some constraints remain)
-  - `nil` — contradiction (no document can satisfy)
+  - `{:path [constraints]}` — open residual (awaiting more data)
+  - `{:path [[:conflict C w]]}` — conflict (constraint violated by witness w)
 
   Example:
 
@@ -118,7 +118,7 @@
       ;=> {}
 
       (unify [:= :doc/role \"admin\"] {:role \"guest\"})
-      ;=> nil
+      ;=> {[:role] [[:conflict [:= \"admin\"] \"guest\"]]}
 
       (unify [:= :doc/role \"admin\"] {})
       ;=> {[:role] [[:= \"admin\"]]}"
@@ -140,17 +140,58 @@
   A residual contains path keys with remaining constraints."
   res/residual?)
 
-(def contradiction?
-  "Returns true if result represents a contradiction.
+(def has-conflicts?
+  "Returns true if result contains conflict constraints.
 
-  A contradiction is `nil`."
+  A conflict indicates a constraint was evaluated against concrete data
+  and failed. Use this instead of checking for nil."
+  res/has-conflicts?)
+
+(def open-residual?
+  "Returns true if result is an open residual (no conflicts).
+
+  An open residual contains constraints awaiting evaluation but no
+  definite failures."
+  res/open-residual?)
+
+(def all-conflicts?
+  "Returns true if all constraints in the residual are conflicts.
+
+  Used to determine if NOT of a fully-conflicted residual should be satisfied."
+  res/all-conflicts?)
+
+(def conflict
+  "Creates a conflict constraint tuple.
+
+      (conflict [:< 10] 11)
+      ;=> [:conflict [:< 10] 11]"
+  res/conflict)
+
+(def conflict?
+  "Returns true if x is a conflict constraint tuple."
+  res/conflict?)
+
+(def conflict-constraint
+  "Extracts the inner constraint from a conflict."
+  res/conflict-constraint)
+
+(def conflict-witness
+  "Extracts the witness value from a conflict."
+  res/conflict-witness)
+
+(def ^{:deprecated "Use has-conflicts? instead"}
+  contradiction?
+  "DEPRECATED: Use [[has-conflicts?]] instead.
+
+  Returns true if result is nil. In the new conflict model, contradictions
+  are represented as conflict residuals rather than nil."
   res/contradiction?)
 
 (def merge-residuals
   "Merges two residuals with AND semantics.
 
   Returns:
-  - `nil` if either is a contradiction
+  - `nil` if either is nil (legacy)
   - The merged residual otherwise"
   res/merge-residuals)
 
@@ -161,6 +202,13 @@
   - `{}` if either is satisfied
   - Combined residual otherwise"
   res/combine-residuals)
+
+(def conflict-residual
+  "Creates a residual with a single conflict constraint.
+
+      (conflict-residual [:x] [:< 10] 15)
+      ;=> {[:x] [[:conflict [:< 10] 15]]}"
+  res/conflict-residual)
 
 ;;; ---------------------------------------------------------------------------
 ;;; AST Negation

@@ -3,7 +3,8 @@
    [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
    [polix.compiler :as compiler]
-   [polix.operators :as ops]))
+   [polix.operators :as ops]
+   [polix.residual :as res]))
 
 (deftest builtin-operators-test
   (testing "equality operators"
@@ -96,7 +97,7 @@
 
     (let [check (compiler/compile-policies [[:ends-with :doc/email "@example.com"]])]
       (is (= {} (check {:email "user@example.com"})))
-      (is (nil? (check {:email "user@other.com"}))))))
+      (is (res/has-conflicts? (check {:email "user@other.com"}))))))
 
 (deftest defoperator-macro-test
   (testing "defoperator macro"

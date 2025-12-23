@@ -436,104 +436,104 @@
 
               ;; Iterate over collection
               (loop [elements    (seq coll)
-                   index       0
-                   state       (init-state coll-op)
-                   residuals   {}
-                   current-ctx ctx]
-              (if (empty? elements)
+                     index       0
+                     state       (init-state coll-op)
+                     residuals   {}
+                     current-ctx ctx]
+                (if (empty? elements)
                 ;; All elements processed - finalize
-                (let [result (finalize coll-op state residuals)]
-                  (when (satisfies? ICollectionOpTrace coll-op)
-                    (trace-end coll-op current-ctx result (::current-trace current-ctx)))
-                  result)
+                  (let [result (finalize coll-op state residuals)]
+                    (when (satisfies? ICollectionOpTrace coll-op)
+                      (trace-end coll-op current-ctx result (::current-trace current-ctx)))
+                    result)
 
-                (let [elem     (first elements)
-                      elem-ctx (with-binding-fn current-ctx name elem)]
+                  (let [elem     (first elements)
+                        elem-ctx (with-binding-fn current-ctx name elem)]
 
                   ;; Evaluate filter if present
-                  (let [filter-result (if where
-                                        (let [r (eval-ast-fn where document elem-ctx)]
-                                          (cond
-                                            (true? r) :include
-                                            (false? r) :exclude
-                                            (residual? r) r
-                                            r :include
-                                            :else :exclude))
-                                        :include)]
+                    (let [filter-result (if where
+                                          (let [r (eval-ast-fn where document elem-ctx)]
+                                            (cond
+                                              (true? r) :include
+                                              (false? r) :exclude
+                                              (residual? r) r
+                                              r :include
+                                              :else :exclude))
+                                          :include)]
 
-                    (cond
+                      (cond
                       ;; Element excluded by filter
-                      (= :exclude filter-result)
-                      (let [traced-ctx (if (satisfies? ICollectionOpTrace coll-op)
-                                         (trace-element coll-op current-ctx elem index :exclude nil)
-                                         current-ctx)]
-                        (recur (rest elements) (inc index) state residuals traced-ctx))
+                        (= :exclude filter-result)
+                        (let [traced-ctx (if (satisfies? ICollectionOpTrace coll-op)
+                                           (trace-element coll-op current-ctx elem index :exclude nil)
+                                           current-ctx)]
+                          (recur (rest elements) (inc index) state residuals traced-ctx))
 
                       ;; Filter has residual
-                      (residual? filter-result)
-                      (if (= :quantifier (op-type coll-op))
+                        (residual? filter-result)
+                        (if (= :quantifier (op-type coll-op))
                         ;; For quantifiers, evaluate body to see if it matters
-                        (let [body-result    (eval-ast-fn body document elem-ctx)
-                              process-result (process-element coll-op state elem body-result index)]
-                          (if (contains? process-result :short-circuit)
+                          (let [body-result    (eval-ast-fn body document elem-ctx)
+                                process-result (process-element coll-op state elem body-result index)]
+                            (if (contains? process-result :short-circuit)
                             ;; Short circuit - but we have filter residual
                             ;; Record the residual since filter resolution might change outcome
-                            (let [short-circuit   (:short-circuit process-result)
-                                  indexed         (index-residual filter-result path index)
-                                  final-residuals (merge-residual-paths residuals indexed)
-                                  result          (if (empty? final-residuals)
-                                                    short-circuit
-                                                    {:residual final-residuals})]
-                              (when (satisfies? ICollectionOpTrace coll-op)
-                                (trace-end coll-op current-ctx result (::current-trace current-ctx)))
-                              result)
+                              (let [short-circuit   (:short-circuit process-result)
+                                    indexed         (index-residual filter-result path index)
+                                    final-residuals (merge-residual-paths residuals indexed)
+                                    result          (if (empty? final-residuals)
+                                                      short-circuit
+                                                      {:residual final-residuals})]
+                                (when (satisfies? ICollectionOpTrace coll-op)
+                                  (trace-end coll-op current-ctx result (::current-trace current-ctx)))
+                                result)
                             ;; Body passes or has residual - safe to continue without recording filter residual
-                            (let [traced-ctx (if (satisfies? ICollectionOpTrace coll-op)
-                                               (trace-element coll-op current-ctx elem index filter-result body-result)
-                                               current-ctx)]
+                              (let [traced-ctx (if (satisfies? ICollectionOpTrace coll-op)
+                                                 (trace-element coll-op current-ctx elem index filter-result body-result)
+                                                 current-ctx)]
+                                (recur (rest elements)
+                                       (inc index)
+                                       (:state process-result)
+                                       residuals
+                                       traced-ctx))))
+                        ;; For aggregations with filter residual, track it
+                          (let [indexed    (index-residual filter-result path index)
+                                traced-ctx (if (satisfies? ICollectionOpTrace coll-op)
+                                             (trace-element coll-op current-ctx elem index filter-result nil)
+                                             current-ctx)]
+                            (recur (rest elements)
+                                   (inc index)
+                                   state
+                                   (merge-residual-paths residuals indexed)
+                                   traced-ctx)))
+
+                      ;; Element included - evaluate body
+                        :else
+                        (let [body-result    (if body
+                                               (eval-ast-fn body document elem-ctx)
+                                               true)
+                              process-result (process-element coll-op state elem body-result index)]
+
+                          (if (contains? process-result :short-circuit)
+                          ;; Short circuit
+                            (let [short-circuit (:short-circuit process-result)]
+                              (when (satisfies? ICollectionOpTrace coll-op)
+                                (trace-end coll-op current-ctx short-circuit (::current-trace current-ctx)))
+                              short-circuit)
+
+                          ;; Continue iteration
+                            (let [new-residuals (if (residual? body-result)
+                                                  (let [indexed (index-residual body-result path index)]
+                                                    (merge-residual-paths residuals indexed))
+                                                  residuals)
+                                  traced-ctx    (if (satisfies? ICollectionOpTrace coll-op)
+                                                  (trace-element coll-op current-ctx elem index :include body-result)
+                                                  current-ctx)]
                               (recur (rest elements)
                                      (inc index)
                                      (:state process-result)
-                                     residuals
-                                     traced-ctx))))
-                        ;; For aggregations with filter residual, track it
-                        (let [indexed    (index-residual filter-result path index)
-                              traced-ctx (if (satisfies? ICollectionOpTrace coll-op)
-                                           (trace-element coll-op current-ctx elem index filter-result nil)
-                                           current-ctx)]
-                          (recur (rest elements)
-                                 (inc index)
-                                 state
-                                 (merge-residual-paths residuals indexed)
-                                 traced-ctx)))
-
-                      ;; Element included - evaluate body
-                      :else
-                      (let [body-result    (if body
-                                             (eval-ast-fn body document elem-ctx)
-                                             true)
-                            process-result (process-element coll-op state elem body-result index)]
-
-                        (if (contains? process-result :short-circuit)
-                          ;; Short circuit
-                          (let [short-circuit (:short-circuit process-result)]
-                            (when (satisfies? ICollectionOpTrace coll-op)
-                              (trace-end coll-op current-ctx short-circuit (::current-trace current-ctx)))
-                            short-circuit)
-
-                          ;; Continue iteration
-                          (let [new-residuals (if (residual? body-result)
-                                                (let [indexed (index-residual body-result path index)]
-                                                  (merge-residual-paths residuals indexed))
-                                                residuals)
-                                traced-ctx    (if (satisfies? ICollectionOpTrace coll-op)
-                                                (trace-element coll-op current-ctx elem index :include body-result)
-                                                current-ctx)]
-                            (recur (rest elements)
-                                   (inc index)
-                                   (:state process-result)
-                                   new-residuals
-                                   traced-ctx))))))))))))))))
+                                     new-residuals
+                                     traced-ctx))))))))))))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Built-in Collection Operators

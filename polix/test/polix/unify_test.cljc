@@ -3,8 +3,8 @@
 
   Tests validate that unification returns the correct result types:
   - `{}` — satisfied (empty residual)
-  - `{:key [constraints]}` — residual (partial match)
-  - `nil` — contradiction"
+  - `{:key [constraints]}` — open residual (partial match, missing data)
+  - `{:key [[:conflict ...]]}` — conflict residual (constraint violated)"
   (:require
    [clojure.test :refer [deftest is testing]]
    [polix.parser :as parser]
@@ -19,8 +19,11 @@
 (deftest unify-and-test
   (testing "AND with all satisfied"
     (is (= {} (unify/unify-and [{} {} {}]))))
-  (testing "AND with any contradiction"
+  (testing "AND with legacy nil (backward compat)"
     (is (nil? (unify/unify-and [{} nil {}]))))
+  (testing "AND with conflict residual"
+    (let [result (unify/unify-and [{} {[:a] [[:conflict [:= 1] 2]]}])]
+      (is (res/has-conflicts? result))))
   (testing "AND with residuals"
     (let [result (unify/unify-and [{} {[:a] [[1]]}])]
       (is (res/residual? result))
@@ -28,24 +31,40 @@
   (testing "AND merges multiple residuals"
     (let [result (unify/unify-and [{[:a] [[1]]} {[:b] [[2]]}])]
       (is (res/residual? result))
-      (is (= {[:a] [[1]] [:b] [[2]]} result)))))
+      (is (= {[:a] [[1]] [:b] [[2]]} result))))
+  (testing "AND merges conflicts with open constraints"
+    (let [result (unify/unify-and [{[:a] [[:conflict [:= 1] 2]]} {[:b] [[:> 5]]}])]
+      (is (res/has-conflicts? result))
+      (is (= {[:a] [[:conflict [:= 1] 2]] [:b] [[:> 5]]} result)))))
 
 (deftest unify-or-test
   (testing "OR with any satisfied"
-    (is (= {} (unify/unify-or [nil {} nil]))))
-  (testing "OR with all contradictions"
-    (is (nil? (unify/unify-or [nil nil nil]))))
+    (is (= {} (unify/unify-or [{[:a] [[:conflict [:= 1] 2]]} {} {[:b] [[1]]}]))))
+  (testing "OR with all legacy nils produces complex"
+    (let [result (unify/unify-or [nil nil nil])]
+      (is (res/has-complex? result))))
+  (testing "OR with all conflicts produces complex"
+    (let [result (unify/unify-or [{[:a] [[:conflict [:= 1] 2]]}
+                                  {[:a] [[:conflict [:= 1] 3]]}])]
+      (is (res/has-complex? result))))
   (testing "OR with residuals"
     (let [result (unify/unify-or [nil {[:a] [[1]]}])]
       (is (res/residual? result)))))
 
 (deftest unify-not-test
-  (testing "NOT satisfied becomes contradiction"
-    (is (nil? (unify/unify-not {}))))
-  (testing "NOT contradiction becomes satisfied"
+  (testing "NOT satisfied becomes complex (not-satisfied marker)"
+    (let [result (unify/unify-not {})]
+      (is (res/has-complex? result))
+      (is (= :not-satisfied (get-in result [::res/complex :type])))))
+  (testing "NOT legacy nil becomes satisfied"
     (is (= {} (unify/unify-not nil))))
-  (testing "NOT residual becomes complex"
+  (testing "NOT all-conflicts becomes satisfied"
+    (is (= {} (unify/unify-not {[:a] [[:conflict [:= 1] 2]]}))))
+  (testing "NOT open residual becomes complex"
     (let [result (unify/unify-not {[:a] [[1]]})]
+      (is (res/has-complex? result))))
+  (testing "NOT mixed residual becomes complex"
+    (let [result (unify/unify-not {[:a] [[:conflict [:= 1] 2]] [:b] [[:> 5]]})]
       (is (res/has-complex? result)))))
 
 ;;; ---------------------------------------------------------------------------
@@ -58,9 +77,11 @@
       (is (= {} (unify/unify ast {:role "admin"}))))))
 
 (deftest simple-equality-contradicted-test
-  (testing "simple equality contradicted"
-    (let [ast (r/unwrap (parser/parse-policy [:= :doc/role "admin"]))]
-      (is (nil? (unify/unify ast {:role "guest"}))))))
+  (testing "simple equality contradicted produces conflict"
+    (let [ast    (r/unwrap (parser/parse-policy [:= :doc/role "admin"]))
+          result (unify/unify ast {:role "guest"})]
+      (is (res/has-conflicts? result))
+      (is (= [[:conflict [:= "admin"] "guest"]] (get result [:role]))))))
 
 (deftest simple-equality-residual-test
   (testing "missing key returns residual"
@@ -76,8 +97,10 @@
 (deftest comparison-greater-than-test
   (testing "> satisfied"
     (is (= {} (unify/unify [:> :doc/level 5] {:level 10}))))
-  (testing "> contradicted"
-    (is (nil? (unify/unify [:> :doc/level 5] {:level 3}))))
+  (testing "> conflict"
+    (let [result (unify/unify [:> :doc/level 5] {:level 3})]
+      (is (res/has-conflicts? result))
+      (is (= [[:conflict [:> 5] 3]] (get result [:level])))))
   (testing "> residual"
     (let [result (unify/unify [:> :doc/level 5] {})]
       (is (res/residual? result))
@@ -86,26 +109,30 @@
 (deftest comparison-less-than-test
   (testing "< satisfied"
     (is (= {} (unify/unify [:< :doc/level 10] {:level 5}))))
-  (testing "< contradicted"
-    (is (nil? (unify/unify [:< :doc/level 10] {:level 15})))))
+  (testing "< conflict"
+    (let [result (unify/unify [:< :doc/level 10] {:level 15})]
+      (is (res/has-conflicts? result)))))
 
 (deftest comparison-greater-equal-test
   (testing ">= satisfied at boundary"
     (is (= {} (unify/unify [:>= :doc/level 5] {:level 5}))))
-  (testing ">= contradicted"
-    (is (nil? (unify/unify [:>= :doc/level 5] {:level 4})))))
+  (testing ">= conflict"
+    (let [result (unify/unify [:>= :doc/level 5] {:level 4})]
+      (is (res/has-conflicts? result)))))
 
 (deftest comparison-less-equal-test
   (testing "<= satisfied at boundary"
     (is (= {} (unify/unify [:<= :doc/level 5] {:level 5}))))
-  (testing "<= contradicted"
-    (is (nil? (unify/unify [:<= :doc/level 5] {:level 6})))))
+  (testing "<= conflict"
+    (let [result (unify/unify [:<= :doc/level 5] {:level 6})]
+      (is (res/has-conflicts? result)))))
 
 (deftest comparison-inequality-test
   (testing "!= satisfied"
     (is (= {} (unify/unify [:!= :doc/role "admin"] {:role "guest"}))))
-  (testing "!= contradicted"
-    (is (nil? (unify/unify [:!= :doc/role "admin"] {:role "admin"})))))
+  (testing "!= conflict"
+    (let [result (unify/unify [:!= :doc/role "admin"] {:role "admin"})]
+      (is (res/has-conflicts? result)))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Set Membership Tests
@@ -116,8 +143,9 @@
     (is (= {} (unify/unify [:in :doc/status #{"active" "pending"}] {:status "active"})))))
 
 (deftest set-in-contradicted-test
-  (testing ":in contradicted"
-    (is (nil? (unify/unify [:in :doc/status #{"active" "pending"}] {:status "closed"})))))
+  (testing ":in conflict"
+    (let [result (unify/unify [:in :doc/status #{"active" "pending"}] {:status "closed"})]
+      (is (res/has-conflicts? result)))))
 
 (deftest set-in-residual-test
   (testing ":in residual"
@@ -128,8 +156,9 @@
 (deftest set-not-in-test
   (testing ":not-in satisfied"
     (is (= {} (unify/unify [:not-in :doc/status #{"banned"}] {:status "active"}))))
-  (testing ":not-in contradicted"
-    (is (nil? (unify/unify [:not-in :doc/status #{"banned"}] {:status "banned"})))))
+  (testing ":not-in conflict"
+    (let [result (unify/unify [:not-in :doc/status #{"banned"}] {:status "banned"})]
+      (is (res/has-conflicts? result)))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Boolean Connective Tests
@@ -140,8 +169,10 @@
     (is (= {} (unify/unify [:and [:= :doc/a 1] [:= :doc/b 2]] {:a 1 :b 2})))))
 
 (deftest and-one-contradicted-test
-  (testing "AND one contradicted"
-    (is (nil? (unify/unify [:and [:= :doc/a 1] [:= :doc/b 2]] {:a 1 :b 999})))))
+  (testing "AND one conflict"
+    (let [result (unify/unify [:and [:= :doc/a 1] [:= :doc/b 2]] {:a 1 :b 999})]
+      (is (res/has-conflicts? result))
+      (is (= [[:conflict [:= 2] 999]] (get result [:b]))))))
 
 (deftest and-partial-residual-test
   (testing "AND partial residual"
@@ -154,12 +185,14 @@
     (is (= {} (unify/unify [:or [:= :doc/a 1] [:= :doc/a 2]] {:a 1})))))
 
 (deftest or-all-contradicted-test
-  (testing "OR all contradicted"
-    (is (nil? (unify/unify [:or [:= :doc/a 1] [:= :doc/a 2]] {:a 999})))))
+  (testing "OR all conflicts produces complex"
+    (let [result (unify/unify [:or [:= :doc/a 1] [:= :doc/a 2]] {:a 999})]
+      (is (res/has-complex? result)))))
 
-(deftest not-satisfied-becomes-contradiction-test
-  (testing "NOT satisfied becomes contradiction"
-    (is (nil? (unify/unify [:not [:= :doc/a 1]] {:a 1})))))
+(deftest not-satisfied-becomes-complex-test
+  (testing "NOT satisfied becomes complex"
+    (let [result (unify/unify [:not [:= :doc/a 1]] {:a 1})]
+      (is (res/has-complex? result)))))
 
 (deftest not-contradicted-becomes-satisfied-test
   (testing "NOT contradicted becomes satisfied"
@@ -174,8 +207,9 @@
     (is (= {} (unify/unify [:= :doc/user.role "admin"] {:user {:role "admin"}})))))
 
 (deftest nested-path-contradicted-test
-  (testing "nested path contradicted"
-    (is (nil? (unify/unify [:= :doc/user.role "admin"] {:user {:role "guest"}})))))
+  (testing "nested path conflict"
+    (let [result (unify/unify [:= :doc/user.role "admin"] {:user {:role "guest"}})]
+      (is (res/has-conflicts? result)))))
 
 (deftest nested-path-residual-test
   (testing "nested path residual"
@@ -220,10 +254,11 @@
                {:users [{:role "admin"} {:role "admin"}]})))))
 
 (deftest forall-one-contradicts-test
-  (testing "one element contradicts"
-    (is (nil? (unify/unify
-               [:forall [:u :doc/users] [:= :u/role "admin"]]
-               {:users [{:role "admin"} {:role "guest"}]})))))
+  (testing "one element conflicts"
+    (let [result (unify/unify
+                  [:forall [:u :doc/users] [:= :u/role "admin"]]
+                  {:users [{:role "admin"} {:role "guest"}]})]
+      (is (res/has-conflicts? result)))))
 
 (deftest forall-empty-collection-test
   (testing "empty collection is vacuously true"
@@ -259,15 +294,17 @@
 
 (deftest exists-none-satisfy-test
   (testing "no elements satisfy"
-    (is (nil? (unify/unify
-               [:exists [:u :doc/users] [:= :u/role "admin"]]
-               {:users [{:role "guest"} {:role "user"}]})))))
+    (let [result (unify/unify
+                  [:exists [:u :doc/users] [:= :u/role "admin"]]
+                  {:users [{:role "guest"} {:role "user"}]})]
+      (is (res/has-conflicts? result)))))
 
 (deftest exists-empty-collection-test
-  (testing "empty collection is false"
-    (is (nil? (unify/unify
-               [:exists [:u :doc/users] [:= :u/role "admin"]]
-               {:users []})))))
+  (testing "empty collection produces conflict"
+    (let [result (unify/unify
+                  [:exists [:u :doc/users] [:= :u/role "admin"]]
+                  {:users []})]
+      (is (res/has-conflicts? result)))))
 
 (deftest exists-short-circuit-test
   (testing "short-circuits on first true"
@@ -306,13 +343,15 @@
                {:users [{} {} {}]})))))
 
 (deftest fn-count-comparison-test
-  (testing "count comparison"
+  (testing "count comparison satisfied"
     (is (= {} (unify/unify
                [:>= [:fn/count :doc/users] 2]
-               {:users [{} {} {}]})))
-    (is (nil? (unify/unify
-               [:> [:fn/count :doc/users] 5]
-               {:users [{} {} {}]})))))
+               {:users [{} {} {}]}))))
+  (testing "count comparison conflict"
+    (let [result (unify/unify
+                  [:> [:fn/count :doc/users] 5]
+                  {:users [{} {} {}]})]
+      (is (res/has-complex? result)))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Cross-Key Constraint Tests
@@ -321,8 +360,9 @@
 (deftest cross-key-equality-both-present-test
   (testing "both present and equal"
     (is (= {} (unify/unify [:= :doc/a :doc/b] {:a 5 :b 5}))))
-  (testing "both present and unequal"
-    (is (nil? (unify/unify [:= :doc/a :doc/b] {:a 5 :b 10})))))
+  (testing "both present and unequal produces conflict"
+    (let [result (unify/unify [:= :doc/a :doc/b] {:a 5 :b 10})]
+      (is (res/has-conflicts? result)))))
 
 (deftest cross-key-one-missing-test
   (testing "cross-key with left missing"
@@ -331,9 +371,11 @@
       (is (contains? result :polix.unify/cross-key)))))
 
 (deftest cross-key-comparison-test
-  (testing "cross-key greater-than"
-    (is (= {} (unify/unify [:> :doc/a :doc/b] {:a 10 :b 5})))
-    (is (nil? (unify/unify [:> :doc/a :doc/b] {:a 5 :b 10})))))
+  (testing "cross-key greater-than satisfied"
+    (is (= {} (unify/unify [:> :doc/a :doc/b] {:a 10 :b 5}))))
+  (testing "cross-key greater-than conflict"
+    (let [result (unify/unify [:> :doc/a :doc/b] {:a 5 :b 10})]
+      (is (res/has-conflicts? result)))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Residual Conversion Tests
@@ -352,8 +394,11 @@
     (is (nil? (unify/result->policy {})))))
 
 (deftest result->policy-contradiction-test
-  (testing "contradiction returns [:contradiction]"
-    (is (= [:contradiction] (unify/result->policy nil)))))
+  (testing "legacy nil returns [:contradiction]"
+    (is (= [:contradiction] (unify/result->policy nil))))
+  (testing "conflict residual returns [:contradiction]"
+    (is (= [:contradiction]
+           (unify/result->policy {[:a] [[:conflict [:= 1] 2]]})))))
 
 (deftest result->policy-residual-test
   (testing "single residual returns constraint"
@@ -370,9 +415,11 @@
       (is (= {} (unify/unify-constraint-set constraint-set {:role "admin"}))))))
 
 (deftest unify-constraint-set-contradicted-test
-  (testing "constraint set contradicted"
-    (let [constraint-set {[:role] [{:op := :value "admin"}]}]
-      (is (nil? (unify/unify-constraint-set constraint-set {:role "guest"}))))))
+  (testing "constraint set produces conflict"
+    (let [constraint-set {[:role] [{:op := :value "admin"}]}
+          result         (unify/unify-constraint-set constraint-set {:role "guest"})]
+      (is (res/has-conflicts? result))
+      (is (= [[:conflict [:= "admin"] "guest"]] (get result [:role]))))))
 
 (deftest unify-constraint-set-residual-test
   (testing "constraint set residual"

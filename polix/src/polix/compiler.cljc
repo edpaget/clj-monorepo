@@ -6,7 +6,7 @@
 
   - `{}` (empty map) — document fully satisfies all constraints
   - `{:path [constraints]}` — partial match with remaining constraints
-  - `nil` — document contradicts at least one constraint
+  - `{:path [[:conflict constraint witness]]}` — constraint violated with witness
 
   ## Example
 
@@ -18,7 +18,7 @@
       ;; => {}
 
       (checker {:role \"guest\"})
-      ;; => nil
+      ;; => {[:role] [[:conflict [:= \"admin\"] \"guest\"]]}
 
       (checker {:role \"admin\"})
       ;; => {[:level] [[:> 5]], [:status] [[:in #{\"active\" \"pending\"}]]}"
@@ -308,8 +308,8 @@
 
   Returns:
   - `{}` if all constraints are satisfied
-  - `{:path [constraints]}` if some constraints cannot be evaluated
-  - `nil` if any constraint is contradicted"
+  - `{:path [constraints]}` if some constraints cannot be evaluated (open)
+  - `{:path [[:conflict ...]]}` if constraint violated with witness value"
   [constraint-set document]
   (unify/unify-constraint-set constraint-set document))
 
@@ -375,8 +375,8 @@
   Returns a function that takes a document and returns one of:
 
   - `{}` — satisfied (empty residual)
-  - `{:path [constraints]}` — partial match with remaining constraints
-  - `nil` — contradicted
+  - `{:path [constraints]}` — open residual with remaining constraints
+  - `{:path [[:conflict ...]]}` — conflict residual with violated constraints
 
   Options:
   - `:operators` - custom operators map (overrides registry)
@@ -445,12 +445,13 @@
 
   Returns:
   - `nil` for `{}` (satisfied, no constraints needed)
-  - `[:contradiction]` for `nil`
-  - The simplified constraints for residual"
+  - `[:contradiction]` for legacy `nil` or conflict residuals
+  - The simplified constraints for open residual"
   [result]
   (cond
     (res/satisfied? result) nil
     (nil? result) [:contradiction]
+    (res/has-conflicts? result) [:contradiction]
     (res/residual? result)
     (let [constraints (residual->constraints result)]
       (if (= 1 (count constraints))
@@ -488,16 +489,17 @@
 (defn legacy-result
   "Converts new result format to legacy format.
 
-  Adapts the new `{}` / `{...}` / `nil` format to the old
+  Adapts the new `{}` / `{...}` / conflict format to the old
   `true` / `{:residual ...}` / `false` format for backward compatibility.
 
   - `{}` → `true`
-  - `nil` → `false`
-  - `{:path [...]}` → `{:residual {:path [...]}}`"
+  - `nil` or conflict residual → `false`
+  - `{:path [...]}` (open) → `{:residual {:path [...]}}`"
   [result]
   (cond
     (res/satisfied? result) true
     (nil? result) false
+    (res/has-conflicts? result) false
     (res/residual? result) {:residual result}
     :else result))
 

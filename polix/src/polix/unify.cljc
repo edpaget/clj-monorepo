@@ -99,13 +99,15 @@
   "Combines results with AND semantics.
 
   Returns:
-  - `nil` if any result is `nil` (contradiction)
-  - `{}` if all results are `{}` (satisfied)
-  - Merged residual otherwise
+  - `{}` if all results are satisfied
+  - Merged residual otherwise (may contain open and/or conflict constraints)
 
-  Uses [[polix.residual/merge-residuals]] for combining constraint maps."
+  With the conflict model, all branches are evaluated to collect all
+  constraints for diagnostic purposes. Uses [[polix.residual/merge-residuals]]
+  for combining constraint maps."
   [results]
   (cond
+    ;; Legacy nil handling during transition
     (some nil? results) nil
     (every? res/satisfied? results) (res/satisfied)
     :else (reduce res/merge-residuals (res/satisfied) results)))
@@ -114,29 +116,51 @@
   "Combines results with OR semantics.
 
   Returns:
-  - `{}` if any result is `{}` (short-circuit satisfied)
-  - `nil` if all results are `nil` (contradiction)
-  - Complex residual otherwise (disjunctions cannot be simplified)
+  - `{}` if any result is satisfied (short-circuit)
+  - Complex residual with all branches otherwise
+
+  For OR, if any branch succeeds the whole succeeds. If all fail,
+  we return a complex marker containing all the failure branches
+  (which may include conflicts and/or open constraints).
 
   Uses [[polix.residual/combine-residuals]] for OR combination."
   [results]
   (cond
     (some res/satisfied? results) (res/satisfied)
-    (every? nil? results) nil
-    :else (reduce res/combine-residuals nil results)))
+    ;; Legacy nil handling during transition
+    (every? nil? results) {::res/complex {:type :or :branches []}}
+    ;; Filter out nils for transition, combine remaining results
+    :else (let [non-nil (remove nil? results)]
+            (if (empty? non-nil)
+              {::res/complex {:type :or :branches []}}
+              (reduce res/combine-residuals non-nil)))))
 
 (defn unify-not
   "Negates a unification result.
 
-  Returns:
-  - `nil` if result is `{}` (NOT satisfied = contradiction)
-  - `{}` if result is `nil` (NOT contradiction = satisfied)
-  - Complex marker if result is residual (cannot negate unknown)"
+  - NOT satisfied → complex (we don't know what to negate)
+  - NOT all-conflicts → satisfied (if everything failed, NOT succeeds)
+  - NOT open/partial → complex (cannot negate unknown)
+
+  The key insight: if a residual contains only conflicts (all constraints
+  were evaluated and all failed), then NOT of that is satisfied."
   [result]
   (cond
-    (res/satisfied? result) nil
-    (nil? result) (res/satisfied)
-    :else {::res/complex {:type :not :child result}}))
+    (res/satisfied? result)
+    ;; NOT true = need something that fails, but we don't know what
+    {::res/complex {:type :not-satisfied}}
+
+    ;; Legacy nil handling during transition
+    (nil? result)
+    (res/satisfied)
+
+    (res/all-conflicts? result)
+    ;; NOT (all failed) = satisfied
+    (res/satisfied)
+
+    :else
+    ;; NOT (partially evaluated) = complex
+    {::res/complex {:type :not :child result}}))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Collection Operator Helpers
@@ -149,13 +173,17 @@
 
   Adapts [[unify-ast]] results to the format expected by collection ops.
   The collection ops module uses `{:residual ...}` format for residuals
-  and expects residual keys to be vector paths."
+  and expects residual keys to be vector paths.
+
+  Conflict residuals are treated as `false` (definite failure) because they
+  indicate the constraint was evaluated against concrete data and failed."
   []
   {:eval-ast-fn (fn [ast document ctx]
                   (let [result (unify-ast ast document ctx)]
                     (cond
                       (res/satisfied? result) true
                       (nil? result) false
+                      (res/has-conflicts? result) false
                       (res/has-complex? result) {:complex result}
                       :else {:residual result})))
    :with-binding-fn with-binding
@@ -163,11 +191,15 @@
    :path-exists-fn path-exists?})
 
 (defn- adapt-collection-result
-  "Converts collection op result back to unify format."
+  "Converts collection op result back to unify format.
+
+  Returns conflict marker for false results from collection ops (e.g., exists
+  with no matching elements). The complex marker preserves that a definite
+  failure occurred without path-specific constraint info."
   [result]
   (cond
     (true? result) (res/satisfied)
-    (false? result) nil
+    (false? result) {::res/complex {:type :collection-conflict}}
     (and (map? result) (contains? result :complex)) (:complex result)
     (and (map? result) (contains? result :residual)) (:residual result)
     (and (map? result) (contains? result :partial-count)) result
@@ -192,15 +224,14 @@
   "Unifies a single constraint against a value.
 
   Takes an operator context `ctx`, a constraint map with `:op` and `:value` keys,
-  and the actual `value` from the document.
+  the actual `value` from the document, and the `path` for residual construction.
 
-  Returns `{}` if satisfied, `nil` if contradicted, or a complex marker if
-  the operator is unknown."
-  [ctx constraint value]
+  Returns `{}` if satisfied, or a conflict residual if violated."
+  [ctx constraint value path]
   (let [result (op/eval-in-context ctx constraint value)]
     (cond
       (true? result) (res/satisfied)
-      (false? result) nil
+      (false? result) (res/conflict-residual path [(:op constraint) (:value constraint)] value)
       :else {::res/complex {:unknown-op (:op constraint)}})))
 
 (defn unify-constraints-for-key
@@ -208,19 +239,18 @@
 
   Returns:
   - `{}` if all satisfied
-  - `nil` if any contradicted
-  - Residual if value missing or operator unknown"
+  - Residual with open constraints if value missing
+  - Residual with conflicts if any constraint violated"
   [ctx constraints value value-present? path]
   (if-not value-present?
+    ;; Value missing: return open constraints
     (res/residual path (mapv (fn [c] [(:op c) (:value c)]) constraints))
-    (let [results (map #(unify-constraint ctx % value) constraints)]
-      (cond
-        (some nil? results) nil
-        (every? res/satisfied? results) (res/satisfied)
-        :else (res/residual path
-                            (mapv (fn [[_ c]] [(:op c) (:value c)])
-                                  (filter #(not (res/satisfied? (first %)))
-                                          (map vector results constraints))))))))
+    ;; Value present: evaluate each constraint
+    (let [results (map #(unify-constraint ctx % value path) constraints)]
+      (if (every? res/satisfied? results)
+        (res/satisfied)
+        ;; Merge all results (conflicts and any complex markers)
+        (reduce res/merge-residuals (res/satisfied) results)))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Set Unification
@@ -323,8 +353,8 @@
   "Converts a comparison function call to a residual if possible.
 
   Returns `[true result]` when handled, `[false nil]` when not applicable.
-  This tuple convention distinguishes between a nil contradiction result
-  and the function not being able to handle the comparison."
+  This tuple convention distinguishes between not being able to handle
+  the comparison and successfully handling it (even as a conflict)."
   [op-key children document ctx]
   (if-not (= 2 (count children))
     [false nil]
@@ -340,10 +370,11 @@
               resolved (resolve-accessor-value left document ctx)]
           (if (:found resolved)
             (let [constraint {:op op-key :value expected}
-                  result     (op/eval-in-context ctx constraint (:value resolved))]
+                  actual     (:value resolved)
+                  result     (op/eval-in-context ctx constraint actual)]
               (cond
                 (true? result) [true (res/satisfied)]
-                (false? result) [true nil]
+                (false? result) [true (res/conflict-residual path [op-key expected] actual)]
                 :else [true {::res/complex {:op op-key :ast {:left left :right right}}}]))
             [true (res/residual path [[op-key expected]])]))
 
@@ -361,10 +392,11 @@
               resolved   (resolve-accessor-value right document ctx)]
           (if (:found resolved)
             (let [constraint {:op flipped-op :value expected}
-                  result     (op/eval-in-context ctx constraint (:value resolved))]
+                  actual     (:value resolved)
+                  result     (op/eval-in-context ctx constraint actual)]
               (cond
                 (true? result) [true (res/satisfied)]
-                (false? result) [true nil]
+                (false? result) [true (res/conflict-residual path [flipped-op expected] actual)]
                 :else [true {::res/complex {:op flipped-op :ast {:left left :right right}}}]))
             [true (res/residual path [[flipped-op expected]])]))
 
@@ -385,7 +417,12 @@
                   result     (op/eval-in-context ctx constraint left-val)]
               (cond
                 (true? result) [true (res/satisfied)]
-                (false? result) [true nil]
+                (false? result) [true {::res/cross-key [{:op op-key
+                                                         :left-path left-path
+                                                         :right-path right-path
+                                                         :left-value left-val
+                                                         :right-value right-val
+                                                         :conflict true}]}]
                 :else [true {::res/complex {:op op-key :cross-key true :left left-path :right right-path}}]))
 
             :else
@@ -425,7 +462,11 @@
                 (let [op-result (apply op/eval operator evaluated-args)]
                   (cond
                     (true? op-result) (res/satisfied)
-                    (false? op-result) nil
+                    ;; Operator returned false but we don't have path info for a proper conflict
+                    ;; Return a complex marker with the failure details
+                    (false? op-result) {::res/complex {:type :op-failed
+                                                       :op op-key
+                                                       :args evaluated-args}}
                     :else op-result))
                 {::res/complex {:op op-key :children evaluated-args}}))))))))
 
@@ -447,8 +488,13 @@
 
   Returns:
   - `{}` if fully satisfied
-  - `{:key [constraints]}` if partial (residual)
-  - `nil` if contradiction
+  - `{:key [constraints]}` if partial — open constraints or conflicts
+
+  Residuals may contain:
+  - **Open constraints** like `[:< 10]` — awaiting evaluation
+  - **Conflict constraints** like `[:conflict [:< 10] 15]` — evaluated and failed
+
+  Use [[polix.residual/has-conflicts?]] to check if the result contains conflicts.
 
   ## Examples
 
@@ -456,13 +502,13 @@
       (unify ast {:role \"admin\"})
       ;; => {}
 
-      ;; Partial evaluation
+      ;; Partial evaluation (missing data)
       (unify ast {:role \"admin\"})  ; missing :level
       ;; => {[:level] [[:> 5]]}
 
-      ;; Contradiction
+      ;; Conflict (data present but violates constraint)
       (unify ast {:role \"guest\"})
-      ;; => nil"
+      ;; => {[:role] [[:conflict [:= \"admin\"] \"guest\"]]}"
   ([policy document]
    (unify policy document {}))
   ([policy document opts]
@@ -517,12 +563,13 @@
 
   Returns:
   - `nil` for `{}` (satisfied, no constraints needed)
-  - `[:contradiction]` for `nil`
-  - The simplified constraints for residual"
+  - `[:contradiction]` for legacy `nil` or conflict residuals
+  - The simplified constraints for open residual"
   [result]
   (cond
     (res/satisfied? result) nil
     (nil? result) [:contradiction]
+    (res/has-conflicts? result) [:contradiction]
     (res/residual? result)
     (let [constraints (residual->constraints result)]
       (if (= 1 (count constraints))
