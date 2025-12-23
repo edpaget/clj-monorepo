@@ -9,9 +9,11 @@
    [polix.bench.policies :as p]
    [polix.compiler :as compiler]
    [polix.engine :as engine]
+   [polix.negate :as negate]
    [polix.operators :as op]
    [polix.parser :as parser]
-   [polix.result :as r]))
+   [polix.result :as r]
+   [polix.unify :as unify]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Benchmark Configuration
@@ -181,6 +183,90 @@
   (bench-eval-compiled-complex))
 
 ;;; ---------------------------------------------------------------------------
+;;; Unify Benchmarks (new residual-based API)
+;;; ---------------------------------------------------------------------------
+
+(defn bench-unify-simple
+  "Benchmarks unify for simple policies."
+  []
+  (let [ast @p/simple-equality-ast]
+    (println "\n=== Unify: Simple Satisfied ===")
+    (run-bench (unify/unify ast p/doc-simple-satisfied))
+    (println "\n=== Unify: Simple Contradicted ===")
+    (run-bench (unify/unify ast p/doc-simple-contradicted))
+    (println "\n=== Unify: Simple Residual ===")
+    (run-bench (unify/unify ast p/doc-empty))))
+
+(defn bench-unify-medium
+  "Benchmarks unify for medium policies."
+  []
+  (let [ast @p/medium-and-ast]
+    (println "\n=== Unify: Medium Satisfied ===")
+    (run-bench (unify/unify ast p/doc-medium-satisfied))
+    (println "\n=== Unify: Medium Partial Residual ===")
+    (run-bench (unify/unify ast p/doc-medium-partial))))
+
+(defn bench-unify-complex
+  "Benchmarks unify for complex policies."
+  []
+  (let [ast @p/complex-nested-ast]
+    (println "\n=== Unify: Complex Satisfied ===")
+    (run-bench (unify/unify ast p/doc-complex-satisfied))
+    (println "\n=== Unify: Complex Partial ===")
+    (run-bench (unify/unify ast p/doc-complex-partial))))
+
+(defn bench-unify-all
+  "Runs all unify benchmarks."
+  []
+  (bench-unify-simple)
+  (bench-unify-medium)
+  (bench-unify-complex))
+
+;;; ---------------------------------------------------------------------------
+;;; Negation Benchmarks
+;;; ---------------------------------------------------------------------------
+
+(defn bench-negate
+  "Benchmarks policy negation."
+  []
+  (let [simple-ast  @p/simple-equality-ast
+        medium-ast  @p/medium-and-ast
+        complex-ast @p/complex-nested-ast]
+    (println "\n=== Negate: Simple ===")
+    (run-bench (negate/negate simple-ast))
+    (println "\n=== Negate: Medium ===")
+    (run-bench (negate/negate medium-ast))
+    (println "\n=== Negate: Complex ===")
+    (run-bench (negate/negate complex-ast))))
+
+;;; ---------------------------------------------------------------------------
+;;; Inverse Query Benchmarks
+;;; ---------------------------------------------------------------------------
+
+(defn bench-inverse-queries
+  "Benchmarks inverse queries (what-satisfies, what-contradicts).
+
+  These use the unified residual model:
+  - (unify policy {}) → what constraints must a document satisfy?
+  - (unify (negate policy) {}) → what constraints would contradict?"
+  []
+  (let [simple-ast  @p/simple-equality-ast
+        medium-ast  @p/medium-and-ast
+        complex-ast @p/complex-nested-ast]
+    (println "\n=== What Satisfies (Simple) ===")
+    (run-bench (unify/unify simple-ast {}))
+    (println "\n=== What Satisfies (Medium) ===")
+    (run-bench (unify/unify medium-ast {}))
+    (println "\n=== What Satisfies (Complex) ===")
+    (run-bench (unify/unify complex-ast {}))
+    (println "\n=== What Contradicts (Simple) ===")
+    (run-bench (unify/unify (negate/negate simple-ast) {}))
+    (println "\n=== What Contradicts (Medium) ===")
+    (run-bench (unify/unify (negate/negate medium-ast) {}))
+    (println "\n=== What Contradicts (Complex) ===")
+    (run-bench (unify/unify (negate/negate complex-ast) {}))))
+
+;;; ---------------------------------------------------------------------------
 ;;; Operator Benchmarks
 ;;; ---------------------------------------------------------------------------
 
@@ -267,6 +353,12 @@
   (bench-compile-all)
   (println "\n### EVALUATION ###")
   (bench-eval-all)
+  (println "\n### UNIFY (Residual-Based) ###")
+  (bench-unify-all)
+  (println "\n### NEGATION ###")
+  (bench-negate)
+  (println "\n### INVERSE QUERIES ###")
+  (bench-inverse-queries)
   (println "\n### OPERATORS ###")
   (bench-operators)
   (println "\n### QUANTIFIERS ###")

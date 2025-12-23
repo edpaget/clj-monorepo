@@ -16,8 +16,10 @@
    [polix.bench.policies :as p]
    [polix.compiler :as compiler]
    [polix.engine :as engine]
+   [polix.negate :as negate]
    [polix.operators :as op]
-   [polix.parser :as parser])
+   [polix.parser :as parser]
+   [polix.unify :as unify])
   (:import
    [java.time Instant]))
 
@@ -196,6 +198,47 @@
      (bench-fn "filtered/nested-contradicted"
                (nested-filtered-checker p/doc-teams-5-active-missing-lead))]))
 
+(defn unify-benchmarks
+  "Runs unify (residual-based evaluation) benchmarks."
+  []
+  (let [simple-ast  @p/simple-equality-ast
+        medium-ast  @p/medium-and-ast
+        complex-ast @p/complex-nested-ast]
+    [(bench-fn "unify/simple-satisfied" (unify/unify simple-ast p/doc-simple-satisfied))
+     (bench-fn "unify/simple-contradicted" (unify/unify simple-ast p/doc-simple-contradicted))
+     (bench-fn "unify/simple-residual" (unify/unify simple-ast p/doc-empty))
+     (bench-fn "unify/medium-satisfied" (unify/unify medium-ast p/doc-medium-satisfied))
+     (bench-fn "unify/medium-partial" (unify/unify medium-ast p/doc-medium-partial))
+     (bench-fn "unify/complex-satisfied" (unify/unify complex-ast p/doc-complex-satisfied))
+     (bench-fn "unify/complex-partial" (unify/unify complex-ast p/doc-complex-partial))]))
+
+(defn negate-benchmarks
+  "Runs policy negation benchmarks."
+  []
+  (let [simple-ast  @p/simple-equality-ast
+        medium-ast  @p/medium-and-ast
+        complex-ast @p/complex-nested-ast]
+    [(bench-fn "negate/simple" (negate/negate simple-ast))
+     (bench-fn "negate/medium" (negate/negate medium-ast))
+     (bench-fn "negate/complex" (negate/negate complex-ast))]))
+
+(defn inverse-query-benchmarks
+  "Runs inverse query benchmarks.
+
+  These use the unified residual model:
+  - (unify policy {}) → what constraints must a document satisfy?
+  - (unify (negate policy) {}) → what constraints would contradict?"
+  []
+  (let [simple-ast  @p/simple-equality-ast
+        medium-ast  @p/medium-and-ast
+        complex-ast @p/complex-nested-ast]
+    [(bench-fn "inverse/what-satisfies-simple" (unify/unify simple-ast {}))
+     (bench-fn "inverse/what-satisfies-medium" (unify/unify medium-ast {}))
+     (bench-fn "inverse/what-satisfies-complex" (unify/unify complex-ast {}))
+     (bench-fn "inverse/what-contradicts-simple" (unify/unify (negate/negate simple-ast) {}))
+     (bench-fn "inverse/what-contradicts-medium" (unify/unify (negate/negate medium-ast) {}))
+     (bench-fn "inverse/what-contradicts-complex" (unify/unify (negate/negate complex-ast) {}))]))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Regression Detection
 ;;; ---------------------------------------------------------------------------
@@ -247,26 +290,38 @@
         (print "  Compiled Evaluation...") (flush)
         (let [compiled-results (eval-compiled-benchmarks)]
           (println " done")
-          (print "  Operators...") (flush)
-          (let [operator-results (operator-benchmarks)]
+          (print "  Unify...") (flush)
+          (let [unify-results (unify-benchmarks)]
             (println " done")
-            (print "  Quantifiers...") (flush)
-            (let [quantifier-results (quantifier-benchmarks)]
+            (print "  Negation...") (flush)
+            (let [negate-results (negate-benchmarks)]
               (println " done")
-              (print "  Count...") (flush)
-              (let [count-results (count-benchmarks)]
+              (print "  Inverse Queries...") (flush)
+              (let [inverse-results (inverse-query-benchmarks)]
                 (println " done")
-                (print "  Filtered Bindings...") (flush)
-                (let [filtered-results (filtered-binding-benchmarks)]
+                (print "  Operators...") (flush)
+                (let [operator-results (operator-benchmarks)]
                   (println " done")
-                  (concat parse-results
-                          compile-results
-                          ast-results
-                          compiled-results
-                          operator-results
-                          quantifier-results
-                          count-results
-                          filtered-results))))))))))
+                  (print "  Quantifiers...") (flush)
+                  (let [quantifier-results (quantifier-benchmarks)]
+                    (println " done")
+                    (print "  Count...") (flush)
+                    (let [count-results (count-benchmarks)]
+                      (println " done")
+                      (print "  Filtered Bindings...") (flush)
+                      (let [filtered-results (filtered-binding-benchmarks)]
+                        (println " done")
+                        (concat parse-results
+                                compile-results
+                                ast-results
+                                compiled-results
+                                unify-results
+                                negate-results
+                                inverse-results
+                                operator-results
+                                quantifier-results
+                                count-results
+                                filtered-results)))))))))))))
 
 (defn run-ci
   "Main entry point for CI benchmark runner.

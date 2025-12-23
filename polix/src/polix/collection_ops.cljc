@@ -427,8 +427,15 @@
                 (trace-end coll-op ctx result (::current-trace ctx)))
               result)
 
-            ;; Iterate over collection
-            (loop [elements    (seq coll)
+            ;; Fast path: count without filter uses native count (O(1) for vectors)
+            (if (and (= :count op-key) (nil? where) (nil? body))
+              (let [result (count coll)]
+                (when (satisfies? ICollectionOpTrace coll-op)
+                  (trace-end coll-op ctx result (::current-trace ctx)))
+                result)
+
+              ;; Iterate over collection
+              (loop [elements    (seq coll)
                    index       0
                    state       (init-state coll-op)
                    residuals   {}
@@ -526,7 +533,7 @@
                                    (inc index)
                                    (:state process-result)
                                    new-residuals
-                                   traced-ctx)))))))))))))))
+                                   traced-ctx))))))))))))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Built-in Collection Operators
