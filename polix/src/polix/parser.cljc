@@ -23,12 +23,11 @@
 
   Binding accessors are namespaced keywords that reference a bound variable
   from a quantifier, such as `:u/role` or `:team/members`. They have a
-  namespace that is not `\"doc\"` or `\"fn\"`."
+  namespace that is not a reserved namespace (`doc`, `fn`, `self`, `param`, `event`)."
   [k]
   (and (keyword? k)
        (some? (namespace k))
-       (not= "doc" (namespace k))
-       (not= "fn" (namespace k))))
+       (not (contains? #{"doc" "fn" "self" "param" "event"} (namespace k)))))
 
 (defn fn-accessor?
   "Returns `true` if `k` is a function accessor keyword.
@@ -39,10 +38,60 @@
   (and (keyword? k)
        (= "fn" (namespace k))))
 
+(defn self-accessor?
+  "Returns `true` if `k` is a self accessor keyword.
+
+  Self accessors reference values bound in let expressions,
+  such as `:self/computed-value`."
+  [k]
+  (and (keyword? k)
+       (= "self" (namespace k))))
+
+(defn param-accessor?
+  "Returns `true` if `k` is a parameter accessor keyword.
+
+  Parameter accessors reference policy parameters,
+  such as `:param/role` or `:param/min-level`."
+  [k]
+  (and (keyword? k)
+       (= "param" (namespace k))))
+
+(defn event-accessor?
+  "Returns `true` if `k` is an event accessor keyword.
+
+  Event accessors reference event data in triggers,
+  such as `:event/target-id` or `:event/amount`."
+  [k]
+  (and (keyword? k)
+       (= "event" (namespace k))))
+
 (defn quantifier-op?
   "Returns `true` if `op` is a quantifier operator (`:forall` or `:exists`)."
   [op]
   (contains? #{:forall :exists} op))
+
+(defn policy-reference?
+  "Returns `true` if `form` is a policy reference.
+
+  Policy references are vectors starting with a namespaced keyword
+  that is not a built-in operator or accessor:
+  - `[:auth/admin]`
+  - `[:auth/has-role {:role \"editor\"}]`"
+  [form]
+  (and (vector? form)
+       (seq form)
+       (keyword? (first form))
+       (some? (namespace (first form)))
+       (not (contains? #{"doc" "fn"} (namespace (first form))))
+       (not (quantifier-op? (first form)))))
+
+(defn let-binding?
+  "Returns `true` if `form` is a let binding expression.
+
+  Let bindings have the form `[:let [bindings...] body]`."
+  [form]
+  (and (vector? form)
+       (= :let (first form))))
 
 (declare parse-policy)
 
@@ -173,6 +222,9 @@
 
   Returns a Result containing an [[ast/ASTNode]] with the appropriate type:
   - `::ast/doc-accessor` for document accessors (value is a path vector)
+  - `::ast/self-accessor` for self accessors (value is a path vector)
+  - `::ast/param-accessor` for param accessors (value is keyword)
+  - `::ast/event-accessor` for event accessors (value is a path vector)
   - `::ast/doc-accessor` for binding accessors (value is path, metadata has namespace)
   - `::ast/thunk` for thunkable forms
   - `::ast/literal` for all other values
@@ -192,6 +244,21 @@
       (if (r/error? path-result)
         (r/error (assoc (r/unwrap path-result) :position position))
         (r/ok (ast/ast-node ::ast/doc-accessor (r/unwrap path-result) position))))
+
+    (self-accessor? token)
+    (let [path-result (parse-doc-path (name token))]
+      (if (r/error? path-result)
+        (r/error (assoc (r/unwrap path-result) :position position))
+        (r/ok (ast/ast-node ::ast/self-accessor (r/unwrap path-result) position))))
+
+    (param-accessor? token)
+    (r/ok (ast/ast-node ::ast/param-accessor (keyword (name token)) position))
+
+    (event-accessor? token)
+    (let [path-result (parse-doc-path (name token))]
+      (if (r/error? path-result)
+        (r/error (assoc (r/unwrap path-result) :position position))
+        (r/ok (ast/ast-node ::ast/event-accessor (r/unwrap path-result) position))))
 
     (binding-accessor? token)
     (let [path-result (parse-doc-path (name token))]
@@ -292,15 +359,120 @@
                     :position position
                     :value arg}))))))
 
+(defn- parse-policy-reference
+  "Parses a policy reference `[:ns/policy]` or `[:ns/policy {:params}]`.
+
+  Returns `{:ok ASTNode}` with type `::ast/policy-reference` on success."
+  [form position]
+  (let [policy-kw (first form)
+        params    (second form)
+        ns-key    (keyword (namespace policy-kw))
+        name-key  (keyword (name policy-kw))]
+    (cond
+      (> (count form) 2)
+      (r/error {:error :invalid-policy-reference
+                :message "Policy reference takes at most 1 argument (params map)"
+                :position position
+                :value form})
+
+      (and params (not (map? params)))
+      (r/error {:error :invalid-policy-params
+                :message "Policy parameters must be a map"
+                :position position
+                :value params})
+
+      :else
+      (r/ok (ast/ast-node ::ast/policy-reference
+                          {:namespace ns-key
+                           :name name-key}
+                          position
+                          nil
+                          (when params {:params params}))))))
+
+(defn- parse-let-binding
+  "Parses a let binding `[:let [name1 expr1 name2 expr2 ...] body]`.
+
+  Returns `{:ok ASTNode}` with type `::ast/let-binding` on success."
+  [form position]
+  (cond
+    (< (count form) 3)
+    (r/error {:error :invalid-let
+              :message ":let requires bindings vector and body"
+              :position position
+              :value form})
+
+    (> (count form) 3)
+    (r/error {:error :invalid-let
+              :message ":let takes exactly 2 arguments: bindings and body"
+              :position position
+              :value form})
+
+    :else
+    (let [bindings-form (second form)
+          body-form     (nth form 2)]
+      (cond
+        (not (vector? bindings-form))
+        (r/error {:error :invalid-let-bindings
+                  :message "Let bindings must be a vector"
+                  :position position
+                  :value bindings-form})
+
+        (odd? (count bindings-form))
+        (r/error {:error :invalid-let-bindings
+                  :message "Let bindings must have even number of forms (name-value pairs)"
+                  :position position
+                  :value bindings-form})
+
+        :else
+        (let [pairs (partition 2 bindings-form)
+              parse-pair (fn [[idx [bname bexpr]]]
+                           (cond
+                             (not (or (symbol? bname) (keyword? bname)))
+                             (r/error {:error :invalid-let-binding-name
+                                       :message "Binding name must be a symbol or keyword"
+                                       :position [(first position) (+ (second position) 1 (* idx 2))]
+                                       :value bname})
+
+                             :else
+                             (let [expr-result (parse-policy bexpr
+                                                              [(first position)
+                                                               (+ (second position) 2 (* idx 2))])]
+                               (if (r/error? expr-result)
+                                 expr-result
+                                 (r/ok {:name (if (symbol? bname)
+                                                (keyword bname)
+                                                bname)
+                                        :expr (r/unwrap expr-result)})))))
+              binding-results (r/sequence-results
+                               (map-indexed (fn [idx pair]
+                                              (parse-pair [idx pair]))
+                                            pairs))]
+          (if (r/error? binding-results)
+            binding-results
+            (let [body-result (parse-policy body-form
+                                            [(first position) (+ (second position) 2)])]
+              (if (r/error? body-result)
+                body-result
+                (r/ok (ast/ast-node ::ast/let-binding
+                                    nil
+                                    position
+                                    [(r/unwrap body-result)]
+                                    {:bindings (r/unwrap binding-results)}))))))))))
+
 (defn parse-policy
   "Parses a policy DSL expression `expr` into an AST.
 
   The DSL supports:
   - Document accessors: `:doc/key-name`
+  - Self accessors: `:self/computed-value` (from let bindings)
+  - Parameter accessors: `:param/role` (policy parameters)
+  - Event accessors: `:event/target-id` (trigger event data)
   - Binding accessors: `:u/field` (within quantifier bodies)
   - Function calls: `[:fn-name arg1 arg2 ...]`
   - Quantifiers: `[:forall [u :doc/users] body]`, `[:exists [t :doc/teams] body]`
   - Value functions: `[:fn/count :doc/users]`, `[:fn/count [:u :doc/users :where [...]]]`
+  - Policy references: `[:auth/admin]`, `[:auth/has-role {:role \"editor\"}]`
+  - Let bindings: `[:let [x :doc/value] [:= :self/x 5]]`
   - Literals: strings, numbers, keywords, etc.
   - Thunks: Clojure vars and function calls wrapped for delayed evaluation
 
@@ -312,8 +484,17 @@
   ([expr position]
    (cond
      (vector? expr)
-     (if (empty? expr)
+     (cond
+       (empty? expr)
        (r/ok (ast/ast-node ::ast/literal expr position))
+
+       (let-binding? expr)
+       (parse-let-binding expr position)
+
+       (policy-reference? expr)
+       (parse-policy-reference expr position)
+
+       :else
        (let [fn-name (first expr)]
          (if-not (valid-function-name? fn-name)
            (r/error {:error :invalid-function-name

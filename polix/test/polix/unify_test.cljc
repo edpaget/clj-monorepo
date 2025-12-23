@@ -8,6 +8,7 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [polix.parser :as parser]
+   [polix.registry :as registry]
    [polix.residual :as res]
    [polix.result :as r]
    [polix.unify :as unify]))
@@ -443,3 +444,155 @@
     (let [result (unify/unify [:and [:= :doc/a 1] [:= :doc/b 2]] {})]
       (is (res/residual? result))
       (is (= {[:a] [[:= 1]] [:b] [[:= 2]]} result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Self Accessor Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest self-accessor-found-test
+  (testing "self accessor resolves from context"
+    (let [result (unify/unify [:= :self/value 5] {}
+                              {:self {:value 5}})]
+      (is (= {} result)))))
+
+(deftest self-accessor-nested-test
+  (testing "self accessor resolves nested path"
+    (let [result (unify/unify [:= :self/computed.result 42] {}
+                              {:self {:computed {:result 42}}})]
+      (is (= {} result)))))
+
+(deftest self-accessor-missing-test
+  (testing "self accessor returns complex when missing"
+    (let [result (unify/unify [:= :self/value 5] {} {:self {}})]
+      (is (res/has-complex? result))
+      (is (= {[:value] [[:self :any]]} (first (get-in result [::res/complex :children])))))))
+
+(deftest self-accessor-no-context-test
+  (testing "self accessor returns complex when no self context"
+    (let [result (unify/unify [:= :self/value 5] {} {})]
+      (is (res/has-complex? result))
+      (is (= {[:value] [[:self :missing]]} (first (get-in result [::res/complex :children])))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Param Accessor Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest param-accessor-found-test
+  (testing "param accessor resolves from context"
+    (let [result (unify/unify [:= :doc/role :param/role] {:role "admin"}
+                              {:params {:role "admin"}})]
+      (is (= {} result)))))
+
+(deftest param-accessor-missing-test
+  (testing "param accessor returns complex when param missing"
+    (let [result (unify/unify [:= :doc/role :param/role] {:role "admin"}
+                              {:params {}})]
+      (is (res/has-complex? result)))))
+
+(deftest param-accessor-no-params-test
+  (testing "param accessor returns complex when no params context"
+    (let [result (unify/unify [:= :doc/role :param/role] {:role "admin"} {})]
+      (is (res/has-complex? result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Event Accessor Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest event-accessor-found-test
+  (testing "event accessor resolves from context"
+    (let [result (unify/unify [:= :event/target-id "entity-1"] {}
+                              {:event {:target-id "entity-1"}})]
+      (is (= {} result)))))
+
+(deftest event-accessor-nested-test
+  (testing "event accessor resolves nested path"
+    (let [result (unify/unify [:= :event/damage.amount 10] {}
+                              {:event {:damage {:amount 10}}})]
+      (is (= {} result)))))
+
+(deftest event-accessor-missing-test
+  (testing "event accessor returns complex when missing"
+    (let [result (unify/unify [:= :event/target-id "x"] {} {:event {}})]
+      (is (res/has-complex? result)))))
+
+(deftest event-accessor-no-context-test
+  (testing "event accessor returns complex when no event context"
+    (let [result (unify/unify [:= :event/target-id "x"] {} {})]
+      (is (res/has-complex? result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Let Binding Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest let-binding-simple-test
+  (testing "let binding evaluates body with self context"
+    (let [result (unify/unify [:let [:x 5] [:= :self/x 5]] {} {})]
+      (is (= {} result)))))
+
+(deftest let-binding-from-doc-test
+  (testing "let binding captures doc value"
+    (let [result (unify/unify [:let [:val :doc/amount] [:> :self/val 10]]
+                              {:amount 15} {})]
+      (is (= {} result)))))
+
+(deftest let-binding-conflict-test
+  (testing "let binding conflict when body fails"
+    (let [result (unify/unify [:let [:x 5] [:= :self/x 10]] {} {})]
+      (is (res/has-complex? result)))))
+
+(deftest let-binding-multiple-test
+  (testing "let with multiple bindings"
+    (let [result (unify/unify [:let [:x 1 :y 2]
+                               [:and [:= :self/x 1] [:= :self/y 2]]]
+                              {} {})]
+      (is (= {} result)))))
+
+(deftest let-binding-residual-test
+  (testing "let binding residual when expr is residual"
+    (let [result (unify/unify [:let [:val :doc/missing] [:> :self/val 10]]
+                              {} {})]
+      (is (res/has-complex? result))
+      (is (= :let-binding-residual (get-in result [::res/complex :type]))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Policy Reference Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest policy-reference-no-registry-test
+  (testing "policy reference returns complex when no registry"
+    (let [result (unify/unify [:auth/admin] {:role "admin"} {})]
+      (is (res/has-complex? result))
+      (is (= :no-registry (get-in result [::res/complex :type]))))))
+
+(deftest policy-reference-found-test
+  (testing "policy reference resolves and evaluates"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                        {:policies {:admin [:= :doc/role "admin"]}}))
+          result   (unify/unify [:auth/admin] {:role "admin"} {:registry registry})]
+      (is (= {} result)))))
+
+(deftest policy-reference-conflict-test
+  (testing "policy reference conflict when policy fails"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                        {:policies {:admin [:= :doc/role "admin"]}}))
+          result   (unify/unify [:auth/admin] {:role "guest"} {:registry registry})]
+      (is (res/has-conflicts? result)))))
+
+(deftest policy-reference-with-params-test
+  (testing "policy reference with params"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                        {:policies {:has-role [:= :doc/role :param/role]}}))
+          result   (unify/unify [:auth/has-role {:role "editor"}]
+                                {:role "editor"}
+                                {:registry registry})]
+      (is (= {} result)))))
+
+(deftest policy-reference-unknown-test
+  (testing "policy reference returns complex when policy unknown"
+    (let [registry (registry/create-registry)
+          result   (unify/unify [:auth/admin] {:role "admin"} {:registry registry})]
+      (is (res/has-complex? result))
+      (is (= :unknown-policy (get-in result [::res/complex :type]))))))

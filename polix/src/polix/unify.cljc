@@ -39,6 +39,7 @@
    [polix.collection-ops :as coll-ops]
    [polix.operators :as op]
    [polix.parser :as parser]
+   [polix.registry :as registry]
    [polix.residual :as res]
    [polix.result :as r]))
 
@@ -329,6 +330,77 @@
         binding (get-in node [:metadata :binding])]
     (unify-collection-op fn-type binding nil document ctx)))
 
+(defmethod unify-ast ::ast/self-accessor
+  [node _document ctx]
+  (let [path (:value node)]
+    (if-let [self-bindings (:self ctx)]
+      (if (path-exists? self-bindings path)
+        (get-in self-bindings path)
+        (res/residual path [[:self :any]]))
+      (res/residual path [[:self :missing]]))))
+
+(defmethod unify-ast ::ast/param-accessor
+  [node _document ctx]
+  (let [param-key (:value node)]
+    (if-let [params (:params ctx)]
+      (if (contains? params param-key)
+        (get params param-key)
+        (res/residual [param-key] [[:param :missing]]))
+      (res/residual [param-key] [[:param :no-context]]))))
+
+(defmethod unify-ast ::ast/event-accessor
+  [node _document ctx]
+  (let [path (:value node)]
+    (if-let [event (:event ctx)]
+      (if (path-exists? event path)
+        (get-in event path)
+        (res/residual path [[:event :any]]))
+      (res/residual path [[:event :missing]]))))
+
+(defmethod unify-ast ::ast/policy-reference
+  [node document ctx]
+  (let [{:keys [namespace name]} (:value node)
+        params   (get-in node [:metadata :params])
+        registry (:registry ctx)]
+    (if-not registry
+      {::res/complex {:type :no-registry
+                      :namespace namespace
+                      :name name}}
+      (if-let [policy-expr (registry/resolve-policy registry namespace name)]
+        (let [policy-ast (r/unwrap (parser/parse-policy policy-expr))
+              ctx-with-params (if params
+                                (update ctx :params merge params)
+                                ctx)]
+          (unify-ast policy-ast document ctx-with-params))
+        {::res/complex {:type :unknown-policy
+                        :namespace namespace
+                        :name name}}))))
+
+(defmethod unify-ast ::ast/let-binding
+  [node document ctx]
+  (let [bindings (get-in node [:metadata :bindings])
+        body     (first (:children node))]
+    (loop [remaining bindings
+           self-ctx  (or (:self ctx) {})]
+      (if (empty? remaining)
+        (unify-ast body document (assoc ctx :self self-ctx))
+        (let [{:keys [name expr]} (first remaining)
+              result (unify-ast expr document ctx)]
+          (cond
+            (res/residual? result)
+            {::res/complex {:type :let-binding-residual
+                            :binding name
+                            :residual result}}
+
+            (res/has-complex? result)
+            {::res/complex {:type :let-binding-complex
+                            :binding name
+                            :complex result}}
+
+            :else
+            (recur (rest remaining)
+                   (assoc self-ctx name result))))))))
+
 (defn- unify-children
   "Unifies all child nodes of a function call."
   [children document ctx]
@@ -484,7 +556,14 @@
   Takes:
   - `policy` - AST node, constraint set, or policy expression vector
   - `document` - Associative data structure to evaluate against
-  - `opts` - Optional map with `:operators`, `:fallback`, `:strict?`
+  - `opts` - Optional map with:
+    - `:operators` - operator overrides
+    - `:fallback` - fallback operator lookup
+    - `:strict?` - error on unknown operators
+    - `:registry` - policy registry for resolving policy references
+    - `:params` - parameter map for `:param/` accessors
+    - `:self` - self-reference map for `:self/` accessors
+    - `:event` - event data for `:event/` accessors
 
   Returns:
   - `{}` if fully satisfied
@@ -508,11 +587,16 @@
 
       ;; Conflict (data present but violates constraint)
       (unify ast {:role \"guest\"})
-      ;; => {[:role] [[:conflict [:= \"admin\"] \"guest\"]]}"
+      ;; => {[:role] [[:conflict [:= \"admin\"] \"guest\"]]}
+
+      ;; With registry for policy references
+      (unify [:auth/admin] {:role \"admin\"} {:registry my-registry})"
   ([policy document]
    (unify policy document {}))
   ([policy document opts]
-   (let [ctx (op/make-context opts)]
+   (let [op-ctx (op/make-context opts)
+         ctx    (merge op-ctx
+                       (select-keys opts [:registry :params :self :event]))]
      (cond
        (and (map? policy) (:type policy))
        (unify-ast policy document ctx)

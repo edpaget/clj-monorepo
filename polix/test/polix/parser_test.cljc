@@ -402,3 +402,189 @@
     (let [result (parser/parse-policy [:fn/count "not-a-path"])]
       (is (r/error? result))
       (is (= :invalid-value-fn-arg (:error (r/unwrap result)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Self Accessor Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest self-accessor-predicate-test
+  (testing "identifies self accessors"
+    (is (parser/self-accessor? :self/value))
+    (is (parser/self-accessor? :self/computed.result))
+    (is (not (parser/self-accessor? :doc/value)))
+    (is (not (parser/self-accessor? :param/value)))
+    (is (not (parser/self-accessor? :event/value)))))
+
+(deftest classify-token-self-accessor-test
+  (testing "parses self accessor as self-accessor node"
+    (let [result (parser/classify-token :self/value [0 0])]
+      (is (r/ok? result))
+      (let [node (r/unwrap result)]
+        (is (= ::ast/self-accessor (:type node)))
+        (is (= [:value] (:value node))))))
+  (testing "parses nested self accessor path"
+    (let [result (parser/classify-token :self/computed.result [0 0])]
+      (is (r/ok? result))
+      (let [node (r/unwrap result)]
+        (is (= ::ast/self-accessor (:type node)))
+        (is (= [:computed :result] (:value node)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Param Accessor Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest param-accessor-predicate-test
+  (testing "identifies param accessors"
+    (is (parser/param-accessor? :param/role))
+    (is (parser/param-accessor? :param/min-level))
+    (is (not (parser/param-accessor? :doc/role)))
+    (is (not (parser/param-accessor? :self/value)))))
+
+(deftest classify-token-param-accessor-test
+  (testing "parses param accessor as param-accessor node"
+    (let [result (parser/classify-token :param/role [0 0])]
+      (is (r/ok? result))
+      (let [node (r/unwrap result)]
+        (is (= ::ast/param-accessor (:type node)))
+        (is (= :role (:value node)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Event Accessor Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest event-accessor-predicate-test
+  (testing "identifies event accessors"
+    (is (parser/event-accessor? :event/target-id))
+    (is (parser/event-accessor? :event/amount))
+    (is (not (parser/event-accessor? :doc/target)))
+    (is (not (parser/event-accessor? :param/target)))))
+
+(deftest classify-token-event-accessor-test
+  (testing "parses event accessor as event-accessor node"
+    (let [result (parser/classify-token :event/target-id [0 0])]
+      (is (r/ok? result))
+      (let [node (r/unwrap result)]
+        (is (= ::ast/event-accessor (:type node)))
+        (is (= [:target-id] (:value node))))))
+  (testing "parses nested event accessor path"
+    (let [result (parser/classify-token :event/damage.amount [0 0])]
+      (is (r/ok? result))
+      (let [node (r/unwrap result)]
+        (is (= ::ast/event-accessor (:type node)))
+        (is (= [:damage :amount] (:value node)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Policy Reference Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest policy-reference-predicate-test
+  (testing "identifies policy references"
+    (is (parser/policy-reference? [:auth/admin]))
+    (is (parser/policy-reference? [:auth/has-role {:role "editor"}]))
+    (is (not (parser/policy-reference? [:= :doc/x 1])))
+    (is (not (parser/policy-reference? [:forall [:u :doc/users] true])))
+    (is (not (parser/policy-reference? [:fn/count :doc/users])))))
+
+(deftest parse-policy-reference-simple-test
+  (testing "parses simple policy reference"
+    (let [result (parser/parse-policy [:auth/admin])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/policy-reference (:type ast)))
+        (is (= {:namespace :auth :name :admin} (:value ast)))
+        (is (nil? (:metadata ast)))))))
+
+(deftest parse-policy-reference-with-params-test
+  (testing "parses policy reference with params"
+    (let [result (parser/parse-policy [:auth/has-role {:role "editor"}])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/policy-reference (:type ast)))
+        (is (= {:namespace :auth :name :has-role} (:value ast)))
+        (is (= {:params {:role "editor"}} (:metadata ast)))))))
+
+(deftest parse-policy-reference-errors-test
+  (testing "rejects policy reference with too many args"
+    (let [result (parser/parse-policy [:auth/admin {} :extra])]
+      (is (r/error? result))
+      (is (= :invalid-policy-reference (:error (r/unwrap result))))))
+  (testing "rejects policy reference with non-map params"
+    (let [result (parser/parse-policy [:auth/admin "not-a-map"])]
+      (is (r/error? result))
+      (is (= :invalid-policy-params (:error (r/unwrap result)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Let Binding Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest let-binding-predicate-test
+  (testing "identifies let bindings"
+    (is (parser/let-binding? [:let [] true]))
+    (is (parser/let-binding? [:let ['x 1] 'x]))
+    (is (not (parser/let-binding? [:= :doc/x 1])))
+    (is (not (parser/let-binding? [:and true false])))))
+
+(deftest parse-let-binding-simple-test
+  (testing "parses simple let binding"
+    (let [result (parser/parse-policy [:let [:x 5] [:= :self/x 5]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/let-binding (:type ast)))
+        (is (= 1 (count (get-in ast [:metadata :bindings]))))
+        (let [binding (first (get-in ast [:metadata :bindings]))]
+          (is (= :x (:name binding)))
+          (is (= ::ast/literal (:type (:expr binding)))))
+        (is (= 1 (count (:children ast))))
+        (is (= ::ast/function-call (:type (first (:children ast)))))))))
+
+(deftest parse-let-binding-multiple-test
+  (testing "parses let with multiple bindings"
+    (let [result (parser/parse-policy [:let [:x 1 :y 2] [:and [:= :self/x 1] [:= :self/y 2]]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= 2 (count (get-in ast [:metadata :bindings]))))
+        (is (= :x (:name (first (get-in ast [:metadata :bindings])))))
+        (is (= :y (:name (second (get-in ast [:metadata :bindings])))))))))
+
+(deftest parse-let-binding-with-doc-accessor-test
+  (testing "parses let with doc accessor expression"
+    (let [result (parser/parse-policy [:let [:val :doc/amount] [:> :self/val 10]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/doc-accessor (:type (:expr (first (get-in ast [:metadata :bindings]))))))))))
+
+(deftest parse-let-binding-errors-test
+  (testing "rejects let without body"
+    (let [result (parser/parse-policy [:let [:x 1]])]
+      (is (r/error? result))
+      (is (= :invalid-let (:error (r/unwrap result))))))
+  (testing "rejects let with too many args"
+    (let [result (parser/parse-policy [:let [:x 1] true :extra])]
+      (is (r/error? result))
+      (is (= :invalid-let (:error (r/unwrap result))))))
+  (testing "rejects let with non-vector bindings"
+    (let [result (parser/parse-policy [:let {:x 1} true])]
+      (is (r/error? result))
+      (is (= :invalid-let-bindings (:error (r/unwrap result))))))
+  (testing "rejects let with odd binding count"
+    (let [result (parser/parse-policy [:let [:x] true])]
+      (is (r/error? result))
+      (is (= :invalid-let-bindings (:error (r/unwrap result))))))
+  (testing "rejects let with invalid binding name"
+    (let [result (parser/parse-policy [:let ["x" 1] true])]
+      (is (r/error? result))
+      (is (= :invalid-let-binding-name (:error (r/unwrap result)))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Binding Accessor Updated Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest binding-accessor-excludes-reserved-test
+  (testing "binding-accessor? excludes reserved namespaces"
+    (is (not (parser/binding-accessor? :self/value)))
+    (is (not (parser/binding-accessor? :param/role)))
+    (is (not (parser/binding-accessor? :event/target)))
+    (is (not (parser/binding-accessor? :doc/value)))
+    (is (not (parser/binding-accessor? :fn/count)))
+    (is (parser/binding-accessor? :u/value))
+    (is (parser/binding-accessor? :custom/field))))

@@ -67,14 +67,18 @@
   - [[polix.residual]] - Result type predicates and combinators
   - [[polix.negate]] - AST negation
   - [[polix.policy]] - Policy definition macros
-  - [[polix.compiler]] - Policy compilation and constraint solving"
+  - [[polix.compiler]] - Policy compilation and constraint solving
+  - [[polix.registry]] - Namespace registry for policy resolution
+  - [[polix.loader]] - Module loading with dependency resolution"
   (:require
    [polix.ast :as ast]
    [polix.compiler :as compiler]
    [polix.engine :as engine]
+   [polix.loader :as loader]
    [polix.negate :as negate]
    [polix.parser :as parser]
    [polix.policy :as policy]
+   [polix.registry :as registry]
    [polix.residual :as res]
    [polix.result :as result]
    [polix.unify :as unify]))
@@ -292,3 +296,129 @@
 (def merge-policies compiler/merge-policies)
 (def residual->constraints compiler/residual->constraints)
 (def result->policy compiler/result->policy)
+
+;;; ---------------------------------------------------------------------------
+;;; Registry API
+;;; ---------------------------------------------------------------------------
+
+(def create-registry
+  "Creates a new registry with built-in namespace entries.
+
+  The registry manages namespace resolution for policy evaluation,
+  including document accessors (`:doc/`), function references (`:fn/`),
+  and user-defined modules.
+
+  Example:
+
+      (create-registry)
+      ;=> #RegistryRecord{:entries {...} :version 0}"
+  registry/create-registry)
+
+(def register-module
+  "Registers a module namespace in the registry.
+
+  Modules define named policies that can be referenced by other modules.
+  Returns a new registry with the module added.
+
+  Example:
+
+      (-> (create-registry)
+          (register-module :auth {:policies {:admin [:= :doc/role \"admin\"]}}))"
+  registry/register-module)
+
+(def register-alias
+  "Registers an alias from one namespace to another.
+
+  Returns a new registry with the alias added.
+
+  Example:
+
+      (-> (create-registry)
+          (register-alias :a :auth))"
+  registry/register-alias)
+
+(def resolve-namespace
+  "Resolves a namespace key to its entry, following aliases.
+
+  Returns the namespace entry or nil if not found."
+  registry/resolve-namespace)
+
+(def resolve-policy
+  "Resolves a policy from a module namespace.
+
+  Returns the policy AST or nil if not found.
+
+  Example:
+
+      (resolve-policy registry :auth :admin)
+      ;=> [:= :doc/role \"admin\"]"
+  registry/resolve-policy)
+
+(def module-namespaces
+  "Returns the set of user-defined module namespaces in the registry."
+  registry/module-namespaces)
+
+;;; ---------------------------------------------------------------------------
+;;; Module Loader API
+;;; ---------------------------------------------------------------------------
+
+(def load-module
+  "Loads a single module definition into a registry.
+
+  Returns the updated registry. Does not validate imports."
+  loader/load-module)
+
+(def load-modules
+  "Loads multiple modules into a registry with dependency resolution.
+
+  Validates all module definitions, checks for circular imports, verifies
+  that all imports exist, and loads modules in topological order
+  (dependencies first).
+
+  Returns `{:ok registry}` on success, `{:error error-map}` on failure.
+
+  Example:
+
+      (load-modules (create-registry)
+                    [{:namespace :common
+                      :policies {:active [:= :doc/status \"active\"]}}
+                     {:namespace :auth
+                      :imports [:common]
+                      :policies {:admin [:= :doc/role \"admin\"]}}])"
+  loader/load-modules)
+
+(def detect-cycle
+  "Detects if a dependency graph contains a cycle.
+
+  Returns nil if no cycle, or a vector representing the cycle path."
+  loader/detect-cycle)
+
+(def topological-sort
+  "Returns nodes in dependency order (dependencies first).
+
+  Uses DFS-based topological sort."
+  loader/topological-sort)
+
+;;; ---------------------------------------------------------------------------
+;;; Parser Predicates (new)
+;;; ---------------------------------------------------------------------------
+
+(def self-accessor?
+  "Returns true if keyword is a self-accessor (`:self/key`)."
+  parser/self-accessor?)
+
+(def param-accessor?
+  "Returns true if keyword is a parameter accessor (`:param/key`)."
+  parser/param-accessor?)
+
+(def event-accessor?
+  "Returns true if keyword is an event accessor (`:event/key`)."
+  parser/event-accessor?)
+
+(def policy-reference?
+  "Returns true if form is a policy reference (`[:ns/policy]`)."
+  parser/policy-reference?)
+
+(def let-binding?
+  "Returns true if form is a let binding (`[:let [...] body]`)."
+  parser/let-binding?)
