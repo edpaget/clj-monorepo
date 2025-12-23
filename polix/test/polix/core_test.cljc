@@ -15,7 +15,7 @@
 
 (deftest thunkable-test
   (testing "identifying forms that should be thunked"
-    #?(:clj (is (true? (core/thunkable? #'core/evaluate))))
+    #?(:clj (is (true? (core/thunkable? #'core/unify))))
     (is (true? (core/thunkable? '(+ 1 2))))
     (is (false? (core/thunkable? :doc/foo)))
     (is (false? (core/thunkable? "literal")))
@@ -47,7 +47,7 @@
 
   #?(:clj
      (testing "classifying thunks"
-       (let [result (core/classify-token #'core/evaluate [1 0])]
+       (let [result (core/classify-token #'core/unify [1 0])]
          (is (core/ok? result))
          (let [node (core/unwrap result)]
            (is (= ::ast/thunk (:type node)))
@@ -172,13 +172,71 @@
     (is (= #{[:role] [:name]} (:schema TestPolicyWithoutDocstring)))
     (is (some? (:ast TestPolicyWithoutDocstring)))))
 
+;;; ---------------------------------------------------------------------------
+;;; Unify API Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest unify-basic-test
+  (testing "unify satisfied"
+    (is (= {} (core/unify [:= :doc/role "admin"] {:role "admin"}))))
+  (testing "unify contradiction"
+    (is (nil? (core/unify [:= :doc/role "admin"] {:role "guest"}))))
+  (testing "unify residual"
+    (let [result (core/unify [:= :doc/role "admin"] {})]
+      (is (core/residual? result))
+      (is (= {[:role] [[:= "admin"]]} result)))))
+
+(deftest unify-with-ast-test
+  (testing "unify with parsed AST"
+    (let [ast (core/unwrap (core/parse-policy [:= :doc/role "admin"]))]
+      (is (= {} (core/unify ast {:role "admin"})))
+      (is (nil? (core/unify ast {:role "guest"}))))))
+
+(deftest residual-predicates-test
+  (testing "satisfied?"
+    (is (core/satisfied? {}))
+    (is (not (core/satisfied? nil)))
+    (is (not (core/satisfied? {[:role] [[:= "admin"]]}))))
+  (testing "residual?"
+    (is (core/residual? {[:role] [[:= "admin"]]}))
+    (is (not (core/residual? {})))
+    (is (not (core/residual? nil))))
+  (testing "contradiction?"
+    (is (core/contradiction? nil))
+    (is (not (core/contradiction? {})))
+    (is (not (core/contradiction? {[:role] [[:= "admin"]]})))))
+
+(deftest negate-test
+  (testing "negate equality"
+    (let [ast    (core/unwrap (core/parse-policy [:= :doc/role "admin"]))
+          result (core/negate ast)]
+      (is (= :!= (:value result)))))
+  (testing "negate AND becomes OR"
+    (let [ast    (core/unwrap (core/parse-policy [:and [:= :doc/a 1] [:= :doc/b 2]]))
+          result (core/negate ast)]
+      (is (= :or (:value result))))))
+
+(deftest merge-residuals-test
+  (testing "merge two residuals"
+    (let [r1 {[:a] [[:= 1]]}
+          r2 {[:b] [[:= 2]]}]
+      (is (= {[:a] [[:= 1]] [:b] [[:= 2]]}
+             (core/merge-residuals r1 r2)))))
+  (testing "merge with contradiction"
+    (is (nil? (core/merge-residuals nil {[:a] [[:= 1]]})))))
+
+;;; ---------------------------------------------------------------------------
+;;; Legacy API Tests (deprecated but still supported)
+;;; ---------------------------------------------------------------------------
+
+#_{:clj-kondo/ignore [:deprecated-var]}
 (deftest evaluate-with-nil-values-test
   (testing "evaluating doc-accessor with nil value vs missing key"
     (let [policy-ast         (core/unwrap (core/parse-policy :doc/status))
           result-with-nil    (core/evaluate policy-ast {:status nil})
           result-without-key (core/evaluate policy-ast {})]
       (is (nil? result-with-nil))
-      (is (core/residual? result-without-key))))
+      (is (core/legacy-residual? result-without-key))))
 
   (testing "evaluating doc-accessor with false value"
     (let [policy-ast (core/unwrap (core/parse-policy :doc/active))
