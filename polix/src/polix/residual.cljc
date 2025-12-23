@@ -41,16 +41,6 @@
   [x]
   (and (map? x) (empty? x)))
 
-(defn contradiction?
-  "DEPRECATED: Use [[has-conflicts?]] instead.
-
-  Returns true if `x` is nil. In the new conflict model, contradictions
-  are represented as residuals containing conflict constraints rather
-  than as nil."
-  {:deprecated "1.5"}
-  [x]
-  (nil? x))
-
 ;;; ---------------------------------------------------------------------------
 ;;; Conflict Operations
 ;;; ---------------------------------------------------------------------------
@@ -224,18 +214,6 @@
   "Returns an empty residual indicating satisfaction."
   []
   {})
-
-(defn contradiction
-  "DEPRECATED: Use [[conflict]] and [[residual]] instead.
-
-  Returns nil. In the new conflict model, use:
-
-      (residual path [(conflict [:op value] witness-value)])
-
-  to represent a constraint violation."
-  {:deprecated "1.5"}
-  []
-  nil)
 
 (defn residual
   "Creates a residual with constraints on a single key.

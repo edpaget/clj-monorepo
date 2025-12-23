@@ -3,7 +3,8 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [polix.collection-ops :as coll-ops]
-   [polix.engine :as engine]))
+   [polix.residual :as res]
+   [polix.unify :as unify]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Protocol Tests
@@ -121,36 +122,36 @@
 
 (deftest forall-integration-test
   (testing "forall all pass"
-    (is (= true (engine/evaluate
-                 [:forall [:u :doc/users] [:= :u/role "admin"]]
-                 {:users [{:role "admin"} {:role "admin"}]}))))
+    (is (res/satisfied?
+         (unify/unify [:forall [:u :doc/users] [:= :u/role "admin"]]
+                      {:users [{:role "admin"} {:role "admin"}]}))))
 
   (testing "forall one fails"
-    (is (= false (engine/evaluate
-                  [:forall [:u :doc/users] [:= :u/role "admin"]]
-                  {:users [{:role "admin"} {:role "guest"}]})))))
+    (is (res/has-conflicts?
+         (unify/unify [:forall [:u :doc/users] [:= :u/role "admin"]]
+                      {:users [{:role "admin"} {:role "guest"}]})))))
 
 (deftest exists-integration-test
   (testing "exists finds match"
-    (is (= true (engine/evaluate
-                 [:exists [:u :doc/users] [:= :u/role "admin"]]
-                 {:users [{:role "user"} {:role "admin"}]}))))
+    (is (res/satisfied?
+         (unify/unify [:exists [:u :doc/users] [:= :u/role "admin"]]
+                      {:users [{:role "user"} {:role "admin"}]}))))
 
   (testing "exists no match"
-    (is (= false (engine/evaluate
-                  [:exists [:u :doc/users] [:= :u/role "admin"]]
-                  {:users [{:role "user"} {:role "guest"}]})))))
+    (is (res/has-conflicts?
+         (unify/unify [:exists [:u :doc/users] [:= :u/role "admin"]]
+                      {:users [{:role "user"} {:role "guest"}]})))))
 
 (deftest count-integration-test
   (testing "count basic"
-    (is (= true (engine/evaluate
-                 [:= [:fn/count :doc/users] 2]
-                 {:users [{} {}]}))))
+    (is (res/satisfied?
+         (unify/unify [:= [:fn/count :doc/users] 2]
+                      {:users [{} {}]}))))
 
   (testing "count with filter"
-    (is (= true (engine/evaluate
-                 [:= [:fn/count [:u :doc/users :where [:= :u/active true]]] 1]
-                 {:users [{:active true} {:active false}]})))))
+    (is (res/satisfied?
+         (unify/unify [:= [:fn/count [:u :doc/users :where [:= :u/active true]]] 1]
+                      {:users [{:active true} {:active false}]})))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Simplification Protocol Tests

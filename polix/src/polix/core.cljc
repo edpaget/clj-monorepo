@@ -73,7 +73,6 @@
   (:require
    [polix.ast :as ast]
    [polix.compiler :as compiler]
-   [polix.engine :as engine]
    [polix.loader :as loader]
    [polix.negate :as negate]
    [polix.parser :as parser]
@@ -183,14 +182,6 @@
   "Extracts the witness value from a conflict."
   res/conflict-witness)
 
-(def ^{:deprecated "Use has-conflicts? instead"}
-  contradiction?
-  "DEPRECATED: Use [[has-conflicts?]] instead.
-
-  Returns true if result is nil. In the new conflict model, contradictions
-  are represented as conflict residuals rather than nil."
-  res/contradiction?)
-
 (def merge-residuals
   "Merges two residuals with AND semantics.
 
@@ -230,48 +221,6 @@
       ;=> [:or [:!= :doc/a 1] [:!= :doc/b 2]]"
   negate/negate)
 
-;;; ---------------------------------------------------------------------------
-;;; Legacy API (deprecated)
-;;; ---------------------------------------------------------------------------
-
-(def ^{:deprecated "Use unify instead"}
-  evaluate
-  "DEPRECATED: Use [[unify]] instead.
-
-  Evaluates an AST against a document. Returns true/false/{:residual ...}.
-
-  This function uses the old result format. For new code, use [[unify]]
-  which returns `{}`, `nil`, or `{:path [constraints]}`."
-  engine/evaluate)
-
-(def ^{:deprecated "Use (unify policy {}) or (unify (negate policy) {}) instead"}
-  implied
-  "DEPRECATED: Use `(unify policy {})` or `(unify (negate policy) {})` instead.
-
-  Extracts implied constraints from a policy.
-
-  For extracting constraints when result is true, use `(unify policy {})`.
-  For extracting constraints when result is false, use `(unify (negate policy) {})`."
-  engine/implied)
-
-(def ^{:deprecated "Use residual? from polix.residual instead"}
-  legacy-residual?
-  "DEPRECATED: Use [[residual?]] for new residual format.
-
-  Checks for old-format residual `{:residual ...}`."
-  engine/residual?)
-
-(def complex?
-  "Returns true if result contains complex (non-simplifiable) constraints."
-  engine/complex?)
-
-(def result-type
-  "Returns the type of an evaluation result.
-
-  Returns :satisfied, :contradicted, :residual, or :complex.
-  Note: Uses old format (true/false/{:residual})."
-  engine/result-type)
-
 ;; Re-export policy constructors
 (def ->Policy policy/->Policy)
 (def map->Policy policy/map->Policy)
@@ -292,7 +241,6 @@
 
 ;; Re-export compiler functions
 (def compile-policies compiler/compile-policies)
-(def compile-policies-legacy compiler/compile-policies-legacy)
 (def merge-policies compiler/merge-policies)
 (def residual->constraints compiler/residual->constraints)
 (def result->policy compiler/result->policy)

@@ -201,11 +201,7 @@
   (testing "residual?"
     (is (core/residual? {[:role] [[:= "admin"]]}))
     (is (not (core/residual? {})))
-    (is (not (core/residual? nil))))
-  (testing "contradiction?"
-    (is (core/contradiction? nil))
-    (is (not (core/contradiction? {})))
-    (is (not (core/contradiction? {[:role] [[:= "admin"]]})))))
+    (is (not (core/residual? nil)))))
 
 (deftest negate-test
   (testing "negate equality"
@@ -226,20 +222,3 @@
   (testing "merge with contradiction"
     (is (nil? (core/merge-residuals nil {[:a] [[:= 1]]})))))
 
-;;; ---------------------------------------------------------------------------
-;;; Legacy API Tests (deprecated but still supported)
-;;; ---------------------------------------------------------------------------
-
-#_{:clj-kondo/ignore [:deprecated-var]}
-(deftest evaluate-with-nil-values-test
-  (testing "evaluating doc-accessor with nil value vs missing key"
-    (let [policy-ast         (core/unwrap (core/parse-policy :doc/status))
-          result-with-nil    (core/evaluate policy-ast {:status nil})
-          result-without-key (core/evaluate policy-ast {})]
-      (is (nil? result-with-nil))
-      (is (core/legacy-residual? result-without-key))))
-
-  (testing "evaluating doc-accessor with false value"
-    (let [policy-ast (core/unwrap (core/parse-policy :doc/active))
-          result     (core/evaluate policy-ast {:active false})]
-      (is (false? result)))))

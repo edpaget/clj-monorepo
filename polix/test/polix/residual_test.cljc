@@ -22,20 +22,6 @@
     (is (false? (r/satisfied? [])))
     (is (false? (r/satisfied? "string")))))
 
-(deftest contradiction?-test
-  (testing "nil is a contradiction"
-    (is (true? (r/contradiction? nil))))
-
-  (testing "empty map is not a contradiction"
-    (is (false? (r/contradiction? {}))))
-
-  (testing "non-empty map is not a contradiction"
-    (is (false? (r/contradiction? {[:role] [[:= "admin"]]}))))
-
-  (testing "other values are not contradictions"
-    (is (false? (r/contradiction? true)))
-    (is (false? (r/contradiction? false)))))
-
 (deftest residual?-test
   (testing "non-empty map is a residual"
     (is (true? (r/residual? {[:role] [[:= "admin"]]})))
@@ -174,11 +160,6 @@
   (testing "returns empty map"
     (is (= {} (r/satisfied)))
     (is (r/satisfied? (r/satisfied)))))
-
-(deftest contradiction-test
-  (testing "returns nil"
-    (is (nil? (r/contradiction)))
-    (is (r/contradiction? (r/contradiction)))))
 
 (deftest residual-test
   (testing "creates single-key residual"
