@@ -1,12 +1,12 @@
 (ns polix.compiler
-  "Policy compilation with three-valued evaluation.
+  "Policy compilation with residual-based evaluation.
 
   Compiles multiple policies into a single optimized function that returns
-  one of three values when applied to a document:
+  one of three result types when applied to a document:
 
-  - `true` - document fully satisfies all constraints
-  - `false` - document contradicts at least one constraint
-  - `{:residual {...}}` - partial match with remaining constraints
+  - `{}` (empty map) — document fully satisfies all constraints
+  - `{:path [constraints]}` — partial match with remaining constraints
+  - `nil` — document contradicts at least one constraint
 
   ## Example
 
@@ -15,19 +15,20 @@
                       [:in :doc/status #{\"active\" \"pending\"}]]))
 
       (checker {:role \"admin\" :level 10 :status \"active\"})
-      ;; => true
+      ;; => {}
 
       (checker {:role \"guest\"})
-      ;; => false
+      ;; => nil
 
       (checker {:role \"admin\"})
-      ;; => {:residual {:level [[:> 5]], :status [[:in #{\"active\" \"pending\"}]]}}"
+      ;; => {[:level] [[:> 5]], [:status] [[:in #{\"active\" \"pending\"}]]}"
   (:require
    [polix.ast :as ast]
-   [polix.engine :as engine]
    [polix.operators :as op]
    [polix.parser :as parser]
-   [polix.result :as r]))
+   [polix.residual :as res]
+   [polix.result :as r]
+   [polix.unify :as unify]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Representation
@@ -297,51 +298,51 @@
                                              (map vector results constraints)))}))))
 
 ;;; ---------------------------------------------------------------------------
-;;; Three-Valued Evaluation
+;;; Residual-Based Evaluation
 ;;; ---------------------------------------------------------------------------
 
 (defn evaluate-document
   "Evaluates a simplified constraint set against a document.
 
-   Delegates to [[polix.engine/evaluate-constraint-set]] for unified evaluation.
+  Delegates to [[polix.unify/unify-constraint-set]] for unified evaluation.
 
-   Returns:
-   - true if all constraints are satisfied
-   - false if any constraint is contradicted
-   - {:residual {...}} if some constraints cannot be evaluated"
+  Returns:
+  - `{}` if all constraints are satisfied
+  - `{:path [constraints]}` if some constraints cannot be evaluated
+  - `nil` if any constraint is contradicted"
   [constraint-set document]
-  (engine/evaluate-constraint-set constraint-set document))
+  (unify/unify-constraint-set constraint-set document))
 
 (defn- evaluate-complex-nodes
   "Evaluates complex AST nodes that couldn't be normalized to constraints.
 
   Complex nodes include quantifiers and other expressions that require
-  runtime evaluation by the engine. Each complex-node is `{:complex normalized}`
+  runtime evaluation. Each complex-node is `{:complex normalized}`
   where normalized contains `:ast` key with the original AST."
   [complex-nodes document ctx]
   (let [results (map (fn [node]
                        (let [normalized (:complex node)
                              ast        (:ast normalized)]
-                         (engine/eval-ast-3v ast document ctx)))
+                         (unify/unify-ast ast document ctx)))
                      complex-nodes)]
-    (engine/eval-and results)))
+    (unify/unify-and results)))
 
 (defn- evaluate-document-with-context
   "Evaluates a constraint set using operators from context.
 
-   Evaluates both simple constraints (via constraint-set) and complex nodes
-   (via engine evaluation), combining results with AND semantics.
+  Evaluates both simple constraints (via constraint-set) and complex nodes
+  (via unify evaluation), combining results with AND semantics.
 
-   When `:trace?` is enabled in ctx, returns `{:result <value> :trace [...]}`
-   where `<value>` is true, false, or `{:residual ...}`."
+  When `:trace?` is enabled in ctx, returns `{:result <value> :trace [...]}`
+  where `<value>` is `{}`, `nil`, or `{:path [constraints]}`."
   [constraint-set document ctx]
   (let [complex-nodes     (get constraint-set ::complex)
-        constraint-result (engine/evaluate-constraint-set
+        constraint-result (unify/unify-constraint-set
                            (dissoc constraint-set ::complex) document ctx)
-        final-result      (if (or (false? constraint-result) (empty? complex-nodes))
+        final-result      (if (or (nil? constraint-result) (empty? complex-nodes))
                             constraint-result
                             (let [complex-result (evaluate-complex-nodes complex-nodes document ctx)]
-                              (engine/eval-and [constraint-result complex-result])))]
+                              (unify/unify-and [constraint-result complex-result])))]
     (if (and (:trace? ctx) (:trace ctx))
       {:result final-result :trace @(:trace ctx)}
       final-result)))
@@ -370,44 +371,47 @@
 (defn compile-policies
   "Compiles multiple policies into an optimized evaluation function.
 
-   Takes a sequence of policy expressions and optional options map.
-   Returns a function that takes a document and returns true, false,
-   or `{:residual {...}}`.
+  Takes a sequence of policy expressions and optional options map.
+  Returns a function that takes a document and returns one of:
 
-   Options:
-   - `:operators` - custom operators map (overrides registry)
-   - `:fallback` - `(fn [op-key])` for unknown operators
-   - `:strict?` - throw on unknown operators (default false)
-   - `:trace?` - record evaluation trace (default false)
+  - `{}` — satisfied (empty residual)
+  - `{:path [constraints]}` — partial match with remaining constraints
+  - `nil` — contradicted
 
-   Policies are merged with AND semantics - all must be satisfied.
+  Options:
+  - `:operators` - custom operators map (overrides registry)
+  - `:fallback` - `(fn [op-key])` for unknown operators
+  - `:strict?` - throw on unknown operators (default false)
+  - `:trace?` - record evaluation trace (default false)
 
-   The returned function accepts either:
-   - `(check document)` - use compile-time context
-   - `(check document opts)` - override context per-evaluation
+  Policies are merged with AND semantics - all must be satisfied.
 
-   When `:trace?` is enabled (at compile-time or per-evaluation), returns
-   `{:result <value> :trace [...]}` where `:result` is the normal evaluation
-   outcome and `:trace` is a vector of evaluation steps.
+  The returned function accepts either:
+  - `(check document)` - use compile-time context
+  - `(check document opts)` - override context per-evaluation
 
-   Example:
+  When `:trace?` is enabled (at compile-time or per-evaluation), returns
+  `{:result <value> :trace [...]}` where `:result` is the normal evaluation
+  outcome and `:trace` is a vector of evaluation steps.
 
-       (def check (compile-policies
-                    [[:= :doc/role \"admin\"]
-                     [:> :doc/level 5]]))
+  Example:
 
-       (check {:role \"admin\" :level 10})  ;; => true
-       (check {:role \"guest\" :level 10}) ;; => false
-       (check {:role \"admin\"})           ;; => {:residual {:level [[:> 5]]}}
+      (def check (compile-policies
+                   [[:= :doc/role \"admin\"]
+                    [:> :doc/level 5]]))
 
-       ;; With tracing
-       (check {:role \"admin\"} {:trace? true})
-       ;; => {:result true :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}"
+      (check {:role \"admin\" :level 10})  ;; => {}
+      (check {:role \"guest\" :level 10}) ;; => nil
+      (check {:role \"admin\"})           ;; => {[:level] [[:> 5]]}
+
+      ;; With tracing
+      (check {:role \"admin\"} {:trace? true})
+      ;; => {:result {} :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}"
   ([policy-exprs] (compile-policies policy-exprs {}))
   ([policy-exprs opts]
    (let [merge-result (merge-policies policy-exprs)]
      (if (:contradicted merge-result)
-       (constantly false)
+       (constantly nil)
        (let [constraint-set (:simplified merge-result)
              compile-ctx    (op/make-context opts)]
          (fn evaluate
@@ -418,35 +422,37 @@
               (evaluate-document-with-context constraint-set document eval-ctx)))))))))
 
 ;;; ---------------------------------------------------------------------------
-;;; Residual Document Creation
+;;; Residual Conversion
 ;;; ---------------------------------------------------------------------------
 
 (defn residual->constraints
   "Converts a residual map back to policy expressions.
 
-   Takes {[:level] [[:> 5]], [:user :status] [[:in #{\"a\" \"b\"}]]}
-   Returns [[:> :doc/level 5] [:in :doc/user.status #{\"a\" \"b\"}]]"
+  Takes `{[:level] [[:> 5]], [:user :status] [[:in #{\"a\" \"b\"}]]}`
+  Returns `[[:> :doc/level 5] [:in :doc/user.status #{\"a\" \"b\"}]]`"
   [residual]
-  (mapcat
-   (fn [[path constraints]]
-     (map (fn [[op value]]
-            [op (engine/path->doc-accessor path) value])
-          constraints))
-   residual))
+  (when (res/residual? residual)
+    (mapcat
+     (fn [[path constraints]]
+       (when (vector? path)
+         (map (fn [[op value]]
+                [op (unify/path->doc-accessor path) value])
+              constraints)))
+     residual)))
 
 (defn result->policy
-  "Converts an evaluation result to a simplified policy expression.
+  "Converts a unification result to a simplified policy expression.
 
-   Returns:
-   - nil for true (no constraints needed)
-   - [:contradiction] for false
-   - The simplified constraints for residual"
+  Returns:
+  - `nil` for `{}` (satisfied, no constraints needed)
+  - `[:contradiction]` for `nil`
+  - The simplified constraints for residual"
   [result]
   (cond
-    (true? result) nil
-    (false? result) [:contradiction]
-    (map? result)
-    (let [constraints (residual->constraints (:residual result))]
+    (res/satisfied? result) nil
+    (nil? result) [:contradiction]
+    (res/residual? result)
+    (let [constraints (residual->constraints result)]
       (if (= 1 (count constraints))
         (first constraints)
         (into [:and] constraints)))))
@@ -458,19 +464,63 @@
 (defn with-trace
   "Evaluates a compiled policy with tracing enabled.
 
-   Returns `{:result <value> :trace [...]}` where `:result` is the evaluation
-   outcome (true, false, or `{:residual ...}`) and `:trace` is a vector of
-   `{:op :value :expected :result}` maps for each constraint evaluated.
+  Returns `{:result <value> :trace [...]}` where `:result` is the evaluation
+  outcome (`{}`, `nil`, or residual) and `:trace` is a vector of
+  `{:op :value :expected :result}` maps for each constraint evaluated.
 
-   Example:
+  Example:
 
-       (def check (compile-policies [[:= :doc/role \"admin\"]]))
-       (with-trace check {:role \"admin\"})
-       ;; => {:result true :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}
+      (def check (compile-policies [[:= :doc/role \"admin\"]]))
+      (with-trace check {:role \"admin\"})
+      ;; => {:result {} :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}
 
-       (def check2 (compile-policies [[:= :doc/role \"admin\"] [:> :doc/level 5]]))
-       (with-trace check2 {:role \"admin\"})
-       ;; => {:result {:residual {:level [[:> 5]]}}
-       ;;     :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}"
+      (def check2 (compile-policies [[:= :doc/role \"admin\"] [:> :doc/level 5]]))
+      (with-trace check2 {:role \"admin\"})
+      ;; => {:result {[:level] [[:> 5]]}
+      ;;     :trace [{:op := :value \"admin\" :expected \"admin\" :result true}]}"
   [compiled-fn document]
   (compiled-fn document {:trace? true}))
+
+;;; ---------------------------------------------------------------------------
+;;; Legacy Adapter (Backward Compatibility)
+;;; ---------------------------------------------------------------------------
+
+(defn legacy-result
+  "Converts new result format to legacy format.
+
+  Adapts the new `{}` / `{...}` / `nil` format to the old
+  `true` / `{:residual ...}` / `false` format for backward compatibility.
+
+  - `{}` → `true`
+  - `nil` → `false`
+  - `{:path [...]}` → `{:residual {:path [...]}}`"
+  [result]
+  (cond
+    (res/satisfied? result) true
+    (nil? result) false
+    (res/residual? result) {:residual result}
+    :else result))
+
+(defn compile-policies-legacy
+  "Compiles policies returning legacy format results.
+
+  Like [[compile-policies]] but returns the old format:
+  - `true` instead of `{}`
+  - `false` instead of `nil`
+  - `{:residual {...}}` instead of `{...}`
+
+  Use this for compatibility with code expecting the old API."
+  ([policy-exprs] (compile-policies-legacy policy-exprs {}))
+  ([policy-exprs opts]
+   (let [compiled (compile-policies policy-exprs opts)]
+     (fn legacy-evaluate
+       ([document]
+        (let [result (compiled document)]
+          (if (and (map? result) (contains? result :result))
+            (update result :result legacy-result)
+            (legacy-result result))))
+       ([document eval-opts]
+        (let [result (compiled document eval-opts)]
+          (if (and (map? result) (contains? result :result))
+            (update result :result legacy-result)
+            (legacy-result result))))))))

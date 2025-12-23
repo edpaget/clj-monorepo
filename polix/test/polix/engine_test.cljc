@@ -143,11 +143,13 @@
 ;;; ---------------------------------------------------------------------------
 ;;; Equivalence Tests: Engine vs Compiler
 ;;; ---------------------------------------------------------------------------
+;;; Note: These tests use compile-policies-legacy to compare with engine,
+;;; since engine uses the old true/false/{:residual} format.
 
 (deftest equivalence-simple-equality-test
   (testing "simple equality produces same results"
     (let [expr     [:= :doc/role "admin"]
-          compiled (compiler/compile-policies [expr])
+          compiled (compiler/compile-policies-legacy [expr])
           ast      (r/unwrap (parser/parse-policy expr))]
       (is (= true (compiled {:role "admin"})))
       (is (= true (engine/evaluate ast {:role "admin"})))
@@ -160,7 +162,7 @@
   (testing "comparison operators produce same results"
     (doseq [op [:> :< :>= :<=]]
       (let [expr     [op :doc/level 5]
-            compiled (compiler/compile-policies [expr])
+            compiled (compiler/compile-policies-legacy [expr])
             ast      (r/unwrap (parser/parse-policy expr))
             doc-high {:level 10}
             doc-low  {:level 2}
@@ -175,7 +177,7 @@
 (deftest equivalence-set-membership-test
   (testing "set membership produces same results"
     (let [expr     [:in :doc/status #{"active" "pending"}]
-          compiled (compiler/compile-policies [expr])
+          compiled (compiler/compile-policies-legacy [expr])
           ast      (r/unwrap (parser/parse-policy expr))]
       (is (= true (compiled {:status "active"})))
       (is (= true (engine/evaluate ast {:status "active"})))
@@ -188,7 +190,7 @@
   (testing "multiple constraints produce same residual structure"
     (let [expr1    [:= :doc/role "admin"]
           expr2    [:> :doc/level 5]
-          compiled (compiler/compile-policies [expr1 expr2])
+          compiled (compiler/compile-policies-legacy [expr1 expr2])
           ast      (r/unwrap (parser/parse-policy [:and expr1 expr2]))]
       (is (= true (compiled {:role "admin" :level 10})))
       (is (= true (engine/evaluate ast {:role "admin" :level 10})))
@@ -201,7 +203,7 @@
 
 (deftest equivalence-contradiction-test
   (testing "contradictions produce false"
-    (let [compiled (compiler/compile-policies [[:= :doc/a 1] [:= :doc/a 2]])]
+    (let [compiled (compiler/compile-policies-legacy [[:= :doc/a 1] [:= :doc/a 2]])]
       (is (= false (compiled {:a 1})))
       (is (= false (compiled {:a 2})))
       (is (= false (compiled {}))))))
@@ -783,7 +785,7 @@
 
 (deftest residual->constraints-cross-key-test
   (testing "converts cross-key residual to constraints"
-    (let [residual {:polix.engine/cross-key [{:op := :left-path [:a] :right-path [:b]}]}
+    (let [residual    {:polix.engine/cross-key [{:op := :left-path [:a] :right-path [:b]}]}
           constraints (engine/residual->constraints residual)]
       (is (= 1 (count constraints)))
       (is (= [:= :doc/a :doc/b] (first constraints))))))
