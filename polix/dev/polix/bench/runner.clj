@@ -14,6 +14,7 @@
    [cheshire.core :as json]
    [criterium.core :as crit]
    [polix.bench.policies :as p]
+   [polix.bytecode.class-generator :as bytecode]
    [polix.compiler :as compiler]
    [polix.negate :as negate]
    [polix.operators :as op]
@@ -300,6 +301,41 @@
         (println "Warning: Some policies not optimized-eligible, skipping optimized benchmarks")
         []))))
 
+(defn bytecode-benchmarks
+  "Runs JVM bytecode (T3) vs closure (T2) comparison benchmarks.
+
+  Compares bytecode-compiled policies against optimized Clojure closures
+  for bytecode-eligible policies (simple constraints, no quantifiers)."
+  []
+  (let [merged-simple  (:simplified (compiler/merge-policies [p/simple-equality]))
+        merged-medium  (:simplified (compiler/merge-policies [p/medium-and]))]
+    ;; Only benchmark bytecode-eligible policies
+    (if (and (bytecode/bytecode-eligible? merged-simple)
+             (bytecode/bytecode-eligible? merged-medium))
+      (let [;; T3 bytecode compiled
+            bc-simple (bytecode/generate-policy-class merged-simple)
+            bc-medium (bytecode/generate-policy-class merged-medium)
+            ;; T2 closure compiled
+            t2-simple (optimized/compile-policy merged-simple {:tier :t2})
+            t2-medium (optimized/compile-policy merged-medium {:tier :t2})]
+        [;; Simple policy - bytecode (T3)
+         (bench-fn "bytecode/simple-satisfied" (bc-simple p/doc-simple-satisfied))
+         (bench-fn "bytecode/simple-contradicted" (bc-simple p/doc-simple-contradicted))
+         (bench-fn "bytecode/simple-residual" (bc-simple p/doc-empty))
+         ;; Medium policy - bytecode (T3)
+         (bench-fn "bytecode/medium-satisfied" (bc-medium p/doc-medium-satisfied))
+         (bench-fn "bytecode/medium-partial" (bc-medium p/doc-medium-partial))
+         ;; Simple policy - closure (T2) for comparison
+         (bench-fn "closure/simple-satisfied" (optimized/evaluate t2-simple p/doc-simple-satisfied))
+         (bench-fn "closure/simple-contradicted" (optimized/evaluate t2-simple p/doc-simple-contradicted))
+         (bench-fn "closure/simple-residual" (optimized/evaluate t2-simple p/doc-empty))
+         ;; Medium policy - closure (T2) for comparison
+         (bench-fn "closure/medium-satisfied" (optimized/evaluate t2-medium p/doc-medium-satisfied))
+         (bench-fn "closure/medium-partial" (optimized/evaluate t2-medium p/doc-medium-partial))])
+      (do
+        (println "Warning: Some policies not bytecode-eligible, skipping bytecode benchmarks")
+        []))))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Regression Detection
 ;;; ---------------------------------------------------------------------------
@@ -378,19 +414,23 @@
                           (print "  Conflicts...") (flush)
                           (let [conflict-results (conflict-benchmarks)]
                             (println " done")
-                            (concat parse-results
-                                    compile-results
-                                    ast-results
-                                    compiled-results
-                                    unify-results
-                                    negate-results
-                                    inverse-results
-                                    operator-results
-                                    quantifier-results
-                                    count-results
-                                    filtered-results
-                                    optimized-results
-                                    conflict-results))))))))))))))))
+                            (print "  Bytecode...") (flush)
+                            (let [bytecode-results (bytecode-benchmarks)]
+                              (println " done")
+                              (concat parse-results
+                                      compile-results
+                                      ast-results
+                                      compiled-results
+                                      unify-results
+                                      negate-results
+                                      inverse-results
+                                      operator-results
+                                      quantifier-results
+                                      count-results
+                                      filtered-results
+                                      optimized-results
+                                      conflict-results
+                                      bytecode-results))))))))))))))))
 
 (defn run-ci
   "Main entry point for CI benchmark runner.

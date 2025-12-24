@@ -16,8 +16,13 @@
   "Emits bytecode for null check with branch to open-residual label.
 
   Stack: value -> value (if not null)
-  Jumps to open-label if value is null."
+  Jumps to open-label if value is null.
+
+  Note: When called from class-generator, null checks are handled at the
+  path level, so this may be a no-op in that context."
   [^MethodVisitor mv ^Label open-label]
+  ;; Don't duplicate - the caller should have the value on stack
+  ;; and we just need to check and potentially jump
   (.visitInsn mv Opcodes/DUP)
   (.visitJumpInsn mv Opcodes/IFNULL open-label))
 
@@ -83,12 +88,14 @@
   - mv: MethodVisitor
   - constraint: {:op :key :value}
   - type-env: map of path -> type
-  - labels: {:open Label :conflict Label :set-field String :pattern-field String}"
+  - labels: {:open Label :conflict Label :set-field String :pattern-field String
+             :skip-null-check boolean - if true, don't emit null check (already done)}"
   (fn [_mv constraint _type-env _labels] (:op constraint)))
 
 (defmethod emit-constraint :=
-  [^MethodVisitor mv {:keys [value]} type-env {:keys [open conflict]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (cond
     (string? value)
     (do
@@ -111,8 +118,9 @@
       (.visitJumpInsn mv Opcodes/IFEQ conflict))))
 
 (defmethod emit-constraint :!=
-  [^MethodVisitor mv {:keys [value]} type-env {:keys [open conflict]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (cond
     (string? value)
     (do
@@ -135,32 +143,37 @@
       (.visitJumpInsn mv Opcodes/IFNE conflict))))
 
 (defmethod emit-constraint :>
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (emit-long-compare mv (long value))
   (emit-comparison-jump mv :> conflict))
 
 (defmethod emit-constraint :<
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (emit-long-compare mv (long value))
   (emit-comparison-jump mv :< conflict))
 
 (defmethod emit-constraint :>=
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (emit-long-compare mv (long value))
   (emit-comparison-jump mv :>= conflict))
 
 (defmethod emit-constraint :<=
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (emit-long-compare mv (long value))
   (emit-comparison-jump mv :<= conflict))
 
 (defmethod emit-constraint :in
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict set-field class-name]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict set-field class-name skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (.visitFieldInsn mv Opcodes/GETSTATIC class-name set-field "Lclojure/lang/IPersistentSet;")
   (.visitInsn mv Opcodes/SWAP)
   (.visitMethodInsn mv Opcodes/INVOKEINTERFACE
@@ -171,8 +184,9 @@
   (.visitJumpInsn mv Opcodes/IFEQ conflict))
 
 (defmethod emit-constraint :not-in
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict set-field class-name]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict set-field class-name skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (.visitFieldInsn mv Opcodes/GETSTATIC class-name set-field "Lclojure/lang/IPersistentSet;")
   (.visitInsn mv Opcodes/SWAP)
   (.visitMethodInsn mv Opcodes/INVOKEINTERFACE
@@ -183,8 +197,9 @@
   (.visitJumpInsn mv Opcodes/IFNE conflict))
 
 (defmethod emit-constraint :matches
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict pattern-field class-name]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict pattern-field class-name skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (.visitTypeInsn mv Opcodes/CHECKCAST "java/lang/CharSequence")
   (.visitFieldInsn mv Opcodes/GETSTATIC class-name pattern-field "Ljava/util/regex/Pattern;")
   (.visitInsn mv Opcodes/SWAP)
@@ -201,8 +216,9 @@
   (.visitJumpInsn mv Opcodes/IFEQ conflict))
 
 (defmethod emit-constraint :not-matches
-  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict pattern-field class-name]}]
-  (emit-null-check mv open)
+  [^MethodVisitor mv {:keys [value]} _type-env {:keys [open conflict pattern-field class-name skip-null-check]}]
+  (when-not skip-null-check
+    (emit-null-check mv open))
   (.visitTypeInsn mv Opcodes/CHECKCAST "java/lang/CharSequence")
   (.visitFieldInsn mv Opcodes/GETSTATIC class-name pattern-field "Ljava/util/regex/Pattern;")
   (.visitInsn mv Opcodes/SWAP)
