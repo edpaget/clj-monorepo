@@ -6,6 +6,7 @@
   (:require
    [clojure.string :as str]
    [polix.bytecode.emitter :as emit]
+   [polix.bytecode.quantifiers :as quant]
    [polix.optimized.analyzer :as analyzer])
   (:import
    [org.objectweb.asm ClassWriter MethodVisitor Opcodes Label Type]
@@ -102,7 +103,28 @@
                      (bit-or Opcodes/ACC_PRIVATE Opcodes/ACC_STATIC Opcodes/ACC_FINAL)
                      (str "PATTERN_" field-base "_" idx)
                      "Ljava/util/regex/Pattern;"
-                     nil nil)))))
+                     nil nil))))
+
+  ;; For each quantifier, generate OPEN, SATISFIED, CONFLICT fields
+  (let [complex-entries (get constraint-set :polix.compiler/complex)]
+    (doseq [[idx entry] (map-indexed vector complex-entries)
+            :let [{:keys [op]} (:complex entry)]
+            :when (= op :quantifier)]
+      (.visitField cw
+                   (bit-or Opcodes/ACC_PRIVATE Opcodes/ACC_STATIC Opcodes/ACC_FINAL)
+                   (str "QUANT_" idx "_OPEN")
+                   "Ljava/lang/Object;"
+                   nil nil)
+      (.visitField cw
+                   (bit-or Opcodes/ACC_PRIVATE Opcodes/ACC_STATIC Opcodes/ACC_FINAL)
+                   (str "QUANT_" idx "_SATISFIED")
+                   "Ljava/lang/Object;"
+                   nil nil)
+      (.visitField cw
+                   (bit-or Opcodes/ACC_PRIVATE Opcodes/ACC_STATIC Opcodes/ACC_FINAL)
+                   (str "QUANT_" idx "_CONFLICT")
+                   "Ljava/lang/Object;"
+                   nil nil))))
 
 (defn- emit-create-keyword-from-kw
   "Emits bytecode to create a keyword from an existing keyword.
@@ -356,6 +378,109 @@
           (.visitFieldInsn mv Opcodes/PUTSTATIC class-name
                            (str "CONFLICT_" field-base "_" idx) "[Ljava/lang/Object;"))))
 
+    ;; Initialize quantifier residual fields
+    (let [complex-entries (get constraint-set :polix.compiler/complex)]
+      (doseq [[idx entry] (map-indexed vector complex-entries)
+              :let [{:keys [op ast]} (:complex entry)
+                    binding (get-in ast [:metadata :binding])
+                    coll-path (:path binding)]
+              :when (= op :quantifier)]
+        ;; Create path vector for residuals
+        (.visitLdcInsn mv (int (count coll-path)))
+        (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
+        (doseq [[path-idx kw] (map-indexed vector coll-path)]
+          (.visitInsn mv Opcodes/DUP)
+          (.visitLdcInsn mv (int path-idx))
+          (emit-create-keyword-from-kw mv kw)
+          (.visitInsn mv Opcodes/AASTORE))
+        (.visitMethodInsn mv Opcodes/INVOKESTATIC
+                          "clojure/lang/RT"
+                          "vector"
+                          "([Ljava/lang/Object;)Lclojure/lang/IPersistentVector;"
+                          false)
+        ;; Store path-vec in local 0
+        (.visitVarInsn mv Opcodes/ASTORE 0)
+
+        ;; QUANT_N_OPEN = {path-vec [[:open quantifier-expr]]}
+        (.visitLdcInsn mv (int 2))
+        (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 0))
+        (.visitVarInsn mv Opcodes/ALOAD 0)
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 1))
+        ;; Create [[:open :forall]]
+        (.visitLdcInsn mv (int 1))
+        (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 0))
+        (.visitLdcInsn mv (int 2))
+        (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 0))
+        (emit-create-keyword mv "open")
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 1))
+        (emit-create-keyword mv (name (:value ast)))
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitMethodInsn mv Opcodes/INVOKESTATIC "clojure/lang/RT" "vector"
+                          "([Ljava/lang/Object;)Lclojure/lang/IPersistentVector;" false)
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitMethodInsn mv Opcodes/INVOKESTATIC "clojure/lang/RT" "vector"
+                          "([Ljava/lang/Object;)Lclojure/lang/IPersistentVector;" false)
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitMethodInsn mv Opcodes/INVOKESTATIC "clojure/lang/PersistentArrayMap"
+                          "createAsIfByAssoc"
+                          "([Ljava/lang/Object;)Lclojure/lang/PersistentArrayMap;" false)
+        (.visitFieldInsn mv Opcodes/PUTSTATIC class-name
+                         (str "QUANT_" idx "_OPEN") "Ljava/lang/Object;")
+
+        ;; QUANT_N_SATISFIED = empty map (same as satisfied)
+        (.visitFieldInsn mv Opcodes/GETSTATIC
+                         "clojure/lang/PersistentArrayMap"
+                         "EMPTY"
+                         "Lclojure/lang/PersistentArrayMap;")
+        (.visitFieldInsn mv Opcodes/PUTSTATIC class-name
+                         (str "QUANT_" idx "_SATISFIED") "Ljava/lang/Object;")
+
+        ;; QUANT_N_CONFLICT = {path-vec [[:conflict quantifier-expr]]}
+        (.visitLdcInsn mv (int 2))
+        (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 0))
+        (.visitVarInsn mv Opcodes/ALOAD 0)
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 1))
+        ;; Create [[:conflict :forall]]
+        (.visitLdcInsn mv (int 1))
+        (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 0))
+        (.visitLdcInsn mv (int 2))
+        (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 0))
+        (emit-create-keyword mv "conflict")
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitInsn mv Opcodes/DUP)
+        (.visitLdcInsn mv (int 1))
+        (emit-create-keyword mv (name (:value ast)))
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitMethodInsn mv Opcodes/INVOKESTATIC "clojure/lang/RT" "vector"
+                          "([Ljava/lang/Object;)Lclojure/lang/IPersistentVector;" false)
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitMethodInsn mv Opcodes/INVOKESTATIC "clojure/lang/RT" "vector"
+                          "([Ljava/lang/Object;)Lclojure/lang/IPersistentVector;" false)
+        (.visitInsn mv Opcodes/AASTORE)
+        (.visitMethodInsn mv Opcodes/INVOKESTATIC "clojure/lang/PersistentArrayMap"
+                          "createAsIfByAssoc"
+                          "([Ljava/lang/Object;)Lclojure/lang/PersistentArrayMap;" false)
+        (.visitFieldInsn mv Opcodes/PUTSTATIC class-name
+                         (str "QUANT_" idx "_CONFLICT") "Ljava/lang/Object;")))
+
     (.visitInsn mv Opcodes/RETURN)
     (.visitMaxs mv 10 10)
     (.visitEnd mv)))
@@ -405,11 +530,14 @@
                          "invoke"
                          "(Ljava/lang/Object;)Ljava/lang/Object;"
                          nil nil)
-        paths (vec (filter #(vector? (first %)) constraint-set))]
+        paths (vec (filter #(vector? (first %)) constraint-set))
+        complex-entries (get constraint-set :polix.compiler/complex)
+        quantifier-entries (vec (filter #(= :quantifier (get-in % [:complex :op])) complex-entries))
+        has-quantifiers (seq quantifier-entries)]
     (.visitCode mv)
 
-    (if (empty? paths)
-      ;; No paths - always satisfied
+    (if (and (empty? paths) (not has-quantifiers))
+      ;; No paths and no quantifiers - always satisfied
       (do
         (.visitFieldInsn mv Opcodes/GETSTATIC class-name "SATISFIED" "Ljava/lang/Object;")
         (.visitInsn mv Opcodes/ARETURN))
@@ -554,7 +682,31 @@
             ;; Continue point for this path
             (.visitLabel mv continue)))
 
-        ;; All paths satisfied
+        ;; Process quantifiers with proper chaining
+        (let [quantifier-count (count quantifier-entries)
+              final-label (Label.)]
+          (when has-quantifiers
+            ;; Create start labels for each quantifier
+            (let [start-labels (vec (repeatedly quantifier-count #(Label.)))
+                  ;; Continue targets: next quantifier's label, or final-label for last
+                  continue-targets (conj (vec (rest start-labels)) final-label)]
+              ;; Emit each quantifier
+              (doseq [[local-idx entry] (map-indexed vector quantifier-entries)
+                      :let [{:keys [ast]} (:complex entry)
+                            global-idx (.indexOf complex-entries entry)
+                            continue-target (nth continue-targets local-idx)]]
+                ;; Place the start label for this quantifier
+                (.visitLabel mv (nth start-labels local-idx))
+                ;; Emit the quantifier - all quantifiers get continue-label for chaining
+                (quant/emit-quantifier mv class-name ast
+                                       {:open-field (str "QUANT_" global-idx "_OPEN")
+                                        :satisfied-field (str "QUANT_" global-idx "_SATISFIED")
+                                        :conflict-field (str "QUANT_" global-idx "_CONFLICT")
+                                        :continue-label continue-target}))))
+          ;; Place final label - reached after all quantifiers pass
+          (.visitLabel mv final-label))
+
+        ;; All paths and quantifiers satisfied
         (.visitFieldInsn mv Opcodes/GETSTATIC class-name "SATISFIED" "Ljava/lang/Object;")
         (.visitInsn mv Opcodes/ARETURN)))
 
@@ -650,14 +802,23 @@
   "Returns true if the constraint set can be compiled to bytecode.
 
   Bytecode compilation requires:
-  - No complex nodes (quantifiers, let bindings)
-  - All operators are built-in
-  - At least one path with constraints
-  - All paths are non-empty vectors"
+  - All operators are built-in (no custom operators)
+  - At least one path with constraints OR bytecode-eligible complex nodes
+  - All paths are non-empty vectors
+  - If complex nodes present, they must all be bytecode-eligible
+    (simple quantifiers with builtin constraints in body)"
   [constraint-set]
   (let [analysis (analyzer/analyze-constraint-set constraint-set)
-        paths (filter #(vector? (first %)) constraint-set)]
-    (and (not (:has-complex analysis))
-         (not (:has-custom-ops analysis))
-         (seq paths)
-         (every? #(and (seq (first %)) (seq (second %))) paths))))
+        paths (filter #(vector? (first %)) constraint-set)
+        has-simple-paths (and (seq paths)
+                              (every? #(and (seq (first %)) (seq (second %))) paths))
+        complex-eligible (analyzer/all-complex-bytecode-eligible? constraint-set)]
+    (and
+     ;; No custom operators
+     (not (:has-custom-ops analysis))
+     ;; Either has simple paths or all complex entries are eligible
+     (or has-simple-paths
+         (and (:has-complex analysis) complex-eligible))
+     ;; If has complex entries, they must all be eligible
+     (or (not (:has-complex analysis))
+         complex-eligible))))

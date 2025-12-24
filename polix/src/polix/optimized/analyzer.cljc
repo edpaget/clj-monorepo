@@ -211,3 +211,90 @@
            :tier tier
            :operators {:builtin (vec (map :op (:builtin ops)))
                        :custom (vec (map :op (:custom ops)))})))
+
+;;; ---------------------------------------------------------------------------
+;;; Quantifier/Let Binding Analysis for Bytecode Eligibility
+;;; ---------------------------------------------------------------------------
+
+(defn- simple-constraint-ast?
+  "Returns true if the AST node is a simple constraint operator call."
+  [node]
+  (and (= (:type node) :polix.ast/function-call)
+       (builtin-op? (:value node))
+       (every? (fn [child]
+                 (#{:polix.ast/literal :polix.ast/doc-accessor} (:type child)))
+               (:children node))))
+
+(defn- simple-and-ast?
+  "Returns true if the AST node is an :and of simple constraints."
+  [node]
+  (and (= (:type node) :polix.ast/function-call)
+       (= (:value node) :and)
+       (every? simple-constraint-ast? (:children node))))
+
+(defn- simple-body-ast?
+  "Returns true if the quantifier body is bytecode-compilable.
+
+  A simple body is either:
+  - A single simple constraint (e.g., [:= :u/active true])
+  - An :and of simple constraints"
+  [body-node]
+  (or (simple-constraint-ast? body-node)
+      (simple-and-ast? body-node)))
+
+(defn- quantifier-bytecode-eligible?
+  "Returns true if a quantifier complex entry can be bytecode-compiled.
+
+  Requirements:
+  - Body contains only simple constraints or :and of simple constraints
+  - No nested quantifiers
+  - Collection path is a static doc path"
+  [{:keys [ast]}]
+  (let [body (first (:children ast))
+        binding (get-in ast [:metadata :binding])]
+    (and
+     ;; Has a valid body
+     body
+     ;; Body is simple constraints
+     (simple-body-ast? body)
+     ;; Has a static collection path
+     (vector? (:path binding))
+     (seq (:path binding)))))
+
+(defn- let-binding-bytecode-eligible?
+  "Returns true if a let-binding complex entry can be bytecode-compiled.
+
+  Requirements:
+  - All bound expressions are simple (doc accessors or literals)
+  - Body is simple constraints"
+  [{:keys [ast]}]
+  (let [bindings (get-in ast [:metadata :bindings])
+        body (first (:children ast))]
+    (and
+     ;; Has bindings
+     (seq bindings)
+     ;; All bindings are simple expressions (doc accessor or literal)
+     (every? (fn [{:keys [expr]}]
+               (#{:polix.ast/literal :polix.ast/doc-accessor} (:type expr)))
+             bindings)
+     ;; Body is simple
+     (or (simple-constraint-ast? body)
+         (simple-and-ast? body)))))
+
+(defn complex-entry-bytecode-eligible?
+  "Returns true if a complex entry can be bytecode-compiled.
+
+  Entry structure is {:complex {:op :quantifier/:let-binding, :ast ...}}"
+  [entry]
+  (let [{:keys [op ast]} (:complex entry)]
+    (case op
+      :quantifier (quantifier-bytecode-eligible? {:ast ast})
+      :let-binding (let-binding-bytecode-eligible? {:ast ast})
+      false)))
+
+(defn all-complex-bytecode-eligible?
+  "Returns true if all complex entries in a constraint set are bytecode-eligible."
+  [constraint-set]
+  (let [complex-entries (get constraint-set :polix.compiler/complex)]
+    (or (empty? complex-entries)
+        (every? complex-entry-bytecode-eligible? complex-entries))))
