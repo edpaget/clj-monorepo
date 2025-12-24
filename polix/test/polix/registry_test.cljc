@@ -22,7 +22,7 @@
   (testing "registers a module"
     (let [registry (-> (reg/create-registry)
                        (reg/register-module :auth
-                         {:policies {:admin [:= :doc/role "admin"]}}))]
+                                            {:policies {:admin [:= :doc/role "admin"]}}))]
       (is (= 2 (reg/registry-version registry)))
       (is (= :module (:type (reg/resolve-namespace registry :auth))))
       (is (= [:= :doc/role "admin"]
@@ -38,7 +38,7 @@
 
   (testing "throws on reserved namespace"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
-                              :cljs ExceptionInfo)
+                             :cljs ExceptionInfo)
                           #"reserved namespace"
                           (reg/register-module (reg/create-registry) :doc {:policies {}})))))
 
@@ -55,13 +55,13 @@
     (let [registry (-> (reg/create-registry)
                        (reg/register-module :auth {:policies {}}))]
       (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
-                                :cljs ExceptionInfo)
+                               :cljs ExceptionInfo)
                             #"reserved namespace"
                             (reg/register-alias registry :doc :auth)))))
 
   (testing "throws when target does not exist"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
-                              :cljs ExceptionInfo)
+                             :cljs ExceptionInfo)
                           #"target does not exist"
                           (reg/register-alias (reg/create-registry) :a :nonexistent)))))
 
@@ -157,10 +157,10 @@
   (testing "returns qualified policy map"
     (let [registry (-> (reg/create-registry)
                        (reg/register-module :auth
-                         {:policies {:admin [:= :doc/role "admin"]
-                                     :user [:= :doc/role "user"]}})
+                                            {:policies {:admin [:= :doc/role "admin"]
+                                                        :user [:= :doc/role "user"]}})
                        (reg/register-module :perms
-                         {:policies {:read [:= :doc/can-read true]}}))]
+                                            {:policies {:read [:= :doc/can-read true]}}))]
       (is (= {:auth/admin [:= :doc/role "admin"]
               :auth/user [:= :doc/role "user"]
               :perms/read [:= :doc/can-read true]}

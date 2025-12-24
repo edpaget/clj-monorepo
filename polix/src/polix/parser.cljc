@@ -424,25 +424,25 @@
                   :value bindings-form})
 
         :else
-        (let [pairs (partition 2 bindings-form)
-              parse-pair (fn [[idx [bname bexpr]]]
-                           (cond
-                             (not (or (symbol? bname) (keyword? bname)))
-                             (r/error {:error :invalid-let-binding-name
-                                       :message "Binding name must be a symbol or keyword"
-                                       :position [(first position) (+ (second position) 1 (* idx 2))]
-                                       :value bname})
+        (let [pairs           (partition 2 bindings-form)
+              parse-pair      (fn [[idx [bname bexpr]]]
+                                (cond
+                                  (not (or (symbol? bname) (keyword? bname)))
+                                  (r/error {:error :invalid-let-binding-name
+                                            :message "Binding name must be a symbol or keyword"
+                                            :position [(first position) (+ (second position) 1 (* idx 2))]
+                                            :value bname})
 
-                             :else
-                             (let [expr-result (parse-policy bexpr
-                                                              [(first position)
-                                                               (+ (second position) 2 (* idx 2))])]
-                               (if (r/error? expr-result)
-                                 expr-result
-                                 (r/ok {:name (if (symbol? bname)
-                                                (keyword bname)
-                                                bname)
-                                        :expr (r/unwrap expr-result)})))))
+                                  :else
+                                  (let [expr-result (parse-policy bexpr
+                                                                  [(first position)
+                                                                   (+ (second position) 2 (* idx 2))])]
+                                    (if (r/error? expr-result)
+                                      expr-result
+                                      (r/ok {:name (if (symbol? bname)
+                                                     (keyword bname)
+                                                     bname)
+                                             :expr (r/unwrap expr-result)})))))
               binding-results (r/sequence-results
                                (map-indexed (fn [idx pair]
                                               (parse-pair [idx pair]))

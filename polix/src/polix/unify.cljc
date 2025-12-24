@@ -44,6 +44,30 @@
    [polix.result :as r]))
 
 ;;; ---------------------------------------------------------------------------
+;;; Value Classification
+;;; ---------------------------------------------------------------------------
+
+(defn- concrete-value?
+  "Returns true if x is a concrete value (not a residual or complex marker).
+
+  Used by let bindings to distinguish storable results from unresolved
+  constraints. A concrete value can be stored in the self-context and used
+  in subsequent expressions."
+  [x]
+  (and (not (res/residual? x))
+       (not (res/has-complex? x))))
+
+(defn- computed-field?
+  "Returns true if a document value is a computed field (policy expression).
+
+  Computed fields are vectors starting with a keyword operator. They are
+  lazily evaluated when accessed via `:doc/` accessors."
+  [value]
+  (and (vector? value)
+       (seq value)
+       (keyword? (first value))))
+
+;;; ---------------------------------------------------------------------------
 ;;; Path Utilities
 ;;; ---------------------------------------------------------------------------
 
@@ -168,6 +192,44 @@
 ;;; ---------------------------------------------------------------------------
 
 (declare unify-ast)
+
+;;; ---------------------------------------------------------------------------
+;;; Computed Field Evaluation
+;;; ---------------------------------------------------------------------------
+
+(defn- evaluate-computed-field
+  "Lazily evaluates a computed field, tracking evaluation stack for cycle detection.
+
+  Takes the field key, the document, and context with `:eval-stack` tracking.
+  Returns the evaluated value or throws on cycle detection."
+  [field-key document ctx]
+  (let [eval-stack (or (:eval-stack ctx) #{})]
+    (when (contains? eval-stack field-key)
+      (throw (ex-info "Circular dependency in computed field"
+                      {:field field-key :stack eval-stack})))
+    (let [field-value (get document field-key)
+          ast         (r/unwrap (parser/parse-policy field-value))
+          new-ctx     (update ctx :eval-stack (fnil conj #{}) field-key)]
+      (unify-ast ast document new-ctx))))
+
+(defn- resolve-doc-value
+  "Resolves a document value, evaluating computed fields lazily.
+
+  For static values, returns them directly.
+  For computed fields, evaluates with cycle detection."
+  [path document ctx]
+  (let [key   (first path)
+        value (get document key)]
+    (if (computed-field? value)
+      (let [result (evaluate-computed-field key document ctx)]
+        (if (= 1 (count path))
+          result
+          (get-in result (rest path))))
+      (get-in document path))))
+
+;;; ---------------------------------------------------------------------------
+;;; Collection Traversal Helpers
+;;; ---------------------------------------------------------------------------
 
 (defn- traverse-fns
   "Returns the function map needed by traverse-collection.
@@ -306,6 +368,7 @@
   (let [path       (:value node)
         binding-ns (get-in node [:metadata :binding-ns])]
     (if binding-ns
+      ;; Binding accessor (e.g., :u/role in quantifier context)
       (let [binding-name (keyword binding-ns)
             bound-value  (get-binding ctx binding-name)]
         (if (nil? bound-value)
@@ -313,9 +376,13 @@
           (if (path-exists? bound-value path)
             (get-in bound-value path)
             (res/residual path [[:any]]))))
-      (if (path-exists? document path)
-        (get-in document path)
-        (res/residual path [[:any]])))))
+      ;; Document accessor - use lazy evaluation for computed fields
+      (let [key (first path)]
+        (if (and key (computed-field? (get document key)))
+          (resolve-doc-value path document ctx)
+          (if (path-exists? document path)
+            (get-in document path)
+            (res/residual path [[:any]])))))))
 
 (defmethod unify-ast ::ast/quantifier
   [node document ctx]
@@ -332,11 +399,12 @@
 
 (defmethod unify-ast ::ast/self-accessor
   [node _document ctx]
-  (let [path (:value node)]
+  (let [path (:value node)
+        key  (first path)]
     (if-let [self-bindings (:self ctx)]
-      (if (path-exists? self-bindings path)
+      (if (contains? self-bindings key)
         (get-in self-bindings path)
-        (res/residual path [[:self :any]]))
+        (res/residual path [[:self :missing]]))
       (res/residual path [[:self :missing]]))))
 
 (defmethod unify-ast ::ast/param-accessor
@@ -360,14 +428,14 @@
 (defmethod unify-ast ::ast/policy-reference
   [node document ctx]
   (let [{:keys [namespace name]} (:value node)
-        params   (get-in node [:metadata :params])
-        registry (:registry ctx)]
+        params                   (get-in node [:metadata :params])
+        registry                 (:registry ctx)]
     (if-not registry
       {::res/complex {:type :no-registry
                       :namespace namespace
                       :name name}}
       (if-let [policy-expr (registry/resolve-policy registry namespace name)]
-        (let [policy-ast (r/unwrap (parser/parse-policy policy-expr))
+        (let [policy-ast      (r/unwrap (parser/parse-policy policy-expr))
               ctx-with-params (if params
                                 (update ctx :params merge params)
                                 ctx)]
@@ -385,21 +453,33 @@
       (if (empty? remaining)
         (unify-ast body document (assoc ctx :self self-ctx))
         (let [{:keys [name expr]} (first remaining)
-              result (unify-ast expr document ctx)]
+              result              (unify-ast expr document (assoc ctx :self self-ctx))]
           (cond
+            ;; Concrete value: store it and continue
+            (concrete-value? result)
+            (recur (rest remaining) (assoc self-ctx name result))
+
+            ;; Conflict residual: binding failed
+            (res/has-conflicts? result)
+            {::res/complex {:type :let-binding-conflict
+                            :binding name
+                            :conflicts result}}
+
+            ;; Open residual: can't resolve yet
             (res/residual? result)
             {::res/complex {:type :let-binding-residual
                             :binding name
                             :residual result}}
 
+            ;; Complex marker: pass through
             (res/has-complex? result)
             {::res/complex {:type :let-binding-complex
                             :binding name
                             :complex result}}
 
+            ;; Default: store the value
             :else
-            (recur (rest remaining)
-                   (assoc self-ctx name result))))))))
+            (recur (rest remaining) (assoc self-ctx name result))))))))
 
 (defn- unify-children
   "Unifies all child nodes of a function call."
@@ -407,7 +487,10 @@
   (mapv #(unify-ast % document ctx) children))
 
 (defn- resolve-accessor-value
-  "Resolves the value for a doc-accessor node."
+  "Resolves the value for a doc-accessor node.
+
+  For document accessors, also handles computed fields (policy expressions
+  stored as document values) by evaluating them lazily with cycle detection."
   [accessor-node document ctx]
   (let [path       (:value accessor-node)
         binding-ns (get-in accessor-node [:metadata :binding-ns])]
@@ -417,9 +500,13 @@
         (if (and bound-value (path-exists? bound-value path))
           {:found true :value (get-in bound-value path)}
           {:found false}))
-      (if (path-exists? document path)
-        {:found true :value (get-in document path)}
-        {:found false}))))
+      ;; Document accessor - check for computed fields
+      (let [key (first path)]
+        (if (and key (computed-field? (get document key)))
+          {:found true :value (resolve-doc-value path document ctx)}
+          (if (path-exists? document path)
+            {:found true :value (get-in document path)}
+            {:found false}))))))
 
 (defn- comparison-to-residual
   "Converts a comparison function call to a residual if possible.

@@ -38,7 +38,7 @@
 (def RegistryEntryType
   "Valid entry types in the registry."
   [:enum :document-accessor :self-accessor :param-accessor
-         :event-accessor :builtins :module :alias])
+   :event-accessor :builtins :module :alias])
 
 (def ModuleEntry
   "Schema for a user-defined module entry."

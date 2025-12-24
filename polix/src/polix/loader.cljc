@@ -56,7 +56,7 @@
 
   Example: `[:a :b :c :a]` means a -> b -> c -> a."
   [graph]
-  (let [visited (volatile! #{})
+  (let [visited   (volatile! #{})
         rec-stack (volatile! #{})]
     (letfn [(dfs [node path]
               (vswap! visited conj node)
@@ -98,7 +98,7 @@
   before dependents. Returns nil if the graph contains a cycle."
   [graph]
   (let [visited (volatile! #{})
-        result (volatile! [])]
+        result  (volatile! [])]
     (letfn [(visit [node]
               (when-not (@visited node)
                 (vswap! visited conj node)
@@ -153,8 +153,8 @@
   Returns a vector of `{:module ns :missing import-ns}` maps, or empty if all valid."
   [module-defs]
   (let [defined-ns (set (map :namespace module-defs))]
-    (for [m module-defs
-          imp (:imports m)
+    (for [m     module-defs
+          imp   (:imports m)
           :when (not (defined-ns imp))]
       {:module (:namespace m) :missing imp})))
 
@@ -213,9 +213,9 @@
                  :details (vec (find-missing-imports module-defs))}}
 
         :else
-        (let [order (or (topological-sort graph)
-                        (keys graph))
-              ns->def (into {} (map (juxt :namespace identity) module-defs))
+        (let [order          (or (topological-sort graph)
+                                 (keys graph))
+              ns->def        (into {} (map (juxt :namespace identity) module-defs))
               final-registry (reduce (fn [reg ns-key]
                                        (load-module reg (ns->def ns-key)))
                                      registry

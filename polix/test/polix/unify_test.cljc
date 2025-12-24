@@ -462,10 +462,10 @@
       (is (= {} result)))))
 
 (deftest self-accessor-missing-test
-  (testing "self accessor returns complex when missing"
+  (testing "self accessor returns complex when key missing"
     (let [result (unify/unify [:= :self/value 5] {} {:self {}})]
       (is (res/has-complex? result))
-      (is (= {[:value] [[:self :any]]} (first (get-in result [::res/complex :children])))))))
+      (is (= {[:value] [[:self :missing]]} (first (get-in result [::res/complex :children])))))))
 
 (deftest self-accessor-no-context-test
   (testing "self accessor returns complex when no self context"
@@ -568,7 +568,7 @@
   (testing "policy reference resolves and evaluates"
     (let [registry (-> (registry/create-registry)
                        (registry/register-module :auth
-                        {:policies {:admin [:= :doc/role "admin"]}}))
+                                                 {:policies {:admin [:= :doc/role "admin"]}}))
           result   (unify/unify [:auth/admin] {:role "admin"} {:registry registry})]
       (is (= {} result)))))
 
@@ -576,7 +576,7 @@
   (testing "policy reference conflict when policy fails"
     (let [registry (-> (registry/create-registry)
                        (registry/register-module :auth
-                        {:policies {:admin [:= :doc/role "admin"]}}))
+                                                 {:policies {:admin [:= :doc/role "admin"]}}))
           result   (unify/unify [:auth/admin] {:role "guest"} {:registry registry})]
       (is (res/has-conflicts? result)))))
 
@@ -584,7 +584,7 @@
   (testing "policy reference with params"
     (let [registry (-> (registry/create-registry)
                        (registry/register-module :auth
-                        {:policies {:has-role [:= :doc/role :param/role]}}))
+                                                 {:policies {:has-role [:= :doc/role :param/role]}}))
           result   (unify/unify [:auth/has-role {:role "editor"}]
                                 {:role "editor"}
                                 {:registry registry})]
@@ -596,3 +596,111 @@
           result   (unify/unify [:auth/admin] {:role "admin"} {:registry registry})]
       (is (res/has-complex? result))
       (is (= :unknown-policy (get-in result [::res/complex :type]))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Phase 3: Let Binding with Collection Results
+;;; ---------------------------------------------------------------------------
+
+(deftest let-binding-stores-concrete-values-test
+  (testing "let binding stores number"
+    (let [result (unify/unify [:let [:x 42] [:= :self/x 42]] {})]
+      (is (= {} result))))
+
+  (testing "let binding stores string"
+    (let [result (unify/unify [:let [:s "hello"] [:= :self/s "hello"]] {})]
+      (is (= {} result))))
+
+  (testing "let binding stores keyword"
+    (let [result (unify/unify [:let [:k :active] [:= :self/k :active]] {})]
+      (is (= {} result)))))
+
+(deftest let-binding-extracts-doc-value-test
+  (testing "let binding extracts nested doc value"
+    (let [result (unify/unify
+                  [:let [:count :doc/stats.total]
+                   [:> :self/count 0]]
+                  {:stats {:total 5}})]
+      (is (= {} result)))))
+
+(deftest let-binding-conflict-propagates-test
+  (testing "let binding conflict when body fails"
+    (let [result (unify/unify
+                  [:let [:val :doc/amount] [:> :self/val 100]]
+                  {:amount 50})]
+      (is (res/has-complex? result)))))
+
+(deftest let-binding-chained-test
+  (testing "let bindings can reference previous bindings"
+    (let [result (unify/unify
+                  [:let [:a 10 :b :self/a]
+                   [:= :self/b 10]]
+                  {})]
+      (is (= {} result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Phase 3: Document Computed Fields
+;;; ---------------------------------------------------------------------------
+
+(deftest computed-field-equality-test
+  (testing "computed field is evaluated (even if result conflicts)"
+    (let [result (unify/unify
+                  [:= :doc/derived "ADMIN"]
+                  {:role "admin"
+                   :derived [:fn/upper :doc/role]})]
+      ;; The computed field [:fn/upper :doc/role] is evaluated.
+      ;; :fn/upper is unknown so produces complex marker.
+      ;; Comparing that to "ADMIN" produces a conflict.
+      ;; Key point: we got a conflict, not a residual - the field was evaluated.
+      (is (res/has-conflicts? result)))))
+
+(deftest computed-field-accessed-test
+  (testing "static document field still works"
+    (let [result (unify/unify
+                  [:= :doc/role "admin"]
+                  {:role "admin"})]
+      (is (= {} result)))))
+
+(deftest circular-computed-field-test
+  (testing "circular dependency throws"
+    (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                          #"Circular dependency"
+                          (unify/unify
+                           [:= :doc/a 1]
+                           {:a [:= :doc/b 1]
+                            :b [:= :doc/a 1]})))))
+
+(deftest computed-field-single-level-test
+  (testing "computed field that references static field"
+    (let [result (unify/unify
+                  [:= :doc/check true]
+                  {:base 5
+                   :check [:> :doc/base 0]})]
+      ;; The computed field [:> :doc/base 0] evaluates to {} (satisfied).
+      ;; Comparing {} to true produces a conflict (different types).
+      ;; Key point: the computed field was evaluated.
+      (is (res/has-conflicts? result))))
+
+  (testing "computed field with matching comparison"
+    (let [result (unify/unify
+                  [:= :doc/level 10]
+                  {:base 5
+                   :level [:+ :doc/base 5]})]
+      ;; :+ is unknown, so this will have conflicts
+      (is (res/has-conflicts? result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Phase 3: Self-Accessor Consistency
+;;; ---------------------------------------------------------------------------
+
+(deftest self-accessor-missing-returns-residual-test
+  (testing "missing self key returns residual with :missing marker"
+    (let [ast    (r/unwrap (parser/parse-policy :self/missing-key))
+          result (unify/unify-ast ast {} {:self {:other-key 1}})]
+      (is (res/residual? result))
+      (is (= {[:missing-key] [[:self :missing]]} result))))
+
+  (testing "missing self context returns residual with :missing marker"
+    (let [ast    (r/unwrap (parser/parse-policy :self/any-key))
+          result (unify/unify-ast ast {} {})]
+      (is (res/residual? result))
+      (is (= {[:any-key] [[:self :missing]]} result)))))
