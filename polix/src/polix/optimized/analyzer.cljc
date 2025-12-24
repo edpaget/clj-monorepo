@@ -1,18 +1,15 @@
-(ns polix.bytecode.analyzer
-  "Policy analysis for bytecode compilation tier selection.
+(ns polix.optimized.analyzer
+  "Policy analysis for optimized evaluation tier selection.
 
   Provides type inference from constraint literals, operator classification,
-  and tier selection for the bytecode compilation pipeline."
-  (:require
-   [polix.ast :as ast]
-   [polix.operators :as op]))
+  and tier selection for the optimized evaluation pipeline.")
 
 (def builtin-ops
-  "Set of built-in operators that can be fully inlined as bytecode."
+  "Set of built-in operators that can be fully optimized."
   #{:= :!= :> :< :>= :<= :in :not-in :matches :not-matches})
 
 (defn builtin-op?
-  "Returns true if the operator is a built-in that can be fully inlined."
+  "Returns true if the operator is a built-in that can be fully optimized."
   [op-key]
   (contains? builtin-ops op-key))
 
@@ -21,26 +18,33 @@
   [op-key]
   (if (builtin-op? op-key) :builtin :custom))
 
+(defn- regex-pattern?
+  "Returns true if value is a regex pattern."
+  [value]
+  #?(:clj  (instance? java.util.regex.Pattern value)
+     :cljs (regexp? value)))
+
 (defn infer-type-from-value
-  "Infers a JVM type from a literal value.
+  "Infers a type from a literal value.
 
   Returns one of:
-  - `:string` - Java String
-  - `:long` - primitive long (for integers)
-  - `:double` - primitive double (for decimals)
-  - `:boolean` - primitive boolean
-  - `:set` - clojure.lang.IPersistentSet
-  - `:pattern` - java.util.regex.Pattern
-  - `:keyword` - clojure.lang.Keyword
+  - `:string` - String
+  - `:long` - integer/long
+  - `:double` - floating point
+  - `:boolean` - boolean
+  - `:set` - set collection
+  - `:pattern` - regex pattern
+  - `:keyword` - keyword
   - `:unknown` - cannot determine type"
   [value]
   (cond
     (string? value) :string
     (integer? value) :long
-    (float? value) :double
+    #?(:clj  (float? value)
+       :cljs (and (number? value) (not (integer? value)))) :double
     (boolean? value) :boolean
     (set? value) :set
-    (instance? java.util.regex.Pattern value) :pattern
+    (regex-pattern? value) :pattern
     (keyword? value) :keyword
     :else :unknown))
 
@@ -111,7 +115,7 @@
   (get-type [_ path]
     (get types path))
 
-  (unify-type [this path new-type]
+  (unify-type [_ path new-type]
     (if-let [existing (get types path)]
       (if (compatible-types? existing new-type)
         (->TypeEnv (assoc types path (narrowest-type existing new-type)))
@@ -174,11 +178,11 @@
             (recur result errors (rest remaining))))))))
 
 (defn select-tier
-  "Selects the compilation tier based on analysis results.
+  "Selects the evaluation tier based on analysis results.
 
   Returns:
-  - `:t2` - Fully inlined bytecode (all builtin operators, no complex nodes)
-  - `:t1` - Guarded bytecode (has custom operators, needs version guards)
+  - `:t2` - Optimized closures (all builtin operators, no complex nodes)
+  - `:t1` - Guarded closures (has custom operators, needs version guards)
   - `:t0` - Interpreted (has complex nodes or type errors)"
   [{:keys [has-custom-ops has-complex errors]}]
   (cond
@@ -187,7 +191,7 @@
     :else :t2))
 
 (defn analyze-policy
-  "Analyzes a policy for bytecode compilation.
+  "Analyzes a policy for optimized evaluation.
 
   Takes a constraint set (output of `compiler/normalize-and-merge`) and
   returns analysis results including type environment, tier selection,

@@ -3,7 +3,12 @@
 
   Generates JVM bytecode for evaluating constraints against documents.
   Uses ASM's MethodVisitor API to emit optimized bytecode for each
-  operator type."
+  operator type.
+
+  NOTE: This namespace is scaffolding for future true bytecode generation.
+  It is not currently integrated with the evaluator. The current 'optimized'
+  evaluator in polix.optimized.evaluator uses Clojure closures instead.
+  See Phase 2 in the optimization plan for integration."
   (:import
    [org.objectweb.asm Opcodes MethodVisitor Label]))
 

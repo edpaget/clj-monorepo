@@ -14,11 +14,11 @@
    [cheshire.core :as json]
    [criterium.core :as crit]
    [polix.bench.policies :as p]
-   [polix.bytecode.cache :as bytecode-cache]
-   [polix.bytecode.generator :as bytecode]
    [polix.compiler :as compiler]
    [polix.negate :as negate]
    [polix.operators :as op]
+   [polix.optimized.cache :as optimized-cache]
+   [polix.optimized.evaluator :as optimized]
    [polix.parser :as parser]
    [polix.unify :as unify])
   (:import
@@ -105,6 +105,31 @@
      (bench-fn "operator/greater-than" (op/eval-in-context ctx {:op :> :value 5} 10))
      (bench-fn "operator/in-set" (op/eval-in-context ctx {:op :in :value #{"a" "b" "c"}} "b"))
      (bench-fn "operator/regex" (op/eval-in-context ctx {:op :matches :value pattern} "admin-123"))]))
+
+(defn conflict-benchmarks
+  "Runs conflict-specific benchmarks.
+
+  Measures the performance of conflict residual construction which was
+  identified as a bottleneck in the optimized evaluator."
+  []
+  (let [single-checker  (compiler/compile-policies [p/conflict-single-constraint])
+        multi-checker   (compiler/compile-policies [p/conflict-multi-constraint])
+        nested-checker  (compiler/compile-policies [p/conflict-nested-path])
+        paths-checker   (compiler/compile-policies [p/conflict-multi-path])]
+    [;; Single constraint conflicts
+     (bench-fn "conflict/single-satisfied" (single-checker {:role "admin"}))
+     (bench-fn "conflict/single-conflict" (single-checker p/doc-conflict-single))
+     ;; Multiple constraints on same path
+     (bench-fn "conflict/multi-first" (multi-checker p/doc-conflict-multi-first))
+     (bench-fn "conflict/multi-last" (multi-checker p/doc-conflict-multi-last))
+     (bench-fn "conflict/multi-satisfied" (multi-checker {:role "admin" :level 10 :status "active"}))
+     ;; Nested path conflicts
+     (bench-fn "conflict/nested-satisfied" (nested-checker {:user {:profile {:role "admin"}}}))
+     (bench-fn "conflict/nested-conflict" (nested-checker p/doc-conflict-nested))
+     ;; Multiple path conflicts
+     (bench-fn "conflict/paths-first" (paths-checker p/doc-conflict-multi-path-first))
+     (bench-fn "conflict/paths-last" (paths-checker p/doc-conflict-multi-path-last))
+     (bench-fn "conflict/paths-satisfied" (paths-checker {:role "admin" :department "engineering" :status "active"}))]))
 
 (defn quantifier-benchmarks
   "Runs quantifier benchmarks."
@@ -240,39 +265,39 @@
      (bench-fn "inverse/what-contradicts-medium" (unify/unify (negate/negate medium-ast) {}))
      (bench-fn "inverse/what-contradicts-complex" (unify/unify (negate/negate complex-ast) {}))]))
 
-(defn bytecode-benchmarks
-  "Runs bytecode compilation benchmarks.
+(defn optimized-benchmarks
+  "Runs optimized evaluator benchmarks.
 
-  Compares bytecode-compiled policies against interpreted evaluation
+  Compares optimized-closure policies against interpreted evaluation
   for simple constraint-only policies. Only benchmarks policies that
-  are bytecode-eligible (no quantifiers or complex nodes)."
+  are optimized-eligible (no quantifiers or complex nodes)."
   []
-  (bytecode-cache/clear-cache!)
+  (optimized-cache/clear-cache!)
   (let [merged-simple  (:simplified (compiler/merge-policies [p/simple-equality]))
         merged-medium  (:simplified (compiler/merge-policies [p/medium-and]))
         ;; Interpreted evaluators for comparison
-        int-simple  (compiler/compile-policies [p/simple-equality] {:bytecode false})
-        int-medium  (compiler/compile-policies [p/medium-and] {:bytecode false})]
-    ;; Only benchmark bytecode-eligible policies
-    (if (and (bytecode/bytecode-eligible? merged-simple)
-             (bytecode/bytecode-eligible? merged-medium))
-      (let [bc-simple (bytecode/compile-to-bytecode merged-simple {})
-            bc-medium (bytecode/compile-to-bytecode merged-medium {})]
-        [;; Bytecode tier info
-         {:name "bytecode/tier-simple" :tier (bytecode/compilation-tier bc-simple)}
-         {:name "bytecode/tier-medium" :tier (bytecode/compilation-tier bc-medium)}
-         ;; Bytecode evaluation
-         (bench-fn "bytecode/simple-satisfied" (bc-simple p/doc-simple-satisfied))
-         (bench-fn "bytecode/simple-contradicted" (bc-simple p/doc-simple-contradicted))
-         (bench-fn "bytecode/simple-residual" (bc-simple p/doc-empty))
-         (bench-fn "bytecode/medium-satisfied" (bc-medium p/doc-medium-satisfied))
-         (bench-fn "bytecode/medium-partial" (bc-medium p/doc-medium-partial))
-         ;; Interpreted comparison (for same policies with bytecode disabled)
+        int-simple  (compiler/compile-policies [p/simple-equality] {:optimized false})
+        int-medium  (compiler/compile-policies [p/medium-and] {:optimized false})]
+    ;; Only benchmark optimized-eligible policies
+    (if (and (optimized/optimized-eligible? merged-simple)
+             (optimized/optimized-eligible? merged-medium))
+      (let [opt-simple (optimized/compile-policy merged-simple {})
+            opt-medium (optimized/compile-policy merged-medium {})]
+        [;; Optimized tier info
+         {:name "optimized/tier-simple" :tier (optimized/compilation-tier opt-simple)}
+         {:name "optimized/tier-medium" :tier (optimized/compilation-tier opt-medium)}
+         ;; Optimized evaluation
+         (bench-fn "optimized/simple-satisfied" (opt-simple p/doc-simple-satisfied))
+         (bench-fn "optimized/simple-contradicted" (opt-simple p/doc-simple-contradicted))
+         (bench-fn "optimized/simple-residual" (opt-simple p/doc-empty))
+         (bench-fn "optimized/medium-satisfied" (opt-medium p/doc-medium-satisfied))
+         (bench-fn "optimized/medium-partial" (opt-medium p/doc-medium-partial))
+         ;; Interpreted comparison (for same policies with optimized disabled)
          (bench-fn "interpreted/simple-satisfied" (int-simple p/doc-simple-satisfied))
          (bench-fn "interpreted/simple-contradicted" (int-simple p/doc-simple-contradicted))
          (bench-fn "interpreted/medium-satisfied" (int-medium p/doc-medium-satisfied))])
       (do
-        (println "Warning: Some policies not bytecode-eligible, skipping bytecode benchmarks")
+        (println "Warning: Some policies not optimized-eligible, skipping optimized benchmarks")
         []))))
 
 ;;; ---------------------------------------------------------------------------
@@ -347,21 +372,25 @@
                       (print "  Filtered Bindings...") (flush)
                       (let [filtered-results (filtered-binding-benchmarks)]
                         (println " done")
-                        (print "  Bytecode...") (flush)
-                        (let [bytecode-results (bytecode-benchmarks)]
+                        (print "  Optimized...") (flush)
+                        (let [optimized-results (optimized-benchmarks)]
                           (println " done")
-                          (concat parse-results
-                                  compile-results
-                                  ast-results
-                                  compiled-results
-                                  unify-results
-                                  negate-results
-                                  inverse-results
-                                  operator-results
-                                  quantifier-results
-                                  count-results
-                                  filtered-results
-                                  bytecode-results))))))))))))))
+                          (print "  Conflicts...") (flush)
+                          (let [conflict-results (conflict-benchmarks)]
+                            (println " done")
+                            (concat parse-results
+                                    compile-results
+                                    ast-results
+                                    compiled-results
+                                    unify-results
+                                    negate-results
+                                    inverse-results
+                                    operator-results
+                                    quantifier-results
+                                    count-results
+                                    filtered-results
+                                    optimized-results
+                                    conflict-results))))))))))))))))
 
 (defn run-ci
   "Main entry point for CI benchmark runner.

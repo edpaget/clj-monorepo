@@ -1,8 +1,7 @@
 {:paths ["src" "src-jvm" "resources"],
  :deps
  {org.clojure/clojure {:mvn/version "1.12.4"},
-  metosin/malli {:mvn/version "0.20.0"},
-  net.bytebuddy/byte-buddy {:mvn/version "1.15.11"}},
+  metosin/malli {:mvn/version "0.20.0"}},
  :aliases
  {:dev
   {:extra-paths ["dev"],

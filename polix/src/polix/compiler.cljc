@@ -25,12 +25,12 @@
   (:require
    [polix.ast :as ast]
    [polix.operators :as op]
+   [polix.optimized.cache :as optimized-cache]
+   [polix.optimized.evaluator :as optimized]
    [polix.parser :as parser]
    [polix.residual :as res]
    [polix.result :as r]
-   [polix.unify :as unify]
-   #?(:clj [polix.bytecode.cache :as bytecode-cache])
-   #?(:clj [polix.bytecode.generator :as bytecode])))
+   [polix.unify :as unify]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Representation
@@ -381,18 +381,16 @@
        (let [eval-ctx (op/make-context (merge opts eval-opts))]
          (evaluate-document-with-context constraint-set document eval-ctx))))))
 
-#?(:clj
-   (defn- bytecode-eligible?
-     "Returns true if the constraint set is eligible for bytecode compilation."
-     [constraint-set]
-     (bytecode/bytecode-eligible? constraint-set)))
+(defn- optimized-eligible?
+  "Returns true if the constraint set is eligible for optimized evaluation."
+  [constraint-set]
+  (optimized/optimized-eligible? constraint-set))
 
-#?(:clj
-   (defn- compile-with-bytecode
-     "Compiles a constraint set using bytecode compilation with caching."
-     [constraint-set opts]
-     (let [fallback (create-interpreted-evaluator constraint-set opts)]
-       (bytecode-cache/compile-cached constraint-set (assoc opts :fallback fallback)))))
+(defn- compile-with-optimized
+  "Compiles a constraint set using optimized evaluation with caching."
+  [constraint-set opts]
+  (let [fallback (create-interpreted-evaluator constraint-set opts)]
+    (optimized-cache/compile-cached constraint-set (assoc opts :fallback fallback))))
 
 (defn compile-policies
   "Compiles multiple policies into an optimized evaluation function.
@@ -409,7 +407,7 @@
   - `:fallback` - `(fn [op-key])` for unknown operators
   - `:strict?` - throw on unknown operators (default false)
   - `:trace?` - record evaluation trace (default false)
-  - `:bytecode` - enable bytecode compilation (default true on JVM)
+  - `:optimized` - enable optimized evaluation (default true)
 
   Policies are merged with AND semantics - all must be satisfied.
 
@@ -421,9 +419,8 @@
   `{:result <value> :trace [...]}` where `:result` is the normal evaluation
   outcome and `:trace` is a vector of evaluation steps.
 
-  On the JVM, bytecode compilation is used by default for eligible constraint
-  sets. Bytecode-compiled policies implement `IFn` and can be called directly.
-  Use `:bytecode false` to disable bytecode compilation.
+  Optimized evaluation uses pre-computed residual templates for fast
+  evaluation. Use `:optimized false` to disable and use interpretation.
 
   Example:
 
@@ -444,14 +441,11 @@
      (if (:contradicted merge-result)
        (constantly nil)
        (let [constraint-set (:simplified merge-result)
-             use-bytecode?  (and (get opts :bytecode true)
+             use-optimized? (and (get opts :optimized true)
                                  (not (:trace? opts)))]
-         #?(:clj
-            (if (and use-bytecode? (bytecode-eligible? constraint-set))
-              (compile-with-bytecode constraint-set opts)
-              (create-interpreted-evaluator constraint-set opts))
-            :cljs
-            (create-interpreted-evaluator constraint-set opts)))))))
+         (if (and use-optimized? (optimized-eligible? constraint-set))
+           (compile-with-optimized constraint-set opts)
+           (create-interpreted-evaluator constraint-set opts)))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Residual Conversion

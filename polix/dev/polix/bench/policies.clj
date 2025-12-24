@@ -135,6 +135,56 @@
   {})
 
 ;;; ---------------------------------------------------------------------------
+;;; Conflict-Specific Test Policies and Documents
+;;; ---------------------------------------------------------------------------
+
+(def conflict-single-constraint
+  "Single constraint for conflict benchmarking."
+  [:= :doc/role "admin"])
+
+(def conflict-multi-constraint
+  "Multiple constraints on same path for conflict testing."
+  [:and
+   [:= :doc/role "admin"]
+   [:> :doc/level 5]
+   [:in :doc/status #{"active"}]])
+
+(def conflict-nested-path
+  "Policy with nested path for conflict testing."
+  [:= :doc/user.profile.role "admin"])
+
+(def conflict-multi-path
+  "Multiple paths, conflict on different positions."
+  [:and
+   [:= :doc/role "admin"]
+   [:= :doc/department "engineering"]
+   [:= :doc/status "active"]])
+
+(def doc-conflict-single
+  "Document that conflicts on single constraint."
+  {:role "guest"})
+
+(def doc-conflict-multi-first
+  "Document that conflicts on first of multiple constraints."
+  {:role "guest" :level 10 :status "active"})
+
+(def doc-conflict-multi-last
+  "Document that conflicts on last of multiple constraints."
+  {:role "admin" :level 10 :status "banned"})
+
+(def doc-conflict-nested
+  "Document with nested path conflict."
+  {:user {:profile {:role "guest"}}})
+
+(def doc-conflict-multi-path-first
+  "Multi-path document conflicting on first path."
+  {:role "guest" :department "engineering" :status "active"})
+
+(def doc-conflict-multi-path-last
+  "Multi-path document conflicting on last path."
+  {:role "admin" :department "engineering" :status "banned"})
+
+;;; ---------------------------------------------------------------------------
 ;;; Pre-parsed ASTs
 ;;; ---------------------------------------------------------------------------
 
