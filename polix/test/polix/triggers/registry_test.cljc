@@ -1,6 +1,6 @@
-(ns polix-triggers.registry-test
+(ns polix.triggers.registry-test
   (:require [clojure.test :refer [deftest is testing]]
-            [polix-triggers.registry :as registry]))
+            [polix.triggers.registry :as registry]))
 
 (deftest create-registry-test
   (testing "creates empty registry"
@@ -12,7 +12,7 @@
   (testing "registers a trigger with generated ID"
     (let [reg         (registry/create-registry)
           trigger-def {:event-types #{:test/event}
-                       :timing :polix-triggers.timing/after
+                       :timing :polix.triggers.timing/after
                        :effect {:type :noop}}
           reg'        (registry/register-trigger reg trigger-def "source-1" "owner-1" "self-1")
           triggers    (registry/get-triggers reg')]
@@ -23,12 +23,12 @@
         (is (= "owner-1" (:owner trigger)))
         (is (= "self-1" (:self trigger)))
         (is (= #{:test/event} (:event-types trigger)))
-        (is (= :polix-triggers.timing/after (:timing trigger))))))
+        (is (= :polix.triggers.timing/after (:timing trigger))))))
 
   (testing "defaults priority to 0"
     (let [reg         (registry/create-registry)
           trigger-def {:event-types #{:test/event}
-                       :timing :polix-triggers.timing/after
+                       :timing :polix.triggers.timing/after
                        :effect {:type :noop}}
           reg'        (registry/register-trigger reg trigger-def "s" "o" nil)
           trigger     (first (registry/get-triggers reg'))]
@@ -37,7 +37,7 @@
   (testing "defaults once? to false"
     (let [reg         (registry/create-registry)
           trigger-def {:event-types #{:test/event}
-                       :timing :polix-triggers.timing/after
+                       :timing :polix.triggers.timing/after
                        :effect {:type :noop}}
           reg'        (registry/register-trigger reg trigger-def "s" "o" nil)
           trigger     (first (registry/get-triggers reg'))]
@@ -47,7 +47,7 @@
   (testing "removes trigger by ID"
     (let [reg         (registry/create-registry)
           trigger-def {:event-types #{:test/event}
-                       :timing :polix-triggers.timing/after
+                       :timing :polix.triggers.timing/after
                        :effect {:type :noop}}
           reg'        (registry/register-trigger reg trigger-def "s" "o" nil)
           trigger-id  (:id (first (registry/get-triggers reg')))
@@ -63,7 +63,7 @@
   (testing "removes all triggers from a source"
     (let [reg         (registry/create-registry)
           trigger-def {:event-types #{:test/event}
-                       :timing :polix-triggers.timing/after
+                       :timing :polix.triggers.timing/after
                        :effect {:type :noop}}
           reg'        (-> reg
                           (registry/register-trigger trigger-def "source-1" "o" nil)
@@ -78,13 +78,13 @@
   (testing "returns triggers matching event type"
     (let [reg        (registry/create-registry)
           trigger-a  {:event-types #{:test/a}
-                      :timing :polix-triggers.timing/after
+                      :timing :polix.triggers.timing/after
                       :effect {:type :noop}}
           trigger-b  {:event-types #{:test/b}
-                      :timing :polix-triggers.timing/after
+                      :timing :polix.triggers.timing/after
                       :effect {:type :noop}}
           trigger-ab {:event-types #{:test/a :test/b}
-                      :timing :polix-triggers.timing/after
+                      :timing :polix.triggers.timing/after
                       :effect {:type :noop}}
           reg'       (-> reg
                          (registry/register-trigger trigger-a "s" "o" nil)
@@ -97,15 +97,15 @@
   (testing "sorts by priority"
     (let [reg          (registry/create-registry)
           trigger-low  {:event-types #{:test/event}
-                        :timing :polix-triggers.timing/after
+                        :timing :polix.triggers.timing/after
                         :priority -10
                         :effect {:type :low}}
           trigger-high {:event-types #{:test/event}
-                        :timing :polix-triggers.timing/after
+                        :timing :polix.triggers.timing/after
                         :priority 10
                         :effect {:type :high}}
           trigger-mid  {:event-types #{:test/event}
-                        :timing :polix-triggers.timing/after
+                        :timing :polix.triggers.timing/after
                         :priority 0
                         :effect {:type :mid}}
           reg'         (-> reg
@@ -119,7 +119,7 @@
   (testing "returns trigger by ID"
     (let [reg         (registry/create-registry)
           trigger-def {:event-types #{:test/event}
-                       :timing :polix-triggers.timing/after
+                       :timing :polix.triggers.timing/after
                        :effect {:type :noop}}
           reg'        (registry/register-trigger reg trigger-def "s" "o" nil)
           trigger-id  (:id (first (registry/get-triggers reg')))]

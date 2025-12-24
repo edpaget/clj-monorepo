@@ -1,14 +1,14 @@
-(ns polix-triggers.schema-test
+(ns polix.triggers.schema-test
   (:require [clojure.test :refer [deftest is testing]]
             [malli.core :as m]
-            [polix-triggers.schema :as schema]))
+            [polix.triggers.schema :as schema]))
 
 (deftest timing-schema-test
   (testing "valid timing values"
-    (is (m/validate schema/Timing :polix-triggers.timing/before))
-    (is (m/validate schema/Timing :polix-triggers.timing/instead))
-    (is (m/validate schema/Timing :polix-triggers.timing/after))
-    (is (m/validate schema/Timing :polix-triggers.timing/at)))
+    (is (m/validate schema/Timing :polix.triggers.timing/before))
+    (is (m/validate schema/Timing :polix.triggers.timing/instead))
+    (is (m/validate schema/Timing :polix.triggers.timing/after))
+    (is (m/validate schema/Timing :polix.triggers.timing/at)))
 
   (testing "invalid timing values"
     (is (not (m/validate schema/Timing :before)))
@@ -18,13 +18,13 @@
   (testing "minimal trigger definition"
     (is (m/validate schema/TriggerDef
                     {:event-types #{:test/event}
-                     :timing :polix-triggers.timing/after
+                     :timing :polix.triggers.timing/after
                      :effect {:type :noop}})))
 
   (testing "full trigger definition"
     (is (m/validate schema/TriggerDef
                     {:event-types #{:test/event :test/other}
-                     :timing :polix-triggers.timing/before
+                     :timing :polix.triggers.timing/before
                      :condition [:= :doc/target-id :doc/self]
                      :effect {:type :heal :amount 1}
                      :once? true
@@ -39,7 +39,7 @@
                      :owner "player-1"
                      :self "entity-1"
                      :event-types #{:test/event}
-                     :timing :polix-triggers.timing/after
+                     :timing :polix.triggers.timing/after
                      :effect {:type :noop}}))))
 
 (deftest event-schema-test
@@ -53,25 +53,35 @@
                      :amount 5
                      :source-id "entity-2"}))))
 
+(deftest condition-result-schema-test
+  (testing "valid condition result values"
+    (is (m/validate schema/ConditionResult :satisfied))
+    (is (m/validate schema/ConditionResult :conflict))
+    (is (m/validate schema/ConditionResult :open)))
+
+  (testing "invalid condition result values"
+    (is (not (m/validate schema/ConditionResult :true)))
+    (is (not (m/validate schema/ConditionResult true)))))
+
 (deftest trigger-result-schema-test
   (testing "fired trigger result"
     (is (m/validate schema/TriggerResult
                     {:trigger-id "trigger-123"
                      :fired? true
-                     :condition-result true
+                     :condition-result :satisfied
                      :effect-result {:state {} :applied [] :failed []}
                      :removed? false})))
 
-  (testing "unfired trigger result"
+  (testing "unfired trigger result - conflict"
     (is (m/validate schema/TriggerResult
                     {:trigger-id "trigger-123"
                      :fired? false
-                     :condition-result false
+                     :condition-result :conflict
                      :removed? false})))
 
-  (testing "residual condition result"
+  (testing "unfired trigger result - open"
     (is (m/validate schema/TriggerResult
                     {:trigger-id "trigger-123"
                      :fired? false
-                     :condition-result {:residual {:level [[:> 5]]}}
+                     :condition-result :open
                      :removed? false}))))

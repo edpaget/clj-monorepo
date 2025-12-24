@@ -1,11 +1,12 @@
-(ns polix-triggers.registry
+(ns polix.triggers.registry
   "Trigger registration and lookup.
 
   Provides functions for managing trigger lifecycle: registration, unregistration,
   and querying. The registry maintains an index by event type for efficient lookup
-  during event processing."
-  (:require [malli.core :as m]
-            [polix-triggers.schema :as schema]))
+  during event processing.
+
+  See [[polix.triggers.core]] for the public API."
+  (:require [polix.triggers.schema :as schema]))
 
 (defn create-registry
   "Creates an empty trigger registry.
@@ -46,8 +47,7 @@
 
   Takes a trigger definition map and binding context. The trigger receives a unique
   ID and is stored with its source, owner, and self bindings. Returns the updated
-  registry. Optionally accepts a pre-compiled condition function via the `:condition-fn`
-  key in the trigger definition."
+  registry."
   [registry trigger-def source-id owner self]
   (let [trigger-id (generate-id)
         trigger    (-> trigger-def

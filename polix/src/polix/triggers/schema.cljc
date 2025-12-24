@@ -1,29 +1,32 @@
-(ns polix-triggers.schema
-  "Malli schemas for the polix-triggers event system.
+(ns polix.triggers.schema
+  "Malli schemas for the trigger event system.
 
   Defines the core data structures for triggers, events, and processing results.
-  All enum values use namespaced keywords following the `polix-triggers.<category>/value`
-  pattern for clarity and collision avoidance."
+  All enum values use namespaced keywords following the `polix.triggers.<category>/value`
+  pattern for clarity and collision avoidance.
+
+  See [[polix.triggers.core]] for the public API."
   (:require [malli.core :as m]))
 
 (def Timing
   "Trigger timing determines when it fires relative to the event.
 
-  - `:polix-triggers.timing/before` - fires before action resolves, can prevent
-  - `:polix-triggers.timing/instead` - replaces the action entirely
-  - `:polix-triggers.timing/after` - fires after action resolves
-  - `:polix-triggers.timing/at` - fires at specific moments (phase transitions)"
+  - `:polix.triggers.timing/before` - fires before action resolves, can prevent
+  - `:polix.triggers.timing/instead` - replaces the action entirely
+  - `:polix.triggers.timing/after` - fires after action resolves
+  - `:polix.triggers.timing/at` - fires at specific moments (phase transitions)"
   [:enum
-   :polix-triggers.timing/before
-   :polix-triggers.timing/instead
-   :polix-triggers.timing/after
-   :polix-triggers.timing/at])
+   :polix.triggers.timing/before
+   :polix.triggers.timing/instead
+   :polix.triggers.timing/after
+   :polix.triggers.timing/at])
 
 (def TriggerDef
   "Template for defining a trigger before registration.
 
   Event types are keywords defined by the consumer domain (e.g., `:entity/damaged`).
-  The condition is a polix policy expression evaluated against the trigger document."
+  The condition is a polix policy expression evaluated via [[polix.unify/unify]]
+  against the trigger document built from event and trigger context."
   [:map
    [:event-types [:set :keyword]]
    [:timing Timing]
@@ -36,8 +39,9 @@
 (def Trigger
   "Fully instantiated trigger with ID and binding context.
 
-  Created by [[polix-triggers.registry/register-trigger]] from a [[TriggerDef]].
-  The `:condition-fn` is the compiled condition function for efficient evaluation."
+  Created by [[polix.triggers.registry/register-trigger]] from a [[TriggerDef]].
+  The `:condition` is the raw polix policy expression evaluated lazily via
+  [[polix.unify/unify]] when the trigger is processed."
   [:map
    [:id :string]
    [:source :any]
@@ -46,7 +50,6 @@
    [:event-types [:set :keyword]]
    [:timing Timing]
    [:condition {:optional true} :any]
-   [:condition-fn {:optional true} fn?]
    [:effect :any]
    [:once? {:optional true} :boolean]
    [:priority {:optional true} :int]
@@ -60,15 +63,22 @@
   [:map
    [:type :keyword]])
 
+(def ConditionResult
+  "Result of evaluating a trigger condition.
+
+  - `:satisfied` - condition met, trigger fires
+  - `:conflict` - condition violated, trigger does not fire
+  - `:open` - condition has unresolved constraints, trigger does not fire (conservative)"
+  [:enum :satisfied :conflict :open])
+
 (def TriggerResult
   "Result of processing a single trigger during event firing.
 
-  The `:condition-result` may be `true`, `false`, or a map with `:residual` for
-  partial evaluation when the document lacks required keys."
+  The `:condition-result` is one of `:satisfied`, `:conflict`, or `:open`."
   [:map
    [:trigger-id :string]
    [:fired? :boolean]
-   [:condition-result [:or :boolean [:map [:residual :any]]]]
+   [:condition-result ConditionResult]
    [:effect-result {:optional true} :any]
    [:removed? :boolean]])
 
