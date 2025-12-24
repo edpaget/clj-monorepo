@@ -542,3 +542,31 @@
        (filter #(= ::ast/doc-accessor (:type %)))
        (map :value)
        (into #{})))
+
+(defn extract-param-keys
+  "Extracts all parameter keys from a policy `ast`.
+
+  Returns a set of keywords representing required parameters.
+  Traverses the entire AST including quantifier bodies and let bindings.
+
+      (extract-param-keys (r/unwrap (parse-policy [:= :doc/role :param/role])))
+      ;=> #{:role}
+
+      (extract-param-keys (r/unwrap (parse-policy [:and
+                                                    [:= :doc/role :param/role]
+                                                    [:> :doc/level :param/min-level]])))
+      ;=> #{:role :min-level}"
+  [ast]
+  (->> (tree-seq (fn [node]
+                   (or (:children node)
+                       (get-in node [:metadata :bindings])
+                       (get-in node [:metadata :binding :where])))
+                 (fn [node]
+                   (concat (:children node)
+                           (map :expr (get-in node [:metadata :bindings]))
+                           (when-let [where (get-in node [:metadata :binding :where])]
+                             [where])))
+                 ast)
+       (filter #(= ::ast/param-accessor (:type %)))
+       (map :value)
+       (into #{})))

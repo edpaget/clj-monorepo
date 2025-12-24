@@ -71,6 +71,7 @@
   - [[polix.registry]] - Namespace registry for policy resolution
   - [[polix.loader]] - Module loading with dependency resolution"
   (:require
+   [clojure.set :as set]
    [polix.ast :as ast]
    [polix.compiler :as compiler]
    [polix.loader :as loader]
@@ -370,3 +371,131 @@
 (def let-binding?
   "Returns true if form is a let binding (`[:let [...] body]`)."
   parser/let-binding?)
+
+;;; ---------------------------------------------------------------------------
+;;; Policy Analysis API
+;;; ---------------------------------------------------------------------------
+
+(def analyze-policy
+  "Analyzes a policy to determine its requirements and characteristics.
+
+  Returns a map with:
+  - `:params` — set of required parameter keys
+  - `:doc-keys` — set of document paths accessed
+  - `:parameterized?` — true if policy requires any params
+
+  Example:
+
+      (analyze-policy [:= :doc/role :param/role])
+      ;=> {:params #{:role}
+      ;    :doc-keys #{[:role]}
+      ;    :parameterized? true}"
+  policy/analyze-policy)
+
+(def required-params
+  "Returns the set of required parameter keys for a policy.
+
+  Example:
+
+      (required-params [:= :doc/role :param/role])
+      ;=> #{:role}"
+  policy/required-params)
+
+(def extract-param-keys
+  "Extracts all parameter keys from a policy AST.
+
+  Lower-level function that works directly on parsed AST nodes.
+  For most use cases, prefer [[required-params]] which works on
+  policy expressions directly."
+  parser/extract-param-keys)
+
+;;; ---------------------------------------------------------------------------
+;;; Parameter Binding API
+;;; ---------------------------------------------------------------------------
+
+(defn bind-params
+  "Partially binds parameters to a policy, returning a policy context.
+
+  Takes a policy expression and a map of param bindings. Returns a map
+  with `:policy` and `:params` that can be used with [[unify]].
+
+  Example:
+
+      ;; Create a partial binding
+      (def bound (bind-params [:auth/has-role] {:role \"admin\"}))
+      ;=> {:policy [:auth/has-role] :params {:role \"admin\"}}
+
+      ;; Evaluate with the bound params
+      (unify (:policy bound) document {:params (:params bound)})"
+  [policy params]
+  {:policy policy
+   :params params})
+
+(defn validate-params
+  "Validates that all required params are provided for a policy.
+
+  Returns `{:ok params}` if all required params are present,
+  `{:error {:missing #{...}}}` if any are missing.
+
+  Example:
+
+      (validate-params [:= :doc/role :param/role] {:role \"admin\"})
+      ;=> {:ok {:role \"admin\"}}
+
+      (validate-params [:= :doc/role :param/role] {})
+      ;=> {:error {:missing #{:role}}}"
+  [policy params]
+  (let [required (policy/required-params policy)
+        provided (set (keys params))
+        missing  (set/difference required provided)]
+    (if (empty? missing)
+      {:ok params}
+      {:error {:missing missing}})))
+
+;;; ---------------------------------------------------------------------------
+;;; Registry Policy Info API
+;;; ---------------------------------------------------------------------------
+
+(def policy-info
+  "Returns information about a policy in the registry.
+
+  Returns a map with:
+  - `:expr` — the policy expression
+  - `:params` — set of required parameter keys
+  - `:param-defs` — map of param key to definition
+  - `:defaults` — map of param key to default value
+  - `:description` — policy description if provided
+  - `:parameterized?` — true if policy requires params
+
+  Returns nil if the policy is not found.
+
+  Example:
+
+      (policy-info registry :auth :has-role)
+      ;=> {:expr [:= :doc/role :param/role]
+      ;    :params #{:role}
+      ;    :defaults {}
+      ;    :parameterized? true}"
+  registry/policy-info)
+
+(def param-defaults
+  "Returns default values for a policy's parameters.
+
+  Returns a map of param-key to default value.
+
+  Example:
+
+      (param-defaults registry :auth :min-level)
+      ;=> {:min 0}"
+  registry/param-defaults)
+
+(def parameterized-policies
+  "Returns all parameterized policies in a module.
+
+  Returns a map of policy-key to param info.
+
+  Example:
+
+      (parameterized-policies registry :auth)
+      ;=> {:has-role {:params #{:role} :defaults {} :description nil}}"
+  registry/parameterized-policies)

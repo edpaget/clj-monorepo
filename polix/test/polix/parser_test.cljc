@@ -120,6 +120,47 @@
              (parser/extract-doc-keys ast))))))
 
 ;;; ---------------------------------------------------------------------------
+;;; extract-param-keys Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest extract-param-keys-single-test
+  (testing "extracting single param"
+    (let [ast (r/unwrap (parser/parse-policy [:= :doc/role :param/role]))]
+      (is (= #{:role} (parser/extract-param-keys ast))))))
+
+(deftest extract-param-keys-multiple-test
+  (testing "extracting multiple params"
+    (let [ast (r/unwrap (parser/parse-policy [:and
+                                               [:= :doc/role :param/role]
+                                               [:> :doc/level :param/min-level]]))]
+      (is (= #{:role :min-level} (parser/extract-param-keys ast))))))
+
+(deftest extract-param-keys-empty-test
+  (testing "no params returns empty set"
+    (let [ast (r/unwrap (parser/parse-policy [:= :doc/role "admin"]))]
+      (is (= #{} (parser/extract-param-keys ast))))))
+
+(deftest extract-param-keys-in-quantifier-test
+  (testing "params in quantifier body are extracted"
+    (let [ast (r/unwrap (parser/parse-policy [:forall [:u :doc/users]
+                                               [:= :u/role :param/required-role]]))]
+      (is (= #{:required-role} (parser/extract-param-keys ast))))))
+
+(deftest extract-param-keys-in-let-binding-test
+  (testing "params in let binding expr are extracted"
+    (let [ast (r/unwrap (parser/parse-policy [:let [:x :param/threshold]
+                                               [:> :doc/value :self/x]]))]
+      (is (= #{:threshold} (parser/extract-param-keys ast))))))
+
+(deftest extract-param-keys-nested-test
+  (testing "params in deeply nested expressions"
+    (let [ast (r/unwrap (parser/parse-policy
+                         [:or
+                          [:and [:= :doc/a :param/p1] [:= :doc/b :param/p2]]
+                          [:= :doc/c :param/p3]]))]
+      (is (= #{:p1 :p2 :p3} (parser/extract-param-keys ast))))))
+
+;;; ---------------------------------------------------------------------------
 ;;; Quantifier Predicate Tests
 ;;; ---------------------------------------------------------------------------
 

@@ -34,6 +34,7 @@
   Uses [[polix.residual]] for result construction and [[polix.operators]]
   for constraint evaluation."
   (:require
+   [clojure.set :as set]
    [clojure.string :as str]
    [polix.ast :as ast]
    [polix.collection-ops :as coll-ops]
@@ -410,11 +411,22 @@
 (defmethod unify-ast ::ast/param-accessor
   [node _document ctx]
   (let [param-key (:value node)]
-    (if-let [params (:params ctx)]
-      (if (contains? params param-key)
-        (get params param-key)
-        (res/residual [param-key] [[:param :missing]]))
-      (res/residual [param-key] [[:param :no-context]]))))
+    (cond
+      ;; No params context at all
+      (nil? (:params ctx))
+      (res/residual [param-key] [[:param :no-context]])
+
+      ;; Param is bound
+      (contains? (:params ctx) param-key)
+      (get (:params ctx) param-key)
+
+      ;; Param is explicitly marked unbound (partial application)
+      (contains? (:unbound-params ctx) param-key)
+      (res/residual [param-key] [[:param :unbound]])
+
+      ;; Param is missing (error case)
+      :else
+      (res/residual [param-key] [[:param :missing]]))))
 
 (defmethod unify-ast ::ast/event-accessor
   [node _document ctx]
@@ -428,17 +440,25 @@
 (defmethod unify-ast ::ast/policy-reference
   [node document ctx]
   (let [{:keys [namespace name]} (:value node)
-        params                   (get-in node [:metadata :params])
+        provided-params          (get-in node [:metadata :params])
         registry                 (:registry ctx)]
     (if-not registry
       {::res/complex {:type :no-registry
                       :namespace namespace
                       :name name}}
-      (if-let [policy-expr (registry/resolve-policy registry namespace name)]
-        (let [policy-ast      (r/unwrap (parser/parse-policy policy-expr))
-              ctx-with-params (if params
-                                (update ctx :params merge params)
-                                ctx)]
+      (if-let [info (registry/policy-info registry namespace name)]
+        (let [{:keys [expr defaults]} info
+              policy-ast      (r/unwrap (parser/parse-policy expr))
+              required-params (parser/extract-param-keys policy-ast)
+              ;; Merge precedence: defaults < context params < provided params
+              merged-params   (merge defaults (:params ctx) provided-params)
+              ;; Track which required params aren't bound after all merging
+              missing-params  (set/difference required-params
+                                               (set (keys merged-params)))
+              ctx-with-params (-> ctx
+                                  (assoc :params merged-params)
+                                  (update :unbound-params
+                                          (fnil into #{}) missing-params))]
           (unify-ast policy-ast document ctx-with-params))
         {::res/complex {:type :unknown-policy
                         :namespace namespace

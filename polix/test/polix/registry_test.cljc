@@ -174,3 +174,107 @@
   (testing "invalid module returns :error"
     (let [result (reg/validate-module {:policies "not-a-map"})]
       (is (:error result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Rich Policy Definition Tests (Phase 4)
+;;; ---------------------------------------------------------------------------
+
+(deftest rich-policy-def-backwards-compatible-test
+  (testing "simple policy expression still works"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:admin [:= :doc/role "admin"]}}))]
+      (is (= [:= :doc/role "admin"]
+             (reg/resolve-policy registry :auth :admin))))))
+
+(deftest rich-policy-def-with-expr-test
+  (testing "rich policy def with :expr returns expression"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:admin {:expr [:= :doc/role "admin"]
+                                                                :description "Admin check"}}}))]
+      (is (= [:= :doc/role "admin"]
+             (reg/resolve-policy registry :auth :admin))))))
+
+(deftest policy-info-simple-test
+  (testing "policy-info for simple policy"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:admin [:= :doc/role "admin"]}}))]
+      (let [info (reg/policy-info registry :auth :admin)]
+        (is (= [:= :doc/role "admin"] (:expr info)))
+        (is (= #{} (:params info)))
+        (is (= {} (:defaults info)))
+        (is (false? (:parameterized? info)))))))
+
+(deftest policy-info-parameterized-test
+  (testing "policy-info for parameterized policy"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:has-role [:= :doc/role :param/role]}}))]
+      (let [info (reg/policy-info registry :auth :has-role)]
+        (is (= [:= :doc/role :param/role] (:expr info)))
+        (is (= #{:role} (:params info)))
+        (is (= {} (:defaults info)))
+        (is (true? (:parameterized? info)))))))
+
+(deftest policy-info-with-defaults-test
+  (testing "policy-info extracts defaults"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:min-level {:expr [:> :doc/level :param/min]
+                                                                    :params {:min {:default 0}}}}}))]
+      (let [info (reg/policy-info registry :auth :min-level)]
+        (is (= [:> :doc/level :param/min] (:expr info)))
+        (is (= #{:min} (:params info)))
+        (is (= {:min 0} (:defaults info)))
+        (is (true? (:parameterized? info)))))))
+
+(deftest policy-info-with-description-test
+  (testing "policy-info includes description"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:admin {:expr [:= :doc/role "admin"]
+                                                                :description "Admin check"}}}))]
+      (let [info (reg/policy-info registry :auth :admin)]
+        (is (= "Admin check" (:description info)))))))
+
+(deftest param-defaults-test
+  (testing "param-defaults extracts default values"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:min-level {:expr [:> :doc/level :param/min]
+                                                                    :params {:min {:default 0}}}}}))]
+      (is (= {:min 0} (reg/param-defaults registry :auth :min-level)))))
+  (testing "param-defaults returns empty map for no defaults"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:has-role [:= :doc/role :param/role]}}))]
+      (is (= {} (reg/param-defaults registry :auth :has-role))))))
+
+(deftest parameterized-policies-test
+  (testing "returns parameterized policies in module"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:admin [:= :doc/role "admin"]
+                                                        :has-role [:= :doc/role :param/role]
+                                                        :min-level {:expr [:> :doc/level :param/min]
+                                                                    :params {:min {:default 0}}
+                                                                    :description "Min level check"}}}))]
+      (let [params (reg/parameterized-policies registry :auth)]
+        (is (= #{:has-role :min-level} (set (keys params))))
+        (is (= #{:role} (get-in params [:has-role :params])))
+        (is (= #{:min} (get-in params [:min-level :params])))
+        (is (= {:min 0} (get-in params [:min-level :defaults])))
+        (is (= "Min level check" (get-in params [:min-level :description])))))))
+
+(deftest all-policies-with-rich-defs-test
+  (testing "all-policies extracts expressions from rich defs"
+    (let [registry (-> (reg/create-registry)
+                       (reg/register-module :auth
+                                            {:policies {:admin {:expr [:= :doc/role "admin"]
+                                                                :description "Admin check"}
+                                                        :user [:= :doc/role "user"]}}))]
+      (is (= {:auth/admin [:= :doc/role "admin"]
+              :auth/user [:= :doc/role "user"]}
+             (reg/all-policies registry))))))

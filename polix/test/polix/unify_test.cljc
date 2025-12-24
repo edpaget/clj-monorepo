@@ -704,3 +704,65 @@
           result (unify/unify-ast ast {} {})]
       (is (res/residual? result))
       (is (= {[:any-key] [[:self :missing]]} result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Phase 4: Parameterized Policies with Defaults
+;;; ---------------------------------------------------------------------------
+
+(deftest param-accessor-unbound-test
+  (testing "unbound param returns residual with :unbound marker"
+    (let [ast    (r/unwrap (parser/parse-policy :param/role))
+          result (unify/unify-ast ast {} {:params {} :unbound-params #{:role}})]
+      (is (res/residual? result))
+      (is (= {[:role] [[:param :unbound]]} result)))))
+
+(deftest policy-reference-defaults-applied-test
+  (testing "defaults applied when param not provided"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                                                 {:policies {:min-level {:expr [:> :doc/level :param/min]
+                                                                         :params {:min {:default 0}}}}}))
+          result   (unify/unify [:auth/min-level] {:level 5} {:registry registry})]
+      (is (= {} result)))))
+
+(deftest policy-reference-provided-overrides-default-test
+  (testing "provided params override defaults"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                                                 {:policies {:min-level {:expr [:> :doc/level :param/min]
+                                                                         :params {:min {:default 0}}}}}))
+          result   (unify/unify [:auth/min-level {:min 10}] {:level 5} {:registry registry})]
+      ;; 5 > 10 fails, so we get an op-failed complex marker
+      (is (res/has-complex? result))
+      (is (= :op-failed (get-in result [::res/complex :type]))))))
+
+(deftest policy-reference-context-overrides-default-test
+  (testing "context params override defaults"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                                                 {:policies {:min-level {:expr [:> :doc/level :param/min]
+                                                                         :params {:min {:default 0}}}}}))
+          result   (unify/unify [:auth/min-level] {:level 5}
+                                {:registry registry :params {:min 10}})]
+      ;; 5 > 10 fails, so we get an op-failed complex marker
+      (is (res/has-complex? result))
+      (is (= :op-failed (get-in result [::res/complex :type]))))))
+
+(deftest policy-reference-provided-overrides-context-test
+  (testing "provided params override context params"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                                                 {:policies {:has-role [:= :doc/role :param/role]}}))
+          result   (unify/unify [:auth/has-role {:role "editor"}] {:role "editor"}
+                                {:registry registry :params {:role "admin"}})]
+      (is (= {} result)))))
+
+(deftest policy-reference-nested-inherits-params-test
+  (testing "nested policy references inherit params"
+    (let [registry (-> (registry/create-registry)
+                       (registry/register-module :auth
+                                                 {:policies {:has-role [:= :doc/role :param/role]
+                                                             :check [:auth/has-role]}}))
+          result   (unify/unify [:auth/check] {:role "admin"}
+                                {:registry registry :params {:role "admin"}})]
+      (is (= {} result)))))

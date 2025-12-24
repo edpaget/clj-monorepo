@@ -222,3 +222,49 @@
   (testing "merge with contradiction"
     (is (nil? (core/merge-residuals nil {[:a] [[:= 1]]})))))
 
+;;; ---------------------------------------------------------------------------
+;;; Policy Analysis Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest analyze-policy-test
+  (testing "analyze simple parameterized policy"
+    (let [analysis (core/analyze-policy [:= :doc/role :param/role])]
+      (is (= #{:role} (:params analysis)))
+      (is (= #{[:role]} (:doc-keys analysis)))
+      (is (true? (:parameterized? analysis)))))
+  (testing "analyze policy without params"
+    (let [analysis (core/analyze-policy [:= :doc/role "admin"])]
+      (is (= #{} (:params analysis)))
+      (is (= #{[:role]} (:doc-keys analysis)))
+      (is (false? (:parameterized? analysis)))))
+  (testing "analyze complex policy with multiple params"
+    (let [analysis (core/analyze-policy [:and
+                                          [:= :doc/role :param/role]
+                                          [:> :doc/level :param/min-level]])]
+      (is (= #{:role :min-level} (:params analysis)))
+      (is (= #{[:role] [:level]} (:doc-keys analysis)))
+      (is (true? (:parameterized? analysis))))))
+
+(deftest required-params-test
+  (testing "returns required params set"
+    (is (= #{:role} (core/required-params [:= :doc/role :param/role]))))
+  (testing "returns empty set when no params"
+    (is (= #{} (core/required-params [:= :doc/role "admin"])))))
+
+(deftest bind-params-test
+  (testing "creates policy context with params"
+    (let [bound (core/bind-params [:auth/has-role] {:role "admin"})]
+      (is (= [:auth/has-role] (:policy bound)))
+      (is (= {:role "admin"} (:params bound))))))
+
+(deftest validate-params-test
+  (testing "validates all params present"
+    (let [result (core/validate-params [:= :doc/role :param/role] {:role "admin"})]
+      (is (= {:ok {:role "admin"}} result))))
+  (testing "detects missing params"
+    (let [result (core/validate-params [:= :doc/role :param/role] {})]
+      (is (= {:error {:missing #{:role}}} result))))
+  (testing "detects multiple missing params"
+    (let [result (core/validate-params [:and [:= :doc/a :param/x] [:= :doc/b :param/y]] {})]
+      (is (= #{:x :y} (get-in result [:error :missing]))))))
+

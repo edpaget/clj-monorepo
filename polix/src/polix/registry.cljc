@@ -29,7 +29,8 @@
       ;; => [:= :doc/role \"admin\"]"
   (:require
    [malli.core :as m]
-   [malli.error :as me]))
+   [malli.error :as me]
+   [polix.policy :as policy]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Schemas
@@ -40,13 +41,46 @@
   [:enum :document-accessor :self-accessor :param-accessor
    :event-accessor :builtins :module :alias])
 
+(def ParamDef
+  "Schema for parameter definition with optional metadata.
+
+  Can be either a simple keyword or a rich map with description/default."
+  [:or
+   :keyword
+   [:map
+    [:description {:optional true} :string]
+    [:default {:optional true} :any]
+    [:required {:optional true} :boolean]]])
+
+(def PolicyDef
+  "Schema for a policy definition with optional param metadata.
+
+  Can be either a simple expression or a rich map with description/params."
+  [:or
+   [:vector :any]  ; Simple policy expression
+   [:map
+    [:expr :any]
+    [:params {:optional true} [:map-of :keyword ParamDef]]
+    [:description {:optional true} :string]]])
+
 (def ModuleEntry
-  "Schema for a user-defined module entry."
+  "Schema for a user-defined module entry.
+
+  Policies can be simple expressions or rich definitions with metadata:
+
+      ;; Simple
+      {:policies {:admin [:= :doc/role \"admin\"]}}
+
+      ;; Rich with defaults and descriptions
+      {:policies {:has-role {:expr [:= :doc/role :param/role]
+                             :description \"Checks user role\"
+                             :params {:role {:default \"user\"}}}}}"
   [:map
    [:type [:= :module]]
    [:version :int]
-   [:policies [:map-of :keyword :any]]
-   [:imports {:optional true} [:vector :keyword]]])
+   [:policies [:map-of :keyword PolicyDef]]
+   [:imports {:optional true} [:vector :keyword]]
+   [:description {:optional true} :string]])
 
 (def AliasEntry
   "Schema for an alias entry."
@@ -97,6 +131,26 @@
 ;;; Registry Record
 ;;; ---------------------------------------------------------------------------
 
+(defn- normalize-policy-def
+  "Normalizes a policy definition to rich format.
+
+  If the policy-def is already a map with :expr, returns it as-is.
+  Otherwise wraps the expression in {:expr expr}."
+  [policy-def]
+  (if (and (map? policy-def) (contains? policy-def :expr))
+    policy-def
+    {:expr policy-def}))
+
+(defn- extract-policy-defaults
+  "Extracts default values from param definitions.
+
+  Returns a map of param-key to default value for params that have defaults."
+  [param-defs]
+  (->> param-defs
+       (filter (fn [[_ v]] (and (map? v) (contains? v :default))))
+       (map (fn [[k v]] [k (:default v)]))
+       (into {})))
+
 (defrecord RegistryRecord [entries version]
   IRegistry
 
@@ -109,7 +163,10 @@
   (resolve-policy [this ns-key policy-key]
     (when-let [module (resolve-namespace this ns-key)]
       (when (= :module (:type module))
-        (get-in module [:policies policy-key]))))
+        (let [policy-def (get-in module [:policies policy-key])]
+          (if (and (map? policy-def) (contains? policy-def :expr))
+            (:expr policy-def)
+            policy-def)))))
 
   (registry-version [_] version))
 
@@ -318,7 +375,85 @@
   (->> (:entries registry)
        (filter (fn [[_ v]] (= :module (:type v))))
        (mapcat (fn [[ns-key module]]
-                 (map (fn [[policy-key expr]]
-                        [(keyword (name ns-key) (name policy-key)) expr])
+                 (map (fn [[policy-key policy-def]]
+                        (let [normalized (normalize-policy-def policy-def)]
+                          [(keyword (name ns-key) (name policy-key))
+                           (:expr normalized)]))
                       (:policies module))))
        (into {})))
+
+;;; ---------------------------------------------------------------------------
+;;; Policy Information
+;;; ---------------------------------------------------------------------------
+
+(defn policy-info
+  "Returns information about a policy in the registry.
+
+  Returns a map with:
+  - `:expr` — the policy expression
+  - `:params` — set of required parameter keys
+  - `:param-defs` — map of param key to definition (description, default, etc.)
+  - `:defaults` — map of param key to default value
+  - `:description` — policy description if provided
+  - `:parameterized?` — true if policy requires params
+
+  Returns nil if the policy is not found.
+
+      (policy-info registry :auth :has-role)
+      ;=> {:expr [:= :doc/role :param/role]
+      ;    :params #{:role}
+      ;    :param-defs {:role {:description \"Role to check\"}}
+      ;    :defaults {}
+      ;    :description \"Checks user role\"
+      ;    :parameterized? true}"
+  [registry ns-key policy-key]
+  (when-let [module (resolve-namespace registry ns-key)]
+    (when (= :module (:type module))
+      (when-let [policy-def (get-in module [:policies policy-key])]
+        (let [normalized (normalize-policy-def policy-def)
+              expr       (:expr normalized)
+              param-defs (:params normalized {})
+              analysis   (policy/analyze-policy expr)
+              defaults   (extract-policy-defaults param-defs)]
+          {:expr expr
+           :params (:params analysis)
+           :param-defs param-defs
+           :defaults defaults
+           :description (:description normalized)
+           :parameterized? (:parameterized? analysis)})))))
+
+(defn param-defaults
+  "Returns default values for a policy's parameters.
+
+  Returns a map of param-key to default value for params that have defaults.
+  Returns empty map if the policy has no defaults or is not found.
+
+      ;; Given: {:has-role {:expr [...] :params {:role {:default \"user\"}}}}
+      (param-defaults registry :auth :has-role)
+      ;=> {:role \"user\"}"
+  [registry ns-key policy-key]
+  (:defaults (policy-info registry ns-key policy-key) {}))
+
+(defn parameterized-policies
+  "Returns all parameterized policies in a module.
+
+  Returns a map of policy-key to param info for policies that require params.
+
+      (parameterized-policies registry :auth)
+      ;=> {:has-role {:params #{:role}
+      ;               :param-defs {:role {:description \"...\"}}
+      ;               :description \"Checks role\"}}"
+  [registry ns-key]
+  (when-let [module (resolve-namespace registry ns-key)]
+    (when (= :module (:type module))
+      (->> (:policies module)
+           (map (fn [[k policy-def]]
+                  (let [normalized (normalize-policy-def policy-def)
+                        params (policy/required-params (:expr normalized))]
+                    (when (seq params)
+                      [k {:params params
+                          :param-defs (:params normalized {})
+                          :defaults (extract-policy-defaults (:params normalized {}))
+                          :description (:description normalized)}]))))
+           (remove nil?)
+           (into {})))))
