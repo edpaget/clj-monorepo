@@ -14,8 +14,9 @@
    [cheshire.core :as json]
    [criterium.core :as crit]
    [polix.bench.policies :as p]
+   [polix.bytecode.cache :as bytecode-cache]
+   [polix.bytecode.generator :as bytecode]
    [polix.compiler :as compiler]
-   [polix.engine :as engine]
    [polix.negate :as negate]
    [polix.operators :as op]
    [polix.parser :as parser]
@@ -75,13 +76,13 @@
   (let [simple-ast  @p/simple-equality-ast
         medium-ast  @p/medium-and-ast
         complex-ast @p/complex-nested-ast]
-    [(bench-fn "eval-ast/simple-satisfied" (engine/evaluate simple-ast p/doc-simple-satisfied))
-     (bench-fn "eval-ast/simple-contradicted" (engine/evaluate simple-ast p/doc-simple-contradicted))
-     (bench-fn "eval-ast/simple-residual" (engine/evaluate simple-ast p/doc-empty))
-     (bench-fn "eval-ast/medium-satisfied" (engine/evaluate medium-ast p/doc-medium-satisfied))
-     (bench-fn "eval-ast/medium-partial" (engine/evaluate medium-ast p/doc-medium-partial))
-     (bench-fn "eval-ast/complex-satisfied" (engine/evaluate complex-ast p/doc-complex-satisfied))
-     (bench-fn "eval-ast/complex-partial" (engine/evaluate complex-ast p/doc-complex-partial))]))
+    [(bench-fn "eval-ast/simple-satisfied" (unify/unify simple-ast p/doc-simple-satisfied))
+     (bench-fn "eval-ast/simple-contradicted" (unify/unify simple-ast p/doc-simple-contradicted))
+     (bench-fn "eval-ast/simple-residual" (unify/unify simple-ast p/doc-empty))
+     (bench-fn "eval-ast/medium-satisfied" (unify/unify medium-ast p/doc-medium-satisfied))
+     (bench-fn "eval-ast/medium-partial" (unify/unify medium-ast p/doc-medium-partial))
+     (bench-fn "eval-ast/complex-satisfied" (unify/unify complex-ast p/doc-complex-satisfied))
+     (bench-fn "eval-ast/complex-partial" (unify/unify complex-ast p/doc-complex-partial))]))
 
 (defn eval-compiled-benchmarks
   "Runs compiled evaluation benchmarks."
@@ -239,6 +240,41 @@
      (bench-fn "inverse/what-contradicts-medium" (unify/unify (negate/negate medium-ast) {}))
      (bench-fn "inverse/what-contradicts-complex" (unify/unify (negate/negate complex-ast) {}))]))
 
+(defn bytecode-benchmarks
+  "Runs bytecode compilation benchmarks.
+
+  Compares bytecode-compiled policies against interpreted evaluation
+  for simple constraint-only policies. Only benchmarks policies that
+  are bytecode-eligible (no quantifiers or complex nodes)."
+  []
+  (bytecode-cache/clear-cache!)
+  (let [merged-simple  (:simplified (compiler/merge-policies [p/simple-equality]))
+        merged-medium  (:simplified (compiler/merge-policies [p/medium-and]))
+        ;; Interpreted evaluators for comparison
+        int-simple  (compiler/compile-policies [p/simple-equality] {:bytecode false})
+        int-medium  (compiler/compile-policies [p/medium-and] {:bytecode false})]
+    ;; Only benchmark bytecode-eligible policies
+    (if (and (bytecode/bytecode-eligible? merged-simple)
+             (bytecode/bytecode-eligible? merged-medium))
+      (let [bc-simple (bytecode/compile-to-bytecode merged-simple {})
+            bc-medium (bytecode/compile-to-bytecode merged-medium {})]
+        [;; Bytecode tier info
+         {:name "bytecode/tier-simple" :tier (bytecode/compilation-tier bc-simple)}
+         {:name "bytecode/tier-medium" :tier (bytecode/compilation-tier bc-medium)}
+         ;; Bytecode evaluation
+         (bench-fn "bytecode/simple-satisfied" (bc-simple p/doc-simple-satisfied))
+         (bench-fn "bytecode/simple-contradicted" (bc-simple p/doc-simple-contradicted))
+         (bench-fn "bytecode/simple-residual" (bc-simple p/doc-empty))
+         (bench-fn "bytecode/medium-satisfied" (bc-medium p/doc-medium-satisfied))
+         (bench-fn "bytecode/medium-partial" (bc-medium p/doc-medium-partial))
+         ;; Interpreted comparison (for same policies with bytecode disabled)
+         (bench-fn "interpreted/simple-satisfied" (int-simple p/doc-simple-satisfied))
+         (bench-fn "interpreted/simple-contradicted" (int-simple p/doc-simple-contradicted))
+         (bench-fn "interpreted/medium-satisfied" (int-medium p/doc-medium-satisfied))])
+      (do
+        (println "Warning: Some policies not bytecode-eligible, skipping bytecode benchmarks")
+        []))))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Regression Detection
 ;;; ---------------------------------------------------------------------------
@@ -311,17 +347,21 @@
                       (print "  Filtered Bindings...") (flush)
                       (let [filtered-results (filtered-binding-benchmarks)]
                         (println " done")
-                        (concat parse-results
-                                compile-results
-                                ast-results
-                                compiled-results
-                                unify-results
-                                negate-results
-                                inverse-results
-                                operator-results
-                                quantifier-results
-                                count-results
-                                filtered-results)))))))))))))
+                        (print "  Bytecode...") (flush)
+                        (let [bytecode-results (bytecode-benchmarks)]
+                          (println " done")
+                          (concat parse-results
+                                  compile-results
+                                  ast-results
+                                  compiled-results
+                                  unify-results
+                                  negate-results
+                                  inverse-results
+                                  operator-results
+                                  quantifier-results
+                                  count-results
+                                  filtered-results
+                                  bytecode-results))))))))))))))
 
 (defn run-ci
   "Main entry point for CI benchmark runner.

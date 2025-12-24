@@ -28,7 +28,9 @@
    [polix.parser :as parser]
    [polix.residual :as res]
    [polix.result :as r]
-   [polix.unify :as unify]))
+   [polix.unify :as unify]
+   #?(:clj [polix.bytecode.cache :as bytecode-cache])
+   #?(:clj [polix.bytecode.generator :as bytecode])))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Constraint Representation
@@ -368,6 +370,30 @@
         merged          (merge-constraint-sets all-constraints)]
     (simplify-constraint-set merged)))
 
+(defn- create-interpreted-evaluator
+  "Creates an interpreted evaluator function for a constraint set."
+  [constraint-set opts]
+  (let [compile-ctx (op/make-context opts)]
+    (fn evaluate
+      ([document]
+       (evaluate-document-with-context constraint-set document compile-ctx))
+      ([document eval-opts]
+       (let [eval-ctx (op/make-context (merge opts eval-opts))]
+         (evaluate-document-with-context constraint-set document eval-ctx))))))
+
+#?(:clj
+   (defn- bytecode-eligible?
+     "Returns true if the constraint set is eligible for bytecode compilation."
+     [constraint-set]
+     (bytecode/bytecode-eligible? constraint-set)))
+
+#?(:clj
+   (defn- compile-with-bytecode
+     "Compiles a constraint set using bytecode compilation with caching."
+     [constraint-set opts]
+     (let [fallback (create-interpreted-evaluator constraint-set opts)]
+       (bytecode-cache/compile-cached constraint-set (assoc opts :fallback fallback)))))
+
 (defn compile-policies
   "Compiles multiple policies into an optimized evaluation function.
 
@@ -383,6 +409,7 @@
   - `:fallback` - `(fn [op-key])` for unknown operators
   - `:strict?` - throw on unknown operators (default false)
   - `:trace?` - record evaluation trace (default false)
+  - `:bytecode` - enable bytecode compilation (default true on JVM)
 
   Policies are merged with AND semantics - all must be satisfied.
 
@@ -393,6 +420,10 @@
   When `:trace?` is enabled (at compile-time or per-evaluation), returns
   `{:result <value> :trace [...]}` where `:result` is the normal evaluation
   outcome and `:trace` is a vector of evaluation steps.
+
+  On the JVM, bytecode compilation is used by default for eligible constraint
+  sets. Bytecode-compiled policies implement `IFn` and can be called directly.
+  Use `:bytecode false` to disable bytecode compilation.
 
   Example:
 
@@ -413,13 +444,14 @@
      (if (:contradicted merge-result)
        (constantly nil)
        (let [constraint-set (:simplified merge-result)
-             compile-ctx    (op/make-context opts)]
-         (fn evaluate
-           ([document]
-            (evaluate-document-with-context constraint-set document compile-ctx))
-           ([document eval-opts]
-            (let [eval-ctx (op/make-context (merge opts eval-opts))]
-              (evaluate-document-with-context constraint-set document eval-ctx)))))))))
+             use-bytecode?  (and (get opts :bytecode true)
+                                 (not (:trace? opts)))]
+         #?(:clj
+            (if (and use-bytecode? (bytecode-eligible? constraint-set))
+              (compile-with-bytecode constraint-set opts)
+              (create-interpreted-evaluator constraint-set opts))
+            :cljs
+            (create-interpreted-evaluator constraint-set opts)))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Residual Conversion

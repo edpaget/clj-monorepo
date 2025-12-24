@@ -111,7 +111,16 @@
 ;;; Operator Registry
 ;;; ---------------------------------------------------------------------------
 
-(defonce ^:private registry (atom {}))
+(defonce ^:private registry (atom {:operators {} :version 0}))
+
+(defn registry-version
+  "Returns the current registry version.
+
+  The version is incremented each time an operator is registered. This enables
+  bytecode-compiled policies to detect when the operator set has changed and
+  fall back to interpreted evaluation."
+  []
+  (:version @registry))
 
 (defn register-operator!
   "Registers an operator in the global registry with spec validation.
@@ -125,7 +134,10 @@
    - `:simplify` - `(fn [constraints] -> {:simplified [...]} | {:contradicted [...]})`
    - `:subsumes?` - `(fn [c1 c2] -> boolean?)` subsumption check
 
-   Throws if spec is invalid (e.g., missing :eval or wrong types)."
+   Throws if spec is invalid (e.g., missing :eval or wrong types).
+
+   Note: Each registration increments the registry version, which may invalidate
+   bytecode-compiled policies that use custom operators."
   [op-key spec]
   (validate-operator-spec! op-key spec)
   (let [operator (->Operator
@@ -135,13 +147,15 @@
                   (:flip spec)
                   (:simplify spec)
                   (:subsumes? spec))]
-    (swap! registry assoc op-key operator)
+    (swap! registry (fn [{:keys [operators version]}]
+                      {:operators (assoc operators op-key operator)
+                       :version (inc version)}))
     operator))
 
 (defn get-operator
   "Returns the operator for `op-key`, or nil if not found."
   [op-key]
-  (get @registry op-key))
+  (get-in @registry [:operators op-key]))
 
 (defn negate-op
   "Returns the negated operator keyword for `op-key`, or nil if not supported.
@@ -204,7 +218,7 @@
   [ctx op-key]
   (or (when-let [ops (:operators ctx)]
         (get ops op-key))
-      (get @registry op-key)
+      (get-operator op-key)
       (when-let [fb (:fallback ctx)]
         (fb op-key))
       (when (:strict? ctx)
@@ -226,12 +240,12 @@
 (defn operator-keys
   "Returns all registered operator keys."
   []
-  (keys @registry))
+  (keys (:operators @registry)))
 
 (defn clear-registry!
   "Clears all registered operators. Useful for testing."
   []
-  (reset! registry {}))
+  (reset! registry {:operators {} :version 0}))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Evaluation API
