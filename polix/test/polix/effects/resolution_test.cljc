@@ -1,7 +1,7 @@
-(ns polix-effects.resolution-test
+(ns polix.effects.resolution-test
   (:require [clojure.test :refer [deftest is]]
-            [polix-effects.core :as fx]
-            [polix-effects.resolution :as res]))
+            [polix.effects.core :as fx]
+            [polix.effects.resolution :as res]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; resolve-ref Tests
@@ -109,7 +109,7 @@
 (deftest assoc-in-with-binding-reference-test
   (let [state  {:users {"player-1" {:score 0}}}
         ctx    {:bindings {:self "player-1"}}
-        effect {:type :polix-effects/assoc-in
+        effect {:type :polix.effects/assoc-in
                 :path [:users :self :score]
                 :value 100}
         result (fx/apply-effect state effect ctx)]
@@ -118,7 +118,7 @@
 (deftest assoc-in-with-state-reference-value-test
   (let [state  {:users {:current-id "user-1"}
                 :defaults {:starting-balance 500}}
-        effect {:type :polix-effects/assoc-in
+        effect {:type :polix.effects/assoc-in
                 :path [:users :current-id :balance]
                 :value [:state :defaults :starting-balance]}
         ctx    {:bindings {:current-id "user-1"}}
@@ -131,13 +131,13 @@
 
 (deftest update-in-with-keyword-fn-test
   (let [state  {:counter 10}
-        effect {:type :polix-effects/update-in :path [:counter] :f :inc}
+        effect {:type :polix.effects/update-in :path [:counter] :f :inc}
         result (fx/apply-effect state effect)]
     (is (= 11 (:counter (:state result))))))
 
 (deftest update-in-with-args-test
   (let [state  {:items []}
-        effect {:type :polix-effects/update-in
+        effect {:type :polix.effects/update-in
                 :path [:items]
                 :f :conj
                 :args [{:id 1 :name "Item 1"}]}
@@ -147,7 +147,7 @@
 (deftest update-in-with-referenced-args-test
   (let [state  {:balance 100 :bonus 25}
         ctx    {:params {:amount 50}}
-        effect {:type :polix-effects/update-in
+        effect {:type :polix.effects/update-in
                 :path [:balance]
                 :f :+
                 :args [[:param :amount]]}
@@ -156,7 +156,7 @@
 
 (deftest update-in-unknown-function-fails-test
   (let [state  {:value 10}
-        effect {:type :polix-effects/update-in :path [:value] :f :nonexistent}
+        effect {:type :polix.effects/update-in :path [:value] :f :nonexistent}
         result (fx/apply-effect state effect)]
     (is (seq (:failed result)))
     (is (= :unknown-function (:error (first (:failed result)))))))
@@ -167,19 +167,19 @@
 
 (deftest dissoc-in-nested-path-test
   (let [state  {:users {"user-1" {:name "Alice" :temp-data {:session "xyz"}}}}
-        effect {:type :polix-effects/dissoc-in :path [:users "user-1" :temp-data]}
+        effect {:type :polix.effects/dissoc-in :path [:users "user-1" :temp-data]}
         result (fx/apply-effect state effect)]
     (is (= {:name "Alice"} (get-in (:state result) [:users "user-1"])))))
 
 (deftest dissoc-in-top-level-test
   (let [state  {:keep-me true :remove-me true}
-        effect {:type :polix-effects/dissoc-in :path [:remove-me]}
+        effect {:type :polix.effects/dissoc-in :path [:remove-me]}
         result (fx/apply-effect state effect)]
     (is (= {:keep-me true} (:state result)))))
 
 (deftest dissoc-in-with-reference-path-test
   (let [state  {:users {"player-1" {:score 100 :temp nil}}}
         ctx    {:bindings {:self "player-1"}}
-        effect {:type :polix-effects/dissoc-in :path [:users :self :temp]}
+        effect {:type :polix.effects/dissoc-in :path [:users :self :temp]}
         result (fx/apply-effect state effect ctx)]
     (is (= {:score 100} (get-in (:state result) [:users "player-1"])))))

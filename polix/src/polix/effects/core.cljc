@@ -1,56 +1,63 @@
-(ns polix-effects.core
+(ns polix.effects.core
   "Core API for applying effects to state.
 
   Effects are pure data structures describing state mutations. This namespace
   provides [[apply-effect]] as the primary entry point for effect application,
   with optional schema validation.
 
-  Built-in effect types use the `:polix-effects/*` namespace:
-  - `:polix-effects/noop` - Does nothing
-  - `:polix-effects/sequence` - Applies effects in order
-  - `:polix-effects/assoc-in` - Sets a value at a path
-  - `:polix-effects/update-in` - Updates a value at a path with a function
-  - `:polix-effects/dissoc-in` - Removes a value at a path
+  Built-in effect types use the `:polix.effects/*` namespace:
+  - `:polix.effects/noop` - Does nothing
+  - `:polix.effects/sequence` - Applies effects in order
+  - `:polix.effects/assoc-in` - Sets a value at a path
+  - `:polix.effects/update-in` - Updates a value at a path with a function
+  - `:polix.effects/dissoc-in` - Removes a value at a path
+  - `:polix.effects/merge-in` - Merges a map at a path
+  - `:polix.effects/conj-in` - Adds to a collection at a path
+  - `:polix.effects/remove-in` - Removes from a collection by predicate
+  - `:polix.effects/move` - Moves items between collections
+  - `:polix.effects/transaction` - Atomic application with rollback
+  - `:polix.effects/let` - Binds values for nested effects
+  - `:polix.effects/conditional` - Branching based on polix conditions
 
   Domain-specific effects can be registered via [[register-effect!]]."
-  (:require [polix-effects.registry :as registry]
-            [polix-effects.resolution :as res]
-            [polix-effects.schema :as schema]))
+  (:require [polix.effects.registry :as registry]
+            [polix.effects.resolution :as res]
+            [polix.effects.schema :as schema]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Re-exports
 ;;; ---------------------------------------------------------------------------
 
 (def register-effect!
-  "Registers a custom effect handler. See [[polix-effects.registry/register-effect!]]."
+  "Registers a custom effect handler. See [[polix.effects.registry/register-effect!]]."
   registry/register-effect!)
 
 (def effect-types
-  "Returns set of registered effect types. See [[polix-effects.registry/effect-types]]."
+  "Returns set of registered effect types. See [[polix.effects.registry/effect-types]]."
   registry/effect-types)
 
 (def success
-  "Creates a successful result. See [[polix-effects.registry/success]]."
+  "Creates a successful result. See [[polix.effects.registry/success]]."
   registry/success)
 
 (def failure
-  "Creates a failed result. See [[polix-effects.registry/failure]]."
+  "Creates a failed result. See [[polix.effects.registry/failure]]."
   registry/failure)
 
 (def default-resolver
-  "The default reference resolver. See [[polix-effects.resolution/default-resolver]]."
+  "The default reference resolver. See [[polix.effects.resolution/default-resolver]]."
   res/default-resolver)
 
 (def resolve-ref
-  "Resolves a reference within context. See [[polix-effects.resolution/resolve-ref]]."
+  "Resolves a reference within context. See [[polix.effects.resolution/resolve-ref]]."
   res/resolve-ref)
 
 (def resolve-fn
-  "Resolves a function reference. See [[polix-effects.resolution/resolve-fn]]."
+  "Resolves a function reference. See [[polix.effects.resolution/resolve-fn]]."
   res/resolve-fn)
 
 (def resolve-predicate
-  "Resolves a predicate specification. See [[polix-effects.resolution/resolve-predicate]]."
+  "Resolves a predicate specification. See [[polix.effects.resolution/resolve-predicate]]."
   res/resolve-predicate)
 
 ;;; ---------------------------------------------------------------------------
@@ -103,11 +110,11 @@
 (defn apply-effects
   "Applies multiple effects in sequence.
 
-  Equivalent to wrapping effects in a `:polix-effects/sequence` effect.
+  Equivalent to wrapping effects in a `:polix.effects/sequence` effect.
   Stops on first pending effect. Accumulates all applied and failed effects."
   ([state effects]
    (apply-effects state effects {} {}))
   ([state effects ctx]
    (apply-effects state effects ctx {}))
   ([state effects ctx opts]
-   (apply-effect state {:type :polix-effects/sequence :effects (vec effects)} ctx opts)))
+   (apply-effect state {:type :polix.effects/sequence :effects (vec effects)} ctx opts)))

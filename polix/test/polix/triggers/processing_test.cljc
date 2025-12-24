@@ -5,7 +5,7 @@
 (defn- make-effect
   "Helper to create a simple effect that sets a value at a path."
   [path value]
-  {:type :polix-effects/assoc-in
+  {:type :polix.effects/assoc-in
    :path path
    :value value})
 

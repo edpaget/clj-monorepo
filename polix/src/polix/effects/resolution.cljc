@@ -1,4 +1,4 @@
-(ns polix-effects.resolution
+(ns polix.effects.resolution
   "Reference resolution for effects.
 
   Effects can use symbolic references that are resolved at application time.

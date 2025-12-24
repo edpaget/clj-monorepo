@@ -1,10 +1,10 @@
-(ns polix-effects.registry
+(ns polix.effects.registry
   "Multimethod dispatch for effect handlers.
 
   Provides the core dispatch mechanism for applying effects. Built-in effects
   are registered here, and domain-specific effects can be added via
   [[register-effect!]]."
-  (:require [polix-effects.resolution :as res]
+  (:require [polix.effects.resolution :as res]
             [polix.core :as polix]))
 
 ;;; ---------------------------------------------------------------------------
@@ -77,11 +77,11 @@
 ;;; Built-in Handlers
 ;;; ---------------------------------------------------------------------------
 
-(defmethod -apply-effect :polix-effects/noop
+(defmethod -apply-effect :polix.effects/noop
   [state _effect _ctx _opts]
   (success state []))
 
-(defmethod -apply-effect :polix-effects/assoc-in
+(defmethod -apply-effect :polix.effects/assoc-in
   [state {:keys [path value] :as effect} ctx opts]
   (let [resolver       (or (:resolver opts) res/default-resolver)
         resolved-path  (res/resolve-path resolver path ctx)
@@ -89,7 +89,7 @@
         new-state      (assoc-in state resolved-path resolved-value)]
     (success new-state [effect])))
 
-(defmethod -apply-effect :polix-effects/sequence
+(defmethod -apply-effect :polix.effects/sequence
   [state {:keys [effects]} ctx opts]
   (reduce
    (fn [{:keys [state applied failed pending] :as acc} effect]
@@ -103,7 +103,7 @@
    {:state state :applied [] :failed [] :pending nil}
    effects))
 
-(defmethod -apply-effect :polix-effects/update-in
+(defmethod -apply-effect :polix.effects/update-in
   [state {:keys [path f args] :as effect} ctx opts]
   (let [resolver      (or (:resolver opts) res/default-resolver)
         resolved-path (res/resolve-path resolver path ctx)
@@ -113,7 +113,7 @@
       (success (apply update-in state resolved-path resolved-fn resolved-args) [effect])
       (failure state effect :unknown-function (str "Unknown function: " f)))))
 
-(defmethod -apply-effect :polix-effects/dissoc-in
+(defmethod -apply-effect :polix.effects/dissoc-in
   [state {:keys [path] :as effect} ctx opts]
   (let [resolver      (or (:resolver opts) res/default-resolver)
         resolved-path (res/resolve-path resolver path ctx)
@@ -123,7 +123,7 @@
       (success (dissoc state k) [effect])
       (success (update-in state parent-path dissoc k) [effect]))))
 
-(defmethod -apply-effect :polix-effects/merge-in
+(defmethod -apply-effect :polix.effects/merge-in
   [state {:keys [path value] :as effect} ctx opts]
   (let [resolver       (or (:resolver opts) res/default-resolver)
         resolved-path  (res/resolve-path resolver path ctx)
@@ -134,21 +134,21 @@
 ;;; Collection Handlers
 ;;; ---------------------------------------------------------------------------
 
-(defmethod -apply-effect :polix-effects/conj-in
+(defmethod -apply-effect :polix.effects/conj-in
   [state {:keys [path value] :as effect} ctx opts]
   (let [resolver       (or (:resolver opts) res/default-resolver)
         resolved-path  (res/resolve-path resolver path ctx)
         resolved-value (res/resolve-ref resolver value ctx)]
     (success (update-in state resolved-path conj resolved-value) [effect])))
 
-(defmethod -apply-effect :polix-effects/remove-in
+(defmethod -apply-effect :polix.effects/remove-in
   [state {:keys [path predicate] :as effect} ctx opts]
   (let [resolver      (or (:resolver opts) res/default-resolver)
         resolved-path (res/resolve-path resolver path ctx)
         pred-fn       (res/resolve-predicate predicate)]
     (success (update-in state resolved-path #(vec (remove pred-fn %))) [effect])))
 
-(defmethod -apply-effect :polix-effects/move
+(defmethod -apply-effect :polix.effects/move
   [state {:keys [from-path to-path predicate] :as effect} ctx opts]
   (let [resolver           (or (:resolver opts) res/default-resolver)
         resolved-from-path (res/resolve-path resolver from-path ctx)
@@ -166,7 +166,7 @@
 ;;; Composite Handlers
 ;;; ---------------------------------------------------------------------------
 
-(defmethod -apply-effect :polix-effects/transaction
+(defmethod -apply-effect :polix.effects/transaction
   [state {:keys [effects]} ctx opts]
   (let [result (reduce
                 (fn [{:keys [state applied failed]} effect]
@@ -188,7 +188,7 @@
        :failed  []
        :pending nil})))
 
-(defmethod -apply-effect :polix-effects/let
+(defmethod -apply-effect :polix.effects/let
   [state {:keys [bindings effect]} ctx opts]
   (let [resolver     (or (:resolver opts) res/default-resolver)
         new-bindings (reduce
@@ -199,10 +199,10 @@
         new-ctx      (assoc ctx :bindings new-bindings)]
     (-apply-effect state effect new-ctx opts)))
 
-(defmethod -apply-effect :polix-effects/conditional
+(defmethod -apply-effect :polix.effects/conditional
   [state {:keys [condition then else] :as effect} ctx opts]
-  (let [result (polix/evaluate condition state)]
-    (if (true? result)
+  (let [result (polix/unify condition state)]
+    (if (polix/satisfied? result)
       (if then
         (-apply-effect state then ctx opts)
         (success state [effect]))
