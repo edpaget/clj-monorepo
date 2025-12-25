@@ -68,6 +68,70 @@
                       :player-id :self/id
                       :distance 1}}]})
 
+;; =============================================================================
+;; Test Assets
+;; =============================================================================
+
+(def asset-with-trigger
+  "Team asset with a triggered ability."
+  {:slug "home-court-advantage"
+   :name "Home Court Advantage"
+   :card-type :card-type/TEAM_ASSET_CARD
+   :asset-power
+   {:asset/id "home-court"
+    :asset/name "Home Court Advantage"
+    :asset/triggers
+    [{:trigger {:trigger/event :bashketball/turn-started.at
+                :trigger/condition [:= :doc/active-player :self/team]}
+      :effect {:effect/type :bashketball/draw-cards
+               :team :self/team
+               :count 1}}]}})
+
+(def asset-with-two-triggers
+  "Team asset with multiple triggered abilities."
+  {:slug "momentum-builder"
+   :name "Momentum Builder"
+   :card-type :card-type/TEAM_ASSET_CARD
+   :asset-power
+   {:asset/id "momentum"
+    :asset/triggers
+    [{:trigger {:trigger/event :bashketball/shoot.after
+                :trigger/condition [:= :event/success true]}
+      :effect {:effect/type :bashketball/add-modifier
+               :stat :stat/SHOOTING
+               :amount 1}}
+     {:trigger {:trigger/event :bashketball/pass.after
+                :trigger/condition [:= :event/success true]}
+      :effect {:effect/type :bashketball/add-modifier
+               :stat :stat/PASSING
+               :amount 1}}]}})
+
+(def asset-without-triggers
+  "Team asset with no triggers (passive or activated only)."
+  {:slug "team-banner"
+   :name "Team Banner"
+   :card-type :card-type/TEAM_ASSET_CARD
+   :asset-power
+   {:asset/id "banner"
+    :asset/condition [:= :doc/home-game true]}})
+
+(def response-asset
+  "Response asset that prompts Apply/Pass."
+  {:slug "defensive-timeout"
+   :name "Defensive Timeout"
+   :card-type :card-type/TEAM_ASSET_CARD
+   :card-subtypes [:card-subtype/RESPONSE]
+   :asset-power
+   {:asset/id "defensive-timeout"
+    :asset/response
+    {:response/trigger {:trigger/event :bashketball/skill-test.before
+                        :trigger/condition [:= :event/defender-team :self/team]}
+     :response/prompt "Call Defensive Timeout?"
+     :response/effect {:effect/type :bashketball/add-modifier
+                       :target :event/defender-id
+                       :stat :stat/DEFENSE
+                       :amount 2}}}})
+
 (def test-catalog
   "Catalog with test cards."
   (catalog/create-catalog
@@ -77,7 +141,11 @@
     "troll-center" player-without-ability
     "goblin-shooting-guard" player-without-ability
     "human-small-forward" player-without-ability
-    "quick-release" ability-card}))
+    "quick-release" ability-card
+    "home-court-advantage" asset-with-trigger
+    "momentum-builder" asset-with-two-triggers
+    "team-banner" asset-without-triggers
+    "defensive-timeout" response-asset}))
 
 ;; =============================================================================
 ;; Test Helpers
@@ -331,3 +399,293 @@
       (is (not (:prevented? result)))
       ;; orc-center had 1 trigger, elf-point-guard has 0
       (is (= 0 (count-triggers (:registry result)))))))
+
+;; =============================================================================
+;; Tests: Team Asset Registration
+;; =============================================================================
+
+(deftest register-asset-triggers-test
+  (testing "registers trigger for asset with single trigger"
+    (let [asset    {:instance-id "asset-1" :card-slug "home-court-advantage"}
+          registry (card-effects/register-asset-triggers
+                    (triggers/create-registry)
+                    test-catalog
+                    asset
+                    :team/HOME)]
+      (is (= 1 (count-triggers registry)))
+      (is (has-trigger-for-source? registry "asset-1"))))
+
+  (testing "registers multiple triggers for asset with multiple triggers"
+    (let [asset    {:instance-id "asset-2" :card-slug "momentum-builder"}
+          registry (card-effects/register-asset-triggers
+                    (triggers/create-registry)
+                    test-catalog
+                    asset
+                    :team/HOME)]
+      (is (= 2 (count-triggers registry)))))
+
+  (testing "registers no triggers for asset without triggers"
+    (let [asset    {:instance-id "asset-3" :card-slug "team-banner"}
+          registry (card-effects/register-asset-triggers
+                    (triggers/create-registry)
+                    test-catalog
+                    asset
+                    :team/HOME)]
+      (is (= 0 (count-triggers registry)))))
+
+  (testing "registers prompt trigger for response asset"
+    (let [asset    {:instance-id "asset-4" :card-slug "defensive-timeout"}
+          registry (card-effects/register-asset-triggers
+                    (triggers/create-registry)
+                    test-catalog
+                    asset
+                    :team/HOME)]
+      (is (= 1 (count-triggers registry)))
+      (is (has-trigger-for-source? registry "asset-4")))))
+
+(deftest unregister-asset-triggers-test
+  (testing "unregisters all triggers for an asset"
+    (let [asset    {:instance-id "asset-1" :card-slug "momentum-builder"}
+          registry (card-effects/register-asset-triggers
+                    (triggers/create-registry)
+                    test-catalog
+                    asset
+                    :team/HOME)
+          _        (is (= 2 (count-triggers registry)))
+          updated  (card-effects/unregister-asset-triggers registry "asset-1")]
+      (is (= 0 (count-triggers updated))))))
+
+(deftest token-asset-test
+  (testing "registers triggers for token asset with inline definition"
+    (let [token-card  {:slug "generated-asset"
+                       :card-type :card-type/TEAM_ASSET_CARD
+                       :asset-power
+                       {:asset/id "gen-asset"
+                        :asset/triggers
+                        [{:trigger {:trigger/event :bashketball/score.after}
+                          :effect {:effect/type :bashketball/draw-cards :count 1}}]}}
+          token-asset {:instance-id "token-asset-1"
+                       :token true
+                       :card token-card}
+          registry    (card-effects/register-asset-triggers
+                       (triggers/create-registry)
+                       test-catalog
+                       token-asset
+                       :team/HOME)]
+      (is (= 1 (count-triggers registry)))
+      (is (has-trigger-for-source? registry "token-asset-1")))))
+
+;; =============================================================================
+;; Tests: Play-Card and Move-Asset Registry Updates
+;; =============================================================================
+
+(deftest update-registry-for-play-card-test
+  (testing "play-card registers triggers when card is a team asset"
+    (let [game-state     (-> (fixtures/base-game-state)
+                             (fixtures/with-drawn-cards :team/HOME 3))
+          ;; Add asset card definition to deck catalog AND card to hand
+          game-with-card (-> game-state
+                             (update-in [:players :team/HOME :deck :cards]
+                                        conj asset-with-trigger)
+                             (update-in [:players :team/HOME :deck :hand]
+                                        conj {:instance-id "asset-card-1"
+                                              :card-slug "home-court-advantage"}))
+          ;; Play it
+          new-state      (actions/do-action game-with-card
+                                            {:type :bashketball/play-card
+                                             :player :team/HOME
+                                             :instance-id "asset-card-1"})
+          action         {:type :bashketball/play-card
+                          :player :team/HOME
+                          :instance-id "asset-card-1"}
+          registry       (card-effects/update-registry-for-action
+                          (triggers/create-registry) test-catalog game-with-card new-state action)]
+      (is (= 1 (count-triggers registry)))
+      (is (has-trigger-for-source? registry "asset-card-1"))))
+
+  (testing "play-card does not register triggers for non-asset cards"
+    (let [game-state     (-> (fixtures/base-game-state)
+                             (fixtures/with-drawn-cards :team/HOME 3))
+          ;; Add a non-asset card definition to deck catalog AND card to hand
+          game-with-card (-> game-state
+                             (update-in [:players :team/HOME :deck :cards]
+                                        conj player-without-ability)
+                             (update-in [:players :team/HOME :deck :hand]
+                                        conj {:instance-id "play-card-1"
+                                              :card-slug "elf-point-guard"}))
+          ;; Play it - should go to discard, not assets
+          new-state      (actions/do-action game-with-card
+                                            {:type :bashketball/play-card
+                                             :player :team/HOME
+                                             :instance-id "play-card-1"})
+          action         {:type :bashketball/play-card
+                          :player :team/HOME
+                          :instance-id "play-card-1"}
+          registry       (card-effects/update-registry-for-action
+                          (triggers/create-registry) test-catalog game-with-card new-state action)]
+      (is (= 0 (count-triggers registry))))))
+
+(deftest update-registry-for-move-asset-test
+  (testing "move-asset unregisters triggers when asset removed"
+    (let [game-state      (fixtures/base-game-state)
+          ;; Add asset to team's assets
+          game-with-asset (update-in game-state [:players :team/HOME :assets]
+                                     conj {:instance-id "asset-card-1"
+                                           :card-slug "home-court-advantage"})
+          ;; Register the trigger
+          initial-reg     (card-effects/register-asset-triggers
+                           (triggers/create-registry)
+                           test-catalog
+                           {:instance-id "asset-card-1" :card-slug "home-court-advantage"}
+                           :team/HOME)
+          _               (is (= 1 (count-triggers initial-reg)))
+          ;; Move asset to discard
+          new-state       (actions/do-action game-with-asset
+                                             {:type :bashketball/move-asset
+                                              :player :team/HOME
+                                              :instance-id "asset-card-1"
+                                              :destination :DISCARD})
+          action          {:type :bashketball/move-asset
+                           :player :team/HOME
+                           :instance-id "asset-card-1"
+                           :destination :DISCARD}
+          updated-reg     (card-effects/update-registry-for-action
+                           initial-reg test-catalog game-with-asset new-state action)]
+      (is (= 0 (count-triggers updated-reg))))))
+
+;; =============================================================================
+;; Tests: Initialize Game with Assets
+;; =============================================================================
+
+(deftest initialize-game-triggers-with-assets-test
+  (testing "registers triggers for assets already in play"
+    (let [game-state (-> (fixtures/base-game-state)
+                         (update-in [:players :team/HOME :assets]
+                                    conj {:instance-id "asset-1"
+                                          :card-slug "home-court-advantage"})
+                         (update-in [:players :team/AWAY :assets]
+                                    conj {:instance-id "asset-2"
+                                          :card-slug "momentum-builder"}))
+          registry   (card-effects/initialize-game-triggers game-state test-catalog)]
+      ;; home-court-advantage has 1 trigger, momentum-builder has 2
+      (is (= 3 (count-triggers registry)))
+      (is (has-trigger-for-source? registry "asset-1"))
+      (is (has-trigger-for-source? registry "asset-2")))))
+
+;; =============================================================================
+;; Tests: Create-Token Registry Updates
+;; =============================================================================
+
+(def token-ability-card-def
+  "Token ability card with a triggered ability."
+  {:slug "hot-hand"
+   :name "Hot Hand"
+   :card-type :card-type/ABILITY_CARD
+   :set-slug "tokens"
+   :fate 0
+   :abilities [{:ability/id "hot-hand"
+                :ability/trigger {:trigger/event :bashketball/shoot.after
+                                  :trigger/condition [:= :event/success true]}
+                :ability/effect {:effect/type :bashketball/add-modifier
+                                 :stat :stat/SHOOTING
+                                 :amount 1}}]})
+
+(def token-asset-card-def
+  "Token asset card with a trigger."
+  {:slug "momentum-token"
+   :name "Momentum Token"
+   :card-type :card-type/TEAM_ASSET_CARD
+   :set-slug "tokens"
+   :asset-power
+   {:asset/id "momentum-token"
+    :asset/triggers
+    [{:trigger {:trigger/event :bashketball/score.after}
+      :effect {:effect/type :bashketball/draw-cards :count 1}}]}})
+
+(deftest update-registry-for-create-token-ability-test
+  (testing "create-token registers triggers for token ability attachment"
+    (let [game-state     (fixtures/base-game-state)
+          ;; Get a player - use a player that exists
+          player-id      "HOME-elf-point-guard-0"
+          instance-id    "token-ability-123"
+          token-instance {:instance-id instance-id
+                          :token true
+                          :card token-ability-card-def}
+          ;; Create a new state with the token attached and event recorded
+          new-state      (-> game-state
+                             (state/update-basketball-player player-id
+                                                             update :attachments conj token-instance)
+                             (update :events conj {:type :bashketball/create-token
+                                                   :created-token token-instance
+                                                   :placement :placement/ATTACH
+                                                   :target-player-id player-id}))
+          action         {:type :bashketball/create-token
+                          :player :team/HOME
+                          :placement :placement/ATTACH
+                          :target-player-id player-id
+                          :card token-ability-card-def}
+          registry       (card-effects/update-registry-for-action
+                          (triggers/create-registry) test-catalog game-state new-state action)]
+      ;; Verify trigger was registered
+      (is (= 1 (count-triggers registry)))
+      (is (has-trigger-for-source? registry instance-id)))))
+
+(deftest update-registry-for-create-token-asset-test
+  (testing "create-token registers triggers for token asset"
+    (let [game-state     (fixtures/base-game-state)
+          instance-id    "token-asset-456"
+          token-instance {:instance-id instance-id
+                          :token true
+                          :card token-asset-card-def}
+          ;; Create a new state with the token in assets and event recorded
+          new-state      (-> game-state
+                             (update-in [:players :team/HOME :assets] conj token-instance)
+                             (update :events conj {:type :bashketball/create-token
+                                                   :created-token token-instance
+                                                   :placement :placement/ASSET}))
+          action         {:type :bashketball/create-token
+                          :player :team/HOME
+                          :placement :placement/ASSET
+                          :card token-asset-card-def}
+          registry       (card-effects/update-registry-for-action
+                          (triggers/create-registry) test-catalog game-state new-state action)]
+      ;; Verify trigger was registered
+      (is (= 1 (count-triggers registry)))
+      (is (has-trigger-for-source? registry instance-id)))))
+
+(deftest create-token-registry-updates-test
+  (testing "token abilities registered via update-registry-for-action work correctly"
+    (let [game-state     (fixtures/base-game-state)
+          player-id      "HOME-elf-point-guard-0"
+          instance-id    "token-triggered-789"
+          ;; Token with triggered ability
+          token-card     {:slug "quick-shot"
+                          :card-type :card-type/ABILITY_CARD
+                          :set-slug "tokens"
+                          :abilities [{:ability/id "quick-shot"
+                                       :ability/trigger {:trigger/event :bashketball/pass.after}
+                                       :ability/effect {:effect/type :bashketball/exhaust-player}}]}
+          token-instance {:instance-id instance-id
+                          :token true
+                          :card token-card}
+          new-state      (-> game-state
+                             (state/update-basketball-player player-id
+                                                             update :attachments conj token-instance)
+                             (update :events conj {:type :bashketball/create-token
+                                                   :created-token token-instance
+                                                   :placement :placement/ATTACH
+                                                   :target-player-id player-id}))
+          action         {:type :bashketball/create-token
+                          :player :team/HOME
+                          :placement :placement/ATTACH
+                          :target-player-id player-id
+                          :card token-card}
+          registry       (card-effects/update-registry-for-action
+                          (triggers/create-registry) test-catalog game-state new-state action)]
+      ;; Verify exactly 1 trigger registered
+      (is (= 1 (count-triggers registry)))
+      ;; Verify it's registered for the token's instance-id
+      (is (has-trigger-for-source? registry instance-id))
+      ;; Verify unregistration works
+      (let [unregistered (card-effects/unregister-attached-abilities registry instance-id)]
+        (is (= 0 (count-triggers unregistered)))))))

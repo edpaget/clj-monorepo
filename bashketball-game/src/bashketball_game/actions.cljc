@@ -53,7 +53,12 @@
 
 (def ^:private lifecycle-actions
   "Actions that affect trigger lifecycle and require registry updates."
-  #{:bashketball/substitute :bashketball/attach-ability :bashketball/detach-ability})
+  #{:bashketball/substitute
+    :bashketball/attach-ability
+    :bashketball/detach-ability
+    :bashketball/play-card
+    :bashketball/move-asset
+    :bashketball/create-token})
 
 (defn apply-action
   "Applies a validated action to game state with trigger processing.
@@ -65,13 +70,13 @@
   - `:state` - current game state (required)
   - `:registry` - trigger registry (optional, nil disables triggers)
   - `:catalog` - effect catalog for ability lookups (optional, needed for
-                 lifecycle actions like substitute, attach-ability, detach-ability)
+                 lifecycle actions like substitute, attach, detach, play-card, move-asset)
 
   Processing order:
   1. Validates action against schema
   2. Fires before triggers (can prevent action)
   3. If not prevented, applies action via multimethod
-  4. Updates registry for lifecycle actions (substitute, attach, detach)
+  4. Updates registry for lifecycle actions (substitute, attach, detach, play-card, move-asset)
   5. Validates board invariants, logs event
   6. Fires after triggers
 

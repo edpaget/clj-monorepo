@@ -6,6 +6,8 @@
 
    - Player abilities (registered at game start, managed on substitution)
    - Ability card attachments (registered on attach, unregistered on detach)
+   - Team assets (registered on play, unregistered on removal)
+   - Response assets (registered with prompt effect)
 
    Usage:
 
@@ -16,8 +18,11 @@
    ;; When ability card is attached
    (def registry' (register-attached-abilities registry catalog attachment player-id team))
 
-   ;; When ability card is detached
-   (def registry'' (unregister-attached-abilities registry' instance-id))
+   ;; When team asset is played
+   (def registry' (register-asset-triggers registry catalog asset team))
+
+   ;; When asset is removed
+   (def registry'' (unregister-asset-triggers registry' instance-id))
    ```"
   (:require
    [bashketball-game.effect-catalog :as catalog]
@@ -129,6 +134,88 @@
   (triggers/unregister-triggers-by-source registry instance-id))
 
 ;; =============================================================================
+;; Team Asset Registration
+;; =============================================================================
+
+(defn- asset-trigger->trigger-def
+  "Converts an asset trigger definition to a trigger registration map.
+
+   Asset triggers have the structure `{:trigger TriggerDef :effect EffectDef}`."
+  [{:keys [trigger effect]}]
+  {:event-types #{(:trigger/event trigger)}
+   :timing (or (:trigger/timing trigger) :after)
+   :priority (or (:trigger/priority trigger) 0)
+   :condition (:trigger/condition trigger)
+   :effect effect
+   :once? (:trigger/once? trigger)})
+
+(defn- response->trigger-def
+  "Converts a response definition to a trigger that prompts Apply/Pass.
+
+   The registered trigger will fire a prompt effect when conditions are met.
+   The prompt effect asks the asset owner whether to reveal and apply the
+   response or pass (keeping it hidden for later)."
+  [response asset-instance-id]
+  (let [trigger (:response/trigger response)]
+    {:event-types #{(:trigger/event trigger)}
+     :timing (or (:trigger/timing trigger) :before)
+     :priority (or (:trigger/priority trigger) 0)
+     :condition (:trigger/condition trigger)
+     :effect {:effect/type :bashketball/prompt-response
+              :asset-instance-id asset-instance-id
+              :prompt (:response/prompt response)
+              :response-effect (:response/effect response)}
+     :once? false}))
+
+(defn register-asset-triggers
+  "Registers triggers for a team asset in play.
+
+   Takes a registry, catalog, asset instance, and team. Registers all
+   triggers defined in the asset's power definition.
+
+   For response assets, registers a trigger that prompts Apply/Pass.
+   For regular assets, registers all `:asset/triggers`.
+
+   For token assets, uses the inline card definition instead of catalog lookup."
+  [registry effect-catalog asset team]
+  (let [instance-id (:instance-id asset)
+        asset-power (if (state/token? asset)
+                      (catalog/get-asset-power-from-card (state/get-token-card asset))
+                      (catalog/get-asset-power effect-catalog (:card-slug asset)))]
+    (if-not asset-power
+      registry
+      (let [;; Register response trigger if present
+            reg-with-response
+            (if-let [response (:asset/response asset-power)]
+              (triggers/register-trigger
+               registry
+               (response->trigger-def response instance-id)
+               instance-id
+               team
+               instance-id)
+              registry)
+            ;; Register all regular triggers
+            asset-triggers                                   (or (:asset/triggers asset-power) [])]
+        (reduce
+         (fn [reg asset-trigger]
+           (triggers/register-trigger
+            reg
+            (asset-trigger->trigger-def asset-trigger)
+            instance-id
+            team
+            instance-id))
+         reg-with-response
+         asset-triggers)))))
+
+(defn unregister-asset-triggers
+  "Unregisters triggers when a team asset is removed from play.
+
+   Removes all triggers registered with the asset's instance-id as
+   the source. Returns the updated registry."
+  [registry instance-id]
+  (triggers/unregister-triggers-by-source registry instance-id))
+
+;; =============================================================================
 ;; Substitution Management
 ;; =============================================================================
 
@@ -161,18 +248,30 @@
      registry
      on-court-ids)))
 
+(defn- register-team-assets
+  "Registers triggers for all assets in play for a team."
+  [registry effect-catalog game-state team]
+  (let [assets (get-in game-state [:players team :assets] [])]
+    (reduce
+     (fn [reg asset]
+       (register-asset-triggers reg effect-catalog asset team))
+     registry
+     assets)))
+
 (defn initialize-game-triggers
-  "Registers triggers for all players currently on court.
+  "Registers triggers for all players on court and assets in play.
 
    Call this at game start after players have been placed on court.
-   Returns a registry with all player ability triggers registered.
+   Returns a registry with all player ability and asset triggers registered.
 
    Note: Does not register triggers for bench players. Those are registered
    when they substitute onto the court."
   [game-state effect-catalog]
   (-> (triggers/create-registry)
       (register-team-players effect-catalog game-state :team/HOME)
-      (register-team-players effect-catalog game-state :team/AWAY)))
+      (register-team-players effect-catalog game-state :team/AWAY)
+      (register-team-assets effect-catalog game-state :team/HOME)
+      (register-team-assets effect-catalog game-state :team/AWAY)))
 
 ;; =============================================================================
 ;; Action-Based Registry Updates
@@ -185,6 +284,20 @@
     (some #(when (= (:instance-id %) instance-id) %)
           (:attachments player))))
 
+(defn- find-asset
+  "Finds an asset by instance-id in a team's assets."
+  [state team instance-id]
+  (some #(when (= (:instance-id %) instance-id) %)
+        (get-in state [:players team :assets] [])))
+
+(defn- played-card-is-asset?
+  "Checks if the played card ended up in assets (not discard)."
+  [old-state new-state team instance-id]
+  (let [old-assets (get-in old-state [:players team :assets] [])
+        new-assets (get-in new-state [:players team :assets] [])]
+    (and (not (some #(= (:instance-id %) instance-id) old-assets))
+         (some #(= (:instance-id %) instance-id) new-assets))))
+
 (defn update-registry-for-action
   "Updates the trigger registry based on an action that was just applied.
 
@@ -192,6 +305,9 @@
    - `:bashketball/substitute` - unregister leaving player, register entering player
    - `:bashketball/attach-ability` - register ability triggers for attachment
    - `:bashketball/detach-ability` - unregister ability triggers
+   - `:bashketball/play-card` - register asset triggers if card is a team asset
+   - `:bashketball/move-asset` - unregister asset triggers when removed
+   - `:bashketball/create-token` - register triggers for token abilities or assets
 
    Gets required data from the action map and states directly.
 
@@ -215,6 +331,32 @@
     :bashketball/detach-ability
     (let [{:keys [instance-id]} action]
       (unregister-attached-abilities registry instance-id))
+
+    :bashketball/play-card
+    (let [{:keys [player instance-id]} action]
+      (if (played-card-is-asset? old-state new-state player instance-id)
+        (let [asset (find-asset new-state player instance-id)]
+          (register-asset-triggers registry effect-catalog asset player))
+        registry))
+
+    :bashketball/move-asset
+    (let [{:keys [instance-id]} action]
+      (unregister-asset-triggers registry instance-id))
+
+    :bashketball/create-token
+    (let [{:keys [player placement target-player-id]} action
+          ;; Get the created token from event-data in new-state
+          token-instance                              (get-in new-state [:events (dec (count (:events new-state))) :created-token])]
+      (case placement
+        :placement/ASSET
+        (register-asset-triggers registry effect-catalog token-instance player)
+
+        :placement/ATTACH
+        (let [team (state/get-basketball-player-team new-state target-player-id)]
+          (register-attached-abilities registry effect-catalog token-instance target-player-id team))
+
+        ;; Unknown placement, no registration
+        registry))
 
     ;; No registry changes for other actions
     registry))
