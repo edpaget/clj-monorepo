@@ -440,7 +440,7 @@
             deck1      (tu/create-valid-test-deck (:id user1))
             deck2      (tu/create-valid-test-deck (:id user2))
             game       (game-svc/create-game! (game-service) (:id user1) (:id deck1))
-            joined     (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
+            _          (game-svc/join-game! (game-service) (:id game) (:id user2) (:id deck2))
             session-id (tu/create-authenticated-session! (:id user1) :user user1)
             ;; First examine cards
             _          (tu/graphql-request

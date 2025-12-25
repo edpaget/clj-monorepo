@@ -11,7 +11,6 @@
   The trigger registry is passed externally (not stored in game-state) since
   it's a derived runtime structure rebuilt from cards at game initialization."
   (:require
-   [bashketball-game.state :as state]
    [polix.triggers.core :as triggers]))
 
 (defn- event-type-with-suffix

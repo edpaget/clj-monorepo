@@ -8,8 +8,7 @@
   For trigger integration, see [[bashketball-game.polix.triggers]]."
   (:require
    [bashketball-game.polix.effects :as effects]
-   [bashketball-game.polix.operators :as operators]
-   [bashketball-game.polix.triggers :as triggers]))
+   [bashketball-game.polix.operators :as operators]))
 
 (defn initialize!
   "Initializes all bashketball polix integrations.
