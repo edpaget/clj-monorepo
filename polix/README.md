@@ -12,15 +12,15 @@ Polix is a constraint-based policy language for Clojure and ClojureScript. At it
   "Only admins can access"
   [:= :doc/role "admin"])
 
-;; Evaluate against a document - returns a residual
-(p/evaluate (:ast AdminOnly) {:role "admin"})
+;; Unify against a document - returns a residual
+(p/unify (:ast AdminOnly) {:role "admin"})
 ;; => {}  (empty residual = satisfied)
 
-(p/evaluate (:ast AdminOnly) {:role "guest"})
-;; => {:role [[:conflict [:= "admin"] "guest"]]}  (conflict = violated)
+(p/unify (:ast AdminOnly) {:role "guest"})
+;; => {[:role] [[:conflict [:= "admin"] "guest"]]}  (conflict = violated)
 
-(p/evaluate (:ast AdminOnly) {})
-;; => {:role [[:= "admin"]]}  (open constraints = partial)
+(p/unify (:ast AdminOnly) {})
+;; => {[:role] [[:= "admin"]]}  (open constraints = partial)
 ```
 
 ## Residuals as the Universal Result
@@ -30,17 +30,17 @@ Policy evaluation always produces a **residual** — a map of remaining constrai
 | Result | Meaning |
 |--------|---------|
 | `{}` | Empty residual — all constraints satisfied |
-| `{:x [[:< 10]]}` | Open constraints — awaiting evaluation |
-| `{:x [[:conflict [:< 10] 11]]}` | Conflict — constraint evaluated and failed |
+| `{[:x] [[:< 10]]}` | Open constraints — awaiting evaluation |
+| `{[:x] [[:conflict [:< 10] 11]]}` | Conflict — constraint evaluated and failed |
 
 A conflict `[:conflict C w]` preserves both the violated constraint and the witness value that failed it, enabling diagnosis and remediation guidance.
 
 ```clojure
 ;; All the same operation: constraint unification
 (policy {:role "admin" :level 10})  ; => {} (satisfied)
-(policy {:role "admin"})            ; => {:level [[:> 5]]} (open)
-(policy {})                         ; => {:role [[:= "admin"]] :level [[:> 5]]} (open)
-(policy {:role "guest"})            ; => {:role [[:conflict [:= "admin"] "guest"]]} (conflict)
+(policy {:role "admin"})            ; => {[:level] [[:> 5]]} (open)
+(policy {})                         ; => {[:role] [[:= "admin"]] [:level] [[:> 5]]} (open)
+(policy {:role "guest"})            ; => {[:role] [[:conflict [:= "admin"] "guest"]]} (conflict)
 ```
 
 ## Design Philosophy
@@ -186,10 +186,10 @@ For repeated evaluation, compile policies:
 ;; => {}
 
 (checker {:role "guest" :level 10 :status "active"})
-;; => {:role [[:conflict [:= "admin"] "guest"]]}
+;; => {[:role] [[:conflict [:= "admin"] "guest"]]}
 
 (checker {:role "admin"})
-;; => {:level [[:> 5]] :status [[:in #{"active" "pending"}]]}
+;; => {[:level] [[:> 5]] [:status] [[:in #{"active" "pending"}]]}
 ```
 
 ### Tiered Compilation
