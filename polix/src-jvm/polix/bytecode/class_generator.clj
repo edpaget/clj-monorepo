@@ -9,9 +9,9 @@
    [polix.bytecode.quantifiers :as quant]
    [polix.optimized.analyzer :as analyzer])
   (:import
-   [org.objectweb.asm ClassWriter MethodVisitor Opcodes Label Type]
    [clojure.lang IFn RT Keyword DynamicClassLoader]
-   [java.util.regex Pattern]))
+   [java.util.regex Pattern]
+   [org.objectweb.asm ClassWriter MethodVisitor Opcodes Label Type]))
 
 (def ^:private class-counter
   "Counter for generating unique class names."
@@ -63,7 +63,7 @@
 
   ;; For each path, generate OPEN and CONFLICT_TEMPLATE fields
   (doseq [[path constraints] constraint-set
-          :when (vector? path)]
+          :when              (vector? path)]
     (let [field-base (path->field-name path)]
       ;; Open residual field
       (.visitField cw
@@ -89,7 +89,7 @@
 
       ;; Set fields for :in/:not-in operators
       (doseq [[idx c] (map-indexed vector constraints)
-              :when (#{:in :not-in} (:op c))]
+              :when   (#{:in :not-in} (:op c))]
         (.visitField cw
                      (bit-or Opcodes/ACC_PRIVATE Opcodes/ACC_STATIC Opcodes/ACC_FINAL)
                      (str "SET_" field-base "_" idx)
@@ -98,7 +98,7 @@
 
       ;; Pattern fields for :matches/:not-matches operators
       (doseq [[idx c] (map-indexed vector constraints)
-              :when (#{:matches :not-matches} (:op c))]
+              :when   (#{:matches :not-matches} (:op c))]
         (.visitField cw
                      (bit-or Opcodes/ACC_PRIVATE Opcodes/ACC_STATIC Opcodes/ACC_FINAL)
                      (str "PATTERN_" field-base "_" idx)
@@ -108,8 +108,8 @@
   ;; For each quantifier, generate OPEN, SATISFIED, CONFLICT fields
   (let [complex-entries (get constraint-set :polix.compiler/complex)]
     (doseq [[idx entry] (map-indexed vector complex-entries)
-            :let [{:keys [op]} (:complex entry)]
-            :when (= op :quantifier)]
+            :let        [{:keys [op]} (:complex entry)]
+            :when       (= op :quantifier)]
       (.visitField cw
                    (bit-or Opcodes/ACC_PRIVATE Opcodes/ACC_STATIC Opcodes/ACC_FINAL)
                    (str "QUANT_" idx "_OPEN")
@@ -187,7 +187,7 @@
 
     ;; For each path
     (doseq [[path constraints] constraint-set
-            :when (vector? path)]
+            :when              (vector? path)]
       (let [field-base (path->field-name path)]
 
         ;; PATH_xxx = keyword array (for document access)
@@ -219,9 +219,9 @@
 
         ;; Initialize SET_ fields FIRST (before they're referenced in OPEN_/CONFLICT_ templates)
         (doseq [[idx c] (map-indexed vector constraints)
-                :when (#{:in :not-in} (:op c))]
+                :when   (#{:in :not-in} (:op c))]
           ;; Create set from value
-          (let [s (:value c)
+          (let [s     (:value c)
                 items (vec s)]
             (.visitLdcInsn mv (int (count items)))
             (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
@@ -248,7 +248,7 @@
 
         ;; Initialize PATTERN_ fields
         (doseq [[idx c] (map-indexed vector constraints)
-                :when (#{:matches :not-matches} (:op c))]
+                :when   (#{:matches :not-matches} (:op c))]
           (.visitLdcInsn mv (str (:value c)))
           (.visitMethodInsn mv Opcodes/INVOKESTATIC
                             "java/util/regex/Pattern"
@@ -381,10 +381,10 @@
     ;; Initialize quantifier residual fields
     (let [complex-entries (get constraint-set :polix.compiler/complex)]
       (doseq [[idx entry] (map-indexed vector complex-entries)
-              :let [{:keys [op ast]} (:complex entry)
-                    binding (get-in ast [:metadata :binding])
-                    coll-path (:path binding)]
-              :when (= op :quantifier)]
+              :let        [{:keys [op ast]} (:complex entry)
+                           binding (get-in ast [:metadata :binding])
+                           coll-path (:path binding)]
+              :when       (= op :quantifier)]
         ;; Create path vector for residuals
         (.visitLdcInsn mv (int (count coll-path)))
         (.visitTypeInsn mv Opcodes/ANEWARRAY "java/lang/Object")
@@ -525,15 +525,15 @@
 (defn- generate-invoke
   "Generates the invoke(Object) method."
   [^ClassWriter cw ^String class-name constraint-set analysis]
-  (let [mv (.visitMethod cw
-                         Opcodes/ACC_PUBLIC
-                         "invoke"
-                         "(Ljava/lang/Object;)Ljava/lang/Object;"
-                         nil nil)
-        paths (vec (filter #(vector? (first %)) constraint-set))
-        complex-entries (get constraint-set :polix.compiler/complex)
+  (let [mv                 (.visitMethod cw
+                                         Opcodes/ACC_PUBLIC
+                                         "invoke"
+                                         "(Ljava/lang/Object;)Ljava/lang/Object;"
+                                         nil nil)
+        paths              (vec (filter #(vector? (first %)) constraint-set))
+        complex-entries    (get constraint-set :polix.compiler/complex)
         quantifier-entries (vec (filter #(= :quantifier (get-in % [:complex :op])) complex-entries))
-        has-quantifiers (seq quantifier-entries)]
+        has-quantifiers    (seq quantifier-entries)]
     (.visitCode mv)
 
     (if (and (empty? paths) (not has-quantifiers))
@@ -544,14 +544,14 @@
 
       ;; Process paths
       (let [;; Pre-create all labels
-            path-labels (mapv (fn [_] {:open (Label.)
-                                       :continue (Label.)})
-                              paths)
+            path-labels     (mapv (fn [_] {:open (Label.)
+                                           :continue (Label.)})
+                                  paths)
             satisfied-label (Label.)]
 
         ;; Process each path
         (doseq [[path-idx [path constraints]] (map-indexed vector paths)]
-          (let [field-base (path->field-name path)
+          (let [field-base              (path->field-name path)
                 {:keys [open continue]} (nth path-labels path-idx)]
 
             ;; Load document and get value at path
@@ -566,7 +566,7 @@
             ;; Check each constraint
             (doseq [[idx c] (map-indexed vector constraints)]
               (let [conflict-label (Label.)
-                    pass-label (Label.)]
+                    pass-label     (Label.)]
                 ;; Load value for constraint check
                 (.visitVarInsn mv Opcodes/ALOAD 2)
 
@@ -684,17 +684,17 @@
 
         ;; Process quantifiers with proper chaining
         (let [quantifier-count (count quantifier-entries)
-              final-label (Label.)]
+              final-label      (Label.)]
           (when has-quantifiers
             ;; Create start labels for each quantifier
-            (let [start-labels (vec (repeatedly quantifier-count #(Label.)))
+            (let [start-labels     (vec (repeatedly quantifier-count #(Label.)))
                   ;; Continue targets: next quantifier's label, or final-label for last
                   continue-targets (conj (vec (rest start-labels)) final-label)]
               ;; Emit each quantifier
               (doseq [[local-idx entry] (map-indexed vector quantifier-entries)
-                      :let [{:keys [ast]} (:complex entry)
-                            global-idx (.indexOf complex-entries entry)
-                            continue-target (nth continue-targets local-idx)]]
+                      :let              [{:keys [ast]} (:complex entry)
+                                         global-idx (.indexOf complex-entries entry)
+                                         continue-target (nth continue-targets local-idx)]]
                 ;; Place the start label for this quantifier
                 (.visitLabel mv (nth start-labels local-idx))
                 ;; Emit the quantifier - all quantifiers get continue-label for chaining
@@ -755,7 +755,7 @@
   "Loads generated bytecode as a class."
   [^String internal-name ^bytes bytecode]
   (let [class-name (.replace internal-name "/" ".")
-        loader (DynamicClassLoader.)]
+        loader     (DynamicClassLoader.)]
     (.defineClass loader class-name bytecode nil)))
 
 (defn generate-policy-class
@@ -765,8 +765,8 @@
   documents directly in JVM bytecode."
   ^IFn [constraint-set]
   (let [class-name (next-class-name)
-        cw (ClassWriter. ClassWriter/COMPUTE_FRAMES)
-        analysis (analyzer/analyze-constraint-set constraint-set)]
+        cw         (ClassWriter. ClassWriter/COMPUTE_FRAMES)
+        analysis   (analyzer/analyze-constraint-set constraint-set)]
 
     ;; Class header
     (.visit cw Opcodes/V11
@@ -795,7 +795,7 @@
 
     ;; Load and instantiate
     (let [bytecode (.toByteArray cw)
-          clazz (load-class class-name bytecode)]
+          clazz    (load-class class-name bytecode)]
       (.newInstance clazz))))
 
 (defn bytecode-eligible?
@@ -808,8 +808,8 @@
   - If complex nodes present, they must all be bytecode-eligible
     (simple quantifiers with builtin constraints in body)"
   [constraint-set]
-  (let [analysis (analyzer/analyze-constraint-set constraint-set)
-        paths (filter #(vector? (first %)) constraint-set)
+  (let [analysis         (analyzer/analyze-constraint-set constraint-set)
+        paths            (filter #(vector? (first %)) constraint-set)
         has-simple-paths (and (seq paths)
                               (every? #(and (seq (first %)) (seq (second %))) paths))
         complex-eligible (analyzer/all-complex-bytecode-eligible? constraint-set)]

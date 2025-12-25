@@ -239,8 +239,8 @@
       (is (false? (:parameterized? analysis)))))
   (testing "analyze complex policy with multiple params"
     (let [analysis (core/analyze-policy [:and
-                                          [:= :doc/role :param/role]
-                                          [:> :doc/level :param/min-level]])]
+                                         [:= :doc/role :param/role]
+                                         [:> :doc/level :param/min-level]])]
       (is (= #{:role :min-level} (:params analysis)))
       (is (= #{[:role] [:level]} (:doc-keys analysis)))
       (is (true? (:parameterized? analysis))))))

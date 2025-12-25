@@ -166,17 +166,17 @@
   - `:continue-label` - if provided, jump here on success instead of returning"
   [^MethodVisitor mv ^String class-name quantifier-ast
    {:keys [open-field satisfied-field conflict-field continue-label]}]
-  (let [body (first (:children quantifier-ast))
-        binding (get-in quantifier-ast [:metadata :binding])
-        coll-path (:path binding)
-        constraints (extract-constraints-from-body body)
-        null-label (Label.)
-        loop-start (Label.)
-        loop-end (Label.)
+  (let [body           (first (:children quantifier-ast))
+        binding        (get-in quantifier-ast [:metadata :binding])
+        coll-path      (:path binding)
+        constraints    (extract-constraints-from-body body)
+        null-label     (Label.)
+        loop-start     (Label.)
+        loop-end       (Label.)
         conflict-label (Label.)
-        coll-local 2
-        iter-local 3
-        elem-local 4]
+        coll-local     2
+        iter-local     3
+        elem-local     4]
 
     ;; Get collection from document
     (.visitVarInsn mv Opcodes/ALOAD 1)  ; document
@@ -219,7 +219,7 @@
     ;; Check each constraint
     (doseq [constraint constraints]
       (let [elem-null-label (Label.)
-            continue-label (Label.)]
+            continue-label  (Label.)]
         ;; Get value from element
         (emit-element-path-access mv elem-local (:path constraint))
         ;; Null check on element field
@@ -277,17 +277,17 @@
   - `:continue-label` - if provided, jump here on success instead of returning"
   [^MethodVisitor mv ^String class-name quantifier-ast
    {:keys [open-field satisfied-field conflict-field continue-label]}]
-  (let [body (first (:children quantifier-ast))
-        binding (get-in quantifier-ast [:metadata :binding])
-        coll-path (:path binding)
+  (let [body        (first (:children quantifier-ast))
+        binding     (get-in quantifier-ast [:metadata :binding])
+        coll-path   (:path binding)
         constraints (extract-constraints-from-body body)
-        null-label (Label.)
-        loop-start (Label.)
-        loop-end (Label.)
+        null-label  (Label.)
+        loop-start  (Label.)
+        loop-end    (Label.)
         match-found (Label.)
-        coll-local 2
-        iter-local 3
-        elem-local 4]
+        coll-local  2
+        iter-local  3
+        elem-local  4]
 
     ;; Get collection from document
     (.visitVarInsn mv Opcodes/ALOAD 1)  ; document

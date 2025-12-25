@@ -448,17 +448,17 @@
                       :name name}}
       (if-let [info (registry/policy-info registry namespace name)]
         (let [{:keys [expr defaults]} info
-              policy-ast      (r/unwrap (parser/parse-policy expr))
-              required-params (parser/extract-param-keys policy-ast)
+              policy-ast              (r/unwrap (parser/parse-policy expr))
+              required-params         (parser/extract-param-keys policy-ast)
               ;; Merge precedence: defaults < context params < provided params
-              merged-params   (merge defaults (:params ctx) provided-params)
+              merged-params           (merge defaults (:params ctx) provided-params)
               ;; Track which required params aren't bound after all merging
-              missing-params  (set/difference required-params
-                                               (set (keys merged-params)))
-              ctx-with-params (-> ctx
-                                  (assoc :params merged-params)
-                                  (update :unbound-params
-                                          (fnil into #{}) missing-params))]
+              missing-params          (set/difference required-params
+                                                      (set (keys merged-params)))
+              ctx-with-params         (-> ctx
+                                          (assoc :params merged-params)
+                                          (update :unbound-params
+                                                  (fnil into #{}) missing-params))]
           (unify-ast policy-ast document ctx-with-params))
         {::res/complex {:type :unknown-policy
                         :namespace namespace

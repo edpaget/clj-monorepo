@@ -32,7 +32,7 @@
   Returns a map like `{[:role] [[:= \"admin\"]]}` that can be returned
   directly when the document is missing the required path."
   [path constraints]
-  (let [path-vec (vec (map keyword path))
+  (let [path-vec         (vec (map keyword path))
         constraint-forms (mapv constraint->open constraints)]
     {path-vec constraint-forms}))
 
@@ -48,8 +48,8 @@
   The make-conflict function is pre-computed per constraint to avoid
   path-level lookups during conflict construction."
   [path-vec constraint]
-  (let [op-kw (:op constraint)
-        expected (:value constraint)
+  (let [op-kw           (:op constraint)
+        expected        (:value constraint)
         constraint-form [op-kw expected]]
     {:op op-kw
      :value expected
@@ -85,7 +85,7 @@
   efficient iteration during evaluation."
   [constraint-set]
   (let [path-templates (for [[path cs] constraint-set
-                             :when (vector? path)]
+                             :when     (vector? path)]
                          (extract-path-templates path cs))]
     {:satisfied satisfied-result
      :path-templates (vec path-templates)}))

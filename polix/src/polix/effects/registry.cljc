@@ -4,8 +4,8 @@
   Provides the core dispatch mechanism for applying effects. Built-in effects
   are registered here, and domain-specific effects can be added via
   [[register-effect!]]."
-  (:require [polix.effects.resolution :as res]
-            [polix.core :as polix]))
+  (:require [polix.core :as polix]
+            [polix.effects.resolution :as res]))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Result Constructors
@@ -194,8 +194,8 @@
   [state speculative-conditions]
   (first
    (for [{:keys [condition]} speculative-conditions
-         :let [new-result (polix/unify condition state)]
-         :when (polix/has-conflicts? new-result)]
+         :let                [new-result (polix/unify condition state)]
+         :when               (polix/has-conflicts? new-result)]
      {:condition condition :conflict-residual new-result})))
 
 (defmethod -apply-effect :polix.effects/transaction

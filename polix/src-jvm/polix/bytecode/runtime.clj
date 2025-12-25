@@ -20,7 +20,7 @@
 
   Path is an array of keywords. Returns nil if any segment is missing."
   ^Object [^Object document ^objects path]
-  (loop [idx 0
+  (loop [idx     0
          current document]
     (if (or (nil? current) (>= idx (alength path)))
       current
@@ -32,7 +32,7 @@
   Template is an Object array: [path-vec, constraint-form].
   Returns {path-vec [[:conflict constraint-form witness]]}."
   ^Object [^objects template ^Object witness]
-  (let [path-vec (aget template 0)
+  (let [path-vec        (aget template 0)
         constraint-form (aget template 1)]
     {path-vec [[conflict-kw constraint-form witness]]}))
 
@@ -43,9 +43,9 @@
   Constraint-idx indicates which constraint failed.
   Returns {path-vec [[:conflict constraint-form witness]]}."
   ^Object [^objects template ^long constraint-idx ^Object witness]
-  (let [path-vec (aget template 0)
+  (let [path-vec         (aget template 0)
         constraint-forms ^objects (aget template 1)
-        constraint-form (aget constraint-forms constraint-idx)]
+        constraint-form  (aget constraint-forms constraint-idx)]
     {path-vec [[conflict-kw constraint-form witness]]}))
 
 (defn intern-keyword

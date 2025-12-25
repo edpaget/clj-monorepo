@@ -24,8 +24,8 @@
      Returns a synchronized LinkedHashMap that removes oldest entries
      when capacity is exceeded."
      [max-size]
-     (let [access-order true
-           load-factor 0.75
+     (let [access-order     true
+           load-factor      0.75
            initial-capacity (inc max-size)]
        (java.util.Collections/synchronizedMap
         (proxy [LinkedHashMap] [initial-capacity load-factor access-order]
@@ -61,7 +61,7 @@
 (defn get-cached
   "Returns a cached compiled policy, or nil if not cached."
   [constraint-set]
-  (let [h (constraint-set-hash constraint-set)
+  (let [h      (constraint-set-hash constraint-set)
         cached #?(:clj  (.get ^Map compiled-cache h)
                   :cljs (get @compiled-cache h))]
     (if cached
@@ -105,7 +105,7 @@
   "Returns cache statistics."
   []
   (let [{:keys [hits misses]} @stats-atom
-        total (+ hits misses)]
+        total                 (+ hits misses)]
     {:hits hits
      :misses misses
      :total total

@@ -8,10 +8,10 @@
   On the JVM, Tier 3 (T3) bytecode compilation is available for additional
   performance when all operators are built-in."
   (:require
+   #?(:clj [polix.bytecode.class-generator :as bytecode])
    [polix.operators :as op]
    [polix.optimized.analyzer :as analyzer]
-   [polix.optimized.templates :as templates]
-   #?(:clj [polix.bytecode.class-generator :as bytecode])))
+   [polix.optimized.templates :as templates]))
 
 (defprotocol ICompiledPolicy
   "Protocol for compiled policy evaluators."
@@ -41,7 +41,7 @@
   (loop [idx 0]
     (if (>= idx (count constraint-evaluators))
       nil
-      (let [cev (nth constraint-evaluators idx)
+      (let [cev   (nth constraint-evaluators idx)
             op-fn (op/get-operator (:op cev))]
         (if (op/eval op-fn doc-value (:value cev))
           (recur (inc idx))
@@ -59,14 +59,14 @@
   2. Check constraints in a tight loop
   3. Return pre-computed residuals on failure"
   [constraint-set]
-  (let [ts (templates/extract-templates constraint-set)
+  (let [ts             (templates/extract-templates constraint-set)
         path-templates (:path-templates ts)]
     (fn evaluator [document]
       (loop [idx 0]
         (if (>= idx (count path-templates))
           satisfied-result
           (let [{:keys [path open constraint-evaluators]} (nth path-templates idx)
-                doc-value (get-in-doc document path)]
+                doc-value                                 (get-in-doc document path)]
             (if (nil? doc-value)
               ;; Value missing: return pre-computed open residual
               open
@@ -82,7 +82,7 @@
   Includes version guards for custom operators with fallback to Tier 0."
   [constraint-set tier0-evaluator]
   (let [compiled-version (op/registry-version)
-        tier2-evaluator (create-tier2-evaluator constraint-set)]
+        tier2-evaluator  (create-tier2-evaluator constraint-set)]
     (fn evaluator [document]
       (if (= compiled-version (op/registry-version))
         (tier2-evaluator document)
@@ -100,26 +100,26 @@
   #?@(:clj
       [clojure.lang.IFn
        (invoke [_ document]
-         (eval-fn document))
+               (eval-fn document))
        (invoke [_ document opts]
-         (if fallback-fn
-           (fallback-fn document opts)
-           (throw (ex-info "No fallback evaluator for options evaluation" {:opts opts}))))
+               (if fallback-fn
+                 (fallback-fn document opts)
+                 (throw (ex-info "No fallback evaluator for options evaluation" {:opts opts}))))
        (applyTo [_ args]
-         (case (count args)
-           1 (eval-fn (first args))
-           2 (if fallback-fn
-               (fallback-fn (first args) (second args))
-               (throw (ex-info "No fallback evaluator for options evaluation" {:opts (second args)})))
-           (throw (ex-info "Wrong number of args" {:count (count args)}))))]
+                (case (count args)
+                  1 (eval-fn (first args))
+                  2 (if fallback-fn
+                      (fallback-fn (first args) (second args))
+                      (throw (ex-info "No fallback evaluator for options evaluation" {:opts (second args)})))
+                  (throw (ex-info "Wrong number of args" {:count (count args)}))))]
       :cljs
       [IFn
        (-invoke [_ document]
-         (eval-fn document))
+                (eval-fn document))
        (-invoke [_ document opts]
-         (if fallback-fn
-           (fallback-fn document opts)
-           (throw (ex-info "No fallback evaluator for options evaluation" {:opts opts}))))]))
+                (if fallback-fn
+                  (fallback-fn document opts)
+                  (throw (ex-info "No fallback evaluator for options evaluation" {:opts opts}))))]))
 
 #?(:clj
    (defn- try-bytecode-compilation
@@ -153,18 +153,18 @@
   ([constraint-set]
    (compile-policy constraint-set {}))
   ([constraint-set opts]
-   (let [analysis (analyzer/analyze-constraint-set constraint-set)
-         auto-tier (analyzer/select-tier analysis)
+   (let [analysis                                                                   (analyzer/analyze-constraint-set constraint-set)
+         auto-tier                                                                  (analyzer/select-tier analysis)
          ;; On JVM, try T3 if eligible and not disabled
          #?@(:clj [bytecode-enabled (get opts :bytecode true)
                    t3-eligible (and bytecode-enabled
                                     (= auto-tier :t2)
                                     (bytecode/bytecode-eligible? constraint-set))])
-         tier (or (:tier opts)
-                  #?(:clj (if t3-eligible :t3 auto-tier)
-                     :cljs auto-tier))
-         version (op/registry-version)
-         fallback-fn (:fallback opts)]
+         tier                                                                       (or (:tier opts)
+                                                                                        #?(:clj (if t3-eligible :t3 auto-tier)
+                                                                                           :cljs auto-tier))
+         version                                                                    (op/registry-version)
+         fallback-fn                                                                (:fallback opts)]
      (case tier
        #?@(:clj
            [:t3

@@ -449,7 +449,7 @@
       (->> (:policies module)
            (map (fn [[k policy-def]]
                   (let [normalized (normalize-policy-def policy-def)
-                        params (policy/required-params (:expr normalized))]
+                        params     (policy/required-params (:expr normalized))]
                     (when (seq params)
                       [k {:params params
                           :param-defs (:params normalized {})

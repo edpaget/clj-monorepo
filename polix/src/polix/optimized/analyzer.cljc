@@ -137,8 +137,8 @@
   - `:type` - inferred type
   - `:op-class` - `:builtin` or `:custom`"
   [constraint]
-  (let [path (:key constraint)
-        op (:op constraint)
+  (let [path     (:key constraint)
+        op       (:op constraint)
         expected (:value constraint)]
     {:path path
      :op op
@@ -156,14 +156,14 @@
   - `:has-complex` - true if complex (non-constraint) nodes found
   - `:errors` - vector of type errors (empty if none)"
   [constraint-set]
-  (let [constraints (for [[path cs] constraint-set
-                          :when (vector? path)
-                          c cs]
-                      (assoc (analyze-constraint c) :path path))
-        has-complex (contains? constraint-set :polix.compiler/complex)
+  (let [constraints    (for [[path cs] constraint-set
+                             :when     (vector? path)
+                             c         cs]
+                         (assoc (analyze-constraint c) :path path))
+        has-complex    (contains? constraint-set :polix.compiler/complex)
         has-custom-ops (some #(= :custom (:op-class %)) constraints)]
-    (loop [env (empty-type-env)
-           errors []
+    (loop [env       (empty-type-env)
+           errors    []
            remaining constraints]
       (if (empty? remaining)
         {:type-env env
@@ -171,7 +171,7 @@
          :has-custom-ops (boolean has-custom-ops)
          :has-complex has-complex
          :errors errors}
-        (let [c (first remaining)
+        (let [c      (first remaining)
               result (unify-type env (:path c) (:type c))]
           (if (:error result)
             (recur env (conj errors (:error result)) (rest remaining))
@@ -205,8 +205,8 @@
   - `:errors` - type errors (if any)"
   [constraint-set]
   (let [analysis (analyze-constraint-set constraint-set)
-        tier (select-tier analysis)
-        ops (group-by :op-class (:constraints analysis))]
+        tier     (select-tier analysis)
+        ops      (group-by :op-class (:constraints analysis))]
     (assoc analysis
            :tier tier
            :operators {:builtin (vec (map :op (:builtin ops)))
@@ -250,7 +250,7 @@
   - No nested quantifiers
   - Collection path is a static doc path"
   [{:keys [ast]}]
-  (let [body (first (:children ast))
+  (let [body    (first (:children ast))
         binding (get-in ast [:metadata :binding])]
     (and
      ;; Has a valid body
@@ -269,7 +269,7 @@
   - Body is simple constraints"
   [{:keys [ast]}]
   (let [bindings (get-in ast [:metadata :bindings])
-        body (first (:children ast))]
+        body     (first (:children ast))]
     (and
      ;; Has bindings
      (seq bindings)

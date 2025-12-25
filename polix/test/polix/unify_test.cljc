@@ -792,6 +792,6 @@
 (deftest literal-wrapper-in-condition-test
   (testing "literal wrapper in AND condition"
     (let [result (unify/unify [:and [:= :doc/phase [:literal :phase/ACTIONS]]
-                                    [:= :doc/active true]]
+                               [:= :doc/active true]]
                               {:phase :phase/ACTIONS :active true})]
       (is (= {} result)))))

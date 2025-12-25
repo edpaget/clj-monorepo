@@ -1,0 +1,754 @@
+{
+  "timestamp" : "2025-12-23T19:47:59.203162Z",
+  "benchmarks" : [ {
+    "name" : "parse/simple-equality",
+    "results" : {
+      "mean-ns" : 856,
+      "std-dev" : 53,
+      "lower-q" : 779,
+      "upper-q" : 913,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "parse/simple-comparison",
+    "results" : {
+      "mean-ns" : 852,
+      "std-dev" : 30,
+      "lower-q" : 818,
+      "upper-q" : 895,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "parse/medium-and",
+    "results" : {
+      "mean-ns" : 5094,
+      "std-dev" : 603,
+      "lower-q" : 4586,
+      "upper-q" : 6053,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "parse/medium-mixed",
+    "results" : {
+      "mean-ns" : 5754,
+      "std-dev" : 616,
+      "lower-q" : 5295,
+      "upper-q" : 6742,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "parse/complex-nested",
+    "results" : {
+      "mean-ns" : 23376,
+      "std-dev" : 2112,
+      "lower-q" : 21522,
+      "upper-q" : 26597,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "parse/complex-wide",
+    "results" : {
+      "mean-ns" : 21121,
+      "std-dev" : 2519,
+      "lower-q" : 19391,
+      "upper-q" : 25172,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "compile/simple",
+    "results" : {
+      "mean-ns" : 2332,
+      "std-dev" : 268,
+      "lower-q" : 2123,
+      "upper-q" : 2688,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "compile/medium",
+    "results" : {
+      "mean-ns" : 12404,
+      "std-dev" : 2130,
+      "lower-q" : 11431,
+      "upper-q" : 16095,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "compile/complex",
+    "results" : {
+      "mean-ns" : 28201,
+      "std-dev" : 2957,
+      "lower-q" : 25788,
+      "upper-q" : 31879,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "compile/n1",
+    "results" : {
+      "mean-ns" : 2399,
+      "std-dev" : 338,
+      "lower-q" : 2140,
+      "upper-q" : 2829,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "compile/n5",
+    "results" : {
+      "mean-ns" : 8138,
+      "std-dev" : 912,
+      "lower-q" : 7596,
+      "upper-q" : 9667,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "compile/n10",
+    "results" : {
+      "mean-ns" : 14735,
+      "std-dev" : 1307,
+      "lower-q" : 13959,
+      "upper-q" : 16994,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "compile/n50",
+    "results" : {
+      "mean-ns" : 67286,
+      "std-dev" : 8197,
+      "lower-q" : 62659,
+      "upper-q" : 81477,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-ast/simple-satisfied",
+    "results" : {
+      "mean-ns" : 195,
+      "std-dev" : 9,
+      "lower-q" : 187,
+      "upper-q" : 210,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-ast/simple-contradicted",
+    "results" : {
+      "mean-ns" : 197,
+      "std-dev" : 10,
+      "lower-q" : 188,
+      "upper-q" : 212,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-ast/simple-residual",
+    "results" : {
+      "mean-ns" : 123,
+      "std-dev" : 13,
+      "lower-q" : 111,
+      "upper-q" : 143,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-ast/medium-satisfied",
+    "results" : {
+      "mean-ns" : 1481,
+      "std-dev" : 71,
+      "lower-q" : 1423,
+      "upper-q" : 1592,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-ast/medium-partial",
+    "results" : {
+      "mean-ns" : 1729,
+      "std-dev" : 139,
+      "lower-q" : 1643,
+      "upper-q" : 1964,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-ast/complex-satisfied",
+    "results" : {
+      "mean-ns" : 6394,
+      "std-dev" : 656,
+      "lower-q" : 5881,
+      "upper-q" : 7254,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-ast/complex-partial",
+    "results" : {
+      "mean-ns" : 6708,
+      "std-dev" : 780,
+      "lower-q" : 6211,
+      "upper-q" : 7932,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-compiled/simple-satisfied",
+    "results" : {
+      "mean-ns" : 244,
+      "std-dev" : 13,
+      "lower-q" : 236,
+      "upper-q" : 267,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-compiled/simple-contradicted",
+    "results" : {
+      "mean-ns" : 285,
+      "std-dev" : 11,
+      "lower-q" : 271,
+      "upper-q" : 300,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-compiled/medium-satisfied",
+    "results" : {
+      "mean-ns" : 1534,
+      "std-dev" : 83,
+      "lower-q" : 1479,
+      "upper-q" : 1676,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-compiled/medium-partial",
+    "results" : {
+      "mean-ns" : 1609,
+      "std-dev" : 113,
+      "lower-q" : 1516,
+      "upper-q" : 1797,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "eval-compiled/complex-satisfied",
+    "results" : {
+      "mean-ns" : 365,
+      "std-dev" : 18,
+      "lower-q" : 342,
+      "upper-q" : 394,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "unify/simple-satisfied",
+    "results" : {
+      "mean-ns" : 203,
+      "std-dev" : 7,
+      "lower-q" : 194,
+      "upper-q" : 212,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "unify/simple-contradicted",
+    "results" : {
+      "mean-ns" : 235,
+      "std-dev" : 18,
+      "lower-q" : 218,
+      "upper-q" : 265,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "unify/simple-residual",
+    "results" : {
+      "mean-ns" : 133,
+      "std-dev" : 10,
+      "lower-q" : 123,
+      "upper-q" : 150,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "unify/medium-satisfied",
+    "results" : {
+      "mean-ns" : 1513,
+      "std-dev" : 86,
+      "lower-q" : 1433,
+      "upper-q" : 1648,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "unify/medium-partial",
+    "results" : {
+      "mean-ns" : 1488,
+      "std-dev" : 64,
+      "lower-q" : 1451,
+      "upper-q" : 1599,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "unify/complex-satisfied",
+    "results" : {
+      "mean-ns" : 8687,
+      "std-dev" : 1053,
+      "lower-q" : 7960,
+      "upper-q" : 9983,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "unify/complex-partial",
+    "results" : {
+      "mean-ns" : 8915,
+      "std-dev" : 720,
+      "lower-q" : 8171,
+      "upper-q" : 9700,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "negate/simple",
+    "results" : {
+      "mean-ns" : 30,
+      "std-dev" : 1,
+      "lower-q" : 29,
+      "upper-q" : 32,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "negate/medium",
+    "results" : {
+      "mean-ns" : 252,
+      "std-dev" : 23,
+      "lower-q" : 232,
+      "upper-q" : 280,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "negate/complex",
+    "results" : {
+      "mean-ns" : 1576,
+      "std-dev" : 154,
+      "lower-q" : 1461,
+      "upper-q" : 1829,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "inverse/what-satisfies-simple",
+    "results" : {
+      "mean-ns" : 141,
+      "std-dev" : 12,
+      "lower-q" : 129,
+      "upper-q" : 158,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "inverse/what-satisfies-medium",
+    "results" : {
+      "mean-ns" : 1541,
+      "std-dev" : 43,
+      "lower-q" : 1506,
+      "upper-q" : 1611,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "inverse/what-satisfies-complex",
+    "results" : {
+      "mean-ns" : 8153,
+      "std-dev" : 886,
+      "lower-q" : 7508,
+      "upper-q" : 9217,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "inverse/what-contradicts-simple",
+    "results" : {
+      "mean-ns" : 166,
+      "std-dev" : 14,
+      "lower-q" : 152,
+      "upper-q" : 188,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "inverse/what-contradicts-medium",
+    "results" : {
+      "mean-ns" : 1437,
+      "std-dev" : 157,
+      "lower-q" : 1336,
+      "upper-q" : 1674,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "inverse/what-contradicts-complex",
+    "results" : {
+      "mean-ns" : 9148,
+      "std-dev" : 1195,
+      "lower-q" : 8334,
+      "upper-q" : 10920,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "operator/equality",
+    "results" : {
+      "mean-ns" : 28,
+      "std-dev" : 0,
+      "lower-q" : 27,
+      "upper-q" : 28,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "operator/greater-than",
+    "results" : {
+      "mean-ns" : 34,
+      "std-dev" : 0,
+      "lower-q" : 34,
+      "upper-q" : 34,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "operator/in-set",
+    "results" : {
+      "mean-ns" : 40,
+      "std-dev" : 0,
+      "lower-q" : 39,
+      "upper-q" : 40,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "operator/regex",
+    "results" : {
+      "mean-ns" : 67,
+      "std-dev" : 7,
+      "lower-q" : 62,
+      "upper-q" : 80,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/forall-small-satisfied",
+    "results" : {
+      "mean-ns" : 2890,
+      "std-dev" : 305,
+      "lower-q" : 2722,
+      "upper-q" : 3404,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/forall-small-contradicted",
+    "results" : {
+      "mean-ns" : 3016,
+      "std-dev" : 249,
+      "lower-q" : 2840,
+      "upper-q" : 3440,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/forall-medium-satisfied",
+    "results" : {
+      "mean-ns" : 9970,
+      "std-dev" : 835,
+      "lower-q" : 9485,
+      "upper-q" : 11414,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/forall-large-satisfied",
+    "results" : {
+      "mean-ns" : 45361,
+      "std-dev" : 5103,
+      "lower-q" : 42668,
+      "upper-q" : 52039,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/exists-small-satisfied",
+    "results" : {
+      "mean-ns" : 1037,
+      "std-dev" : 89,
+      "lower-q" : 985,
+      "upper-q" : 1191,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/exists-small-contradicted",
+    "results" : {
+      "mean-ns" : 3462,
+      "std-dev" : 202,
+      "lower-q" : 3309,
+      "upper-q" : 3801,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/exists-large-early-exit",
+    "results" : {
+      "mean-ns" : 1139,
+      "std-dev" : 132,
+      "lower-q" : 1049,
+      "upper-q" : 1322,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/exists-large-late-exit",
+    "results" : {
+      "mean-ns" : 57872,
+      "std-dev" : 7728,
+      "lower-q" : 51826,
+      "upper-q" : 66849,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/nested-satisfied",
+    "results" : {
+      "mean-ns" : 9250,
+      "std-dev" : 1145,
+      "lower-q" : 8163,
+      "upper-q" : 10563,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "quantifier/nested-contradicted",
+    "results" : {
+      "mean-ns" : 6637,
+      "std-dev" : 630,
+      "lower-q" : 6303,
+      "upper-q" : 7731,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "count/simple-5-satisfied",
+    "results" : {
+      "mean-ns" : 903,
+      "std-dev" : 63,
+      "lower-q" : 858,
+      "upper-q" : 1012,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "count/simple-5-contradicted",
+    "results" : {
+      "mean-ns" : 980,
+      "std-dev" : 73,
+      "lower-q" : 924,
+      "upper-q" : 1102,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "count/medium-20-satisfied",
+    "results" : {
+      "mean-ns" : 893,
+      "std-dev" : 57,
+      "lower-q" : 865,
+      "upper-q" : 993,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "count/large-100-satisfied",
+    "results" : {
+      "mean-ns" : 891,
+      "std-dev" : 71,
+      "lower-q" : 841,
+      "upper-q" : 1011,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "count/nested-path",
+    "results" : {
+      "mean-ns" : 903,
+      "std-dev" : 51,
+      "lower-q" : 861,
+      "upper-q" : 990,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "count/with-comparison",
+    "results" : {
+      "mean-ns" : 1175,
+      "std-dev" : 95,
+      "lower-q" : 1113,
+      "upper-q" : 1339,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/forall-small-satisfied",
+    "results" : {
+      "mean-ns" : 5296,
+      "std-dev" : 446,
+      "lower-q" : 4918,
+      "upper-q" : 5822,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/forall-small-mixed",
+    "results" : {
+      "mean-ns" : 4410,
+      "std-dev" : 379,
+      "lower-q" : 4119,
+      "upper-q" : 5061,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/forall-medium",
+    "results" : {
+      "mean-ns" : 14807,
+      "std-dev" : 1395,
+      "lower-q" : 13581,
+      "upper-q" : 17162,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/forall-large",
+    "results" : {
+      "mean-ns" : 78969,
+      "std-dev" : 10349,
+      "lower-q" : 70493,
+      "upper-q" : 95851,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/exists-small-satisfied",
+    "results" : {
+      "mean-ns" : 1399,
+      "std-dev" : 123,
+      "lower-q" : 1295,
+      "upper-q" : 1610,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/exists-small-contradicted",
+    "results" : {
+      "mean-ns" : 5357,
+      "std-dev" : 570,
+      "lower-q" : 4856,
+      "upper-q" : 6229,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/exists-large-early",
+    "results" : {
+      "mean-ns" : 1458,
+      "std-dev" : 138,
+      "lower-q" : 1384,
+      "upper-q" : 1697,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/exists-large-late",
+    "results" : {
+      "mean-ns" : 85762,
+      "std-dev" : 7654,
+      "lower-q" : 81350,
+      "upper-q" : 98947,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/count-simple",
+    "results" : {
+      "mean-ns" : 4065,
+      "std-dev" : 711,
+      "lower-q" : 3634,
+      "upper-q" : 5279,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/count-medium",
+    "results" : {
+      "mean-ns" : 12068,
+      "std-dev" : 1266,
+      "lower-q" : 11326,
+      "upper-q" : 14232,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/count-large",
+    "results" : {
+      "mean-ns" : 56955,
+      "std-dev" : 7361,
+      "lower-q" : 52537,
+      "upper-q" : 69363,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/count-complex",
+    "results" : {
+      "mean-ns" : 114560,
+      "std-dev" : 16540,
+      "lower-q" : 106142,
+      "upper-q" : 143182,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/nested-satisfied",
+    "results" : {
+      "mean-ns" : 12895,
+      "std-dev" : 1346,
+      "lower-q" : 12042,
+      "upper-q" : 15198,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  }, {
+    "name" : "filtered/nested-contradicted",
+    "results" : {
+      "mean-ns" : 10134,
+      "std-dev" : 642,
+      "lower-q" : 9600,
+      "upper-q" : 11151,
+      "samples" : 6,
+      "gc-count" : null
+    }
+  } ]
+}

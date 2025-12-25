@@ -113,10 +113,10 @@
   Measures the performance of conflict residual construction which was
   identified as a bottleneck in the optimized evaluator."
   []
-  (let [single-checker  (compiler/compile-policies [p/conflict-single-constraint])
-        multi-checker   (compiler/compile-policies [p/conflict-multi-constraint])
-        nested-checker  (compiler/compile-policies [p/conflict-nested-path])
-        paths-checker   (compiler/compile-policies [p/conflict-multi-path])]
+  (let [single-checker (compiler/compile-policies [p/conflict-single-constraint])
+        multi-checker  (compiler/compile-policies [p/conflict-multi-constraint])
+        nested-checker (compiler/compile-policies [p/conflict-nested-path])
+        paths-checker  (compiler/compile-policies [p/conflict-multi-path])]
     [;; Single constraint conflicts
      (bench-fn "conflict/single-satisfied" (single-checker {:role "admin"}))
      (bench-fn "conflict/single-conflict" (single-checker p/doc-conflict-single))
@@ -274,11 +274,11 @@
   are optimized-eligible (no quantifiers or complex nodes)."
   []
   (optimized-cache/clear-cache!)
-  (let [merged-simple  (:simplified (compiler/merge-policies [p/simple-equality]))
-        merged-medium  (:simplified (compiler/merge-policies [p/medium-and]))
+  (let [merged-simple (:simplified (compiler/merge-policies [p/simple-equality]))
+        merged-medium (:simplified (compiler/merge-policies [p/medium-and]))
         ;; Interpreted evaluators for comparison
-        int-simple  (compiler/compile-policies [p/simple-equality] {:optimized false})
-        int-medium  (compiler/compile-policies [p/medium-and] {:optimized false})]
+        int-simple    (compiler/compile-policies [p/simple-equality] {:optimized false})
+        int-medium    (compiler/compile-policies [p/medium-and] {:optimized false})]
     ;; Only benchmark optimized-eligible policies
     (if (and (optimized/optimized-eligible? merged-simple)
              (optimized/optimized-eligible? merged-medium))
@@ -307,8 +307,8 @@
   Compares bytecode-compiled policies against optimized Clojure closures
   for bytecode-eligible policies (simple constraints, no quantifiers)."
   []
-  (let [merged-simple  (:simplified (compiler/merge-policies [p/simple-equality]))
-        merged-medium  (:simplified (compiler/merge-policies [p/medium-and]))]
+  (let [merged-simple (:simplified (compiler/merge-policies [p/simple-equality]))
+        merged-medium (:simplified (compiler/merge-policies [p/medium-and]))]
     ;; Only benchmark bytecode-eligible policies
     (if (and (bytecode/bytecode-eligible? merged-simple)
              (bytecode/bytecode-eligible? merged-medium))

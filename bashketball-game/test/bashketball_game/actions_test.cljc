@@ -93,8 +93,8 @@
         card-1-id (:instance-id (first hand))
         card-3-id (:instance-id (nth hand 2))
         updated   (actions/do-action game {:type :bashketball/discard-cards
-                                              :player :team/HOME
-                                              :instance-ids [card-1-id card-3-id]})]
+                                           :player :team/HOME
+                                           :instance-ids [card-1-id card-3-id]})]
 
     (testing "cards removed from hand"
       (is (= ["card-2"] (mapv :card-slug (state/get-hand updated :team/HOME)))))
@@ -109,8 +109,8 @@
 (deftest move-player-action-test
   (let [game    (state/create-game test-config)
         updated (actions/do-action game {:type :bashketball/move-player
-                                            :player-id "HOME-orc-center-0"
-                                            :position [2 3]})]
+                                         :player-id "HOME-orc-center-0"
+                                         :position [2 3]})]
 
     (testing "player position updated"
       (is (= [2 3] (:position (state/get-basketball-player updated "HOME-orc-center-0")))))
@@ -131,8 +131,8 @@
 (deftest move-player-first-move-test
   (let [game  (state/create-game test-config)
         move1 (actions/do-action game {:type :bashketball/move-player
-                                          :player-id "HOME-orc-center-0"
-                                          :position [2 3]})]
+                                       :player-id "HOME-orc-center-0"
+                                       :position [2 3]})]
 
     (testing "player position updated"
       (is (= [2 3] (:position (state/get-basketball-player move1 "HOME-orc-center-0")))))
@@ -150,11 +150,11 @@
 (deftest move-player-consecutive-moves-test
   (let [game  (state/create-game test-config)
         move1 (actions/do-action game {:type :bashketball/move-player
-                                          :player-id "HOME-orc-center-0"
-                                          :position [2 3]})
+                                       :player-id "HOME-orc-center-0"
+                                       :position [2 3]})
         move2 (actions/do-action move1 {:type :bashketball/move-player
-                                           :player-id "HOME-orc-center-0"
-                                           :position [2 5]})]
+                                        :player-id "HOME-orc-center-0"
+                                        :position [2 5]})]
 
     (testing "player position updated to new position"
       (is (= [2 5] (:position (state/get-basketball-player move2 "HOME-orc-center-0")))))
@@ -175,14 +175,14 @@
 (deftest move-player-no-duplicate-occupants-test
   (let [game  (state/create-game test-config)
         move1 (actions/do-action game {:type :bashketball/move-player
-                                          :player-id "HOME-orc-center-0"
-                                          :position [2 3]})
+                                       :player-id "HOME-orc-center-0"
+                                       :position [2 3]})
         move2 (actions/do-action move1 {:type :bashketball/move-player
-                                           :player-id "HOME-orc-center-0"
-                                           :position [2 5]})
+                                        :player-id "HOME-orc-center-0"
+                                        :position [2 5]})
         move3 (actions/do-action move2 {:type :bashketball/move-player
-                                           :player-id "HOME-orc-center-0"
-                                           :position [1 7]})]
+                                        :player-id "HOME-orc-center-0"
+                                        :position [1 7]})]
 
     (testing "only one occupant entry for player after multiple moves"
       (let [occupants      (:occupants (:board move3))
@@ -195,11 +195,11 @@
 (deftest move-multiple-players-test
   (let [game    (state/create-game test-config)
         move-p1 (actions/do-action game {:type :bashketball/move-player
-                                            :player-id "HOME-orc-center-0"
-                                            :position [2 3]})
+                                         :player-id "HOME-orc-center-0"
+                                         :position [2 3]})
         move-p2 (actions/do-action move-p1 {:type :bashketball/move-player
-                                               :player-id "HOME-elf-point-guard-1"
-                                               :position [3 4]})]
+                                            :player-id "HOME-elf-point-guard-1"
+                                            :position [3 4]})]
 
     (testing "both players have correct positions"
       (is (= [2 3] (:position (state/get-basketball-player move-p2 "HOME-orc-center-0"))))
@@ -214,14 +214,14 @@
 (deftest move-player-invariants-test
   (let [game  (state/create-game test-config)
         move1 (actions/do-action game {:type :bashketball/move-player
-                                          :player-id "HOME-orc-center-0"
-                                          :position [2 3]})
+                                       :player-id "HOME-orc-center-0"
+                                       :position [2 3]})
         move2 (actions/do-action move1 {:type :bashketball/move-player
-                                           :player-id "HOME-orc-center-0"
-                                           :position [2 5]})
+                                        :player-id "HOME-orc-center-0"
+                                        :position [2 5]})
         move3 (actions/do-action move2 {:type :bashketball/move-player
-                                           :player-id "HOME-elf-point-guard-1"
-                                           :position [3 4]})]
+                                        :player-id "HOME-elf-point-guard-1"
+                                        :position [3 4]})]
 
     (testing "board satisfies invariants after moves"
       (is (board/valid-occupants? (:board move1)))
@@ -244,9 +244,9 @@
 (deftest exhaust-refresh-player-test
   (let [game      (state/create-game test-config)
         exhausted (actions/do-action game {:type :bashketball/exhaust-player
-                                              :player-id "HOME-orc-center-0"})
+                                           :player-id "HOME-orc-center-0"})
         refreshed (actions/do-action exhausted {:type :bashketball/refresh-player
-                                                   :player-id "HOME-orc-center-0"})]
+                                                :player-id "HOME-orc-center-0"})]
 
     (testing "exhaust sets exhausted? true"
       (is (:exhausted (state/get-basketball-player exhausted "HOME-orc-center-0"))))
@@ -259,29 +259,29 @@
 
     (testing "set-ball-possessed"
       (let [updated (actions/do-action game {:type :bashketball/set-ball-possessed
-                                                :holder-id "HOME-orc-center-0"})]
+                                             :holder-id "HOME-orc-center-0"})]
         (is (= {:status :ball-status/POSSESSED :holder-id "HOME-orc-center-0"}
                (state/get-ball updated)))))
 
     (testing "set-ball-loose"
       (let [updated (actions/do-action game {:type :bashketball/set-ball-loose
-                                                :position [3 5]})]
+                                             :position [3 5]})]
         (is (= {:status :ball-status/LOOSE :position [3 5]}
                (state/get-ball updated)))))
 
     (testing "set-ball-in-air with position target"
       (let [updated (actions/do-action game {:type :bashketball/set-ball-in-air
-                                                :origin [2 3]
-                                                :target {:type :position :position [2 13]}
-                                                :action-type :ball-action/SHOT})]
+                                             :origin [2 3]
+                                             :target {:type :position :position [2 13]}
+                                             :action-type :ball-action/SHOT})]
         (is (= {:status :ball-status/IN_AIR :origin [2 3] :target {:type :position :position [2 13]} :action-type :ball-action/SHOT}
                (state/get-ball updated)))))
 
     (testing "set-ball-in-air with player target"
       (let [updated (actions/do-action game {:type :bashketball/set-ball-in-air
-                                                :origin [2 3]
-                                                :target {:type :player :player-id "HOME-1"}
-                                                :action-type :ball-action/PASS})]
+                                             :origin [2 3]
+                                             :target {:type :player :player-id "HOME-1"}
+                                             :action-type :ball-action/PASS})]
         (is (= {:status :ball-status/IN_AIR :origin [2 3] :target {:type :player :player-id "HOME-1"} :action-type :ball-action/PASS}
                (state/get-ball updated)))))))
 
@@ -296,8 +296,8 @@
   (let [game     (state/create-game test-config)
         modifier {:id "buff-1" :stat :stat/SHOOTING :amount 2}
         updated  (actions/do-action game {:type :bashketball/add-modifier
-                                             :player-id "HOME-orc-center-0"
-                                             :modifier modifier})
+                                          :player-id "HOME-orc-center-0"
+                                          :modifier modifier})
         player   (state/get-basketball-player updated "HOME-orc-center-0")]
     (is (= [modifier] (:modifiers player)))))
 
@@ -305,11 +305,11 @@
   (let [modifier {:id "buff-1" :stat :stat/SHOOTING :amount 2}
         game     (-> (state/create-game test-config)
                      (actions/do-action {:type :bashketball/add-modifier
-                                            :player-id "HOME-orc-center-0"
-                                            :modifier modifier}))
+                                         :player-id "HOME-orc-center-0"
+                                         :modifier modifier}))
         updated  (actions/do-action game {:type :bashketball/remove-modifier
-                                             :player-id "HOME-orc-center-0"
-                                             :modifier-id "buff-1"})
+                                          :player-id "HOME-orc-center-0"
+                                          :modifier-id "buff-1"})
         player   (state/get-basketball-player updated "HOME-orc-center-0")]
     (is (empty? (:modifiers player)))))
 
@@ -319,8 +319,8 @@
         hand      (state/get-hand game :team/HOME)
         card-2-id (:instance-id (second hand))
         updated   (actions/do-action game {:type :bashketball/remove-cards
-                                              :player :team/HOME
-                                              :instance-ids [card-2-id]})]
+                                           :player :team/HOME
+                                           :instance-ids [card-2-id]})]
 
     (testing "card removed from hand"
       (is (= ["card-1" "card-3"] (mapv :card-slug (state/get-hand updated :team/HOME)))))
@@ -396,8 +396,8 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/do-action game {:type        :bashketball/play-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})]
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})]
     (is (= 2 (count (state/get-hand result :team/HOME))))
     (is (not (some #(= (:instance-id %) (:instance-id card))
                    (state/get-hand result :team/HOME))))))
@@ -408,8 +408,8 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/do-action game {:type        :bashketball/play-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})]
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})]
     (is (= 1 (count (state/get-discard result :team/HOME))))
     (is (= card (first (state/get-discard result :team/HOME))))))
 
@@ -419,8 +419,8 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/do-action game {:type        :bashketball/play-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})
         event  (last (:events result))]
     (is (= :bashketball/play-card (:type event)))
     (is (= card (:played-card event)))))
@@ -435,8 +435,8 @@
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance])
                           (assoc-in [:players :team/HOME :deck :cards] card-catalog))
         result        (actions/do-action game {:type        :bashketball/play-card
-                                                  :player      :team/HOME
-                                                  :instance-id "asset-1"})]
+                                               :player      :team/HOME
+                                               :instance-id "asset-1"})]
 
     (testing "team asset added to assets"
       (is (= [card-instance] (get-in result [:players :team/HOME :assets]))))
@@ -454,8 +454,8 @@
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance])
                           (assoc-in [:players :team/HOME :deck :cards] card-catalog))
         result        (actions/do-action game {:type        :bashketball/play-card
-                                                  :player      :team/HOME
-                                                  :instance-id "play-1"})]
+                                               :player      :team/HOME
+                                               :instance-id "play-1"})]
 
     (testing "non-asset card not in assets"
       (is (empty? (get-in result [:players :team/HOME :assets]))))
@@ -472,8 +472,8 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/do-action game {:type        :bashketball/stage-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})]
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})]
     (is (= 2 (count (state/get-hand result :team/HOME))))
     (is (not (some #(= (:instance-id %) (:instance-id card))
                    (state/get-hand result :team/HOME))))))
@@ -484,8 +484,8 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/do-action game {:type        :bashketball/stage-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})]
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})]
     (is (= 1 (count (:play-area result))))
     (let [staged (first (:play-area result))]
       (is (= (:instance-id card) (:instance-id staged)))
@@ -498,8 +498,8 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         result (actions/do-action game {:type        :bashketball/stage-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})
         event  (last (:events result))]
     (is (= :bashketball/stage-card (:type event)))
     (is (= card (:staged-card event)))))
@@ -513,10 +513,10 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         staged (actions/do-action game {:type        :bashketball/stage-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})
         result (actions/do-action staged {:type        :bashketball/resolve-card
-                                             :instance-id (:instance-id card)})]
+                                          :instance-id (:instance-id card)})]
     (is (empty? (:play-area result)))))
 
 (deftest resolve-card-moves-to-discard-test
@@ -525,10 +525,10 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         staged (actions/do-action game {:type        :bashketball/stage-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})
         result (actions/do-action staged {:type        :bashketball/resolve-card
-                                             :instance-id (:instance-id card)})]
+                                          :instance-id (:instance-id card)})]
     (is (= 1 (count (state/get-discard result :team/HOME))))
     (is (= (:card-slug card) (:card-slug (first (state/get-discard result :team/HOME)))))))
 
@@ -541,10 +541,10 @@
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance])
                           (assoc-in [:players :team/HOME :deck :cards] card-catalog))
         staged        (actions/do-action game {:type        :bashketball/stage-card
-                                                  :player      :team/HOME
-                                                  :instance-id "asset-1"})
+                                               :player      :team/HOME
+                                               :instance-id "asset-1"})
         result        (actions/do-action staged {:type        :bashketball/resolve-card
-                                                    :instance-id "asset-1"})]
+                                                 :instance-id "asset-1"})]
     (is (= 1 (count (get-in result [:players :team/HOME :assets]))))
     (is (empty? (state/get-discard result :team/HOME)))))
 
@@ -554,10 +554,10 @@
         hand   (state/get-hand game :team/HOME)
         card   (first hand)
         staged (actions/do-action game {:type        :bashketball/stage-card
-                                           :player      :team/HOME
-                                           :instance-id (:instance-id card)})
+                                        :player      :team/HOME
+                                        :instance-id (:instance-id card)})
         result (actions/do-action staged {:type        :bashketball/resolve-card
-                                             :instance-id (:instance-id card)})
+                                          :instance-id (:instance-id card)})
         event  (last (:events result))]
     (is (= :bashketball/resolve-card (:type event)))
     (is (some? (:resolved-card event)))))
@@ -570,9 +570,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :assets] [card-instance]))
         result        (actions/do-action game {:type        :bashketball/move-asset
-                                                  :player      :team/HOME
-                                                  :instance-id "asset-1"
-                                                  :destination :DISCARD})]
+                                               :player      :team/HOME
+                                               :instance-id "asset-1"
+                                               :destination :DISCARD})]
 
     (testing "asset removed from assets"
       (is (empty? (get-in result [:players :team/HOME :assets]))))
@@ -585,9 +585,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :assets] [card-instance]))
         result        (actions/do-action game {:type        :bashketball/move-asset
-                                                  :player      :team/HOME
-                                                  :instance-id "asset-1"
-                                                  :destination :REMOVED})]
+                                               :player      :team/HOME
+                                               :instance-id "asset-1"
+                                               :destination :REMOVED})]
 
     (testing "asset removed from assets"
       (is (empty? (get-in result [:players :team/HOME :assets]))))
@@ -600,9 +600,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :assets] [card-instance]))
         result        (actions/do-action game {:type        :bashketball/move-asset
-                                                  :player      :team/HOME
-                                                  :instance-id "asset-1"
-                                                  :destination :DISCARD})
+                                               :player      :team/HOME
+                                               :instance-id "asset-1"
+                                               :destination :DISCARD})
         event         (last (:events result))]
     (is (= :bashketball/move-asset (:type event)))
     (is (= card-instance (:moved-asset event)))
@@ -616,9 +616,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
         result        (actions/do-action game {:type            :bashketball/attach-ability
-                                                  :player          :team/HOME
-                                                  :instance-id     "ability-1"
-                                                  :target-player-id "HOME-orc-center-0"})]
+                                               :player          :team/HOME
+                                               :instance-id     "ability-1"
+                                               :target-player-id "HOME-orc-center-0"})]
     (is (empty? (state/get-hand result :team/HOME)))))
 
 (deftest attach-ability-adds-to-player-test
@@ -626,9 +626,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
         result        (actions/do-action game {:type            :bashketball/attach-ability
-                                                  :player          :team/HOME
-                                                  :instance-id     "ability-1"
-                                                  :target-player-id "HOME-orc-center-0"})
+                                               :player          :team/HOME
+                                               :instance-id     "ability-1"
+                                               :target-player-id "HOME-orc-center-0"})
         attachments   (state/get-attachments result "HOME-orc-center-0")]
     (is (= 1 (count attachments)))
     (is (= "ability-1" (:instance-id (first attachments))))
@@ -639,9 +639,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
         result        (actions/do-action game {:type            :bashketball/attach-ability
-                                                  :player          :team/HOME
-                                                  :instance-id     "ability-1"
-                                                  :target-player-id "HOME-orc-center-0"})
+                                               :player          :team/HOME
+                                               :instance-id     "ability-1"
+                                               :target-player-id "HOME-orc-center-0"})
         attachment    (first (state/get-attachments result "HOME-orc-center-0"))]
     (is (true? (:removable attachment)))
     (is (= :detach/DISCARD (:detach-destination attachment)))))
@@ -655,9 +655,9 @@
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance])
                           (assoc-in [:players :team/HOME :deck :cards] card-catalog))
         result        (actions/do-action game {:type            :bashketball/attach-ability
-                                                  :player          :team/HOME
-                                                  :instance-id     "ability-1"
-                                                  :target-player-id "HOME-orc-center-0"})
+                                               :player          :team/HOME
+                                               :instance-id     "ability-1"
+                                               :target-player-id "HOME-orc-center-0"})
         attachment    (first (state/get-attachments result "HOME-orc-center-0"))]
     (is (false? (:removable attachment)))
     (is (= :detach/REMOVED (:detach-destination attachment)))))
@@ -667,9 +667,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
         result        (actions/do-action game {:type            :bashketball/attach-ability
-                                                  :player          :team/HOME
-                                                  :instance-id     "ability-1"
-                                                  :target-player-id "HOME-orc-center-0"})
+                                               :player          :team/HOME
+                                               :instance-id     "ability-1"
+                                               :target-player-id "HOME-orc-center-0"})
         event         (last (:events result))]
     (is (= :bashketball/attach-ability (:type event)))
     (is (= card-instance (:attached-card event)))
@@ -688,9 +688,9 @@
                        (state/update-basketball-player "HOME-orc-center-0"
                                                        assoc :attachments [attachment]))
         result     (actions/do-action game {:type            :bashketball/detach-ability
-                                               :player          :team/HOME
-                                               :target-player-id "HOME-orc-center-0"
-                                               :instance-id     "ability-1"})]
+                                            :player          :team/HOME
+                                            :target-player-id "HOME-orc-center-0"
+                                            :instance-id     "ability-1"})]
     (is (empty? (state/get-attachments result "HOME-orc-center-0")))))
 
 (deftest detach-ability-goes-to-discard-test
@@ -703,9 +703,9 @@
                        (state/update-basketball-player "HOME-orc-center-0"
                                                        assoc :attachments [attachment]))
         result     (actions/do-action game {:type            :bashketball/detach-ability
-                                               :player          :team/HOME
-                                               :target-player-id "HOME-orc-center-0"
-                                               :instance-id     "ability-1"})
+                                            :player          :team/HOME
+                                            :target-player-id "HOME-orc-center-0"
+                                            :instance-id     "ability-1"})
         discard    (state/get-discard result :team/HOME)]
     (is (= 1 (count discard)))
     (is (= "ability-1" (:instance-id (first discard))))
@@ -721,9 +721,9 @@
                        (state/update-basketball-player "HOME-orc-center-0"
                                                        assoc :attachments [attachment]))
         result     (actions/do-action game {:type            :bashketball/detach-ability
-                                               :player          :team/HOME
-                                               :target-player-id "HOME-orc-center-0"
-                                               :instance-id     "ability-1"})
+                                            :player          :team/HOME
+                                            :target-player-id "HOME-orc-center-0"
+                                            :instance-id     "ability-1"})
         removed    (get-in result [:players :team/HOME :deck :removed])]
     (is (= 1 (count removed)))
     (is (= "ability-1" (:instance-id (first removed))))))
@@ -738,9 +738,9 @@
                        (state/update-basketball-player "HOME-orc-center-0"
                                                        assoc :attachments [attachment]))
         result     (actions/do-action game {:type            :bashketball/detach-ability
-                                               :player          :team/HOME
-                                               :target-player-id "HOME-orc-center-0"
-                                               :instance-id     "ability-1"})
+                                            :player          :team/HOME
+                                            :target-player-id "HOME-orc-center-0"
+                                            :instance-id     "ability-1"})
         event      (last (:events result))]
     (is (= :bashketball/detach-ability (:type event)))
     (is (= attachment (:detached-card event)))
@@ -757,11 +757,11 @@
                         (state/update-basketball-player "HOME-orc-center-0"
                                                         assoc :attachments [attachment])
                         (actions/do-action {:type :bashketball/move-player
-                                               :player-id "HOME-orc-center-0"
-                                               :position [2 3]}))
+                                            :player-id "HOME-orc-center-0"
+                                            :position [2 3]}))
         result      (actions/do-action game {:type         :bashketball/substitute
-                                                :on-court-id  "HOME-orc-center-0"
-                                                :off-court-id "HOME-dwarf-power-forward-2"})
+                                             :on-court-id  "HOME-orc-center-0"
+                                             :off-court-id "HOME-dwarf-power-forward-2"})
         attachments (state/get-attachments result "HOME-orc-center-0")]
     (is (= 1 (count attachments)))
     (is (= "ability-1" (:instance-id (first attachments))))))
@@ -775,9 +775,9 @@
                     :card-type :card-type/TEAM_ASSET_CARD}
         game       (state/create-game test-config)
         result     (actions/do-action game {:type      :bashketball/create-token
-                                               :player    :team/HOME
-                                               :card      token-card
-                                               :placement :placement/ASSET})
+                                            :player    :team/HOME
+                                            :card      token-card
+                                            :placement :placement/ASSET})
         assets     (get-in result [:players :team/HOME :assets])]
 
     (testing "token added to assets"
@@ -805,10 +805,10 @@
                      :detach-destination :detach/REMOVED}
         game        (state/create-game test-config)
         result      (actions/do-action game {:type             :bashketball/create-token
-                                                :player           :team/HOME
-                                                :card             token-card
-                                                :placement        :placement/ATTACH
-                                                :target-player-id "HOME-orc-center-0"})
+                                             :player           :team/HOME
+                                             :card             token-card
+                                             :placement        :placement/ATTACH
+                                             :target-player-id "HOME-orc-center-0"})
         attachments (state/get-attachments result "HOME-orc-center-0")]
 
     (testing "token attached to player"
@@ -834,9 +834,9 @@
   (let [token-card {:slug "test-token" :name "Test" :card-type :card-type/TEAM_ASSET_CARD}
         game       (state/create-game test-config)
         result     (actions/do-action game {:type      :bashketball/create-token
-                                               :player    :team/HOME
-                                               :card      token-card
-                                               :placement :placement/ASSET})
+                                            :player    :team/HOME
+                                            :card      token-card
+                                            :placement :placement/ASSET})
         event      (last (:events result))]
 
     (testing "event type is create-token"
@@ -860,9 +860,9 @@
                              (state/update-basketball-player "HOME-orc-center-0"
                                                              assoc :attachments [token-attachment]))
         result           (actions/do-action game {:type             :bashketball/detach-ability
-                                                     :player           :team/HOME
-                                                     :target-player-id "HOME-orc-center-0"
-                                                     :instance-id      "token-1"})]
+                                                  :player           :team/HOME
+                                                  :target-player-id "HOME-orc-center-0"
+                                                  :instance-id      "token-1"})]
 
     (testing "token removed from player"
       (is (empty? (state/get-attachments result "HOME-orc-center-0"))))
@@ -884,9 +884,9 @@
                              (state/update-basketball-player "HOME-orc-center-0"
                                                              assoc :attachments [token-attachment]))
         result           (actions/do-action game {:type             :bashketball/detach-ability
-                                                     :player           :team/HOME
-                                                     :target-player-id "HOME-orc-center-0"
-                                                     :instance-id      "token-1"})
+                                                  :player           :team/HOME
+                                                  :target-player-id "HOME-orc-center-0"
+                                                  :instance-id      "token-1"})
         event            (last (:events result))]
 
     (testing "event shows destination as deleted"
@@ -905,9 +905,9 @@
                        (state/update-basketball-player "HOME-orc-center-0"
                                                        assoc :attachments [attachment]))
         result     (actions/do-action game {:type             :bashketball/detach-ability
-                                               :player           :team/HOME
-                                               :target-player-id "HOME-orc-center-0"
-                                               :instance-id      "ability-1"})]
+                                            :player           :team/HOME
+                                            :target-player-id "HOME-orc-center-0"
+                                            :instance-id      "ability-1"})]
 
     (testing "regular card still goes to discard"
       (is (= 1 (count (state/get-discard result :team/HOME)))))))
@@ -919,9 +919,9 @@
         game        (-> (state/create-game test-config)
                         (assoc-in [:players :team/HOME :assets] [token-asset]))
         result      (actions/do-action game {:type        :bashketball/move-asset
-                                                :player      :team/HOME
-                                                :instance-id "token-1"
-                                                :destination :DISCARD})]
+                                             :player      :team/HOME
+                                             :instance-id "token-1"
+                                             :destination :DISCARD})]
 
     (testing "token removed from assets"
       (is (empty? (get-in result [:players :team/HOME :assets]))))
@@ -939,9 +939,9 @@
         game        (-> (state/create-game test-config)
                         (assoc-in [:players :team/HOME :assets] [token-asset]))
         result      (actions/do-action game {:type        :bashketball/move-asset
-                                                :player      :team/HOME
-                                                :instance-id "token-1"
-                                                :destination :DISCARD})
+                                             :player      :team/HOME
+                                             :instance-id "token-1"
+                                             :destination :DISCARD})
         event       (last (:events result))]
 
     (testing "event shows destination as deleted"
@@ -955,9 +955,9 @@
         game          (-> (state/create-game test-config)
                           (assoc-in [:players :team/HOME :assets] [card-instance]))
         result        (actions/do-action game {:type        :bashketball/move-asset
-                                                  :player      :team/HOME
-                                                  :instance-id "asset-1"
-                                                  :destination :DISCARD})]
+                                               :player      :team/HOME
+                                               :instance-id "asset-1"
+                                               :destination :DISCARD})]
 
     (testing "regular asset still goes to discard"
       (is (= 1 (count (state/get-discard result :team/HOME)))))))
@@ -975,11 +975,11 @@
                           (assoc-in [:players :team/HOME :deck :hand] [card-instance])
                           (assoc-in [:players :team/HOME :deck :cards] card-catalog))
         staged        (actions/do-action game {:type        :bashketball/stage-card
-                                                  :player      :team/HOME
-                                                  :instance-id "ability-1"})
+                                               :player      :team/HOME
+                                               :instance-id "ability-1"})
         result        (actions/do-action staged {:type             :bashketball/resolve-card
-                                                    :instance-id      "ability-1"
-                                                    :target-player-id "HOME-orc-center-0"})]
+                                                 :instance-id      "ability-1"
+                                                 :target-player-id "HOME-orc-center-0"})]
 
     (testing "ability card removed from play area"
       (is (empty? (:play-area result))))
@@ -1003,9 +1003,9 @@
         card-1 (:instance-id (first hand))
         card-2 (:instance-id (second hand))
         result (actions/do-action game {:type                 :bashketball/stage-virtual-standard-action
-                                           :player               :team/HOME
-                                           :discard-instance-ids [card-1 card-2]
-                                           :card-slug            "shoot-block"})]
+                                        :player               :team/HOME
+                                        :discard-instance-ids [card-1 card-2]
+                                        :card-slug            "shoot-block"})]
 
     (testing "two cards removed from hand"
       (is (= 1 (count (state/get-hand result :team/HOME)))))
@@ -1020,9 +1020,9 @@
         card-1 (:instance-id (first hand))
         card-2 (:instance-id (second hand))
         result (actions/do-action game {:type                 :bashketball/stage-virtual-standard-action
-                                           :player               :team/HOME
-                                           :discard-instance-ids [card-1 card-2]
-                                           :card-slug            "shoot-block"})]
+                                        :player               :team/HOME
+                                        :discard-instance-ids [card-1 card-2]
+                                        :card-slug            "shoot-block"})]
 
     (testing "play area has one card"
       (is (= 1 (count (:play-area result)))))
@@ -1043,9 +1043,9 @@
         card-1 (:instance-id (first hand))
         card-2 (:instance-id (second hand))
         result (actions/do-action game {:type                 :bashketball/stage-virtual-standard-action
-                                           :player               :team/HOME
-                                           :discard-instance-ids [card-1 card-2]
-                                           :card-slug            "shoot-block"})
+                                        :player               :team/HOME
+                                        :discard-instance-ids [card-1 card-2]
+                                        :card-slug            "shoot-block"})
         event  (last (:events result))]
 
     (testing "event has discarded cards"
@@ -1061,12 +1061,12 @@
         card-1     (:instance-id (first hand))
         card-2     (:instance-id (second hand))
         staged     (actions/do-action game {:type                 :bashketball/stage-virtual-standard-action
-                                               :player               :team/HOME
-                                               :discard-instance-ids [card-1 card-2]
-                                               :card-slug            "shoot-block"})
+                                            :player               :team/HOME
+                                            :discard-instance-ids [card-1 card-2]
+                                            :card-slug            "shoot-block"})
         virtual-id (:instance-id (first (:play-area staged)))
         result     (actions/do-action staged {:type        :bashketball/resolve-card
-                                                 :instance-id virtual-id})]
+                                              :instance-id virtual-id})]
 
     (testing "virtual card removed from play area"
       (is (empty? (:play-area result))))
@@ -1087,12 +1087,12 @@
         card-1     (:instance-id (first hand))
         card-2     (:instance-id (second hand))
         staged     (actions/do-action game {:type                 :bashketball/stage-virtual-standard-action
-                                               :player               :team/HOME
-                                               :discard-instance-ids [card-1 card-2]
-                                               :card-slug            "shoot-block"})
+                                            :player               :team/HOME
+                                            :discard-instance-ids [card-1 card-2]
+                                            :card-slug            "shoot-block"})
         virtual-id (:instance-id (first (:play-area staged)))
         result     (actions/do-action staged {:type        :bashketball/resolve-card
-                                                 :instance-id virtual-id})
+                                              :instance-id virtual-id})
         event      (last (:events result))]
 
     (testing "event shows virtual flag"
@@ -1108,8 +1108,8 @@
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Card not in hand"
          (actions/do-action game {:type        :bashketball/stage-card
-                                     :player      :team/HOME
-                                     :instance-id "nonexistent-card-id"})))))
+                                  :player      :team/HOME
+                                  :instance-id "nonexistent-card-id"})))))
 
 (deftest stage-card-throws-after-discard-test
   (let [game      (-> (state/create-game test-config)
@@ -1117,14 +1117,14 @@
         hand      (state/get-hand game :team/HOME)
         card-id   (:instance-id (first hand))
         discarded (actions/do-action game {:type         :bashketball/discard-cards
-                                              :player       :team/HOME
-                                              :instance-ids [card-id]})]
+                                           :player       :team/HOME
+                                           :instance-ids [card-id]})]
     (is (thrown-with-msg?
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Card not in hand"
          (actions/do-action discarded {:type        :bashketball/stage-card
-                                          :player      :team/HOME
-                                          :instance-id card-id})))))
+                                       :player      :team/HOME
+                                       :instance-id card-id})))))
 
 (deftest play-card-throws-when-card-not-in-hand-test
   (let [game (-> (state/create-game test-config)
@@ -1133,8 +1133,8 @@
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Card not in hand"
          (actions/do-action game {:type        :bashketball/play-card
-                                     :player      :team/HOME
-                                     :instance-id "nonexistent-card-id"})))))
+                                  :player      :team/HOME
+                                  :instance-id "nonexistent-card-id"})))))
 
 (deftest play-card-throws-after-discard-test
   (let [game      (-> (state/create-game test-config)
@@ -1142,14 +1142,14 @@
         hand      (state/get-hand game :team/HOME)
         card-id   (:instance-id (first hand))
         discarded (actions/do-action game {:type         :bashketball/discard-cards
-                                              :player       :team/HOME
-                                              :instance-ids [card-id]})]
+                                           :player       :team/HOME
+                                           :instance-ids [card-id]})]
     (is (thrown-with-msg?
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Card not in hand"
          (actions/do-action discarded {:type        :bashketball/play-card
-                                          :player      :team/HOME
-                                          :instance-id card-id})))))
+                                       :player      :team/HOME
+                                       :instance-id card-id})))))
 
 ;; -----------------------------------------------------------------------------
 ;; Examine Cards Action Tests
@@ -1157,8 +1157,8 @@
 (deftest examine-cards-moves-to-examined-zone-test
   (let [game    (state/create-game test-config)
         updated (actions/do-action game {:type   :bashketball/examine-cards
-                                            :player :team/HOME
-                                            :count  3})]
+                                         :player :team/HOME
+                                         :count  3})]
     (testing "cards moved to examined zone"
       (is (= 3 (count (state/get-examined updated :team/HOME)))))
 
@@ -1172,8 +1172,8 @@
 (deftest examine-cards-event-logging-test
   (let [game    (state/create-game test-config)
         updated (actions/do-action game {:type   :bashketball/examine-cards
-                                            :player :team/HOME
-                                            :count  3})
+                                         :player :team/HOME
+                                         :count  3})
         event   (last (:events updated))]
     (is (= :bashketball/examine-cards (:type event)))
     (is (= 3 (:requested-count event)))
@@ -1184,8 +1184,8 @@
   (let [game    (-> (state/create-game test-config)
                     (actions/do-action {:type :bashketball/draw-cards :player :team/HOME :count 4}))
         updated (actions/do-action game {:type   :bashketball/examine-cards
-                                            :player :team/HOME
-                                            :count  3})]
+                                         :player :team/HOME
+                                         :count  3})]
     (testing "examines available cards only"
       (is (= 1 (count (state/get-examined updated :team/HOME)))))
 
@@ -1200,18 +1200,18 @@
 (deftest resolve-examined-to-top-test
   (let [game     (state/create-game test-config)
         examined (actions/do-action game {:type   :bashketball/examine-cards
-                                             :player :team/HOME
-                                             :count  3})
+                                          :player :team/HOME
+                                          :count  3})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/do-action examined
-                                       {:type       :bashketball/resolve-examined-cards
-                                        :player     :team/HOME
-                                        :placements [{:instance-id (:instance-id (nth cards 2))
-                                                      :destination :examine/TOP}
-                                                     {:instance-id (:instance-id (nth cards 0))
-                                                      :destination :examine/TOP}
-                                                     {:instance-id (:instance-id (nth cards 1))
-                                                      :destination :examine/DISCARD}]})]
+                                    {:type       :bashketball/resolve-examined-cards
+                                     :player     :team/HOME
+                                     :placements [{:instance-id (:instance-id (nth cards 2))
+                                                   :destination :examine/TOP}
+                                                  {:instance-id (:instance-id (nth cards 0))
+                                                   :destination :examine/TOP}
+                                                  {:instance-id (:instance-id (nth cards 1))
+                                                   :destination :examine/DISCARD}]})]
     (testing "examined zone cleared"
       (is (empty? (state/get-examined resolved :team/HOME))))
 
@@ -1226,16 +1226,16 @@
 (deftest resolve-examined-to-bottom-test
   (let [game     (state/create-game test-config)
         examined (actions/do-action game {:type   :bashketball/examine-cards
-                                             :player :team/HOME
-                                             :count  2})
+                                          :player :team/HOME
+                                          :count  2})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/do-action examined
-                                       {:type       :bashketball/resolve-examined-cards
-                                        :player     :team/HOME
-                                        :placements [{:instance-id (:instance-id (first cards))
-                                                      :destination :examine/BOTTOM}
-                                                     {:instance-id (:instance-id (second cards))
-                                                      :destination :examine/BOTTOM}]})]
+                                    {:type       :bashketball/resolve-examined-cards
+                                     :player     :team/HOME
+                                     :placements [{:instance-id (:instance-id (first cards))
+                                                   :destination :examine/BOTTOM}
+                                                  {:instance-id (:instance-id (second cards))
+                                                   :destination :examine/BOTTOM}]})]
     (testing "cards at bottom of deck in order"
       (let [pile (state/get-draw-pile resolved :team/HOME)]
         (is (= "card-1" (:card-slug (nth pile 3))))
@@ -1244,18 +1244,18 @@
 (deftest resolve-examined-all-destinations-test
   (let [game     (state/create-game test-config)
         examined (actions/do-action game {:type   :bashketball/examine-cards
-                                             :player :team/HOME
-                                             :count  3})
+                                          :player :team/HOME
+                                          :count  3})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/do-action examined
-                                       {:type       :bashketball/resolve-examined-cards
-                                        :player     :team/HOME
-                                        :placements [{:instance-id (:instance-id (first cards))
-                                                      :destination :examine/TOP}
-                                                     {:instance-id (:instance-id (second cards))
-                                                      :destination :examine/BOTTOM}
-                                                     {:instance-id (:instance-id (nth cards 2))
-                                                      :destination :examine/DISCARD}]})]
+                                    {:type       :bashketball/resolve-examined-cards
+                                     :player     :team/HOME
+                                     :placements [{:instance-id (:instance-id (first cards))
+                                                   :destination :examine/TOP}
+                                                  {:instance-id (:instance-id (second cards))
+                                                   :destination :examine/BOTTOM}
+                                                  {:instance-id (:instance-id (nth cards 2))
+                                                   :destination :examine/DISCARD}]})]
     (testing "top card is first in draw pile"
       (is (= "card-1" (:card-slug (first (state/get-draw-pile resolved :team/HOME))))))
 
@@ -1268,18 +1268,18 @@
 (deftest resolve-examined-event-logging-test
   (let [game     (state/create-game test-config)
         examined (actions/do-action game {:type   :bashketball/examine-cards
-                                             :player :team/HOME
-                                             :count  3})
+                                          :player :team/HOME
+                                          :count  3})
         cards    (state/get-examined examined :team/HOME)
         resolved (actions/do-action examined
-                                       {:type       :bashketball/resolve-examined-cards
-                                        :player     :team/HOME
-                                        :placements [{:instance-id (:instance-id (first cards))
-                                                      :destination :examine/TOP}
-                                                     {:instance-id (:instance-id (second cards))
-                                                      :destination :examine/BOTTOM}
-                                                     {:instance-id (:instance-id (nth cards 2))
-                                                      :destination :examine/DISCARD}]})
+                                    {:type       :bashketball/resolve-examined-cards
+                                     :player     :team/HOME
+                                     :placements [{:instance-id (:instance-id (first cards))
+                                                   :destination :examine/TOP}
+                                                  {:instance-id (:instance-id (second cards))
+                                                   :destination :examine/BOTTOM}
+                                                  {:instance-id (:instance-id (nth cards 2))
+                                                   :destination :examine/DISCARD}]})
         event    (last (:events resolved))]
     (is (= :bashketball/resolve-examined-cards (:type event)))
     (is (= 3 (count (:resolved-placements event))))
@@ -1290,33 +1290,33 @@
 (deftest resolve-examined-missing-placements-throws-test
   (let [game     (state/create-game test-config)
         examined (actions/do-action game {:type   :bashketball/examine-cards
-                                             :player :team/HOME
-                                             :count  3})
+                                          :player :team/HOME
+                                          :count  3})
         cards    (state/get-examined examined :team/HOME)]
     (is (thrown-with-msg?
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Placements must include all examined cards"
          (actions/do-action examined
-                               {:type       :bashketball/resolve-examined-cards
-                                :player     :team/HOME
-                                :placements [{:instance-id (:instance-id (first cards))
-                                              :destination :examine/TOP}]})))))
+                            {:type       :bashketball/resolve-examined-cards
+                             :player     :team/HOME
+                             :placements [{:instance-id (:instance-id (first cards))
+                                           :destination :examine/TOP}]})))))
 
 (deftest resolve-examined-extra-placements-throws-test
   (let [game     (state/create-game test-config)
         examined (actions/do-action game {:type   :bashketball/examine-cards
-                                             :player :team/HOME
-                                             :count  2})
+                                          :player :team/HOME
+                                          :count  2})
         cards    (state/get-examined examined :team/HOME)]
     (is (thrown-with-msg?
          #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
          #"Placements must include all examined cards"
          (actions/do-action examined
-                               {:type       :bashketball/resolve-examined-cards
-                                :player     :team/HOME
-                                :placements [{:instance-id (:instance-id (first cards))
-                                              :destination :examine/TOP}
-                                             {:instance-id (:instance-id (second cards))
-                                              :destination :examine/TOP}
-                                             {:instance-id "fake-id"
-                                              :destination :examine/DISCARD}]})))))
+                            {:type       :bashketball/resolve-examined-cards
+                             :player     :team/HOME
+                             :placements [{:instance-id (:instance-id (first cards))
+                                           :destination :examine/TOP}
+                                          {:instance-id (:instance-id (second cards))
+                                           :destination :examine/TOP}
+                                          {:instance-id "fake-id"
+                                           :destination :examine/DISCARD}]})))))

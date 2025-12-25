@@ -138,20 +138,20 @@
       (is (some? (:registry result))))))
 
 (deftest apply-action-fires-after-trigger-test
-  (let [fired? (atom false)
-        _      (fx/register-effect! :test/mark-fired
-                                    (fn [state _params _ctx _opts]
-                                      (reset! fired? true)
-                                      (fx/success state [])))
+  (let [fired?   (atom false)
+        _        (fx/register-effect! :test/mark-fired
+                                      (fn [state _params _ctx _opts]
+                                        (reset! fired? true)
+                                        (fx/success state [])))
         game     (fixtures/base-game-state)
         registry (-> (triggers/create-registry)
                      (triggers/register-trigger
-                       {:event-types #{:bashketball/set-phase.after}
-                        :timing :polix.triggers.timing/after
-                        :effect {:type :test/mark-fired}}
-                       "test-ability"
-                       :team/HOME
-                       fixtures/home-player-1))
+                      {:event-types #{:bashketball/set-phase.after}
+                       :timing :polix.triggers.timing/after
+                       :effect {:type :test/mark-fired}}
+                      "test-ability"
+                      :team/HOME
+                      fixtures/home-player-1))
         result   (actions/apply-action {:state game :registry registry}
                                        {:type :bashketball/set-phase :phase :phase/ACTIONS})]
 
@@ -162,22 +162,22 @@
       (is (= :phase/ACTIONS (state/get-phase (:state result)))))))
 
 (deftest apply-action-before-trigger-can-prevent-test
-  (let [_      (fx/register-effect! :test/prevent
-                                    (fn [state _params _ctx _opts]
-                                      {:state state
-                                       :applied []
-                                       :failed []
-                                       :pending nil
-                                       :prevented? true}))
+  (let [_        (fx/register-effect! :test/prevent
+                                      (fn [state _params _ctx _opts]
+                                        {:state state
+                                         :applied []
+                                         :failed []
+                                         :pending nil
+                                         :prevented? true}))
         game     (fixtures/base-game-state)
         registry (-> (triggers/create-registry)
                      (triggers/register-trigger
-                       {:event-types #{:bashketball/set-phase.before}
-                        :timing :polix.triggers.timing/before
-                        :effect {:type :test/prevent}}
-                       "test-ability"
-                       :team/HOME
-                       fixtures/home-player-1))
+                      {:event-types #{:bashketball/set-phase.before}
+                       :timing :polix.triggers.timing/before
+                       :effect {:type :test/prevent}}
+                      "test-ability"
+                      :team/HOME
+                      fixtures/home-player-1))
         result   (actions/apply-action {:state game :registry registry}
                                        {:type :bashketball/set-phase :phase :phase/ACTIONS})]
 
@@ -188,22 +188,22 @@
       (is (= :phase/SETUP (state/get-phase (:state result)))))))
 
 (deftest apply-action-trigger-with-condition-test
-  (let [fired? (atom false)
-        _      (fx/register-effect! :test/conditional-fire
-                                    (fn [state _params _ctx _opts]
-                                      (reset! fired? true)
-                                      (fx/success state [])))
+  (let [fired?   (atom false)
+        _        (fx/register-effect! :test/conditional-fire
+                                      (fn [state _params _ctx _opts]
+                                        (reset! fired? true)
+                                        (fx/success state [])))
         game     (fixtures/base-game-state)
         registry (-> (triggers/create-registry)
                      (triggers/register-trigger
-                       {:event-types #{:bashketball/set-phase.after}
-                        :timing :polix.triggers.timing/after
+                      {:event-types #{:bashketball/set-phase.after}
+                       :timing :polix.triggers.timing/after
                         ;; Condition: phase must be :phase/ACTIONS
-                        :condition [:= :doc/phase [:literal :phase/ACTIONS]]
-                        :effect {:type :test/conditional-fire}}
-                       "test-ability"
-                       :team/HOME
-                       fixtures/home-player-1))]
+                       :condition [:= :doc/phase [:literal :phase/ACTIONS]]
+                       :effect {:type :test/conditional-fire}}
+                      "test-ability"
+                      :team/HOME
+                      fixtures/home-player-1))]
 
     (testing "trigger fires when condition matches"
       (reset! fired? false)
@@ -226,13 +226,13 @@
         game        (fixtures/base-game-state)
         registry    (-> (triggers/create-registry)
                         (triggers/register-trigger
-                          {:event-types #{:bashketball/set-phase.after}
-                           :timing :polix.triggers.timing/after
-                           :once? true
-                           :effect {:type :test/count-fires}}
-                          "once-ability"
-                          :team/HOME
-                          fixtures/home-player-1))
+                         {:event-types #{:bashketball/set-phase.after}
+                          :timing :polix.triggers.timing/after
+                          :once? true
+                          :effect {:type :test/count-fires}}
+                         "once-ability"
+                         :team/HOME
+                         fixtures/home-player-1))
         result1     (actions/apply-action {:state game :registry registry}
                                           {:type :bashketball/set-phase :phase :phase/ACTIONS})
         result2     (actions/apply-action {:state (:state result1) :registry (:registry result1)}

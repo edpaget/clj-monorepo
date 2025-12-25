@@ -73,17 +73,17 @@
      :prevented? false}
     (let [events        (triggers/action->events state action)
           before-result (triggers/fire-bashketball-event
-                          {:state state :registry registry}
-                          (:before events))]
+                         {:state state :registry registry}
+                         (:before events))]
       (if (:prevented? before-result)
         {:state state
          :registry (:registry before-result)
          :prevented? true}
         (let [new-state    (apply-action-impl (:state before-result) action)
               after-result (triggers/fire-bashketball-event
-                             {:state new-state
-                              :registry (:registry before-result)}
-                             (:after events))]
+                            {:state new-state
+                             :registry (:registry before-result)}
+                            (:after events))]
           {:state (:state after-result)
            :registry (:registry after-result)
            :prevented? false})))))
