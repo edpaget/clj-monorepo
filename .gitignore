@@ -25,6 +25,8 @@ package-lock.json
 *.md
 !bashketball-game-ui/content/**/*.md
 !bashketball-game-ui/test/fixtures/**/*.md
+!polix/README.md
+!polix/SPECIFICATION.md
 
 # Benchmark results
 **/benchmark-results.json
