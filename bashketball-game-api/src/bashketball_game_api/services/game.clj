@@ -227,7 +227,8 @@
                                          card      (when card-slug
                                                      (catalog/get-card card-catalog card-slug))]
                                      (:fate card)))
-                  new-state      (-> (game-actions/apply-action hydrated-state action)
+                  new-state      (-> (game-actions/apply-action {:state hydrated-state :registry nil} action)
+                                     :state
                                      strip-hydrated-cards)
                   updated-game   (in-transaction tx-manager
                                                  (let [seq-num (game-event/next-sequence-num game-event-repo game-id)]
