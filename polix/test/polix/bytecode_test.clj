@@ -3,8 +3,8 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [polix.bytecode.class-generator :as cg]
-   [polix.optimized.evaluator :as opt]
-   [polix.compiler :as c]))
+   [polix.compiler :as c]
+   [polix.optimized.evaluator :as opt]))
 
 (defn- compile-policy
   "Helper to compile a policy expression to constraint set."
@@ -102,19 +102,19 @@
     (let [policy-fn (cg/generate-policy-class (compile-policy [:not-matches :doc/name "^admin.*"]))]
       (is (contains? (policy-fn {:name "admin_user"}) [:name])))))
 
-(deftest generate-policy-class-namespaced-keyword-test
-  (testing "namespaced keyword path - satisfied"
-    (let [policy-fn (cg/generate-policy-class (compile-policy [:= :doc/user/role "admin"]))]
-      ;; :doc/user/role becomes path [:user/role] - a single namespaced keyword
-      (is (= {} (policy-fn {:user/role "admin"})))))
+(deftest generate-policy-class-nested-path-test
+  (testing "nested path - satisfied"
+    (let [policy-fn (cg/generate-policy-class (compile-policy [:= :doc/user.role "admin"]))]
+      ;; :doc/user.role becomes path [:user :role] - nested document access
+      (is (= {} (policy-fn {:user {:role "admin"}})))))
 
-  (testing "namespaced keyword path - conflict"
-    (let [policy-fn (cg/generate-policy-class (compile-policy [:= :doc/user/role "admin"]))]
-      (is (contains? (policy-fn {:user/role "guest"}) [:user/role]))))
+  (testing "nested path - conflict"
+    (let [policy-fn (cg/generate-policy-class (compile-policy [:= :doc/user.role "admin"]))]
+      (is (contains? (policy-fn {:user {:role "guest"}}) [:user :role]))))
 
-  (testing "namespaced keyword path - open"
-    (let [policy-fn (cg/generate-policy-class (compile-policy [:= :doc/user/role "admin"]))]
-      (is (contains? (policy-fn {}) [:user/role])))))
+  (testing "nested path - open"
+    (let [policy-fn (cg/generate-policy-class (compile-policy [:= :doc/user.role "admin"]))]
+      (is (contains? (policy-fn {}) [:user :role])))))
 
 (deftest compile-policy-tier-selection-test
   (testing "auto-selects T3 for eligible policies"
@@ -132,15 +132,15 @@
 (deftest bytecode-vs-closure-equivalence-test
   (testing "bytecode and closure produce identical results"
     (let [constraint-set (compile-policy [:and [:= :doc/role "admin"]
-                                               [:> :doc/level 5]])
-          t3 (opt/compile-policy constraint-set {:tier :t3})
-          t2 (opt/compile-policy constraint-set {:tier :t2})
-          docs [{:role "admin" :level 10}
-                {:role "admin" :level 3}
-                {:role "guest" :level 10}
-                {:role "admin"}
-                {:level 10}
-                {}]]
+                                          [:> :doc/level 5]])
+          t3             (opt/compile-policy constraint-set {:tier :t3})
+          t2             (opt/compile-policy constraint-set {:tier :t2})
+          docs           [{:role "admin" :level 10}
+                          {:role "admin" :level 3}
+                          {:role "guest" :level 10}
+                          {:role "admin"}
+                          {:level 10}
+                          {}]]
       (doseq [doc docs]
         (is (= (opt/evaluate t2 doc) (opt/evaluate t3 doc))
             (str "Mismatch for doc: " doc))))))

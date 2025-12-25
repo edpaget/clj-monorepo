@@ -4,7 +4,7 @@
    [bashketball-game.polix.fixtures :as fixtures]
    [bashketball-game.state :as state]
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [polix-effects.core :as fx]))
+   [polix.effects.core :as fx]))
 
 (use-fixtures :once
   (fn [f]
