@@ -13,7 +13,7 @@
 
   Registers:
   - Bashketball operators with polix (see [[operators/register-operators!]])
-  - Bashketball effects with polix-effects (see [[effects/register-effects!]])
+  - Bashketball effects with polix (see [[effects/register-effects!]])
 
   Call once at application startup before evaluating any policies or
   applying any effects. Safe to call multiple times - operators and effects

@@ -1,5 +1,5 @@
 (ns bashketball-game.polix.effects
-  "Bashketball-specific effects for polix-effects.
+  "Bashketball-specific effects for polix.
 
   Registers effects that wrap existing action handlers. Effects are declarative
   descriptions of state mutations that can be stored in card EDN and resolved
@@ -9,7 +9,7 @@
   reusing validation and event logging."
   (:require
    [bashketball-game.actions :as actions]
-   [polix-effects.core :as fx]))
+   [polix.effects.core :as fx]))
 
 (defn- resolve-param
   "Resolves a parameter value from context bindings.
@@ -37,7 +37,7 @@
     param))
 
 (defn register-effects!
-  "Registers all bashketball effects with polix-effects.
+  "Registers all bashketball effects with polix.
 
   Call once at application startup before applying any effects.
 

@@ -5,8 +5,7 @@
   thheller/shadow-cljs {:mvn/version "3.2.1"}
   metosin/malli {:mvn/version "0.20.0"}
   local/bashketball-schemas {:local/root "../bashketball-schemas"}
-  local/polix {:local/root "../polix"}
-  local/polix-effects {:local/root "../polix-effects"}}
+  local/polix {:local/root "../polix"}}
  :aliases
  {:dev
   {:extra-paths ["dev"]
