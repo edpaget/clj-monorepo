@@ -766,3 +766,32 @@
           result   (unify/unify [:auth/check] {:role "admin"}
                                 {:registry registry :params {:role "admin"}})]
       (is (= {} result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Literal Wrapper Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest literal-wrapper-equality-satisfied-test
+  (testing "literal wrapper returns value unchanged"
+    (let [result (unify/unify [:= :doc/phase [:literal :phase/ACTIONS]]
+                              {:phase :phase/ACTIONS})]
+      (is (= {} result)))))
+
+(deftest literal-wrapper-equality-conflict-test
+  (testing "literal wrapper creates conflict on mismatch"
+    (let [result (unify/unify [:= :doc/phase [:literal :phase/ACTIONS]]
+                              {:phase :phase/SETUP})]
+      (is (res/has-conflicts? result)))))
+
+(deftest literal-wrapper-residual-test
+  (testing "literal wrapper returns residual when doc key missing"
+    (let [result (unify/unify [:= :doc/phase [:literal :phase/ACTIONS]] {})]
+      (is (res/residual? result))
+      (is (= {[:phase] [[:= :phase/ACTIONS]]} result)))))
+
+(deftest literal-wrapper-in-condition-test
+  (testing "literal wrapper in AND condition"
+    (let [result (unify/unify [:and [:= :doc/phase [:literal :phase/ACTIONS]]
+                                    [:= :doc/active true]]
+                              {:phase :phase/ACTIONS :active true})]
+      (is (= {} result)))))

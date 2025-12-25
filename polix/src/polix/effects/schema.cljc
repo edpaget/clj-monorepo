@@ -214,12 +214,39 @@
 ;;; Effect Multi-Schema
 ;;; ---------------------------------------------------------------------------
 
+(def CustomEffect
+  "Schema for domain-specific effects. Requires `:type` and allows any keys."
+  [:map
+   [:type :keyword]])
+
+(def ^:private built-in-effect-types
+  "Set of built-in effect type keywords."
+  #{:polix.effects/noop
+    :polix.effects/sequence
+    :polix.effects/assoc-in
+    :polix.effects/update-in
+    :polix.effects/dissoc-in
+    :polix.effects/merge-in
+    :polix.effects/conj-in
+    :polix.effects/remove-in
+    :polix.effects/move
+    :polix.effects/transaction
+    :polix.effects/let
+    :polix.effects/conditional})
+
+(defn- effect-dispatch
+  "Dispatches on effect type, falling back to ::custom for unknown types."
+  [effect]
+  (let [t (:type effect)]
+    (if (built-in-effect-types t) t ::custom)))
+
 (def Effect
   "Multi-schema dispatching on `:type` to validate effect structures.
 
-  Built-in effects use the `:polix.effects/*` namespace. The schema is
-  extensible - domain-specific effects can be added to the registry."
-  [:multi {:dispatch :type}
+  Built-in effects use the `:polix.effects/*` namespace. Domain-specific effects
+  use their own namespace (e.g., `:bashketball/draw-cards`) and are validated by
+  the [[CustomEffect]] schema."
+  [:multi {:dispatch effect-dispatch}
    ;; Control flow
    [:polix.effects/noop NoopEffect]
    [:polix.effects/sequence SequenceEffect]
@@ -235,7 +262,9 @@
    ;; Composite
    [:polix.effects/transaction TransactionEffect]
    [:polix.effects/let LetEffect]
-   [:polix.effects/conditional ConditionalEffect]])
+   [:polix.effects/conditional ConditionalEffect]
+   ;; Custom domain effects
+   [::custom CustomEffect]])
 
 ;;; ---------------------------------------------------------------------------
 ;;; Registry Setup

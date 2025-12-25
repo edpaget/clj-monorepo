@@ -49,5 +49,8 @@
     (is (some? (schema/explain {:type :polix.effects/sequence})))))
 
 (deftest unknown-effect-type-test
-  (testing "unknown effect type fails validation"
-    (is (some? (schema/explain {:type :unknown/effect})))))
+  (testing "unknown effect type passes validation (as CustomEffect)"
+    (is (schema/valid? {:type :unknown/effect})))
+
+  (testing "effect without :type key fails validation"
+    (is (some? (schema/explain {:path [:x] :value 1})))))

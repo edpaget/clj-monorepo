@@ -66,11 +66,11 @@
       (is (= 1 (count (:failed result))))
       (is (= :invalid-effect (-> result :failed first :error)))))
 
-  (testing "unknown effect type fails schema validation"
+  (testing "unknown effect type passes schema validation but fails execution"
     (let [result (fx/apply-effect {} {:type :unknown/effect})]
       (is (= {} (:state result)))
       (is (= 1 (count (:failed result))))
-      (is (= :invalid-effect (-> result :failed first :error)))))
+      (is (= :unknown-effect-type (-> result :failed first :error)))))
 
   (testing "unknown effect type with validation disabled returns unknown-effect-type error"
     (let [result (fx/apply-effect {} {:type :unknown/effect} {} {:validate? false})]

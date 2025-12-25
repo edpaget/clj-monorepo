@@ -53,9 +53,11 @@
   "Replays a sequence of actions to rebuild game state.
 
   Takes an initial game state and a sequence of actions (without timestamps),
-  applies each action in order, and returns the final state."
+  applies each action in order, and returns the final state.
+
+  Uses [[actions/do-action]] since triggers should not fire during replay."
   [initial-state actions]
-  (reduce actions/apply-action initial-state actions))
+  (reduce actions/do-action initial-state actions))
 
 (defn actions-from-events
   "Extracts the action data from events (removes :timestamp).

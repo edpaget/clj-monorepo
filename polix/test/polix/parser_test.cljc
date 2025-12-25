@@ -131,8 +131,8 @@
 (deftest extract-param-keys-multiple-test
   (testing "extracting multiple params"
     (let [ast (r/unwrap (parser/parse-policy [:and
-                                               [:= :doc/role :param/role]
-                                               [:> :doc/level :param/min-level]]))]
+                                              [:= :doc/role :param/role]
+                                              [:> :doc/level :param/min-level]]))]
       (is (= #{:role :min-level} (parser/extract-param-keys ast))))))
 
 (deftest extract-param-keys-empty-test
@@ -143,13 +143,13 @@
 (deftest extract-param-keys-in-quantifier-test
   (testing "params in quantifier body are extracted"
     (let [ast (r/unwrap (parser/parse-policy [:forall [:u :doc/users]
-                                               [:= :u/role :param/required-role]]))]
+                                              [:= :u/role :param/required-role]]))]
       (is (= #{:required-role} (parser/extract-param-keys ast))))))
 
 (deftest extract-param-keys-in-let-binding-test
   (testing "params in let binding expr are extracted"
     (let [ast (r/unwrap (parser/parse-policy [:let [:x :param/threshold]
-                                               [:> :doc/value :self/x]]))]
+                                              [:> :doc/value :self/x]]))]
       (is (= #{:threshold} (parser/extract-param-keys ast))))))
 
 (deftest extract-param-keys-nested-test
@@ -629,3 +629,52 @@
     (is (not (parser/binding-accessor? :fn/count)))
     (is (parser/binding-accessor? :u/value))
     (is (parser/binding-accessor? :custom/field))))
+
+;;; ---------------------------------------------------------------------------
+;;; Literal Wrapper Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest parse-literal-wrapper-keyword-test
+  (testing "parses namespaced keyword as literal"
+    (let [result (parser/parse-policy [:literal :phase/ACTIONS])]
+      (is (r/ok? result))
+      (let [node (r/unwrap result)]
+        (is (= ::ast/literal (:type node)))
+        (is (= :phase/ACTIONS (:value node)))))))
+
+(deftest parse-literal-wrapper-various-values-test
+  (testing "parses string as literal"
+    (let [result (parser/parse-policy [:literal "hello"])]
+      (is (r/ok? result))
+      (is (= "hello" (:value (r/unwrap result))))))
+  (testing "parses number as literal"
+    (let [result (parser/parse-policy [:literal 42])]
+      (is (r/ok? result))
+      (is (= 42 (:value (r/unwrap result))))))
+  (testing "parses map as literal"
+    (let [result (parser/parse-policy [:literal {:key "value"}])]
+      (is (r/ok? result))
+      (is (= {:key "value"} (:value (r/unwrap result))))))
+  (testing "parses set as literal"
+    (let [result (parser/parse-policy [:literal #{:a :b :c}])]
+      (is (r/ok? result))
+      (is (= #{:a :b :c} (:value (r/unwrap result)))))))
+
+(deftest parse-literal-wrapper-in-comparison-test
+  (testing "literal wrapper in comparison expression"
+    (let [result (parser/parse-policy [:= :doc/phase [:literal :phase/ACTIONS]])]
+      (is (r/ok? result))
+      (let [ast (r/unwrap result)]
+        (is (= ::ast/function-call (:type ast)))
+        (is (= ::ast/literal (:type (second (:children ast)))))
+        (is (= :phase/ACTIONS (:value (second (:children ast)))))))))
+
+(deftest parse-literal-wrapper-error-cases-test
+  (testing "rejects empty literal"
+    (let [result (parser/parse-policy [:literal])]
+      (is (r/error? result))
+      (is (= :invalid-literal-wrapper (:error (r/unwrap result))))))
+  (testing "rejects multiple arguments"
+    (let [result (parser/parse-policy [:literal :a :b])]
+      (is (r/error? result))
+      (is (= :invalid-literal-wrapper (:error (r/unwrap result)))))))

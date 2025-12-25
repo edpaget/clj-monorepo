@@ -2,8 +2,9 @@
   "Data-driven action application with multimethod dispatch.
 
   Provides `apply-action` which validates actions against the schema,
-  dispatches to the appropriate handler, and logs the event."
+  dispatches to the appropriate handler, fires triggers, and logs the event."
   (:require [bashketball-game.board :as board]
+            [bashketball-game.polix.triggers :as triggers]
             [bashketball-game.schema :as schema]
             [bashketball-game.state :as state]
             [clojure.set :as set]
@@ -27,20 +28,11 @@
    done by the wrapper function."
   (fn [_game-state action] (:type action)))
 
-(defn apply-action
-  "Applies a validated action to game state.
+(defn- apply-action-impl
+  "Core action application logic.
 
-  Handles common bookkeeping:
-  1. Validates action against schema
-  2. Dispatches to -apply-action multimethod
-  3. Validates board invariants (no duplicate occupant IDs)
-  4. Appends action to event log with timestamp (merging any :event-data from state)
-  5. Returns new state
-
-  Actions can store additional event data by assoc'ing :event-data onto the state.
-  This data is merged into the logged event and removed from the final state.
-
-  Throws an exception if the action is invalid or if board invariants are violated."
+  Validates, dispatches to -apply-action multimethod, validates board invariants,
+  and logs the event. Returns the new state."
   [game-state action]
   (when-not (m/validate schema/Action action)
     (throw (ex-info "Invalid action"
@@ -57,6 +49,54 @@
     (-> new-state
         (dissoc :event-data)
         (update :events conj event))))
+
+(defn apply-action
+  "Applies a validated action to game state with trigger processing.
+
+  Takes a context map `{:state game-state :registry trigger-registry}` and
+  an action. Returns `{:state new-state :registry new-registry :prevented? bool}`.
+
+  Processing order:
+  1. Validates action against schema
+  2. Fires before triggers (can prevent action)
+  3. If not prevented, applies action via multimethod
+  4. Validates board invariants, logs event
+  5. Fires after triggers
+
+  The registry may be nil if no triggers are needed.
+
+  See also [[do-action]] for a simpler API when triggers aren't needed."
+  [{:keys [state registry]} action]
+  (if-not registry
+    {:state (apply-action-impl state action)
+     :registry nil
+     :prevented? false}
+    (let [events        (triggers/action->events state action)
+          before-result (triggers/fire-bashketball-event
+                          {:state state :registry registry}
+                          (:before events))]
+      (if (:prevented? before-result)
+        {:state state
+         :registry (:registry before-result)
+         :prevented? true}
+        (let [new-state    (apply-action-impl (:state before-result) action)
+              after-result (triggers/fire-bashketball-event
+                             {:state new-state
+                              :registry (:registry before-result)}
+                             (:after events))]
+          {:state (:state after-result)
+           :registry (:registry after-result)
+           :prevented? false})))))
+
+(defn do-action
+  "Applies an action to game state without trigger processing.
+
+  Simple API for when triggers aren't needed. Takes game-state and action,
+  returns new game-state.
+
+  For trigger support, use [[apply-action]] with a context map."
+  [game-state action]
+  (apply-action-impl game-state action))
 
 ;; -----------------------------------------------------------------------------
 ;; Game Flow Actions

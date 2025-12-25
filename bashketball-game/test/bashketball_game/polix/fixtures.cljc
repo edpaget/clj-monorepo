@@ -38,39 +38,39 @@
 (defn with-player-at
   "Places a player at the given position."
   [game-state player-id position]
-  (actions/apply-action game-state
-                        {:type :bashketball/move-player
-                         :player-id player-id
-                         :position position}))
+  (actions/do-action game-state
+                     {:type :bashketball/move-player
+                      :player-id player-id
+                      :position position}))
 
 (defn with-exhausted
   "Marks a player as exhausted."
   [game-state player-id]
-  (actions/apply-action game-state
-                        {:type :bashketball/exhaust-player
-                         :player-id player-id}))
+  (actions/do-action game-state
+                     {:type :bashketball/exhaust-player
+                      :player-id player-id}))
 
 (defn with-ball-possessed
   "Sets the ball as possessed by a player."
   [game-state player-id]
-  (actions/apply-action game-state
-                        {:type :bashketball/set-ball-possessed
-                         :holder-id player-id}))
+  (actions/do-action game-state
+                     {:type :bashketball/set-ball-possessed
+                      :holder-id player-id}))
 
 (defn with-ball-loose
   "Sets the ball as loose at a position."
   [game-state position]
-  (actions/apply-action game-state
-                        {:type :bashketball/set-ball-loose
-                         :position position}))
+  (actions/do-action game-state
+                     {:type :bashketball/set-ball-loose
+                      :position position}))
 
 (defn with-drawn-cards
   "Draws cards for a team."
   [game-state team count]
-  (actions/apply-action game-state
-                        {:type :bashketball/draw-cards
-                         :player team
-                         :count count}))
+  (actions/do-action game-state
+                     {:type :bashketball/draw-cards
+                      :player team
+                      :count count}))
 
 (def home-player-1 "HOME-orc-center-0")
 (def home-player-2 "HOME-elf-point-guard-1")

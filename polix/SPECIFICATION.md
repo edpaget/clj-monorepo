@@ -263,6 +263,37 @@ The `:complex` operator marks constraints that cannot be inverted or simplified,
 
 Operators are extensible. Applications register domain-specific operators that integrate with the evaluation and constraint-solving machinery. Each operator defines how to evaluate it forward, how to negate it for inverse evaluation, and optionally how to simplify combinations of constraints using that operator.
 
+### Literal Values
+
+By default, polix interprets namespaced keywords according to their namespace:
+
+- `:doc/key` — document accessor
+- `:self/key` — self-reference accessor
+- `:param/key` — parameter accessor
+- `:event/key` — event accessor
+- Other namespaced keywords — binding accessors (for quantifier bindings)
+
+When you need to use a namespaced keyword as a literal value (not an accessor), wrap it with `:literal`:
+
+```clojure
+;; Without wrapper: :phase/ACTIONS interpreted as binding accessor
+[:= :doc/phase :phase/ACTIONS]  ; WRONG - looks for binding :phase
+
+;; With wrapper: :phase/ACTIONS used as literal keyword value
+[:= :doc/phase [:literal :phase/ACTIONS]]  ; CORRECT
+```
+
+The `:literal` wrapper accepts any Clojure value:
+
+```clojure
+[:literal :phase/ACTIONS]      ; namespaced keyword
+[:literal "string"]            ; string (same as bare string)
+[:literal {:key "value"}]      ; map
+[:literal #{:a :b :c}]         ; set
+```
+
+Non-namespaced keywords and other values don't require wrapping — they're already treated as literals. The wrapper is only necessary for namespaced keywords that would otherwise be interpreted as accessors.
+
 ### Quantifiers
 
 Policies can reason about collections using quantifiers. The universal quantifier (`forall`) requires all elements to satisfy a condition. The existential quantifier (`exists`) requires at least one element to satisfy it.

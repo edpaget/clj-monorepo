@@ -93,6 +93,16 @@
   (and (vector? form)
        (= :let (first form))))
 
+(defn- literal-wrapper?
+  "Returns `true` if `form` is a `[:literal value]` wrapper.
+
+  Literal wrappers force the inner value to be treated as a literal,
+  bypassing accessor classification. Useful for namespaced keywords
+  that would otherwise be interpreted as binding accessors."
+  [form]
+  (and (vector? form)
+       (= :literal (first form))))
+
 (declare parse-policy)
 
 (defn parse-doc-path
@@ -459,6 +469,27 @@
                                     [(r/unwrap body-result)]
                                     {:bindings (r/unwrap binding-results)}))))))))))
 
+(defn- parse-literal-wrapper
+  "Parses a `[:literal value]` expression.
+
+  Returns the value as an `::ast/literal` node, bypassing accessor
+  classification. Any Clojure value is valid: keywords, strings,
+  numbers, collections.
+
+      (parse-literal-wrapper [:literal :phase/ACTIONS] [0 0])
+      ;=> {:ok #ASTNode{:type ::ast/literal :value :phase/ACTIONS}}
+
+  Returns `{:ok ast-node}` on success or `{:error error-map}` on failure."
+  [form position]
+  (if (not= 2 (count form))
+    (r/error {:error :invalid-literal-wrapper
+              :message ":literal requires exactly one argument"
+              :position position
+              :form form})
+    (r/ok (ast/ast-node ::ast/literal
+                        (second form)
+                        position))))
+
 (defn parse-policy
   "Parses a policy DSL expression `expr` into an AST.
 
@@ -490,6 +521,9 @@
 
        (let-binding? expr)
        (parse-let-binding expr position)
+
+       (literal-wrapper? expr)
+       (parse-literal-wrapper expr position)
 
        (policy-reference? expr)
        (parse-policy-reference expr position)
