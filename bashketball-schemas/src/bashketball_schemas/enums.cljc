@@ -91,10 +91,12 @@
   "Card subtype enumeration for special card classifications.
 
    - `:card-subtype/UNIQUE` - Unique cards (deck limit of 1)
-   - `:card-subtype/BASIC` - Basic cards"
+   - `:card-subtype/BASIC` - Basic cards
+   - `:card-subtype/RESPONSE` - Response assets (played face-down)"
   [:enum {:graphql/type :CardSubtype}
    :card-subtype/UNIQUE
-   :card-subtype/BASIC])
+   :card-subtype/BASIC
+   :card-subtype/RESPONSE])
 
 (def PlayerSubtype
   "Player subtype enumeration for fantasy creature types.

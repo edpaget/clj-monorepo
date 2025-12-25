@@ -14,9 +14,11 @@
    For more granular imports, use the specific namespaces:
    - [[bashketball-schemas.enums]] - Enum definitions
    - [[bashketball-schemas.card]] - Card type schemas
+   - [[bashketball-schemas.effect]] - Effect definition schemas
    - [[bashketball-schemas.user]] - User schema
    - [[bashketball-schemas.game]] - API-level game schemas"
   (:require [bashketball-schemas.card :as card]
+            [bashketball-schemas.effect :as effect]
             [bashketball-schemas.enums :as enums]
             [bashketball-schemas.game :as game]
             [bashketball-schemas.types :as types]
@@ -158,3 +160,47 @@
 (def GameUser
   "Minimal user info for games. See [[game/GameUser]]."
   game/GameUser)
+
+;; =============================================================================
+;; Effect Schemas
+;; =============================================================================
+
+(def PolicyExpr
+  "Polix policy expression. See [[effect/PolicyExpr]]."
+  effect/PolicyExpr)
+
+(def TriggerDef
+  "Trigger configuration. See [[effect/TriggerDef]]."
+  effect/TriggerDef)
+
+(def EffectDef
+  "Effect definition. See [[effect/EffectDef]]."
+  effect/EffectDef)
+
+(def AbilityDef
+  "Ability definition for player/ability cards. See [[effect/AbilityDef]]."
+  effect/AbilityDef)
+
+(def PlayDef
+  "Play card effect definition. See [[effect/PlayDef]]."
+  effect/PlayDef)
+
+(def ActionModeDef
+  "Standard action/split play mode definition. See [[effect/ActionModeDef]]."
+  effect/ActionModeDef)
+
+(def CallDef
+  "Coaching card call mode definition. See [[effect/CallDef]]."
+  effect/CallDef)
+
+(def SignalDef
+  "Coaching card signal mode definition. See [[effect/SignalDef]]."
+  effect/SignalDef)
+
+(def AssetPowerDef
+  "Team asset power definition. See [[effect/AssetPowerDef]]."
+  effect/AssetPowerDef)
+
+(def ResponseDef
+  "Response asset definition. See [[effect/ResponseDef]]."
+  effect/ResponseDef)

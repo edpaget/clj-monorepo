@@ -4,6 +4,7 @@
   Provides `apply-action` which validates actions against the schema,
   dispatches to the appropriate handler, fires triggers, and logs the event."
   (:require [bashketball-game.board :as board]
+            [bashketball-game.polix.card-effects :as card-effects]
             [bashketball-game.polix.triggers :as triggers]
             [bashketball-game.schema :as schema]
             [bashketball-game.state :as state]
@@ -50,23 +51,32 @@
         (dissoc :event-data)
         (update :events conj event))))
 
+(def ^:private lifecycle-actions
+  "Actions that affect trigger lifecycle and require registry updates."
+  #{:bashketball/substitute :bashketball/attach-ability :bashketball/detach-ability})
+
 (defn apply-action
   "Applies a validated action to game state with trigger processing.
 
-  Takes a context map `{:state game-state :registry trigger-registry}` and
-  an action. Returns `{:state new-state :registry new-registry :prevented? bool}`.
+  Takes a context map and an action. Returns
+  `{:state new-state :registry new-registry :prevented? bool}`.
+
+  Context map keys:
+  - `:state` - current game state (required)
+  - `:registry` - trigger registry (optional, nil disables triggers)
+  - `:catalog` - effect catalog for ability lookups (optional, needed for
+                 lifecycle actions like substitute, attach-ability, detach-ability)
 
   Processing order:
   1. Validates action against schema
   2. Fires before triggers (can prevent action)
   3. If not prevented, applies action via multimethod
-  4. Validates board invariants, logs event
-  5. Fires after triggers
-
-  The registry may be nil if no triggers are needed.
+  4. Updates registry for lifecycle actions (substitute, attach, detach)
+  5. Validates board invariants, logs event
+  6. Fires after triggers
 
   See also [[do-action]] for a simpler API when triggers aren't needed."
-  [{:keys [state registry]} action]
+  [{:keys [state registry catalog]} action]
   (if-not registry
     {:state (apply-action-impl state action)
      :registry nil
@@ -79,10 +89,15 @@
         {:state state
          :registry (:registry before-result)
          :prevented? true}
-        (let [new-state    (apply-action-impl (:state before-result) action)
+        (let [old-state    (:state before-result)
+              new-state    (apply-action-impl old-state action)
+              ;; Update registry for lifecycle actions
+              updated-reg  (if (and catalog (lifecycle-actions (:type action)))
+                             (card-effects/update-registry-for-action
+                              (:registry before-result) catalog old-state new-state action)
+                             (:registry before-result))
               after-result (triggers/fire-bashketball-event
-                            {:state new-state
-                             :registry (:registry before-result)}
+                            {:state new-state :registry updated-reg}
                             (:after events))]
           {:state (:state after-result)
            :registry (:registry after-result)

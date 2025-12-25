@@ -7,6 +7,7 @@
    The [[Card]] multi-schema dispatches on `:card-type` to validate against
    the appropriate type-specific schema."
   (:require
+   [bashketball-schemas.effect :as effect]
    [bashketball-schemas.enums :as enums]
    [bashketball-schemas.types :as types]
    [malli.util :as mu]))
@@ -41,7 +42,7 @@
   "Fields specific to player cards.
 
    Stats range from 1-10. Size affects gameplay mechanics.
-   Abilities are string identifiers for special powers.
+   Abilities are structured definitions with triggers and effects.
    Player subtypes indicate the fantasy creature type."
   [:map
    [:sht :int]
@@ -49,58 +50,70 @@
    [:def :int]
    [:speed :int]
    [:size enums/Size]
-   [:abilities [:vector :string]]
+   [:abilities {:optional true} [:vector effect/AbilityDef]]
    [:player-subtypes [:vector {:min 1} enums/PlayerSubtype]]
    [:deck-size {:optional true} :int]])
 
 (def AbilityCardFields
   "Fields specific to ability cards.
 
-  `:removable` indicates whether the card can be detached after being attached
-  to a player. Defaults to true if omitted.
+   Ability cards attach to players and grant new abilities.
 
-  `:detach-destination` specifies where the card goes when detached:
-  `:detach/DISCARD` (default) or `:detach/REMOVED`."
+   - `:removable` - Whether the card can be detached (default: true)
+   - `:detach-destination` - Where card goes on detach: `:detach/DISCARD` or `:detach/REMOVED`"
   [:map
    [:fate :int]
-   [:abilities [:vector :string]]
+   [:abilities [:vector effect/AbilityDef]]
    [:removable {:optional true} :boolean]
    [:detach-destination {:optional true} [:enum {:graphql/type :DetachDestination} :detach/DISCARD :detach/REMOVED]]])
 
 (def PlayCardFields
-  "Fields specific to play cards."
+  "Fields specific to play cards.
+
+   Play cards have a single effect that executes when the card resolves."
   [:map
    [:fate :int]
-   [:play :string]])
+   [:play effect/PlayDef]])
 
 (def ActionCardFields
-  "Fields specific to standard action cards."
+  "Fields specific to standard action cards.
+
+   Standard actions have two modes (offense and defense). When played,
+   the player chooses ONE mode to execute."
   [:map
    [:fate :int]
-   [:offense {:optional true} [:maybe :string]]
-   [:defense {:optional true} [:maybe :string]]])
+   [:offense {:optional true} effect/ActionModeDef]
+   [:defense {:optional true} effect/ActionModeDef]])
 
 (def SplitPlayCardFields
-  "Fields specific to split play cards."
+  "Fields specific to split play cards.
+
+   Like standard actions, split plays have two modes. When played,
+   the player chooses ONE mode to execute."
   [:map
    [:fate :int]
-   [:offense :string]
-   [:defense :string]])
+   [:offense effect/ActionModeDef]
+   [:defense effect/ActionModeDef]])
 
 (def CoachingCardFields
   "Fields specific to coaching cards.
 
-   `:signal` is an optional effect triggered during the signal phase."
+   Coaching cards have two modes:
+   - `:call` - Primary effect when played normally
+   - `:signal` - Smaller effect triggered when discarded as fuel for another card"
   [:map
    [:fate :int]
-   [:coaching :string]
-   [:signal {:optional true} [:maybe :string]]])
+   [:call effect/CallDef]
+   [:signal {:optional true} effect/SignalDef]])
 
 (def TeamAssetCardFields
-  "Fields specific to team asset cards."
+  "Fields specific to team asset cards.
+
+   Assets persist in the asset area and provide ongoing effects.
+   Response assets (with `:card-subtype/RESPONSE`) are played face-down."
   [:map
    [:fate {:optional true} :int]
-   [:asset-power :string]])
+   [:asset-power effect/AssetPowerDef]])
 
 (def PlayerCard
   "Schema for player cards representing basketball players."
