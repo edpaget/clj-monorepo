@@ -20,20 +20,40 @@
    :pending nil})
 
 (defn failure
-  "Creates a failed result with the original state and error information."
-  [state effect error message]
+  "Creates a failed result with the original state and error information.
+
+  Optionally accepts a details map for additional context (e.g., conflict info)."
+  ([state effect error message]
+   {:state state
+    :applied []
+    :failed [{:effect effect :error error :message message}]
+    :pending nil})
+  ([state effect error message details]
+   {:state state
+    :applied []
+    :failed [{:effect effect :error error :message message :details details}]
+    :pending nil}))
+
+(defn pending
+  "Creates a pending result for deferred effects.
+
+  Used when a conditional effect has an open residual and `:on-residual :defer`
+  strategy. The caller can re-evaluate when more data becomes available."
+  [state effect residual]
   {:state state
    :applied []
-   :failed [{:effect effect :error error :message message}]
-   :pending nil})
+   :failed []
+   :pending {:effect effect :residual residual :type :deferred}})
 
 (defn merge-results
-  "Merges two results, combining applied and failed vectors."
+  "Merges two results, combining applied, failed, and speculative vectors."
   [r1 r2]
   {:state (:state r2)
    :applied (into (:applied r1) (:applied r2))
    :failed (into (:failed r1) (:failed r2))
-   :pending (or (:pending r2) (:pending r1))})
+   :pending (or (:pending r2) (:pending r1))
+   :speculative-conditions (into (or (:speculative-conditions r1) [])
+                                 (or (:speculative-conditions r2) []))})
 
 ;;; ---------------------------------------------------------------------------
 ;;; Multimethod Dispatch
@@ -166,27 +186,59 @@
 ;;; Composite Handlers
 ;;; ---------------------------------------------------------------------------
 
+(defn- validate-speculations
+  "Checks if any speculative conditions have become conflicts.
+
+  Returns nil if all speculations are still valid, or the first conflicting
+  speculation info if any have become conflicts."
+  [state speculative-conditions]
+  (first
+   (for [{:keys [condition]} speculative-conditions
+         :let [new-result (polix/unify condition state)]
+         :when (polix/has-conflicts? new-result)]
+     {:condition condition :conflict-residual new-result})))
+
 (defmethod -apply-effect :polix.effects/transaction
-  [state {:keys [effects]} ctx opts]
-  (let [result (reduce
-                (fn [{:keys [state applied failed]} effect]
-                  (if (seq failed)
-                    {:state state :applied applied :failed failed}
-                    (let [r (-apply-effect state effect ctx opts)]
-                      {:state   (:state r)
-                       :applied (into applied (:applied r))
-                       :failed  (into failed (:failed r))})))
-                {:state state :applied [] :failed []}
-                effects)]
-    (if (seq (:failed result))
-      {:state   state
-       :applied []
-       :failed  (:failed result)
-       :pending nil}
-      {:state   (:state result)
-       :applied (:applied result)
-       :failed  []
-       :pending nil})))
+  [state {:keys [effects on-failure] :as tx-effect} ctx opts]
+  (let [failure-strategy (or on-failure :rollback)]
+    (loop [remaining     effects
+           current-state state
+           applied       []
+           speculative   []]
+      (if (empty? remaining)
+        ;; Done - validate speculations
+        (if-let [conflict (validate-speculations current-state speculative)]
+          (failure state tx-effect :speculation-conflict
+                   "Speculative condition became conflict" conflict)
+          {:state current-state :applied applied :failed [] :pending nil})
+
+        (let [effect        (first remaining)
+              effect-result (-apply-effect current-state effect ctx opts)]
+          (cond
+            ;; Pending - propagate up, rollback
+            (:pending effect-result)
+            {:state state :applied [] :failed []
+             :pending (:pending effect-result)}
+
+            ;; Failed
+            (seq (:failed effect-result))
+            (case failure-strategy
+              :rollback {:state state :applied [] :pending nil
+                         :failed (:failed effect-result)}
+              :partial  {:state current-state :applied applied :pending nil
+                         :failed (:failed effect-result)})
+
+            ;; Success - check speculations against new state
+            :else
+            (let [new-specs (into speculative
+                                  (or (:speculative-conditions effect-result) []))]
+              (if-let [conflict (validate-speculations (:state effect-result) new-specs)]
+                (failure state tx-effect :speculation-conflict
+                         "Speculation invalidated by effect" conflict)
+                (recur (rest remaining)
+                       (:state effect-result)
+                       (into applied (:applied effect-result))
+                       new-specs)))))))))
 
 (defmethod -apply-effect :polix.effects/let
   [state {:keys [bindings effect]} ctx opts]
@@ -200,12 +252,49 @@
     (-apply-effect state effect new-ctx opts)))
 
 (defmethod -apply-effect :polix.effects/conditional
-  [state {:keys [condition then else] :as effect} ctx opts]
-  (let [result (polix/unify condition state)]
-    (if (polix/satisfied? result)
+  [state {:keys [condition then else on-residual] :as effect} ctx opts]
+  (let [result   (polix/unify condition state)
+        strategy (or on-residual :block)]
+    (cond
+      ;; Satisfied - apply then branch
+      (polix/satisfied? result)
       (if then
         (-apply-effect state then ctx opts)
         (success state [effect]))
+
+      ;; Conflict - apply else branch
+      (polix/has-conflicts? result)
       (if else
         (-apply-effect state else ctx opts)
-        (success state [effect])))))
+        (success state [effect]))
+
+      ;; Open residual - handle by strategy
+      :else
+      (case strategy
+        :block
+        (if else
+          (-apply-effect state else ctx opts)
+          (success state [effect]))
+
+        :defer
+        (pending state effect result)
+
+        :proceed
+        (if then
+          (let [r (-apply-effect state then ctx opts)]
+            (update r :applied
+                    (fn [apps] (mapv #(assoc % :condition-residual result) apps))))
+          (success state [effect]))
+
+        :speculate
+        (if then
+          (let [r (-apply-effect state then ctx opts)]
+            (-> r
+                (update :applied
+                        (fn [apps]
+                          (mapv #(assoc % :speculative? true
+                                        :speculation-condition condition
+                                        :condition-residual result) apps)))
+                (update :speculative-conditions (fnil conj [])
+                        {:condition condition :residual result})))
+          (success state [effect]))))))

@@ -59,7 +59,21 @@
   [:map
    [:effect :map]
    [:error :keyword]
-   [:message {:optional true} :string]])
+   [:message {:optional true} :string]
+   [:details {:optional true} :map]])
+
+(def PendingInfo
+  "Information about a deferred effect awaiting re-evaluation."
+  [:map
+   [:effect :map]
+   [:residual :map]
+   [:type [:= :deferred]]])
+
+(def SpeculativeCondition
+  "A condition that was speculatively assumed true."
+  [:map
+   [:condition :any]
+   [:residual :map]])
 
 (def Result
   "The result of applying an effect.
@@ -67,12 +81,14 @@
   - `:state` - The new state after applying the effect
   - `:applied` - Vector of effects that were successfully applied
   - `:failed` - Vector of failure entries
-  - `:pending` - Nil, or pending choice info for `:polix.effects/choice` effects"
+  - `:pending` - Nil, or pending info for deferred effects
+  - `:speculative-conditions` - Conditions assumed true for speculation"
   [:map
    [:state :any]
    [:applied [:vector :map]]
    [:failed [:vector Failure]]
-   [:pending [:maybe :map]]])
+   [:pending [:maybe PendingInfo]]
+   [:speculative-conditions {:optional true} [:vector SpeculativeCondition]]])
 
 ;;; ---------------------------------------------------------------------------
 ;;; Effect Schemas
@@ -147,11 +163,20 @@
 ;;; Composite Effect Schemas
 ;;; ---------------------------------------------------------------------------
 
+(def FailureStrategy
+  "How to handle transaction failures."
+  [:enum :rollback :partial])
+
 (def TransactionEffect
-  "Applies effects atomically, rolling back on failure."
+  "Applies effects atomically, rolling back on failure.
+
+  Options:
+  - `:on-failure` - `:rollback` (default) reverts to original state,
+    `:partial` keeps successfully applied effects."
   [:map
    [:type [:= :polix.effects/transaction]]
-   [:effects [:vector [:ref ::Effect]]]])
+   [:effects [:vector [:ref ::Effect]]]
+   [:on-failure {:optional true} FailureStrategy]])
 
 (def LetEffect
   "Binds values for use in a nested effect."
@@ -160,17 +185,30 @@
    [:bindings [:vector :any]]
    [:effect [:ref ::Effect]]])
 
+(def ResidualStrategy
+  "How to handle open residual (uncertain) conditions.
+
+  - `:block` - Execute else branch (default, current behavior)
+  - `:defer` - Return pending info for later re-evaluation
+  - `:proceed` - Execute then branch, attach residual to result
+  - `:speculate` - Execute then branch, mark as speculative for rollback"
+  [:enum :block :defer :proceed :speculate])
+
 (def ConditionalEffect
   "Evaluates a polix policy condition and applies then or else effect.
 
   The condition is a polix policy expression evaluated against the current state.
-  If true, applies the `:then` effect. If false or residual, applies the `:else`
-  effect. Both branches are optional - if missing, acts as noop for that branch."
+  If satisfied, applies `:then`. If conflict, applies `:else`. If residual (open
+  constraints from missing data), behavior depends on `:on-residual` strategy.
+
+  Options:
+  - `:on-residual` - How to handle open residuals (default `:block`)"
   [:map
    [:type [:= :polix.effects/conditional]]
    [:condition :any]
    [:then {:optional true} [:ref ::Effect]]
-   [:else {:optional true} [:ref ::Effect]]])
+   [:else {:optional true} [:ref ::Effect]]
+   [:on-residual {:optional true} ResidualStrategy]])
 
 ;;; ---------------------------------------------------------------------------
 ;;; Effect Multi-Schema
