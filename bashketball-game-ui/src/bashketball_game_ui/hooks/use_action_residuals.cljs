@@ -92,3 +92,40 @@
   []
   (let [{:keys [move-targets]} (use-action-residuals)]
     move-targets))
+
+(defn use-skill-test-state
+  "Returns the current skill test and choice state for UI rendering.
+
+  Returns nil when no test/choice is active, or a map with:
+  - `:test` - the pending skill test (if any)
+  - `:phase` - :awaiting-fate, :fate-revealed, or :awaiting-choice
+  - `:choice` - the pending choice (if any)
+  - `:waiting-for` - team that needs to respond to choice"
+  []
+  (let [game-state (s/use-game-state)]
+    (use-memo
+     #(when game-state
+        (let [test   (:pending-skill-test game-state)
+              choice (:pending-choice game-state)]
+          (when (or test choice)
+            {:test        test
+             :phase       (cond
+                            choice :awaiting-choice
+                            (and test (:fate test)) :fate-revealed
+                            test :awaiting-fate
+                            :else nil)
+             :choice      choice
+             :waiting-for (:waiting-for choice)})))
+     [game-state])))
+
+(defn use-skill-test-active?
+  "Returns true if there's a skill test in progress."
+  []
+  (let [skill-test-state (use-skill-test-state)]
+    (some? (:test skill-test-state))))
+
+(defn use-choice-pending?
+  "Returns true if there's a choice awaiting player input."
+  []
+  (let [skill-test-state (use-skill-test-state)]
+    (some? (:choice skill-test-state))))

@@ -9,6 +9,7 @@
             [bashketball-game.schema :as schema]
             [bashketball-game.state :as state]
             [clojure.set :as set]
+            [clojure.string :as str]
             [malli.core :as m]))
 
 (defn- now
@@ -303,6 +304,91 @@
   [state _action]
   ;; This action only logs to events, no state change
   state)
+
+;; -----------------------------------------------------------------------------
+;; Skill Test Actions
+
+(defn- stat->stats-key
+  "Converts a stat keyword to the corresponding stats map key.
+  e.g. :stat/SHOOTING -> :shooting"
+  [stat]
+  (-> stat name str/lower-case keyword))
+
+(defmethod -apply-action :bashketball/initiate-skill-test
+  [state {:keys [actor-id stat target-value context]}]
+  (let [player     (state/get-basketball-player state actor-id)
+        stats-key  (stat->stats-key stat)
+        base-value (get-in player [:stats stats-key] 0)]
+    (assoc state :pending-skill-test
+           {:id           (generate-id)
+            :actor-id     actor-id
+            :stat         stat
+            :base-value   base-value
+            :modifiers    []
+            :fate         nil
+            :total        nil
+            :target-value target-value
+            :context      context})))
+
+(defmethod -apply-action :bashketball/modify-skill-test
+  [state {:keys [source amount reason]}]
+  (when-not (:pending-skill-test state)
+    (throw (ex-info "No pending skill test to modify"
+                    {:source source :amount amount})))
+  (update-in state [:pending-skill-test :modifiers]
+             conj (cond-> {:source source :amount amount}
+                    reason (assoc :reason reason))))
+
+(defmethod -apply-action :bashketball/set-skill-test-fate
+  [state {:keys [fate]}]
+  (when-not (:pending-skill-test state)
+    (throw (ex-info "No pending skill test to set fate"
+                    {:fate fate})))
+  (assoc-in state [:pending-skill-test :fate] fate))
+
+(defmethod -apply-action :bashketball/resolve-skill-test
+  [state _action]
+  (when-not (:pending-skill-test state)
+    (throw (ex-info "No pending skill test to resolve" {})))
+  (let [{:keys [base-value modifiers fate]} (:pending-skill-test state)
+        modifier-total (reduce + 0 (map :amount modifiers))
+        total          (+ base-value modifier-total (or fate 0))]
+    (-> state
+        (assoc-in [:pending-skill-test :total] total)
+        (assoc :event-data {:skill-test (assoc (:pending-skill-test state) :total total)}))))
+
+(defmethod -apply-action :bashketball/clear-skill-test
+  [state _action]
+  (dissoc state :pending-skill-test))
+
+;; -----------------------------------------------------------------------------
+;; Choice Actions
+
+(defmethod -apply-action :bashketball/offer-choice
+  [state {:keys [choice-type options waiting-for context]}]
+  (assoc state :pending-choice
+         {:id          (generate-id)
+          :type        choice-type
+          :options     options
+          :waiting-for waiting-for
+          :context     context}))
+
+(defmethod -apply-action :bashketball/submit-choice
+  [state {:keys [choice-id selected]}]
+  (when-not (:pending-choice state)
+    (throw (ex-info "No pending choice to submit"
+                    {:choice-id choice-id :selected selected})))
+  (when-not (= choice-id (get-in state [:pending-choice :id]))
+    (throw (ex-info "Invalid choice ID"
+                    {:expected (get-in state [:pending-choice :id])
+                     :actual   choice-id})))
+  (-> state
+      (assoc-in [:pending-choice :selected] selected)
+      (assoc :event-data {:choice-id choice-id :selected selected})))
+
+(defmethod -apply-action :bashketball/clear-choice
+  [state _action]
+  (dissoc state :pending-choice))
 
 (defn- get-card-type
   "Looks up the card-type for a card instance from the deck's card catalog."

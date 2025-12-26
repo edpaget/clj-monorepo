@@ -25,11 +25,15 @@
   - `:attach-ability-modal` - Attach ability modal state
   - `:detail-modal` - Detail modal state `{:show :close}`
   - `:create-token-modal` - Create token modal state
+    - `:skill-test-modal` - Skill test modal state `{:show :close :update}`
+    - `:send-skill-test` - Fn to send events to skill test machine
+    - `:choice-modal` - Choice modal state `{:show :close}`
 
   Returns a function that dispatches action maps to appropriate handlers."
   [{:keys [actions my-team get-ball-holder-position get-game-state
            get-selection-data send get-discard-machine send-discard
-           fate-reveal attach-ability-modal detail-modal create-token-modal]}]
+           fate-reveal attach-ability-modal detail-modal create-token-modal
+           skill-test-modal send-skill-test choice-modal]}]
   (fn dispatch [{:keys [type from to] :as action}]
     (case type
       ;; === State machine actions (selection) ===
@@ -218,6 +222,48 @@
       :close-attach-modal
       (when attach-ability-modal
         ((:close attach-ability-modal)))
+
+      ;; === Skill Test actions ===
+      :reveal-skill-test-fate
+      (when (and skill-test-modal send-skill-test)
+        (-> ((:reveal-fate actions) my-team)
+            (.then (fn [result]
+                     (when-let [fate (-> result :data :submit-action :revealed-fate)]
+                       (send-skill-test {:type :reveal-fate
+                                         :data {:fate fate}}))))))
+
+      :resolve-skill-test
+      (when send-skill-test
+        (send-skill-test {:type :complete}))
+
+      :clear-skill-test
+      (when send-skill-test
+        (send-skill-test {:type :complete}))
+
+      :show-skill-test-modal
+      (when skill-test-modal
+        ((:show skill-test-modal) (:skill-test action)))
+
+      :close-skill-test-modal
+      (when skill-test-modal
+        ((:close skill-test-modal)))
+
+      ;; === Choice actions ===
+      :submit-choice
+      (let [choice-id (:choice-id action)
+            selected  (:selected action)]
+        (when send-skill-test
+          (send-skill-test {:type :submit-choice
+                            :data {:selected selected}}))
+        ((:submit-choice actions) choice-id selected))
+
+      :show-choice-modal
+      (when choice-modal
+        ((:show choice-modal) (:choice action)))
+
+      :close-choice-modal
+      (when choice-modal
+        ((:close choice-modal)))
 
       ;; Unknown action - silently ignore
       nil)))

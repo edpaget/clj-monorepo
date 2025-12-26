@@ -49,7 +49,10 @@
   - `:bashketball/loose-ball` - Set ball loose at position
   - `:bashketball/draw-cards` - Draw cards from deck
   - `:bashketball/discard-cards` - Discard cards by instance IDs
-  - `:bashketball/add-score` - Add points to a team's score"
+  - `:bashketball/add-score` - Add points to a team's score
+  - `:bashketball/initiate-skill-test` - Start a skill test for a player
+  - `:bashketball/modify-skill-test` - Add a modifier to the pending skill test
+  - `:bashketball/offer-choice` - Present a choice to a player (pauses execution)"
   []
 
   (fx/register-effect! :bashketball/move-player
@@ -122,4 +125,44 @@
                                                 :team resolved-team
                                                 :points resolved-points}
                                new-state       (actions/do-action state action)]
-                           (fx/success new-state [action])))))
+                           (fx/success new-state [action]))))
+
+  ;; Skill Test Effects
+
+  (fx/register-effect! :bashketball/initiate-skill-test
+                       (fn [state {:keys [actor-id stat target-value context]} ctx _opts]
+                         (let [resolved-actor (resolve-param actor-id ctx state)
+                               action         {:type :bashketball/initiate-skill-test
+                                               :actor-id resolved-actor
+                                               :stat stat
+                                               :target-value target-value
+                                               :context context}
+                               new-state      (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  (fx/register-effect! :bashketball/modify-skill-test
+                       (fn [state {:keys [source amount reason]} ctx _opts]
+                         (let [resolved-source (resolve-param source ctx state)
+                               resolved-amount (resolve-param amount ctx state)
+                               action          {:type :bashketball/modify-skill-test
+                                                :source resolved-source
+                                                :amount resolved-amount
+                                                :reason reason}
+                               new-state       (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  ;; Choice Effects
+
+  (fx/register-effect! :bashketball/offer-choice
+                       (fn [state {:keys [choice-type options waiting-for context]} ctx _opts]
+                         (let [resolved-team (resolve-param waiting-for ctx state)
+                               action        {:type :bashketball/offer-choice
+                                              :choice-type choice-type
+                                              :options options
+                                              :waiting-for resolved-team
+                                              :context context}
+                               new-state     (actions/do-action state action)]
+                           ;; Return with pending flag so caller knows execution should pause
+                           (assoc (fx/success new-state [action])
+                                  :pending {:type :choice
+                                            :choice-id (get-in new-state [:pending-choice :id])})))))

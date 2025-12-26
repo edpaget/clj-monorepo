@@ -108,3 +108,50 @@
   "Returns a trigger by ID, or nil if not found."
   [registry trigger-id]
   (triggers/get-trigger registry trigger-id))
+
+;;; ---------------------------------------------------------------------------
+;;; Skill Test Events
+;;; ---------------------------------------------------------------------------
+
+(defn skill-test-event
+  "Creates a skill test event.
+
+  Event types:
+  - `:bashketball/skill-test.before` - Before fate is revealed, modifiers can be added
+  - `:bashketball/skill-test.fate-revealed` - After fate drawn, more modifiers possible
+  - `:bashketball/skill-test.after` - After resolution, result is final
+
+  The event contains all pending skill test fields plus game context."
+  [game-state event-suffix]
+  (when-let [test (:pending-skill-test game-state)]
+    (merge test
+           {:type (keyword "bashketball" (str "skill-test." event-suffix))
+            :turn-number (:turn-number game-state)
+            :active-player (:active-player game-state)
+            :phase (:phase game-state)})))
+
+(defn fire-skill-test-event
+  "Fires a skill test event with full game context.
+
+  Returns `{:state :registry :prevented? :results}` from trigger processing.
+  If no pending skill test exists, returns state unchanged with no triggers fired."
+  [{:keys [state registry]} event-suffix]
+  (if-let [event (skill-test-event state event-suffix)]
+    (fire-bashketball-event {:state state :registry registry} event)
+    {:state state :registry registry :prevented? false :results []}))
+
+(defn choice-event
+  "Creates a choice event.
+
+  Event types:
+  - `:bashketball/choice.offered` - A choice was presented to a player
+  - `:bashketball/choice.submitted` - A player submitted their choice
+
+  The event contains pending choice fields plus game context."
+  [game-state event-suffix]
+  (when-let [choice (:pending-choice game-state)]
+    (merge choice
+           {:type (keyword "bashketball" (str "choice." event-suffix))
+            :turn-number (:turn-number game-state)
+            :active-player (:active-player game-state)
+            :phase (:phase game-state)})))

@@ -33,7 +33,14 @@
   - `:player-team` - Team that owns the player
   - `:count-on-court` - Count of on-court players for a team
   - `:card-in-hand?` - Whether card instance is in team's hand
-  - `:actions-remaining` - Actions remaining for a team"
+  - `:actions-remaining` - Actions remaining for a team
+  - `:skill-test-active?` - Whether there's a pending skill test
+  - `:skill-test-stat` - Stat being tested
+  - `:skill-test-actor` - Player ID performing the test
+  - `:skill-test-base` - Base stat value
+  - `:skill-test-total-modifiers` - Sum of all modifier amounts
+  - `:choice-pending?` - Whether there's a pending choice
+  - `:choice-waiting-for` - Team that needs to respond to the choice"
   []
 
   (op/register-operator! :hex-distance
@@ -89,7 +96,40 @@
 
   (op/register-operator! :actions-remaining
                          {:eval (fn [game-state team]
-                                  (get-in game-state [:players team :actions-remaining] 0))}))
+                                  (get-in game-state [:players team :actions-remaining] 0))})
+
+  ;; Skill Test Operators
+
+  (op/register-operator! :skill-test-active?
+                         {:eval (fn [game-state]
+                                  (some? (:pending-skill-test game-state)))})
+
+  (op/register-operator! :skill-test-stat
+                         {:eval (fn [game-state]
+                                  (get-in game-state [:pending-skill-test :stat]))})
+
+  (op/register-operator! :skill-test-actor
+                         {:eval (fn [game-state]
+                                  (get-in game-state [:pending-skill-test :actor-id]))})
+
+  (op/register-operator! :skill-test-base
+                         {:eval (fn [game-state]
+                                  (get-in game-state [:pending-skill-test :base-value]))})
+
+  (op/register-operator! :skill-test-total-modifiers
+                         {:eval (fn [game-state]
+                                  (let [modifiers (get-in game-state [:pending-skill-test :modifiers])]
+                                    (reduce + 0 (map :amount modifiers))))})
+
+  ;; Choice Operators
+
+  (op/register-operator! :choice-pending?
+                         {:eval (fn [game-state]
+                                  (some? (:pending-choice game-state)))})
+
+  (op/register-operator! :choice-waiting-for
+                         {:eval (fn [game-state]
+                                  (get-in game-state [:pending-choice :waiting-for]))}))
 
 (defn hex-distance
   "Computes hex distance between two positions.
@@ -150,3 +190,53 @@
   Convenience wrapper for use in tests and direct calls."
   [game-state team]
   (get-in game-state [:players team :actions-remaining] 0))
+
+(defn skill-test-active?
+  "Returns true if there's a pending skill test.
+
+  Convenience wrapper for use in tests and direct calls."
+  [game-state]
+  (some? (:pending-skill-test game-state)))
+
+(defn skill-test-stat
+  "Returns the stat being tested, or nil if no pending test.
+
+  Convenience wrapper for use in tests and direct calls."
+  [game-state]
+  (get-in game-state [:pending-skill-test :stat]))
+
+(defn skill-test-actor
+  "Returns the player ID performing the test, or nil if no pending test.
+
+  Convenience wrapper for use in tests and direct calls."
+  [game-state]
+  (get-in game-state [:pending-skill-test :actor-id]))
+
+(defn skill-test-base
+  "Returns the base stat value for the test, or nil if no pending test.
+
+  Convenience wrapper for use in tests and direct calls."
+  [game-state]
+  (get-in game-state [:pending-skill-test :base-value]))
+
+(defn skill-test-total-modifiers
+  "Returns the sum of all modifier amounts, or 0 if no pending test.
+
+  Convenience wrapper for use in tests and direct calls."
+  [game-state]
+  (let [modifiers (get-in game-state [:pending-skill-test :modifiers])]
+    (reduce + 0 (map :amount modifiers))))
+
+(defn choice-pending?
+  "Returns true if there's a pending choice awaiting player input.
+
+  Convenience wrapper for use in tests and direct calls."
+  [game-state]
+  (some? (:pending-choice game-state)))
+
+(defn choice-waiting-for
+  "Returns the team that needs to respond to the pending choice, or nil.
+
+  Convenience wrapper for use in tests and direct calls."
+  [game-state]
+  (get-in game-state [:pending-choice :waiting-for]))

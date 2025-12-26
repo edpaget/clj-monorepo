@@ -94,3 +94,56 @@
                self-id (assoc :self self-id)
                target-id (assoc :target target-id))
    :source source})
+
+(defn build-skill-test-document
+  "Builds a document for skill test trigger evaluation.
+
+  Combines:
+  - Game document fields (`:doc/*`)
+  - Skill test fields (`:test/*`)
+  - Actor context (`:self/*`) for the player performing the test
+
+  The test fields include:
+  - `:test/id` - Unique skill test identifier
+  - `:test/stat` - Stat being tested (:stat/SHOOTING, etc.)
+  - `:test/type` - Test type from context (:shoot, :pass, etc.)
+  - `:test/base-value` - Base stat value
+  - `:test/modifiers` - Vector of modifier maps
+  - `:test/fate` - Fate value (nil until revealed)
+  - `:test/total` - Computed total (nil until resolved)
+  - `:test/target-value` - Target number to beat (optional)"
+  [game-state]
+  (if-let [test (:pending-skill-test game-state)]
+    (merge (build-game-document game-state)
+           {:test/id (:id test)
+            :test/actor-id (:actor-id test)
+            :test/stat (:stat test)
+            :test/type (get-in test [:context :type])
+            :test/base-value (:base-value test)
+            :test/modifiers (:modifiers test)
+            :test/fate (:fate test)
+            :test/total (:total test)
+            :test/target-value (:target-value test)}
+           (build-player-context game-state (:actor-id test)))
+    (build-game-document game-state)))
+
+(defn build-choice-document
+  "Builds a document for choice-related trigger evaluation.
+
+  Combines:
+  - Game document fields (`:doc/*`)
+  - Choice fields (`:choice/*`)
+
+  The choice fields include:
+  - `:choice/id` - Unique choice identifier
+  - `:choice/type` - Choice type keyword
+  - `:choice/waiting-for` - Team that needs to respond
+  - `:choice/selected` - Selected option (after submission)"
+  [game-state]
+  (if-let [choice (:pending-choice game-state)]
+    (merge (build-game-document game-state)
+           {:choice/id (:id choice)
+            :choice/type (:type choice)
+            :choice/waiting-for (:waiting-for choice)
+            :choice/selected (:selected choice)})
+    (build-game-document game-state)))

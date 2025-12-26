@@ -243,6 +243,76 @@
    [:source {:optional true} :string]
    [:data {:optional true} :map]])
 
+;; -----------------------------------------------------------------------------
+;; Skill Test Schemas
+
+(def SkillTestModifier
+  "A modifier applied to a pending skill test.
+
+  Modifiers are added by triggers during the skill test flow and accumulated
+  into the final total. The `:source` identifies what added the modifier
+  (e.g., ability ID, card slug) for display and debugging."
+  [:map {:graphql/type :SkillTestModifier}
+   [:source :string]
+   [:amount :int]
+   [:reason {:optional true} :string]])
+
+(def SkillTestContext
+  "Context describing what initiated a skill test.
+
+  Provides the trigger system with information about the test type and
+  relevant entities for condition evaluation."
+  [:map {:graphql/type :SkillTestContext}
+   [:type :keyword]
+   [:origin {:optional true} HexPosition]
+   [:target {:optional true} [:or HexPosition :string]]
+   [:defender-id {:optional true} :string]])
+
+(def PendingSkillTest
+  "A skill test in progress awaiting resolution.
+
+  The skill test flows through these stages:
+  1. Initiated with `:base-value` from player stats
+  2. Before triggers may add `:modifiers`
+  3. Fate is revealed and stored in `:fate`
+  4. After-fate triggers may add more modifiers
+  5. `:total` is computed and test resolves"
+  [:map {:graphql/type :PendingSkillTest}
+   [:id :string]
+   [:actor-id :string]
+   [:stat Stat]
+   [:base-value :int]
+   [:modifiers [:vector SkillTestModifier]]
+   [:fate {:optional true} [:maybe :int]]
+   [:total {:optional true} [:maybe :int]]
+   [:target-value {:optional true} [:maybe :int]]
+   [:context SkillTestContext]])
+
+;; -----------------------------------------------------------------------------
+;; Choice Schemas
+
+(def ChoiceOption
+  "An option presented to a player in a pending choice.
+
+  Disabled options are shown but not selectable, with `:reason` explaining why."
+  [:map {:graphql/type :ChoiceOption}
+   [:id :keyword]
+   [:label :string]
+   [:disabled {:optional true} :boolean]
+   [:reason {:optional true} :string]])
+
+(def PendingChoice
+  "A choice awaiting player input.
+
+  When a choice effect is applied, the game pauses until the player submits
+  their selection via a submit-choice action."
+  [:map {:graphql/type :PendingChoice}
+   [:id :string]
+   [:type :keyword]
+   [:options [:vector ChoiceOption]]
+   [:waiting-for Team]
+   [:context {:optional true} :map]])
+
 (def Event
   "A logged game event."
   [:map {:graphql/type :Event}
@@ -276,7 +346,9 @@
    [:play-area [:vector PlayAreaCard]]
    [:stack [:vector StackEffect]]
    [:events [:vector Event]]
-   [:metadata :map]])
+   [:metadata :map]
+   [:pending-skill-test {:optional true} [:maybe PendingSkillTest]]
+   [:pending-choice {:optional true} [:maybe PendingChoice]]])
 
 ;; -----------------------------------------------------------------------------
 ;; Action Schemas
@@ -425,6 +497,82 @@
    [:modifiers [:vector :int]]
    [:total :int]])
 
+;; -----------------------------------------------------------------------------
+;; Skill Test Actions
+
+(def InitiateSkillTestAction
+  "Action to initiate a skill test for a player.
+
+  Creates a pending skill test with the base value derived from the player's
+  stat. Triggers can then modify the test before fate is revealed."
+  [:map
+   [:type [:= :bashketball/initiate-skill-test]]
+   [:actor-id :string]
+   [:stat Stat]
+   [:target-value {:optional true} :int]
+   [:context SkillTestContext]])
+
+(def ModifySkillTestAction
+  "Action to add a modifier to the pending skill test.
+
+  Called by triggers during the before or fate-revealed phases to add
+  bonuses or penalties to the test."
+  [:map
+   [:type [:= :bashketball/modify-skill-test]]
+   [:source :string]
+   [:amount :int]
+   [:reason {:optional true} :string]])
+
+(def SetSkillTestFateAction
+  "Action to set the fate value on the pending skill test.
+
+  Called after the fate card is revealed during skill test resolution."
+  [:map
+   [:type [:= :bashketball/set-skill-test-fate]]
+   [:fate :int]])
+
+(def ResolveSkillTestAction
+  "Action to compute the final total and mark the skill test for resolution.
+
+  Sums base value, all modifiers, and fate to produce the total."
+  [:map
+   [:type [:= :bashketball/resolve-skill-test]]])
+
+(def ClearSkillTestAction
+  "Action to clear the pending skill test after resolution."
+  [:map
+   [:type [:= :bashketball/clear-skill-test]]])
+
+;; -----------------------------------------------------------------------------
+;; Choice Actions
+
+(def OfferChoiceAction
+  "Action to present a choice to a player.
+
+  Sets pending-choice in the game state, pausing execution until the
+  player submits their selection."
+  [:map
+   [:type [:= :bashketball/offer-choice]]
+   [:choice-type :keyword]
+   [:options [:vector ChoiceOption]]
+   [:waiting-for Team]
+   [:context {:optional true} :map]])
+
+(def SubmitChoiceAction
+  "Action to submit a player's choice selection.
+
+  Must match the pending choice ID. The selected option ID is recorded
+  and can be used by subsequent effects."
+  [:map
+   [:type [:= :bashketball/submit-choice]]
+   [:choice-id :string]
+   [:selected :keyword]])
+
+(def ClearChoiceAction
+  "Action to clear the pending choice after processing."
+  [:map
+   [:type [:= :bashketball/clear-choice]]])
+
 (def PlayCardAction
   "Action to play a card from hand, moving it to discard."
   [:map
@@ -570,6 +718,14 @@
    [:bashketball/clear-stack ClearStackAction]
    [:bashketball/reveal-fate RevealFateAction]
    [:bashketball/record-skill-test RecordSkillTestAction]
+   [:bashketball/initiate-skill-test InitiateSkillTestAction]
+   [:bashketball/modify-skill-test ModifySkillTestAction]
+   [:bashketball/set-skill-test-fate SetSkillTestFateAction]
+   [:bashketball/resolve-skill-test ResolveSkillTestAction]
+   [:bashketball/clear-skill-test ClearSkillTestAction]
+   [:bashketball/offer-choice OfferChoiceAction]
+   [:bashketball/submit-choice SubmitChoiceAction]
+   [:bashketball/clear-choice ClearChoiceAction]
    [:bashketball/play-card PlayCardAction]
    [:bashketball/stage-card StageCardAction]
    [:bashketball/resolve-card ResolveCardAction]
