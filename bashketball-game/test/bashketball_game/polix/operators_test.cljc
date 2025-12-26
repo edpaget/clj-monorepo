@@ -16,7 +16,7 @@
   (polix-ops/eval op (first args) (second args)))
 
 (deftest hex-distance-operator-test
-  (let [op (polix-ops/get-operator :bashketball/hex-distance)]
+  (let [op (polix-ops/get-operator :hex-distance)]
     (testing "returns 0 for same position"
       (is (= 0 (eval-op op [0 0] [0 0]))))
 
@@ -28,7 +28,7 @@
       (is (= 3 (eval-op op [0 0] [2 2]))))))
 
 (deftest distance-to-basket-operator-test
-  (let [op (polix-ops/get-operator :bashketball/distance-to-basket)]
+  (let [op (polix-ops/get-operator :distance-to-basket)]
     (testing "home team shoots at away basket [2 13]"
       (is (= 6 (eval-op op [2 7] :team/HOME))))
 
@@ -39,7 +39,7 @@
       (is (= 13 (eval-op op [2 0] :team/HOME))))))
 
 (deftest valid-position-operator-test
-  (let [op (polix-ops/get-operator :bashketball/valid-position?)]
+  (let [op (polix-ops/get-operator :valid-position?)]
     (testing "valid positions"
       (is (true? (eval-op op [0 0] nil)))
       (is (true? (eval-op op [4 13] nil)))
@@ -51,7 +51,7 @@
       (is (false? (eval-op op [0 14] nil))))))
 
 (deftest player-exhausted-operator-test
-  (let [op    (polix-ops/get-operator :bashketball/player-exhausted?)
+  (let [op    (polix-ops/get-operator :player-exhausted?)
         state (-> (fixtures/base-game-state)
                   (fixtures/with-exhausted fixtures/home-player-1))]
     (testing "returns true for exhausted player"
@@ -61,7 +61,7 @@
       (is (false? (eval-op op state fixtures/home-player-2))))))
 
 (deftest player-on-court-operator-test
-  (let [op    (polix-ops/get-operator :bashketball/player-on-court?)
+  (let [op    (polix-ops/get-operator :player-on-court?)
         state (-> (fixtures/base-game-state)
                   (fixtures/with-player-at fixtures/home-player-1 [2 3]))]
     (testing "returns true for player on court"
@@ -71,7 +71,7 @@
       (is (false? (eval-op op state fixtures/home-player-2))))))
 
 (deftest has-ball-operator-test
-  (let [op    (polix-ops/get-operator :bashketball/has-ball?)
+  (let [op    (polix-ops/get-operator :has-ball?)
         state (-> (fixtures/base-game-state)
                   (fixtures/with-ball-possessed fixtures/home-player-1))]
     (testing "returns true for player with ball"
@@ -81,7 +81,7 @@
       (is (false? (eval-op op state fixtures/home-player-2))))))
 
 (deftest player-team-operator-test
-  (let [op    (polix-ops/get-operator :bashketball/player-team)
+  (let [op    (polix-ops/get-operator :player-team)
         state (fixtures/base-game-state)]
     (testing "returns team for home player"
       (is (= :team/HOME (eval-op op state fixtures/home-player-1))))
@@ -90,7 +90,7 @@
       (is (= :team/AWAY (eval-op op state fixtures/away-player-1))))))
 
 (deftest count-on-court-operator-test
-  (let [op    (polix-ops/get-operator :bashketball/count-on-court)
+  (let [op    (polix-ops/get-operator :count-on-court)
         state (-> (fixtures/base-game-state)
                   (fixtures/with-player-at fixtures/home-player-1 [2 3])
                   (fixtures/with-player-at fixtures/home-player-2 [3 3]))]
