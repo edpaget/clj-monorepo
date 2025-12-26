@@ -30,6 +30,7 @@
   - setup-highlights: Set of valid setup placement positions [[q r] ...]
   - pass-mode: boolean, true when in pass target selection mode
   - valid-pass-targets: Set of player IDs that are valid pass targets
+  - invalid-pass-targets: Set of player IDs that are invalid pass targets (shown with muted styling)
   - ball-selected: boolean, true when ball is selected for movement
   - on-hex-click: fn [q r] called when hex clicked
   - on-player-click: fn [player-id] called when player clicked
@@ -38,8 +39,8 @@
   - on-toggle-exhausted: fn [player-id] called to toggle player exhaust status"
   [{:keys [board ball home-players away-players
            selected-player valid-moves setup-highlights pass-mode valid-pass-targets
-           ball-selected on-hex-click on-player-click on-ball-click on-target-click
-           on-toggle-exhausted]}]
+           invalid-pass-targets ball-selected on-hex-click on-player-click on-ball-click
+           on-target-click on-toggle-exhausted]}]
   (let [[width height padding] (board/board-dimensions)
         all-pos                (use-memo #(board/all-positions) [])
         holder-id              (ball-holder-id ball)
@@ -82,12 +83,13 @@
                 :let        [pos (:position player)]
                 ;; Only render players with valid [q r] positions
                 :when       (and (vector? pos) (= 2 (count pos)))
-                :let        [is-home     (contains? home-players id)
-                             team        (if is-home :team/HOME :team/AWAY)
-                             player-num  (get (if is-home home-indices away-indices) id)
-                             selected    (= id selected-player)
-                             has-ball    (= id holder-id)
-                             pass-target (and pass-mode (contains? valid-pass-targets id))]]
+                :let        [is-home            (contains? home-players id)
+                             team               (if is-home :team/HOME :team/AWAY)
+                             player-num         (get (if is-home home-indices away-indices) id)
+                             selected           (= id selected-player)
+                             has-ball           (= id holder-id)
+                             pass-target        (and pass-mode (contains? valid-pass-targets id))
+                             invalid-pass       (and pass-mode (contains? invalid-pass-targets id))]]
             ($ player-token {:key                 id
                              :player              player
                              :team                team
@@ -95,6 +97,7 @@
                              :selected            selected
                              :has-ball            has-ball
                              :pass-target         pass-target
+                             :invalid-pass-target invalid-pass
                              :on-click            on-player-click
                              :on-toggle-exhausted on-toggle-exhausted}))
 

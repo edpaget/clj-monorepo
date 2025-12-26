@@ -79,7 +79,39 @@
    ;; Active player constraints
    [[:player] [:= :_]]
    {:key :not-active-player
-    :message "It is not your turn"}})
+    :message "It is not your turn"}
+
+   ;; Ball possession constraints
+   [[:has-ball] [:= true]]
+   {:key :no-ball
+    :message "Player must have the ball"}
+
+   [[:ball-holder-on-court] [:= true]]
+   {:key :ball-holder-off-court
+    :message "Ball holder must be on the court"}
+
+   ;; Shooting constraints
+   [[:distance-to-basket] [:<= :_]]
+   {:key :out-of-range
+    :message "Too far from basket to shoot"}
+
+   ;; Pass target constraints
+   [[:target-same-team] [:= true]]
+   {:key :wrong-team
+    :message "Can only pass to teammates"}
+
+   [[:target-is-ball-holder] [:= false]]
+   {:key :is-ball-holder
+    :message "Cannot pass to the ball holder"}
+
+   [[:target-on-court] [:= true]]
+   {:key :target-off-court
+    :message "Target player must be on the court"}
+
+   ;; Refresh constraints
+   [[:player-exhausted] [:= true]]
+   {:key :player-not-exhausted
+    :message "Player is not exhausted"}})
 
 (defn- match-constraint?
   "Returns true if constraint matches the pattern.

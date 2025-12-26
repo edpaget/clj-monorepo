@@ -30,9 +30,10 @@
   - selected: boolean
   - has-ball: boolean
   - pass-target: boolean, true when this player can receive a pass
+  - invalid-pass-target: boolean, true when in pass mode but this player cannot be passed to
   - on-click: fn [player-id]
   - on-toggle-exhausted: fn [player-id] to toggle exhaust status"
-  [{:keys [player team player-num selected has-ball pass-target on-click on-toggle-exhausted]}]
+  [{:keys [player team player-num selected has-ball pass-target invalid-pass-target on-click on-toggle-exhausted]}]
   (let [position            (:position player)
         ;; Defensive: ensure position is a valid [q r] vector
         [cx cy]             (if (valid-position? position)
@@ -82,7 +83,7 @@
                      :stroke-width 2
                      :stroke-dasharray "4 2"}))
 
-       ;; Pass target indicator ring
+       ;; Pass target indicator ring (valid - green pulsing)
        (when pass-target
          ($ :circle {:cx           cx
                      :cy           cy
@@ -91,6 +92,16 @@
                      :stroke       "#22c55e"
                      :stroke-width 3
                      :class        "animate-pulse"}))
+
+       ;; Invalid pass target indicator ring (invalid - gray static)
+       (when invalid-pass-target
+         ($ :circle {:cx           cx
+                     :cy           cy
+                     :r            (+ token-radius 8)
+                     :fill         "none"
+                     :stroke       "#9ca3af"
+                     :stroke-width 2
+                     :opacity      0.5}))
 
        ;; Main player circle
        ($ :circle {:cx           cx

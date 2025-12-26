@@ -78,7 +78,8 @@
         {:keys [send]}                                        (s/use-selection)
         {:keys [home-players away-players selected-player-id
                 valid-moves valid-setup-positions pass-active
-                valid-pass-targets ball-active]}              (use-game-derived)
+                valid-pass-targets invalid-pass-target-ids
+                ball-active]}                                 (use-game-derived)
         dispatch                                              (use-dispatch)
 
         ;; Wrap selection machine events
@@ -107,21 +108,22 @@
                                                                  (dispatch {:type :toggle-exhausted :player-id player-id}))
                                                                [dispatch])]
     ($ :div {:class "flex-1 bg-white rounded-lg border border-slate-200 p-2 min-h-0"}
-       ($ hex-grid {:board               (:board game-state)
-                    :ball                (:ball game-state)
-                    :home-players        home-players
-                    :away-players        away-players
-                    :selected-player     selected-player-id
-                    :valid-moves         valid-moves
-                    :setup-highlights    valid-setup-positions
-                    :pass-mode           pass-active
-                    :valid-pass-targets  valid-pass-targets
-                    :ball-selected       ball-active
-                    :on-hex-click        on-hex-click
-                    :on-player-click     on-player-click
-                    :on-ball-click       on-ball-click
-                    :on-target-click     on-target-click
-                    :on-toggle-exhausted on-toggle-exhausted}))))
+       ($ hex-grid {:board                (:board game-state)
+                    :ball                 (:ball game-state)
+                    :home-players         home-players
+                    :away-players         away-players
+                    :selected-player      selected-player-id
+                    :valid-moves          valid-moves
+                    :setup-highlights     valid-setup-positions
+                    :pass-mode            pass-active
+                    :valid-pass-targets   valid-pass-targets
+                    :invalid-pass-targets invalid-pass-target-ids
+                    :ball-selected        ball-active
+                    :on-hex-click         on-hex-click
+                    :on-player-click      on-player-click
+                    :on-ball-click        on-ball-click
+                    :on-target-click      on-target-click
+                    :on-toggle-exhausted  on-toggle-exhausted}))))
 
 (defui play-area-section
   "Shared play area section showing staged cards awaiting resolution."

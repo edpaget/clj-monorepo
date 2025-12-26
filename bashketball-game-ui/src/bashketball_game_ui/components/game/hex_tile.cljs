@@ -26,13 +26,16 @@
   - side: :HOME, :AWAY, or nil
   - highlighted: boolean for valid move indication
   - setup-highlight: boolean for valid setup placement indication
+  - invalid-highlight: boolean for invalid move indication (muted styling)
   - selected: boolean for current selection
   - on-click: fn called when clicked"
-  [{:keys [q r terrain side highlighted setup-highlight selected on-click]}]
+  [{:keys [q r terrain side highlighted setup-highlight invalid-highlight selected on-click]}]
   (let [[cx cy]       (board/hex->pixel [q r])
         points-str    (board/hex-points-str [cx cy])
         base-colors   (get terrain-colors terrain (:court terrain-colors))
-        fill-opacity  (get-in side-modifiers [side :fill-opacity] 1.0)
+        fill-opacity  (cond
+                        invalid-highlight 0.4
+                        :else (get-in side-modifiers [side :fill-opacity] 1.0))
         any-highlight (or highlighted setup-highlight)
 
         handle-click  (use-callback
@@ -45,18 +48,25 @@
        ($ :polygon
           {:points   points-str
            :fill     (cond
-                       selected        "#a5f3fc"
-                       setup-highlight "#99f6e4"
-                       highlighted     "#bbf7d0"
-                       :else           (:fill base-colors))
+                       selected          "#a5f3fc"
+                       setup-highlight   "#99f6e4"
+                       highlighted       "#bbf7d0"
+                       invalid-highlight "#e5e7eb"
+                       :else             (:fill base-colors))
            :fill-opacity fill-opacity
            :stroke   (cond
-                       selected        "#06b6d4"
-                       setup-highlight "#14b8a6"
-                       highlighted     "#22c55e"
-                       :else           (:stroke base-colors))
-           :stroke-width (if (or selected any-highlight) 2 1)
-           :class    "cursor-pointer transition-colors hover:brightness-95"
+                       selected          "#06b6d4"
+                       setup-highlight   "#14b8a6"
+                       highlighted       "#22c55e"
+                       invalid-highlight "#9ca3af"
+                       :else             (:stroke base-colors))
+           :stroke-width (cond
+                           (or selected any-highlight) 2
+                           invalid-highlight 1
+                           :else 1)
+           :class    (cond
+                       invalid-highlight "cursor-not-allowed transition-colors"
+                       :else "cursor-pointer transition-colors hover:brightness-95")
            :on-click handle-click})
        ($ :text
           {:x           cx

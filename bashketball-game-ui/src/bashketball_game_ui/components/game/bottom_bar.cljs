@@ -4,10 +4,10 @@
   Ensures hand cards are always fully visible with horizontal scroll,
   while actions overflow into a dropdown menu when space is limited."
   (:require
+   [bashketball-game-ui.components.game.action-button-with-tooltip :refer [action-button-with-tooltip]]
    [bashketball-game-ui.components.game.player-hand :refer [player-hand]]
    [bashketball-game-ui.components.game.score-controls :as score]
    [bashketball-game-ui.components.ui.dropdown-menu :as dropdown]
-   [bashketball-ui.components.button :refer [button]]
    [bashketball-ui.utils :refer [cn]]
    [uix.core :refer [$ defui]]))
 
@@ -53,14 +53,18 @@
                   label)))))))
 
 (defui action-button
-  "Single action button with touch-friendly size."
-  [{:keys [label on-click disabled variant class]}]
-  ($ button {:variant  (or variant :outline)
-             :size     :lg
-             :on-click on-click
-             :disabled disabled
-             :class    (cn "min-h-[44px]" class)}
-     label))
+  "Single action button with touch-friendly size and optional tooltip.
+
+  When disabled with an explanation, shows a tooltip on hover explaining
+  why the action is unavailable."
+  [{:keys [label on-click disabled variant class explanation]}]
+  ($ action-button-with-tooltip
+     {:label       label
+      :on-click    on-click
+      :disabled    disabled
+      :variant     variant
+      :class       class
+      :explanation explanation}))
 
 (defui action-bar
   "Action buttons with overflow menu.
@@ -85,13 +89,14 @@
        ;; Right: action buttons
        ($ :div {:class "flex items-center gap-2 flex-shrink-0"}
           ;; Primary actions as buttons
-          (for [{:keys [id label on-click disabled variant class]} primary]
-            ($ action-button {:key      id
-                              :label    label
-                              :on-click on-click
-                              :disabled (or disabled loading)
-                              :variant  variant
-                              :class    class}))
+          (for [{:keys [id label on-click disabled variant class explanation]} primary]
+            ($ action-button {:key         id
+                              :label       label
+                              :on-click    on-click
+                              :disabled    (or disabled loading)
+                              :variant     variant
+                              :class       class
+                              :explanation explanation}))
 
           ;; Secondary actions in overflow menu
           (when (seq secondary)

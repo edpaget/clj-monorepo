@@ -4,6 +4,7 @@
   Centralizes all memoized game state computations in one place,
   making them available to any component via [[use-game-derived]]."
   (:require
+   [bashketball-game.polix.targeting :as targeting]
    [bashketball-game-ui.game.actions :as actions]
    [bashketball-game-ui.game.selectors :as sel]
    [bashketball-game-ui.hooks.selectors :as s]
@@ -153,7 +154,40 @@
             (->> (vals my-players)
                  (remove :position)
                  vec))
-         [my-players])]
+         [my-players])
+
+        ;; Residual-based action availability with explanations
+        action-statuses
+        (use-memo
+         #(when game-state
+            (targeting/get-all-action-statuses game-state my-team))
+         [game-state my-team])
+
+        ;; Residual-based move target categorization
+        move-blocked
+        (use-memo
+         #(when (and game-state selected-player-id)
+            (let [result (targeting/categorize-move-targets game-state selected-player-id)]
+              (when (:blocked result)
+                result)))
+         [game-state selected-player-id])
+
+        ;; Residual-based pass target categorization
+        pass-target-statuses
+        (use-memo
+         #(when (and game-state pass-active my-team ball-holder-id)
+            (targeting/categorize-pass-targets game-state my-team ball-holder-id))
+         [game-state pass-active my-team ball-holder-id])
+
+        ;; Set of invalid pass target IDs for styling
+        invalid-pass-target-ids
+        (use-memo
+         #(when pass-target-statuses
+            (->> pass-target-statuses
+                 (filter (fn [[_ v]] (= :invalid (:status v))))
+                 (map first)
+                 set))
+         [pass-target-statuses])]
 
     {:opponent-team         opponent-team
      :phase                 phase
@@ -180,9 +214,14 @@
      :both-teams-ready      both-teams-ready
      :my-on-court-players   my-on-court-players
      :my-off-court-players  my-off-court-players
-     :discard-active         discard-active
-     :discard-cards          discard-cards
-     :selected-card          selected-card
-     :standard-action-active standard-action-active
-     :standard-action-step   standard-action-step
-     :standard-action-cards  standard-action-cards}))
+     :discard-active           discard-active
+     :discard-cards            discard-cards
+     :selected-card            selected-card
+     :standard-action-active   standard-action-active
+     :standard-action-step     standard-action-step
+     :standard-action-cards    standard-action-cards
+     ;; Residual-based targeting
+     :action-statuses          action-statuses
+     :move-blocked             move-blocked
+     :pass-target-statuses     pass-target-statuses
+     :invalid-pass-target-ids  invalid-pass-target-ids}))
