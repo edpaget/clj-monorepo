@@ -144,12 +144,25 @@
                r)))))
 
 (defn residual?
-  "Returns true if `x` is a non-empty residual (partial satisfaction).
+  "Returns true if `x` is a residual (partial satisfaction).
 
-  A residual indicates some constraints remain unresolved, typically
-  because the document was missing required keys."
+  A residual is a map with vector keys holding constraint vectors:
+  `{[:level] [[:> 5]]}`
+
+  This distinguishes residuals from plain data maps like `{:level 5}`.
+  Documents and residuals share the same structure - vector keys indicate
+  constraints at that path."
   [x]
-  (boolean (and (map? x) (seq x))))
+  (boolean
+   (and (map? x)
+        (seq x)
+        (or
+         ;; Has special residual markers
+         (contains? x ::conflict)
+         (contains? x ::complex)
+         (contains? x ::cross-key)
+         ;; Has at least one vector key (constraint path)
+         (some vector? (keys x))))))
 
 (defn open-residual?
   "Returns true if `r` is a residual with only open (non-conflict) constraints.

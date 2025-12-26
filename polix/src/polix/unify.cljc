@@ -507,7 +507,15 @@
   (mapv #(unify-ast % document ctx) children))
 
 (defn- resolve-accessor-value
-  "Resolves the value for a doc-accessor node.
+  "Resolves the value and/or constraint for a doc-accessor node.
+
+  Documents can have constraints using vector keys (residual format):
+  `{:name \"Alice\" [:level] [[:> 5]]}`
+
+  Returns `{:found bool :value any :constraint vec}`:
+  - `:found` true if literal value exists at keyword key
+  - `:value` the literal value (when found)
+  - `:constraint` vector of constraints from vector key (when present)
 
   For document accessors, also handles computed fields (policy expressions
   stored as document values) by evaluating them lazily with cycle detection."
@@ -520,16 +528,66 @@
         (if (and bound-value (path-exists? bound-value path))
           {:found true :value (get-in bound-value path)}
           {:found false}))
-      ;; Document accessor - check for computed fields
-      (let [key (first path)]
+      ;; Document accessor - check for computed fields and constraints
+      (let [key        (first path)
+            constraint (get document path)]  ;; path is [:level], returns [[:> 5]] or nil
         (if (and key (computed-field? (get document key)))
-          {:found true :value (resolve-doc-value path document ctx)}
+          {:found true :value (resolve-doc-value path document ctx) :constraint constraint}
           (if (path-exists? document path)
-            {:found true :value (get-in document path)}
-            {:found false}))))))
+            {:found true :value (get-in document path) :constraint constraint}
+            {:found false :constraint constraint}))))))
+
+(defn- evaluate-constraint-against-value
+  "Evaluates a constraint [op value] against an actual value.
+
+  Returns :satisfied, :conflict, or :unknown."
+  [ctx constraint-tuple actual]
+  (let [[op expected] constraint-tuple
+        result (op/eval-in-context ctx {:op op :value expected} actual)]
+    (cond
+      (true? result) :satisfied
+      (false? result) :conflict
+      :else :unknown)))
+
+(defn- compose-or-evaluate
+  "Handles constraint composition when document has constraints at path.
+
+  If document has a literal value, evaluates constraints against it.
+  If no value, composes constraints into a residual."
+  [path resolved policy-constraint ctx]
+  (let [{:keys [found value constraint]} resolved
+        doc-constraints (or constraint [])]
+    (cond
+      ;; Has value: evaluate all constraints against it
+      found
+      (let [all-constraints (conj (vec doc-constraints) policy-constraint)
+            results (map #(evaluate-constraint-against-value ctx % value) all-constraints)]
+        (cond
+          ;; All satisfied
+          (every? #(= :satisfied %) results)
+          [true (res/satisfied)]
+
+          ;; At least one conflict - find first failing constraint
+          (some #(= :conflict %) results)
+          (let [failed-idx (.indexOf (vec results) :conflict)
+                failed-constraint (nth all-constraints failed-idx)]
+            [true (res/conflict-residual path failed-constraint value)])
+
+          ;; Unknown result
+          :else
+          [true {::res/complex {:path path :constraints all-constraints :value value}}]))
+
+      ;; No value: compose constraints into residual
+      :else
+      (let [all-constraints (conj (vec doc-constraints) policy-constraint)]
+        [true (res/residual path all-constraints)]))))
 
 (defn- comparison-to-residual
   "Converts a comparison function call to a residual if possible.
+
+  Handles constraint composition when documents contain constraints at paths.
+  A document `{:level 5 [:level] [[:> 0]]}` has both a value and constraint.
+  A document `{[:level] [[:> 0]]}` has only a constraint.
 
   Returns `[true result]` when handled, `[false nil]` when not applicable.
   This tuple convention distinguishes between not being able to handle
@@ -544,18 +602,11 @@
         ;; [:= :doc/key value]
         (and (= ::ast/doc-accessor left-type)
              (= ::ast/literal right-type))
-        (let [path     (:value left)
-              expected (:value right)
-              resolved (resolve-accessor-value left document ctx)]
-          (if (:found resolved)
-            (let [constraint {:op op-key :value expected}
-                  actual     (:value resolved)
-                  result     (op/eval-in-context ctx constraint actual)]
-              (cond
-                (true? result) [true (res/satisfied)]
-                (false? result) [true (res/conflict-residual path [op-key expected] actual)]
-                :else [true {::res/complex {:op op-key :ast {:left left :right right}}}]))
-            [true (res/residual path [[op-key expected]])]))
+        (let [path             (:value left)
+              expected         (:value right)
+              resolved         (resolve-accessor-value left document ctx)
+              policy-constraint [op-key expected]]
+          (compose-or-evaluate path resolved policy-constraint ctx))
 
         ;; [:= value :doc/key] - flipped
         (and (= ::ast/literal left-type)
@@ -568,16 +619,9 @@
                            :<= :>=
                            :>= :<=
                            op-key)
-              resolved   (resolve-accessor-value right document ctx)]
-          (if (:found resolved)
-            (let [constraint {:op flipped-op :value expected}
-                  actual     (:value resolved)
-                  result     (op/eval-in-context ctx constraint actual)]
-              (cond
-                (true? result) [true (res/satisfied)]
-                (false? result) [true (res/conflict-residual path [flipped-op expected] actual)]
-                :else [true {::res/complex {:op flipped-op :ast {:left left :right right}}}]))
-            [true (res/residual path [[flipped-op expected]])]))
+              resolved         (resolve-accessor-value right document ctx)
+              policy-constraint [flipped-op expected]]
+          (compose-or-evaluate path resolved policy-constraint ctx))
 
         ;; [:= :doc/a :doc/b] - cross-key comparison
         (and (= ::ast/doc-accessor left-type)
@@ -605,22 +649,13 @@
                 :else [true {::res/complex {:op op-key :cross-key true :left left-path :right right-path}}]))
 
             :else
-            [true {::cross-key [{:op         op-key
-                                 :left-path  left-path
-                                 :right-path right-path
-                                 :left-value (when left-found? (:value left-resolved))
-                                 :right-value (when right-found? (:value right-resolved))}]}]))
+            [true {::res/cross-key [{:op         op-key
+                                     :left-path  left-path
+                                     :right-path right-path
+                                     :left-value (when left-found? (:value left-resolved))
+                                     :right-value (when right-found? (:value right-resolved))}]}]))
 
         :else [false nil]))))
-
-(defn- has-unresolved?
-  "Returns true if x contains unresolved constraints (residual or complex).
-
-  Used to detect when function call arguments have unresolved parts that
-  prevent direct evaluation."
-  [x]
-  (or (res/residual? x)
-      (res/has-complex? x)))
 
 (defmethod unify-ast ::ast/function-call
   [node document ctx]
@@ -635,19 +670,15 @@
         (if handled?
           result
           (let [evaluated-args (unify-children children document ctx)]
-            (if (some has-unresolved? evaluated-args)
-              {::res/complex {:op op-key :children evaluated-args}}
-              (if-let [operator (op/get-operator-in-context ctx op-key)]
-                (let [op-result (apply op/eval operator evaluated-args)]
-                  (cond
-                    (true? op-result) (res/satisfied)
-                    ;; Operator returned false but we don't have path info for a proper conflict
-                    ;; Return a complex marker with the failure details
-                    (false? op-result) {::res/complex {:type :op-failed
-                                                       :op op-key
-                                                       :args evaluated-args}}
-                    :else op-result))
-                {::res/complex {:op op-key :children evaluated-args}}))))))))
+            (if-let [operator (op/get-operator-in-context ctx op-key)]
+              (let [op-result (apply op/eval operator evaluated-args)]
+                (cond
+                  (true? op-result) (res/satisfied)
+                  (false? op-result) {::res/complex {:type :op-failed
+                                                     :op op-key
+                                                     :args evaluated-args}}
+                  :else op-result))
+              {::res/complex {:op op-key :children evaluated-args}})))))))
 
 (defmethod unify-ast :default
   [node _document _ctx]

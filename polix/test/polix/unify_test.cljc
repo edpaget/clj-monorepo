@@ -369,7 +369,7 @@
   (testing "cross-key with left missing"
     (let [result (unify/unify [:= :doc/a :doc/b] {:b 5})]
       (is (res/residual? result))
-      (is (contains? result :polix.unify/cross-key)))))
+      (is (res/has-cross-key? result)))))
 
 (deftest cross-key-comparison-test
   (testing "cross-key greater-than satisfied"
@@ -465,13 +465,13 @@
   (testing "self accessor returns complex when key missing"
     (let [result (unify/unify [:= :self/value 5] {} {:self {}})]
       (is (res/has-complex? result))
-      (is (= {[:value] [[:self :missing]]} (first (get-in result [::res/complex :children])))))))
+      (is (= {[:value] [[:self :missing]]} (first (get-in result [::res/complex :args])))))))
 
 (deftest self-accessor-no-context-test
   (testing "self accessor returns complex when no self context"
     (let [result (unify/unify [:= :self/value 5] {} {})]
       (is (res/has-complex? result))
-      (is (= {[:value] [[:self :missing]]} (first (get-in result [::res/complex :children])))))))
+      (is (= {[:value] [[:self :missing]]} (first (get-in result [::res/complex :args])))))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Param Accessor Tests
@@ -795,3 +795,62 @@
                                [:= :doc/active true]]
                               {:phase :phase/ACTIONS :active true})]
       (is (= {} result)))))
+
+;;; ---------------------------------------------------------------------------
+;;; Document Constraint Composition Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest document-constraint-composition-test
+  (testing "document with constraint composes with policy"
+    (let [doc    {[:level] [[:> 5]]}
+          policy [:< :doc/level 10]
+          result (unify/unify policy doc)]
+      (is (res/residual? result))
+      (is (= {[:level] [[:> 5] [:< 10]]} result))))
+
+  (testing "multiple document constraints compose with policy"
+    (let [doc    {[:level] [[:> 0] [:< 100]]}
+          policy [:> :doc/level 5]
+          result (unify/unify policy doc)]
+      (is (res/residual? result))
+      (is (= {[:level] [[:> 0] [:< 100] [:> 5]]} result)))))
+
+(deftest document-literal-evaluates-test
+  (testing "document with literal value evaluates directly"
+    (let [doc    {:level 7}
+          policy [:> :doc/level 5]
+          result (unify/unify policy doc)]
+      (is (= {} result))))
+
+  (testing "document with literal violating policy produces conflict"
+    (let [doc    {:level 3}
+          policy [:> :doc/level 5]
+          result (unify/unify policy doc)]
+      (is (res/has-conflicts? result)))))
+
+(deftest document-literal-and-constraint-test
+  (testing "document with literal and constraint - all satisfied"
+    (let [doc    {:level 7 [:level] [[:> 0]]}
+          policy [:< :doc/level 10]
+          result (unify/unify policy doc)]
+      (is (= {} result))))
+
+  (testing "document with literal violating doc constraint"
+    (let [doc    {:level 3 [:level] [[:> 5]]}
+          policy [:< :doc/level 10]
+          result (unify/unify policy doc)]
+      (is (res/has-conflicts? result))))
+
+  (testing "document with literal violating policy constraint"
+    (let [doc    {:level 15 [:level] [[:> 0]]}
+          policy [:< :doc/level 10]
+          result (unify/unify policy doc)]
+      (is (res/has-conflicts? result)))))
+
+(deftest document-constraint-nested-path-test
+  (testing "nested path constraint composes"
+    (let [doc    {[:user :level] [[:> 5]]}
+          policy [:< :doc/user.level 10]
+          result (unify/unify policy doc)]
+      (is (res/residual? result))
+      (is (= {[:user :level] [[:> 5] [:< 10]]} result)))))
