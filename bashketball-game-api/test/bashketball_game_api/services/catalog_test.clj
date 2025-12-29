@@ -40,8 +40,12 @@
     :set-slug "test-set"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 4
-    :offense "Test offense"
-    :defense "Test defense"}
+    :offense {:action/id "test-offense"
+              :action/description "Test offense"
+              :action/effect {:effect/type :bashketball/shoot}}
+    :defense {:action/id "test-defense"
+              :action/description "Test defense"
+              :action/effect {:effect/type :bashketball/defend}}}
    {:slug "other-player"
     :name "Other Player"
     :set-slug "other-set"

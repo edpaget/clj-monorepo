@@ -21,7 +21,8 @@
     :def 8
     :speed 9
     :size :size/MD
-    :abilities ["clutch" "fadeaway"]}
+    :player-subtypes [:player-subtype/HUMAN]
+    :abilities [{:ability/id "clutch"} {:ability/id "fadeaway"}]}
    {:slug "shaq"
     :name "Shaquille O'Neal"
     :set-slug "base"
@@ -31,7 +32,8 @@
     :def 9
     :speed 5
     :size :size/LG
-    :abilities ["dominant-post"]}
+    :player-subtypes [:player-subtype/HUMAN]
+    :abilities [{:ability/id "dominant-post"}]}
    {:slug "mugsy-bogues"
     :name "Muggsy Bogues"
     :set-slug "base"
@@ -41,7 +43,8 @@
     :def 7
     :speed 10
     :size :size/SM
-    :abilities ["steal-master"]}
+    :player-subtypes [:player-subtype/HUMAN]
+    :abilities [{:ability/id "steal-master"}]}
    {:slug "scottie-pippen"
     :name "Scottie Pippen"
     :set-slug "base"
@@ -51,7 +54,8 @@
     :def 9
     :speed 8
     :size :size/MD
-    :abilities ["lockdown-defender"]}
+    :player-subtypes [:player-subtype/HUMAN]
+    :abilities [{:ability/id "lockdown-defender"}]}
    {:slug "elf-point-guard"
     :name "Elf Point Guard"
     :set-slug "base"
@@ -61,7 +65,8 @@
     :def 5
     :speed 10
     :size :size/SM
-    :abilities ["quick-feet"]}
+    :player-subtypes [:player-subtype/ELF]
+    :abilities [{:ability/id "quick-feet"}]}
    {:slug "dwarf-power-forward"
     :name "Dwarf Power Forward"
     :set-slug "base"
@@ -71,7 +76,8 @@
     :def 8
     :speed 4
     :size :size/MD
-    :abilities ["tough"]}
+    :player-subtypes [:player-subtype/DWARF]
+    :abilities [{:ability/id "tough"}]}
    {:slug "orc-center"
     :name "Orc Center"
     :set-slug "base"
@@ -81,7 +87,8 @@
     :def 9
     :speed 3
     :size :size/LG
-    :abilities ["intimidate"]}])
+    :player-subtypes [:player-subtype/ORC]
+    :abilities [{:ability/id "intimidate"}]}])
 
 (def test-action-cards
   "Mock action cards for testing."
@@ -90,71 +97,81 @@
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 3
-    :offense "Take a basic shot attempt"
-    :defense nil}
+    :offense {:action/id "basic-shot-offense"
+              :action/description "Take a basic shot attempt"
+              :action/effect {:effect/type :bashketball/shoot}}}
    {:slug "jump-shot"
     :name "Jump Shot"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 4
-    :offense "Take a mid-range jump shot"
-    :defense nil}
+    :offense {:action/id "jump-shot-offense"
+              :action/description "Take a mid-range jump shot"
+              :action/effect {:effect/type :bashketball/shoot}}}
    {:slug "layup"
     :name "Layup"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 5
-    :offense "Drive to the basket for a layup"
-    :defense nil}
+    :offense {:action/id "layup-offense"
+              :action/description "Drive to the basket for a layup"
+              :action/effect {:effect/type :bashketball/shoot}}}
    {:slug "drive-and-dish"
     :name "Drive and Dish"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 4
-    :offense "Drive then pass to an open teammate"
-    :defense nil}
+    :offense {:action/id "drive-and-dish-offense"
+              :action/description "Drive then pass to an open teammate"
+              :action/effect {:effect/type :bashketball/pass}}}
    {:slug "post-up"
     :name "Post Up"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 4
-    :offense "Establish position in the post"
-    :defense nil}
+    :offense {:action/id "post-up-offense"
+              :action/description "Establish position in the post"
+              :action/effect {:effect/type :bashketball/move}}}
    {:slug "pick-and-roll"
     :name "Pick and Roll"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 5
-    :offense "Run a pick and roll play"
-    :defense nil}
+    :offense {:action/id "pick-and-roll-offense"
+              :action/description "Run a pick and roll play"
+              :action/effect {:effect/type :bashketball/screen}}}
    {:slug "alley-oop"
     :name "Alley Oop"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 6
-    :offense "Throw an alley-oop pass"
-    :defense nil}
+    :offense {:action/id "alley-oop-offense"
+              :action/description "Throw an alley-oop pass"
+              :action/effect {:effect/type :bashketball/pass}}}
    {:slug "fast-break"
     :name "Fast Break"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 5
-    :offense "Push the ball in transition"
-    :defense nil}
+    :offense {:action/id "fast-break-offense"
+              :action/description "Push the ball in transition"
+              :action/effect {:effect/type :bashketball/move}}}
    {:slug "basic-pass"
     :name "Basic Pass"
     :set-slug "base"
     :card-type :card-type/STANDARD_ACTION_CARD
     :fate 2
-    :offense "Pass to a teammate"
-    :defense nil}
+    :offense {:action/id "basic-pass-offense"
+              :action/description "Pass to a teammate"
+              :action/effect {:effect/type :bashketball/pass}}}
    {:slug "special-play"
     :name "Special Play"
     :set-slug "base"
     :card-type :card-type/PLAY_CARD
     :fate 5
-    :offense "Execute a special play"
-    :defense nil}])
+    :play {:play/id "special-play"
+           :play/description "Execute a special play"
+           :play/effect {:effect/type :bashketball/special}}}])
 
 (def test-sets
   "Mock card sets for testing."

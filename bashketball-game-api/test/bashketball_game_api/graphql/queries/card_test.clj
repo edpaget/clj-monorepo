@@ -89,7 +89,7 @@
   (testing "player card returns player-specific fields"
     (let [query    "query GetCard($slug: String!) {
                    card(slug: $slug) {
-                     ... on PlayerCard { slug name sht pss def speed size abilities }
+                     ... on PlayerCard { slug name sht pss def speed size abilities { id } }
                    }
                  }"
           response (tu/graphql-request query :variables {:slug "michael-jordan"})

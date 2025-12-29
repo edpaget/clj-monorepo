@@ -62,7 +62,7 @@
 
 (deftest card-query-test
   (testing "Query single card by slug"
-    (let [result (execute-query "{ card(slug: \"michael-jordan\") { ... on PlayerCard { slug name cardType sht pss def speed size abilities } } }")]
+    (let [result (execute-query "{ card(slug: \"michael-jordan\") { ... on PlayerCard { slug name cardType sht pss def speed size abilities { id } } } }")]
       (is (nil? (:errors result)))
       (is (= "michael-jordan" (get-in result [:data :card :slug])))
       (is (= "Michael Jordan" (get-in result [:data :card :name])))

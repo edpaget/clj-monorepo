@@ -39,12 +39,12 @@
    - `:trigger/timing` - When to fire relative to the event (default: `:after`)
    - `:trigger/priority` - Ordering when multiple triggers fire (higher = first)
    - `:trigger/once?` - If true, trigger unregisters after firing once"
-  [:map
+  [:map {:graphql/type :TriggerDef}
    [:trigger/event :keyword]
    [:trigger/condition {:optional true} PolicyExpr]
    [:trigger/timing {:optional true} TriggerTiming]
    [:trigger/priority {:optional true} :int]
-   [:trigger/once? {:optional true} :boolean]])
+   [:trigger/once? {:optional true :graphql/name :once} :boolean]])
 
 (def EffectDef
   "A game effect to apply.
@@ -60,7 +60,7 @@
    - `:bashketball/initiate-skill-test` - Start a skill test
    - `:bashketball/sequence` - Execute multiple effects in order
    - `:bashketball/force-choice` - Present choice to a player"
-  [:map
+  [:map {:graphql/type :EffectDef}
    [:effect/type :keyword]])
 
 ;; =============================================================================
@@ -76,7 +76,7 @@
    - **Activated** - Has `:ability/effect` without trigger, manually activated
 
    The `:ability/id` must be unique within a card."
-  [:map
+  [:map {:graphql/type :AbilityDef}
    [:ability/id :string]
    [:ability/name {:optional true} :string]
    [:ability/description {:optional true} :string]
@@ -95,7 +95,7 @@
    - `:play/requires` - Optional preconditions to play the card
    - `:play/targets` - Keywords indicating required targets (e.g., `[:target/player-id]`)
    - `:play/effect` - The effect to execute when the card resolves"
-  [:map
+  [:map {:graphql/type :PlayDef}
    [:play/id :string]
    [:play/name {:optional true} :string]
    [:play/description {:optional true} :string]
@@ -117,7 +117,7 @@
    - `:action/requires` - Preconditions for this mode to be available
    - `:action/targets` - Required targets for this mode
    - `:action/effect` - The effect to execute"
-  [:map
+  [:map {:graphql/type :ActionModeDef}
    [:action/id :string]
    [:action/name {:optional true} :string]
    [:action/description {:optional true} :string]
@@ -134,7 +134,7 @@
 
    Call is the primary effect when playing a coaching card from hand.
    Requires discarding 1 card as fuel (like any other card)."
-  [:map
+  [:map {:graphql/type :CallDef}
    [:call/id :string]
    [:call/name {:optional true} :string]
    [:call/description {:optional true} :string]
@@ -151,7 +151,7 @@
 
    The trigger is pre-configured to fire on `:bashketball/card-discarded-as-fuel`
    with condition matching this card's instance ID."
-  [:map
+  [:map {:graphql/type :SignalDef}
    [:signal/id :string]
    [:signal/name {:optional true} :string]
    [:signal/description {:optional true} :string]
@@ -165,7 +165,7 @@
   "A triggered ability on a team asset.
 
    Assets can have multiple triggers that fire while the asset is in play."
-  [:map
+  [:map {:graphql/type :AssetTriggerDef}
    [:trigger TriggerDef]
    [:effect EffectDef]])
 
@@ -173,7 +173,7 @@
   "An activated ability on a team asset.
 
    Activated abilities require manual activation and may have costs."
-  [:map
+  [:map {:graphql/type :ActivatedAbilityDef}
    [:cost {:optional true} EffectDef]
    [:effect EffectDef]])
 
@@ -186,7 +186,7 @@
    - `:response/trigger` - When the response can activate
    - `:response/prompt` - Text shown to player (e.g., \"Call Defensive Timeout?\")
    - `:response/effect` - Effect if player chooses Apply"
-  [:map
+  [:map {:graphql/type :ResponseDef}
    [:response/trigger TriggerDef]
    [:response/prompt :string]
    [:response/effect EffectDef]])
@@ -199,7 +199,7 @@
    - `:asset/condition` - Passive condition that modifies rules
    - `:asset/activated` - Manually activated ability with optional cost
    - `:asset/response` - For Response subtype assets (played face-down)"
-  [:map
+  [:map {:graphql/type :AssetPowerDef}
    [:asset/id :string]
    [:asset/name {:optional true} :string]
    [:asset/description {:optional true} :string]

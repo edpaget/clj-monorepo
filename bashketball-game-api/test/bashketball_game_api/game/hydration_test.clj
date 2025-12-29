@@ -13,7 +13,9 @@
     :set-slug "test-set" :speed 5 :sht 6 :pss 4 :def 8 :size :size/LG
     :abilities [] :player-subtypes [:player-subtype/HUMAN]}
    {:slug "basic-shot" :name "Basic Shot" :card-type :card-type/PLAY_CARD
-    :set-slug "test-set" :fate 3 :play "Take a shot"}])
+    :set-slug "test-set" :fate 3
+    :play {:play/id "basic-shot"
+           :play/effect {:effect/type :bashketball/shoot}}}])
 
 (def test-catalog
   (catalog/create-catalog-from-data test-cards []))

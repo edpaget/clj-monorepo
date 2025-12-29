@@ -265,7 +265,7 @@
   [:map {:graphql/type :SkillTestContext}
    [:type :keyword]
    [:origin {:optional true} HexPosition]
-   [:target {:optional true} [:or HexPosition :string]]
+   [:target {:optional true} [:or {:graphql/scalar :SkillTestTarget} HexPosition :string]]
    [:defender-id {:optional true} :string]])
 
 (def PendingSkillTest
