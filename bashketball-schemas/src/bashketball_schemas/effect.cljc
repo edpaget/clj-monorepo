@@ -20,12 +20,16 @@
 
    Can be a simple value (keyword, string, int, boolean) or a vector form
    representing an operator application like `[:= :doc/phase :phase/PLAY]`
-   or `[:bashketball/has-ball? :doc/state :self/id]`."
-  [:or :keyword :string :int :boolean [:vector :any]])
+   or `[:bashketball/has-ball? :doc/state :self/id]`.
+
+   Maps to GraphQL `PolicyExpr` scalar. Serialized as EDN strings for transport."
+  [:or {:graphql/scalar :PolicyExpr}
+   :keyword :string :int :boolean [:vector :any]])
 
 (def TriggerTiming
   "When a trigger fires relative to the event."
-  [:enum :before :after :instead :at])
+  [:enum {:graphql/type :TriggerTiming}
+   :before :after :instead :at])
 
 (def TriggerDef
   "Configuration for when an effect should fire.

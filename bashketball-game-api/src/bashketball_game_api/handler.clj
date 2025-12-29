@@ -156,11 +156,14 @@
           ;; Client parses "[0 1]" back to [0 1] via edn/read-string.
           ;; Note: graphql-server converts tuples to Java int arrays, so we
           ;; must convert back to vector before pr-str.
+          ;; PolicyExpr is an opaque scalar for polix policy expressions.
           :scalars {:HexPosition {:parse     edn/read-string
                                   :serialize (fn [v]
                                                (pr-str (if (.isArray (class v))
                                                          (vec v)
-                                                         v)))}}})
+                                                         v)))}
+                    :PolicyExpr  {:parse     edn/read-string
+                                  :serialize pr-str}}})
         ;; Authentication middleware
         (authn-mw/wrap-session-refresh authenticator)
         (authn-mw/wrap-authentication authenticator)
