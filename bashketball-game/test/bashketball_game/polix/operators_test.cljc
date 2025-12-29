@@ -140,3 +140,58 @@
     (testing "has-ball?"
       (is (true? (ops/has-ball? state fixtures/home-player-1)))
       (is (false? (ops/has-ball? state fixtures/home-player-2))))))
+
+;; =============================================================================
+;; Standard Action Operators (Phase 6)
+;; =============================================================================
+
+(deftest adjacent-operator-test
+  (let [state (-> (fixtures/base-game-state)
+                  (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                  (fixtures/with-player-at fixtures/away-player-1 [2 4])
+                  (fixtures/with-player-at fixtures/home-player-2 [2 6]))]
+    (testing "returns true for adjacent players"
+      (is (true? (ops/adjacent? state fixtures/home-player-1 fixtures/away-player-1))))
+
+    (testing "returns false for non-adjacent players"
+      (is (false? (ops/adjacent? state fixtures/home-player-1 fixtures/home-player-2))))
+
+    (testing "returns nil when player is off court"
+      (is (nil? (ops/adjacent? state fixtures/home-player-1 fixtures/away-player-2))))))
+
+(deftest within-range-operator-test
+  (let [state (-> (fixtures/base-game-state)
+                  (fixtures/with-player-at fixtures/home-player-1 [2 7])
+                  (fixtures/with-player-at fixtures/away-player-1 [2 10]))]
+    (testing "returns true when within range of another player"
+      (is (true? (ops/within-range? state fixtures/home-player-1 fixtures/away-player-1 5))))
+
+    (testing "returns false when outside range of another player"
+      (is (false? (ops/within-range? state fixtures/home-player-1 fixtures/away-player-1 2))))
+
+    (testing "returns true when within range of basket"
+      ;; HOME shoots at [2 13], so from [2 7] the distance is 6
+      (is (true? (ops/within-range? state fixtures/home-player-1 :basket 7))))
+
+    (testing "returns false when outside range of basket"
+      (is (false? (ops/within-range? state fixtures/home-player-1 :basket 5))))))
+
+(deftest ball-holder-operator-test
+  (testing "returns holder ID when ball is possessed"
+    (let [state (-> (fixtures/base-game-state)
+                    (fixtures/with-ball-possessed fixtures/home-player-1))]
+      (is (= fixtures/home-player-1 (ops/ball-holder state)))))
+
+  (testing "returns nil when ball is loose"
+    (let [state (fixtures/base-game-state)]
+      (is (nil? (ops/ball-holder state))))))
+
+(deftest opponent-team-operator-test
+  (testing "returns AWAY for HOME"
+    (is (= :team/AWAY (ops/opponent-team :team/HOME))))
+
+  (testing "returns HOME for AWAY"
+    (is (= :team/HOME (ops/opponent-team :team/AWAY))))
+
+  (testing "returns nil for unknown team"
+    (is (nil? (ops/opponent-team :team/INVALID)))))

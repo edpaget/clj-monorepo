@@ -40,7 +40,11 @@
   - `:skill-test-base` - Base stat value
   - `:skill-test-total-modifiers` - Sum of all modifier amounts
   - `:choice-pending?` - Whether there's a pending choice
-  - `:choice-waiting-for` - Team that needs to respond to the choice"
+  - `:choice-waiting-for` - Team that needs to respond to the choice
+  - `:adjacent?` - Whether two players are in neighboring hexes
+  - `:within-range?` - Whether entity is within N hexes of target (player or :basket)
+  - `:ball-holder` - Player ID holding the ball, or nil
+  - `:opponent-team` - The opposing team keyword"
   []
 
   (op/register-operator! :hex-distance
@@ -129,7 +133,42 @@
 
   (op/register-operator! :choice-waiting-for
                          {:eval (fn [game-state]
-                                  (get-in game-state [:pending-choice :waiting-for]))}))
+                                  (get-in game-state [:pending-choice :waiting-for]))})
+
+  ;; Standard Action Operators
+
+  (op/register-operator! :adjacent?
+                         {:eval (fn [game-state player-id-1 player-id-2]
+                                  (let [p1 (state/get-basketball-player game-state player-id-1)
+                                        p2 (state/get-basketball-player game-state player-id-2)]
+                                    (when (and (:position p1) (:position p2))
+                                      (= 1 (board/hex-distance (:position p1) (:position p2))))))})
+
+  (op/register-operator! :within-range?
+                         {:eval (fn [game-state entity-id target max-range]
+                                  (let [entity (state/get-basketball-player game-state entity-id)
+                                        entity-pos (:position entity)
+                                        target-pos (if (= target :basket)
+                                                     (let [team (state/get-basketball-player-team game-state entity-id)]
+                                                       (if (= team :team/HOME)
+                                                         [2 13]
+                                                         [2 0]))
+                                                     (:position (state/get-basketball-player game-state target)))]
+                                    (when (and entity-pos target-pos)
+                                      (<= (board/hex-distance entity-pos target-pos) max-range))))})
+
+  (op/register-operator! :ball-holder
+                         {:eval (fn [game-state]
+                                  (let [ball (state/get-ball game-state)]
+                                    (when (= (:status ball) :ball-status/POSSESSED)
+                                      (:holder-id ball))))})
+
+  (op/register-operator! :opponent-team
+                         {:eval (fn [team]
+                                  (case team
+                                    :team/HOME :team/AWAY
+                                    :team/AWAY :team/HOME
+                                    nil))}))
 
 (defn hex-distance
   "Computes hex distance between two positions.
@@ -240,3 +279,48 @@
   Convenience wrapper for use in tests and direct calls."
   [game-state]
   (get-in game-state [:pending-choice :waiting-for]))
+
+;; Standard Action Convenience Wrappers
+
+(defn adjacent?
+  "Returns true if two players are in neighboring hexes (distance 1).
+
+  Returns nil if either player is not on the court."
+  [game-state player-id-1 player-id-2]
+  (let [p1 (state/get-basketball-player game-state player-id-1)
+        p2 (state/get-basketball-player game-state player-id-2)]
+    (when (and (:position p1) (:position p2))
+      (= 1 (board/hex-distance (:position p1) (:position p2))))))
+
+(defn within-range?
+  "Returns true if entity is within `max-range` hexes of target.
+
+  `target` can be a player-id string or the keyword `:basket`.
+  When `:basket`, uses the entity's target basket based on their team.
+  Returns nil if either entity is not on the court."
+  [game-state entity-id target max-range]
+  (let [entity (state/get-basketball-player game-state entity-id)
+        entity-pos (:position entity)
+        target-pos (if (= target :basket)
+                     (let [team (state/get-basketball-player-team game-state entity-id)]
+                       (if (= team :team/HOME)
+                         [2 13]
+                         [2 0]))
+                     (:position (state/get-basketball-player game-state target)))]
+    (when (and entity-pos target-pos)
+      (<= (board/hex-distance entity-pos target-pos) max-range))))
+
+(defn ball-holder
+  "Returns the player-id of the player holding the ball, or nil if ball is loose/in-air."
+  [game-state]
+  (let [ball (state/get-ball game-state)]
+    (when (= (:status ball) :ball-status/POSSESSED)
+      (:holder-id ball))))
+
+(defn opponent-team
+  "Returns the opposing team keyword."
+  [team]
+  (case team
+    :team/HOME :team/AWAY
+    :team/AWAY :team/HOME
+    nil))

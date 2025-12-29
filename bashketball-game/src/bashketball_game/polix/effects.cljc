@@ -9,6 +9,7 @@
   reusing validation and event logging."
   (:require
    [bashketball-game.actions :as actions]
+   [bashketball-game.state :as state]
    [polix.effects.core :as fx]))
 
 (defn- resolve-param
@@ -52,7 +53,8 @@
   - `:bashketball/add-score` - Add points to a team's score
   - `:bashketball/initiate-skill-test` - Start a skill test for a player
   - `:bashketball/modify-skill-test` - Add a modifier to the pending skill test
-  - `:bashketball/offer-choice` - Present a choice to a player (pauses execution)"
+  - `:bashketball/offer-choice` - Present a choice to a player (pauses execution)
+  - `:bashketball/force-choice` - Force a target player to choose between options"
   []
 
   (fx/register-effect! :bashketball/move-player
@@ -165,4 +167,28 @@
                            ;; Return with pending flag so caller knows execution should pause
                            (assoc (fx/success new-state [action])
                                   :pending {:type :choice
-                                            :choice-id (get-in new-state [:pending-choice :id])})))))
+                                            :choice-id (get-in new-state [:pending-choice :id])}))))
+
+  (fx/register-effect! :bashketball/force-choice
+                       (fn [game-state {:keys [target choice-type options context]} ctx _opts]
+                         (let [resolved-target (resolve-param target ctx game-state)
+                               target-team     (state/get-basketball-player-team game-state resolved-target)
+                               ;; Build choice options with labels from keywords or pass through maps
+                               choice-options  (mapv (fn [opt]
+                                                       (if (keyword? opt)
+                                                         {:id opt :label (name opt)}
+                                                         opt))
+                                                     options)
+                               action          {:type :bashketball/offer-choice
+                                                :choice-type (or choice-type :forced-choice)
+                                                :options choice-options
+                                                :waiting-for target-team
+                                                :context (merge context
+                                                                {:force-target resolved-target
+                                                                 :original-options options})}
+                               new-state       (actions/do-action game-state action)]
+                           ;; Return with pending flag so caller knows execution should pause
+                           (assoc (fx/success new-state [action])
+                                  :pending {:type :forced-choice
+                                            :choice-id (get-in new-state [:pending-choice :id])
+                                            :target resolved-target})))))
