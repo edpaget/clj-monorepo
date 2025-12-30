@@ -10,37 +10,8 @@
   - Decoding responses using [[decoder/decode-response]]
   - Returning consistent result maps with :data, :loading, :error, etc."
   (:require
-   ["@apollo/client/react" :refer [useQuery useMutation useSubscription]]
    [bashketball-game-ui.graphql.decoder :as decoder]
-   [camel-snake-kebab.core :as csk]
-   [clojure.walk :as walk]
-   [uix.core :as uix]))
-
-(defn- encode-variable-keys
-  "Converts kebab-case keys to camelCase in a variables map.
-
-  Recursively transforms all map keys for GraphQL compatibility."
-  [variables]
-  (when variables
-    (walk/postwalk
-     (fn [x]
-       (if (map? x)
-         (into {} (map (fn [[k v]] [(csk/->camelCase k) v])) x)
-         x))
-     variables)))
-
-(defn- encode-options
-  "Encodes hook options for Apollo, converting all keys to camelCase.
-
-  Converts option keys (like :refetch-queries -> refetchQueries) and
-  variable keys for GraphQL compatibility.
-  Always returns a JS object (never null) for Apollo Client 4 compatibility."
-  [options]
-  (clj->js (if options
-             (-> options
-                 (update :variables encode-variable-keys)
-                 (->> (into {} (map (fn [[k v]] [(csk/->camelCase k) v])))))
-             {})))
+   [graphql-client.hooks :as gql-hooks]))
 
 (defn use-query
   "Executes a GraphQL query with automatic response decoding.
@@ -61,11 +32,7 @@
   ([query]
    (use-query query nil))
   ([query options]
-   (let [result (useQuery query (encode-options options))]
-     {:data    (some-> result :data decoder/decode-js-response)
-      :loading (:loading result)
-      :error   (:error result)
-      :refetch (:refetch result)})))
+   (gql-hooks/use-query query (assoc options :decoder decoder/decode-js-response))))
 
 (defn use-lazy-query
   "Returns a query function and result for on-demand execution.
@@ -84,18 +51,7 @@
   ([query]
    (use-lazy-query query nil))
   ([query options]
-   (let [[execute-fn result] (useQuery query (doto (encode-options options)
-                                               (aset "skip" true)))
-         decode-fn           (uix/use-callback (fn [data] (decoder/decode-js-response data)) [])]
-     [(uix/use-callback
-       (fn [exec-options]
-         (-> (execute-fn (encode-options exec-options))
-             (.then (fn [res] (update res :data decode-fn)))))
-       [execute-fn decode-fn])
-      {:data    (some-> result :data decode-fn)
-       :loading (:loading result)
-       :error   (:error result)
-       :called  (:called result)}])))
+   (gql-hooks/use-lazy-query query (assoc options :decoder decoder/decode-js-response))))
 
 (defn use-mutation
   "Returns [mutate-fn result] with automatic response decoding.
@@ -115,19 +71,7 @@
   ([mutation]
    (use-mutation mutation nil))
   ([mutation options]
-   (let [[mutate-fn result] (useMutation mutation (encode-options options))
-         decode-fn          (uix/use-callback (fn [data] (decoder/decode-js-response data)) [])]
-     [(uix/use-callback
-       (fn
-         ([] (mutate-fn))
-         ([exec-options]
-          (-> (mutate-fn (encode-options exec-options))
-              (.then (fn [response]
-                       {:data (some-> response .-data decode-fn)})))))
-       [mutate-fn decode-fn])
-      {:data    (some-> result :data decode-fn)
-       :loading (:loading result)
-       :error   (:error result)}])))
+   (gql-hooks/use-mutation mutation (assoc options :decoder decoder/decode-js-response))))
 
 (defn use-subscription
   "Subscribes to a GraphQL subscription with automatic response decoding.
@@ -145,7 +89,4 @@
   ([subscription]
    (use-subscription subscription nil))
   ([subscription options]
-   (let [result (useSubscription subscription (encode-options options))]
-     {:data    (some-> result :data decoder/decode-js-response)
-      :loading (:loading result)
-      :error   (:error result)})))
+   (gql-hooks/use-subscription subscription (assoc options :decoder decoder/decode-js-response))))

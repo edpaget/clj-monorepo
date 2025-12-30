@@ -13,6 +13,9 @@
   com.vladsch.flexmark/flexmark-all {:mvn/version "0.64.8"}
   clj-commons/clj-yaml {:mvn/version "1.0.29"}
 
+  ;; GraphQL client utilities
+  local/graphql-client {:local/root "../graphql-client"}
+
   ;; Shared UI components library
   local/bashketball-ui {:local/root "../bashketball-ui"}
 

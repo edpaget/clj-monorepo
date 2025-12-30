@@ -7,7 +7,7 @@
 
   Primary API:
   - [[decode-response]] - Decodes using __typename dispatch (recommended)
-  - [[build-decode-fn]] - Creates custom decoder with specific type mappings
+  - [[decode-js-response]] - Decodes JS responses with __typename dispatch
 
   Legacy API (for backward compatibility):
   - [[decode]] - Decodes with explicit schema
@@ -15,86 +15,13 @@
   (:require
    [bashketball-game-ui.graphql.registry :as registry]
    [bashketball-game-ui.graphql.transformer :as transformer]
-   [camel-snake-kebab.core :as csk]
-   [clojure.string :as str]
-   [clojure.walk :as walk]
    [goog.object :as gobj]
+   [graphql-client.core :as gql-core]
+   [graphql-client.decoder :as gql-decoder]
    [malli.core :as m]))
 
 ;; -----------------------------------------------------------------------------
-;; JS to Clojure conversion
-
-(defn- js->clj-preserve-keys
-  "Converts a JavaScript value to Clojure, preserving string keys.
-
-  Recursively processes JS objects to maps and JS arrays to vectors,
-  but keeps all object keys as strings. This allows Malli's schema-driven
-  transformers to handle key conversion appropriately:
-  - `:map` keys get converted to kebab-case keywords via key-transformer
-  - `:map-of` keys get decoded according to their key schema (e.g., tuples)"
-  [x]
-  (cond
-    (object? x)
-    (into {}
-          (map (fn [k] [k (js->clj-preserve-keys (gobj/get x k))]))
-          (js-keys x))
-
-    (array? x)
-    (mapv js->clj-preserve-keys x)
-
-    :else x))
-
-;; -----------------------------------------------------------------------------
-;; __typename-based decoding
-
-(defn- get-typename
-  "Gets __typename from a map, handling both string and keyword keys.
-
-  This supports maps that haven't yet been through key transformation,
-  where __typename may still be a string key."
-  [m]
-  (or (get m :__typename) (get m "__typename")))
-
-(defn- uppercase-string?
-  "Returns true if string is all uppercase (e.g., \"HOME\", \"AWAY\").
-
-  Used to preserve keys that have explicit :graphql/name overrides in the schema."
-  [s]
-  (and (string? s)
-       (not (str/blank? s))
-       (= s (str/upper-case s))))
-
-(defn- convert-key
-  "Converts a string key to keyword, preserving uppercase keys.
-
-  Uppercase keys (HOME, AWAY) become uppercase keywords to match GraphQL
-  schema fields with :graphql/name overrides."
-  [k]
-  (cond
-    (keyword? k)         k
-    (uppercase-string? k) (keyword k)
-    (string? k)          (csk/->kebab-case-keyword k)
-    :else                k))
-
-(defn- convert-remaining-string-keys
-  "Converts any remaining string keys to kebab-case keywords, preserving uppercase.
-
-  Applied after schema-based decoding. At this point, :map-of keys have
-  already been converted to vectors by Malli, so any remaining string
-  keys are from wrapper maps without __typename.
-
-  Uppercase string keys (HOME, AWAY) are preserved as uppercase keywords
-  to match GraphQL schema fields with :graphql/name overrides."
-  [x]
-  (if (and (map? x) (some string? (keys x)))
-    (into {}
-          (map (fn [[k v]]
-                 [(convert-key k)
-                  (convert-remaining-string-keys v)]))
-          x)
-    (if (vector? x)
-      (mapv convert-remaining-string-keys x)
-      x)))
+;; App-specific graphql/name mappings
 
 (def ^:private graphql-name-mappings
   "Reverse mapping from GraphQL wire names to schema keys for types with :graphql/name.
@@ -113,8 +40,8 @@
   and Score), converts keys like :HOME/:AWAY to :team/HOME/:team/AWAY."
   [x]
   (cond
-    (and (map? x) (get-typename x))
-    (let [typename (get-typename x)]
+    (and (map? x) (gql-core/get-typename x))
+    (let [typename (gql-core/get-typename x)]
       (into {}
             (map (fn [[k v]]
                    (let [k-str   (cond
@@ -144,15 +71,11 @@
   3. Reverse :graphql/name overrides (HOME -> :team/HOME)
   4. Final pass converts remaining string keys (wrapper maps without __typename)"
   [type-mappings]
-  (letfn [(decode-if-typed [m]
-            (if-let [schema (get type-mappings (get-typename m))]
-              (transformer/decode m schema)
-              m))]
+  (let [base-decode-fn (gql-decoder/build-decode-fn type-mappings transformer/decoding-transformer)]
     (fn [data]
       (->> data
-           (walk/postwalk (fn [x] (cond-> x (map? x) decode-if-typed)))
-           reverse-graphql-names
-           convert-remaining-string-keys))))
+           base-decode-fn
+           reverse-graphql-names))))
 
 (def decode-response
   "Decodes a GraphQL response using __typename dispatch.
@@ -182,7 +105,7 @@
     strings like \"0,1\" become vectors [0 1])"
   [js-value]
   (-> js-value
-      js->clj-preserve-keys
+      gql-core/js->clj-preserve-keys
       decode-response))
 
 ;; -----------------------------------------------------------------------------
@@ -224,7 +147,7 @@
     (object? x)
     (into {}
           (map (fn [k]
-                 [(convert-key k)
+                 [(gql-core/convert-key k)
                   (js->clj-decoded enum-map (gobj/get x k))]))
           (js-keys x))
 

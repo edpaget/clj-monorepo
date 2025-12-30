@@ -1,14 +1,15 @@
 (ns bashketball-game-ui.graphql.registry
   "Registry mapping GraphQL __typename to Malli schemas.
 
-  Automatically extracts :graphql/type annotations from schemas to build
-  the typename->schema mapping. This ensures consistency between API and UI
-  and enables automatic response decoding based on __typename."
+  Uses [[graphql-client.registry]] utilities to extract :graphql/type annotations
+  from schemas and build the typename->schema mapping. This ensures consistency
+  between API and UI and enables automatic response decoding based on __typename."
   (:require
    [bashketball-game.schema :as game-schema]
    [bashketball-schemas.card :as card-schema]
+   [bashketball-schemas.effect :as effect-schema]
    [bashketball-schemas.game :as game-schemas]
-   [malli.core :as m]))
+   [graphql-client.registry :as gql-registry]))
 
 (def User
   "UI schema for User type from GraphQL API.
@@ -75,24 +76,18 @@
    [:game-id {:optional true} [:maybe :string]]
    [:user-id {:optional true} [:maybe :string]]])
 
-(defn extract-graphql-type
+(def extract-graphql-type
   "Extracts :graphql/type from a Malli schema's properties.
 
   Returns the type name as a string (PascalCase), or nil if not annotated."
-  [schema]
-  (some-> schema m/properties :graphql/type name))
+  gql-registry/extract-graphql-type)
 
-(defn build-typename-registry
+(def build-typename-registry
   "Builds typename->schema map from a collection of schemas.
 
   Extracts :graphql/type annotations and creates a map from GraphQL
   typename strings to their corresponding Malli schemas."
-  [schemas]
-  (->> schemas
-       (keep (fn [schema]
-               (when-let [typename (extract-graphql-type schema)]
-                 [typename schema])))
-       (into {})))
+  gql-registry/build-typename-registry)
 
 (def all-schemas
   "All schemas with :graphql/type annotations.
@@ -145,6 +140,19 @@
    card-schema/CoachingCard
    card-schema/TeamAssetCard
    card-schema/CardSet
+
+   ;; Effect schemas (from bashketball-schemas)
+   effect-schema/TriggerDef
+   effect-schema/EffectDef
+   effect-schema/AbilityDef
+   effect-schema/PlayDef
+   effect-schema/ActionModeDef
+   effect-schema/CallDef
+   effect-schema/SignalDef
+   effect-schema/AssetTriggerDef
+   effect-schema/ActivatedAbilityDef
+   effect-schema/ResponseDef
+   effect-schema/AssetPowerDef
 
    ;; UI-only schemas (defined above)
    User

@@ -2,7 +2,9 @@
   "Tests for the GraphQL response decoder."
   (:require
    [bashketball-game-ui.graphql.decoder :as decoder]
+   [bashketball-game-ui.graphql.registry :as registry]
    [bashketball-schemas.card :as card]
+   [bashketball-schemas.effect :as effect]
    [bashketball-schemas.enums :as enums]
    [cljs.test :as t :include-macros true]))
 
@@ -372,3 +374,124 @@
             "Should have :team/AWAY key")
       (t/is (= 3 (get-in result [:team/HOME :actions-remaining]))
             "Nested data should be decoded correctly"))))
+
+;; =============================================================================
+;; Effect Schema Decoding Tests
+;; =============================================================================
+;; These tests verify that effect schemas are properly registered and basic
+;; decoding works. PolicyExpr scalar decoding is tested separately in
+;; transformer_test.cljs.
+;;
+;; NOTE: The effect schemas use namespaced keys (e.g., :trigger/condition)
+;; but GraphQL wire format uses simple keys (e.g., condition). The schema-
+;; driven PolicyExpr decoding only works when keys match. For full PolicyExpr
+;; decoding in production, the API should include __typename on nested objects
+;; so the decoder can apply the correct schema.
+
+(t/deftest effect-types-registered-in-typename-registry
+  (t/testing "All effect schemas are registered with __typename"
+    (let [type-registry registry/typename->schema]
+      (t/is (contains? type-registry "TriggerDef"))
+      (t/is (contains? type-registry "EffectDef"))
+      (t/is (contains? type-registry "AbilityDef"))
+      (t/is (contains? type-registry "PlayDef"))
+      (t/is (contains? type-registry "ActionModeDef"))
+      (t/is (contains? type-registry "CallDef"))
+      (t/is (contains? type-registry "SignalDef"))
+      (t/is (contains? type-registry "AssetTriggerDef"))
+      (t/is (contains? type-registry "ActivatedAbilityDef"))
+      (t/is (contains? type-registry "ResponseDef"))
+      (t/is (contains? type-registry "AssetPowerDef")))))
+
+(t/deftest trigger-def-decodes-basic-fields
+  (t/testing "TriggerDef decodes with basic fields"
+    ;; NOTE: Enum decoding doesn't apply because TriggerDef schema uses
+    ;; namespaced keys (:trigger/timing) but GraphQL returns simple keys (timing).
+    ;; Fields are decoded to kebab-case keywords but enum values remain strings.
+    (let [js-trigger (clj->js {"__typename" "TriggerDef"
+                                "event" "bashketball/shoot.after"
+                                "timing" "AFTER"
+                                "priority" 10})
+          result     (decoder/decode-js-response js-trigger)]
+      (t/is (= "TriggerDef" (:__typename result)))
+      (t/is (= "bashketball/shoot.after" (:event result)))
+      (t/is (= "AFTER" (:timing result)))
+      (t/is (= 10 (:priority result))))))
+
+(t/deftest ability-def-decodes-basic-fields
+  (t/testing "AbilityDef decodes with basic fields and nested types"
+    (let [js-ability (clj->js {"__typename" "AbilityDef"
+                                "id" "clutch-performer"
+                                "name" "Clutch Performer"
+                                "description" "Performs better under pressure"
+                                "trigger" {"__typename" "TriggerDef"
+                                           "event" "bashketball/skill-test.before"}
+                                "effect" {"__typename" "EffectDef"
+                                          "type" "bashketball/add-modifier"}})
+          result     (decoder/decode-js-response js-ability)]
+      (t/is (= "AbilityDef" (:__typename result)))
+      (t/is (= "clutch-performer" (:id result)))
+      (t/is (= "TriggerDef" (get-in result [:trigger :__typename])))
+      (t/is (= "EffectDef" (get-in result [:effect :__typename]))))))
+
+(t/deftest action-mode-def-decodes-basic-fields
+  (t/testing "ActionModeDef decodes with basic fields"
+    (let [js-action (clj->js {"__typename" "ActionModeDef"
+                               "id" "power-shot"
+                               "name" "Power Shot"
+                               "effect" {"__typename" "EffectDef"
+                                         "type" "bashketball/shoot"}})
+          result    (decoder/decode-js-response js-action)]
+      (t/is (= "ActionModeDef" (:__typename result)))
+      (t/is (= "power-shot" (:id result)))
+      (t/is (= "EffectDef" (get-in result [:effect :__typename]))))))
+
+(t/deftest player-card-with-abilities-decodes
+  (t/testing "PlayerCard with structured abilities decodes correctly"
+    (let [js-card (clj->js {"__typename" "PlayerCard"
+                             "slug" "star-player"
+                             "name" "Star Player"
+                             "setSlug" "core-set"
+                             "cardType" "PLAYER_CARD"
+                             "sht" 8
+                             "pss" 7
+                             "def" 6
+                             "speed" 9
+                             "size" "MD"
+                             "playerSubtypes" ["HUMAN"]
+                             "abilities" [{"__typename" "AbilityDef"
+                                           "id" "clutch"}
+                                          {"__typename" "AbilityDef"
+                                           "id" "fadeaway"
+                                           "trigger" {"__typename" "TriggerDef"
+                                                      "event" "bashketball/shoot.before"}}]})
+          result  (decoder/decode-js-response js-card)]
+      (t/is (= "PlayerCard" (:__typename result)))
+      (t/is (= "star-player" (:slug result)))
+      (t/is (= :card-type/PLAYER_CARD (:card-type result)))
+      (t/is (= :size/MD (:size result)))
+      (t/is (= 2 (count (:abilities result))))
+      (t/is (= "clutch" (get-in result [:abilities 0 :id])))
+      (t/is (= "AbilityDef" (get-in result [:abilities 0 :__typename]))))))
+
+(t/deftest standard-action-card-with-modes-decodes
+  (t/testing "StandardActionCard with offense/defense modes decodes correctly"
+    (let [js-card (clj->js {"__typename" "StandardActionCard"
+                             "slug" "power-move"
+                             "name" "Power Move"
+                             "setSlug" "core-set"
+                             "cardType" "STANDARD_ACTION_CARD"
+                             "fate" 4
+                             "offense" {"__typename" "ActionModeDef"
+                                        "id" "power-move-offense"
+                                        "effect" {"__typename" "EffectDef"
+                                                  "type" "bashketball/move"}}
+                             "defense" {"__typename" "ActionModeDef"
+                                        "id" "power-move-defense"
+                                        "effect" {"__typename" "EffectDef"
+                                                  "type" "bashketball/defend"}}})
+          result  (decoder/decode-js-response js-card)]
+      (t/is (= "StandardActionCard" (:__typename result)))
+      (t/is (= :card-type/STANDARD_ACTION_CARD (:card-type result)))
+      (t/is (= "ActionModeDef" (get-in result [:offense :__typename])))
+      (t/is (= "power-move-offense" (get-in result [:offense :id]))))))

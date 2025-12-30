@@ -1,17 +1,14 @@
 (ns bashketball-game-ui.graphql.transformer
   "Malli transformers for GraphQL response decoding.
 
-  Provides composable transformers for:
-  - camelCase → kebab-case key conversion
-  - GraphQL enum strings → namespaced keywords
+  Extends the base [[graphql-client.transformer]] with app-specific transformers:
   - HexPosition EDN string parsing (\"[0 1]\" → [0 1])
-  - Default value application
+  - Map-of tuple key parsing for position-keyed maps
 
   Uses Malli's transformer compilation for efficient schema-driven decoding."
   (:require
-   [camel-snake-kebab.core :as csk]
    [clojure.edn :as edn]
-   [clojure.string :as str]
+   [graphql-client.transformer :as gql-transformer]
    [malli.core :as m]
    [malli.transform :as mt]))
 
@@ -22,61 +19,8 @@
   (when (string? s)
     (edn/read-string s)))
 
-(def ^:private enum-transformer
-  "Malli transformer for enum values.
-
-  Decodes GraphQL enum strings to namespaced keywords by inferring the namespace
-  from the first enum option. Only converts if the value matches a valid option."
-  (mt/transformer
-   {:decoders
-    {:enum
-     {:compile
-      (fn [schema _opts]
-        (let [enum-options   (m/children schema)
-              enum-namespace (when-let [first-opt (first enum-options)]
-                               (when (keyword? first-opt)
-                                 (namespace first-opt)))]
-          (fn [value]
-            (cond
-              (and enum-namespace (string? value))
-              (let [kw-value (keyword enum-namespace value)]
-                (if (some #(= kw-value %) enum-options)
-                  kw-value
-                  value))
-
-              (string? value)
-              (keyword value)
-
-              :else
-              value))))}}}))
-
-(defn- uppercase-key?
-  "Returns true if key is all uppercase (e.g., \"HOME\", \"AWAY\", :HOME, :AWAY).
-
-  Used to preserve keys that have explicit :graphql/name overrides in the schema."
-  [k]
-  (let [key-str (if (keyword? k) (name k) (str k))]
-    (and (not (str/blank? key-str))
-         (= key-str (str/upper-case key-str)))))
-
-(defn- preserve-typename-kebab
-  "Converts key to kebab-case keyword, preserving __typename and uppercase keys.
-
-  Uppercase keys (e.g., HOME, AWAY) are preserved as-is to match GraphQL schema
-  fields with :graphql/name overrides."
-  [k]
-  (let [key-name (if (keyword? k) (name k) k)]
-    (cond
-      (= key-name "__typename") :__typename
-      (uppercase-key? key-name) (keyword key-name)
-      :else                     (csk/->kebab-case-keyword k))))
-
-(def ^:private kebab-key-transformer
-  "Malli transformer for map keys.
-
-  Decodes keys from camelCase to kebab-case keywords, preserving __typename."
-  (mt/key-transformer
-   {:decode preserve-typename-kebab}))
+;; -----------------------------------------------------------------------------
+;; App-specific transformers
 
 (def ^:private tuple-transformer
   "Malli transformer for tuple types with :graphql/scalar property.
@@ -116,23 +60,46 @@
                       m)
                 m)))))}}}))
 
+(def ^:private or-scalar-transformer
+  "Malli transformer for :or schemas with :graphql/scalar property.
+
+  Decodes EDN-serialized scalars like PolicyExpr and SkillTestTarget.
+  These arrive as EDN strings and need to be parsed back to Clojure data:
+  - PolicyExpr: `\"[:= :doc/phase :phase/PLAY]\"` → `[:= :doc/phase :phase/PLAY]`
+  - SkillTestTarget: `\"[0 1]\"` → `[0 1]` or `\"player-1\"` → `\"player-1\"`"
+  (mt/transformer
+   {:decoders
+    {:or
+     {:compile
+      (fn [schema _opts]
+        (when (-> schema m/properties :graphql/scalar)
+          (fn [value]
+            (if (string? value)
+              (edn/read-string value)
+              value))))}}}))
+
 (def decoding-transformer
   "Composite transformer for decoding GraphQL responses.
 
+  Extends [[graphql-client.transformer/decoding-transformer]] with app-specific
+  transformers for tuple, map-of, and :or scalar types.
+
   Order of operations:
-  1. Transform map keys (camelCase → kebab-case)
-  2. Transform enum values (string → namespaced keyword)
+  1. Transform map keys (camelCase → kebab-case) - from library
+  2. Transform enum values (string → namespaced keyword) - from library
   3. Transform tuple values (string → vector) for :graphql/scalar tuples
   4. Transform map-of keys (string → vector) for tuple-keyed maps
-  5. Apply default values for missing fields
+  5. Transform :or scalars (string → EDN) for PolicyExpr, SkillTestTarget
+  6. Apply default values for missing fields - from library
 
   Note: :graphql/name reverse mapping (HOME → :team/HOME) is handled
   separately by [[bashketball-game-ui.graphql.decoder/reverse-graphql-names]]."
   (mt/transformer
-   kebab-key-transformer
-   enum-transformer
+   gql-transformer/kebab-key-transformer
+   gql-transformer/enum-transformer
    tuple-transformer
    map-of-key-transformer
+   or-scalar-transformer
    mt/default-value-transformer))
 
 (defn decode
