@@ -111,7 +111,10 @@
                        :def 6
                        :speed 9
                        :size "MD"
-                       :abilities #js ["Quick" "Shooter"]}
+                       :abilities #js [#js {:name "Quick"
+                                            :description "Fast movement"}
+                                       #js {:name "Shooter"
+                                            :description "Accurate shots"}]}
           result  (decoder/decode card/Card js-card)]
       (t/is (= "star-player" (:slug result)))
       (t/is (= "Star Player" (:name result)))
@@ -119,7 +122,7 @@
       (t/is (= :card-type/PLAYER_CARD (:card-type result)))
       (t/is (= 8 (:sht result)))
       (t/is (= :size/MD (:size result)))
-      (t/is (= ["Quick" "Shooter"] (:abilities result))))))
+      (t/is (= "Quick" (get-in result [:abilities 0 :name]))))))
 
 (t/deftest full-card-schema-decode-coaching
   (t/testing "decodes a CoachingCard from JS object"
@@ -128,12 +131,16 @@
                        :setSlug "core-set"
                        :cardType "COACHING_CARD"
                        :fate 2
-                       :coaching "Rest your players"}
+                       :call #js {:name "Rest your players"
+                                  :description "Remove exhaustion from all players"}
+                       :signal #js {:name "Quick rest"
+                                    :description "Remove exhaustion from one player"}}
           result  (decoder/decode card/Card js-card)]
       (t/is (= "timeout" (:slug result)))
       (t/is (= :card-type/COACHING_CARD (:card-type result)))
       (t/is (= 2 (:fate result)))
-      (t/is (= "Rest your players" (:coaching result))))))
+      (t/is (= "Rest your players" (get-in result [:call :name])))
+      (t/is (= "Quick rest" (get-in result [:signal :name]))))))
 
 (t/deftest decode-seq-handles-arrays
   (t/testing "decode-seq decodes multiple cards"
@@ -142,13 +149,15 @@
                              :setSlug "set-1"
                              :cardType "PLAY_CARD"
                              :fate 1
-                             :play "Do something"}
+                             :play #js {:name "Do something"
+                                        :description "Perform an action"}}
                         #js {:slug "card-2"
                              :name "Card 2"
                              :setSlug "set-1"
                              :cardType "PLAY_CARD"
                              :fate 2
-                             :play "Do another thing"}]
+                             :play #js {:name "Do another thing"
+                                        :description "Perform another action"}}]
           results  (decoder/decode-seq card/Card js-cards)]
       (t/is (= 2 (count results)))
       (t/is (= "card-1" (:slug (first results))))

@@ -20,7 +20,8 @@
        :setSlug    "core-set"
        :cardType   "STANDARD_ACTION_CARD"
        :fate       3
-       :offense    "Score bonus"
+       :offense    #js {:name "Score bonus"
+                        :description "Add +2 to your shot roll"}
        :defense    nil})
 
 (def game-card-possible-types

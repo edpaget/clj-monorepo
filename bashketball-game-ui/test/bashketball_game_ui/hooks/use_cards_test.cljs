@@ -24,7 +24,8 @@
        :def 6
        :speed 5
        :size "MEDIUM"
-       :abilities #js ["Quick Hands"]
+       :abilities #js [#js {:name "Quick Hands"
+                            :description "Improves ball handling"}]
        :deckSize 1})
 
 (def sample-action-card
@@ -34,7 +35,8 @@
        :setSlug "core-set"
        :cardType "STANDARD_ACTION_CARD"
        :fate 3
-       :offense "Score bonus"
+       :offense #js {:name "Score bonus"
+                     :description "Add +2 to your shot roll"}
        :defense nil})
 
 (def sample-card-set
@@ -212,7 +214,7 @@
                       (t/is (= "action-1" (:slug action)) "Should have correct slug")
                       (t/is (= "Fast Break" (:name action)) "Should have correct name")
                       (t/is (= 3 (:fate action)) "Should have correct fate value")
-                      (t/is (= "Score bonus" (:offense action)) "Should have correct offense text")
+                      (t/is (= "Score bonus" (get-in action [:offense :name])) "Should have correct offense name")
                       (done))))
                  (.catch
                   (fn [e]

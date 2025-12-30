@@ -48,7 +48,10 @@
         def
         speed
         size
-        abilities
+        abilities {
+          name
+          description
+        }
         deckSize
       }
       ... on AbilityCard {
@@ -57,7 +60,10 @@
         setSlug
         cardType
         fate
-        abilities
+        abilities {
+          name
+          description
+        }
       }
       ... on PlayCard {
         slug
@@ -65,7 +71,10 @@
         setSlug
         cardType
         fate
-        play
+        play {
+          name
+          description
+        }
       }
       ... on StandardActionCard {
         slug
@@ -73,8 +82,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on SplitPlayCard {
         slug
@@ -82,8 +97,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on CoachingCard {
         slug
@@ -91,8 +112,14 @@
         setSlug
         cardType
         fate
-        coaching
-        signal
+        call {
+          name
+          description
+        }
+        signal {
+          name
+          description
+        }
       }
       ... on TeamAssetCard {
         slug
@@ -100,7 +127,10 @@
         setSlug
         cardType
         fate
-        assetPower
+        assetPower {
+          name
+          description
+        }
       }
     }
   "))
@@ -133,7 +163,10 @@
         def
         speed
         size
-        abilities
+        abilities {
+          name
+          description
+        }
         deckSize
       }
       ... on AbilityCard {
@@ -142,7 +175,10 @@
         setSlug
         cardType
         fate
-        abilities
+        abilities {
+          name
+          description
+        }
       }
       ... on PlayCard {
         slug
@@ -150,7 +186,10 @@
         setSlug
         cardType
         fate
-        play
+        play {
+          name
+          description
+        }
       }
       ... on StandardActionCard {
         slug
@@ -158,8 +197,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on SplitPlayCard {
         slug
@@ -167,8 +212,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on CoachingCard {
         slug
@@ -176,8 +227,14 @@
         setSlug
         cardType
         fate
-        coaching
-        signal
+        call {
+          name
+          description
+        }
+        signal {
+          name
+          description
+        }
       }
       ... on TeamAssetCard {
         slug
@@ -185,7 +242,10 @@
         setSlug
         cardType
         fate
-        assetPower
+        assetPower {
+          name
+          description
+        }
       }
     }
   "))
@@ -210,7 +270,10 @@
         def
         speed
         size
-        abilities
+        abilities {
+          name
+          description
+        }
         deckSize
       }
       ... on AbilityCard {
@@ -219,7 +282,10 @@
         setSlug
         cardType
         fate
-        abilities
+        abilities {
+          name
+          description
+        }
       }
       ... on PlayCard {
         slug
@@ -227,7 +293,10 @@
         setSlug
         cardType
         fate
-        play
+        play {
+          name
+          description
+        }
       }
       ... on StandardActionCard {
         slug
@@ -235,8 +304,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on SplitPlayCard {
         slug
@@ -244,8 +319,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on CoachingCard {
         slug
@@ -253,8 +334,14 @@
         setSlug
         cardType
         fate
-        coaching
-        signal
+        call {
+          name
+          description
+        }
+        signal {
+          name
+          description
+        }
       }
       ... on TeamAssetCard {
         slug
@@ -262,7 +349,10 @@
         setSlug
         cardType
         fate
-        assetPower
+        assetPower {
+          name
+          description
+        }
       }
     }
   "))
@@ -299,7 +389,10 @@
         def
         speed
         size
-        abilities
+        abilities {
+          name
+          description
+        }
         deckSize
       }
       ... on AbilityCard {
@@ -308,7 +401,10 @@
         setSlug
         cardType
         fate
-        abilities
+        abilities {
+          name
+          description
+        }
       }
       ... on PlayCard {
         slug
@@ -316,7 +412,10 @@
         setSlug
         cardType
         fate
-        play
+        play {
+          name
+          description
+        }
       }
       ... on StandardActionCard {
         slug
@@ -324,8 +423,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on SplitPlayCard {
         slug
@@ -333,8 +438,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on CoachingCard {
         slug
@@ -342,8 +453,14 @@
         setSlug
         cardType
         fate
-        coaching
-        signal
+        call {
+          name
+          description
+        }
+        signal {
+          name
+          description
+        }
       }
       ... on TeamAssetCard {
         slug
@@ -351,7 +468,10 @@
         setSlug
         cardType
         fate
-        assetPower
+        assetPower {
+          name
+          description
+        }
       }
     }
   "))
@@ -552,7 +672,10 @@
         def
         speed
         size
-        abilities
+        abilities {
+          name
+          description
+        }
         deckSize
       }
       ... on AbilityCard {
@@ -561,7 +684,10 @@
         setSlug
         cardType
         fate
-        abilities
+        abilities {
+          name
+          description
+        }
       }
       ... on PlayCard {
         slug
@@ -569,7 +695,10 @@
         setSlug
         cardType
         fate
-        play
+        play {
+          name
+          description
+        }
       }
       ... on StandardActionCard {
         slug
@@ -577,8 +706,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on SplitPlayCard {
         slug
@@ -586,8 +721,14 @@
         setSlug
         cardType
         fate
-        offense
-        defense
+        offense {
+          name
+          description
+        }
+        defense {
+          name
+          description
+        }
       }
       ... on CoachingCard {
         slug
@@ -595,8 +736,14 @@
         setSlug
         cardType
         fate
-        coaching
-        signal
+        call {
+          name
+          description
+        }
+        signal {
+          name
+          description
+        }
       }
       ... on TeamAssetCard {
         slug
@@ -604,7 +751,10 @@
         setSlug
         cardType
         fate
-        assetPower
+        assetPower {
+          name
+          description
+        }
       }
     }
   "))
