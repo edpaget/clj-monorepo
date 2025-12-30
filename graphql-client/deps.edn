@@ -1,0 +1,8 @@
+{:paths ["src" "test"]
+ :deps
+ {org.clojure/clojure {:mvn/version "1.12.4"}
+  org.clojure/clojurescript {:mvn/version "1.12.134"}
+  metosin/malli {:mvn/version "0.20.0"}
+  camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
+  com.pitch/uix.core {:mvn/version "1.4.4"}
+  thheller/shadow-cljs {:mvn/version "3.3.4"}}}

@@ -4,6 +4,9 @@
         thheller/shadow-cljs {:mvn/version "3.2.1"}
         camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
 
+        ;; GraphQL client utilities
+        local/graphql-client {:local/root "../graphql-client"}
+
         ;; Shared schemas
         local/bashketball-schemas {:local/root "../bashketball-schemas"}
 
