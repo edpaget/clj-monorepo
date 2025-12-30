@@ -25,12 +25,39 @@
        ($ :h4 {:class "text-[10px] font-medium text-gray-500 uppercase"} label)
        ($ :div {:class "text-gray-900 whitespace-pre-wrap leading-tight"} value))))
 
+(defn- extract-power-text
+  "Extract display text from a power value.
+   Handles both legacy string format and new {:name :description} format."
+  [power]
+  (cond
+    (string? power) power
+    (map? power) (let [n (:name power)
+                       d (:description power)]
+                   (if (and n d)
+                     (str n " — " d)
+                     (or n d)))
+    (object? power) (let [n (or (:name power) (.-name power))
+                          d (or (:description power) (.-description power))]
+                      (if (and n d)
+                        (str n " — " d)
+                        (or n d)))
+    :else nil))
+
+(defui power-block
+  "Display a card power with label. Handles both string and {:name :description} formats."
+  [{:keys [label power]}]
+  (let [text (extract-power-text power)]
+    (when (seq text)
+      ($ :div {:class "space-y-0.5"}
+         ($ :h4 {:class "text-[10px] font-medium text-gray-500 uppercase"} label)
+         ($ :div {:class "text-gray-900 whitespace-pre-wrap leading-tight"} text)))))
+
 (defui abilities-list
-  "Display a list of abilities."
+  "Display a list of abilities. Handles both string and {:name :description} formats."
   [{:keys [abilities]}]
   (let [abilities-vec (cond
                         (vector? abilities) abilities
-                        (array? abilities) (js->clj abilities)
+                        (array? abilities) (js->clj abilities :keywordize-keys true)
                         :else nil)]
     (when (seq abilities-vec)
       ($ :div {:class "space-y-0.5"}
@@ -38,7 +65,8 @@
          ($ :ul {:class "list-disc list-inside space-y-0.5"
                  :aria-label "Card abilities"}
             (for [[idx ability] (map-indexed vector abilities-vec)]
-              ($ :li {:key idx :class "text-gray-900 leading-tight"} ability)))))))
+              ($ :li {:key idx :class "text-gray-900 leading-tight"}
+                 (extract-power-text ability))))))))
 
 (defn- format-subtype
   "Format a subtype keyword into a display label."
@@ -109,7 +137,7 @@
 (defui play-card-display
   "Display play card specific fields."
   [{:keys [card]}]
-  ($ text-block {:label "Play" :value (:play card)}))
+  ($ power-block {:label "Play" :power (:play card)}))
 
 (defui ability-card-display
   "Display ability card specific fields."
@@ -120,29 +148,29 @@
   "Display split play card specific fields."
   [{:keys [card]}]
   ($ :div {:class "flex flex-col gap-2"}
-     ($ text-block {:label "Offense" :value (:offense card)})
+     ($ power-block {:label "Offense" :power (:offense card)})
      ($ :hr {:class "border-gray-300 mx-2"})
-     ($ text-block {:label "Defense" :value (:defense card)})))
+     ($ power-block {:label "Defense" :power (:defense card)})))
 
 (defui coaching-card-display
   "Display coaching card specific fields."
   [{:keys [card]}]
   ($ :div {:class "flex flex-col gap-2"}
-     ($ text-block {:label "Coaching" :value (:coaching card)})
-     ($ text-block {:label "Signal" :value (:signal card)})))
+     ($ power-block {:label "Call" :power (:call card)})
+     ($ power-block {:label "Signal" :power (:signal card)})))
 
 (defui team-asset-card-display
   "Display team asset card specific fields."
   [{:keys [card]}]
-  ($ text-block {:label "Asset Power" :value (or (:asset-power card) (:assetPower card))}))
+  ($ power-block {:label "Asset Power" :power (or (:asset-power card) (:assetPower card))}))
 
 (defui standard-action-card-display
   "Display standard action card specific fields."
   [{:keys [card]}]
   ($ :div {:class "flex flex-col gap-2"}
-     ($ text-block {:label "Offense" :value (:offense card)})
+     ($ power-block {:label "Offense" :power (:offense card)})
      ($ :hr {:class "border-gray-300 mx-2"})
-     ($ text-block {:label "Defense" :value (:defense card)})))
+     ($ power-block {:label "Defense" :power (:defense card)})))
 
 (def type-display-components
   "Map of card type to display component."
