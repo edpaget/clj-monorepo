@@ -110,12 +110,14 @@
   (get-type [this path] "Returns the inferred type for a document path.")
   (unify-type [this path new-type] "Unifies a new type constraint, returns updated env or error."))
 
-(defrecord TypeEnv [types]
+(defrecord TypeEnv [types])
+
+(extend-type TypeEnv
   ITypeEnv
-  (get-type [_ path]
+  (get-type [{:keys [types]} path]
     (get types path))
 
-  (unify-type [_ path new-type]
+  (unify-type [{:keys [types]} path new-type]
     (if-let [existing (get types path)]
       (if (compatible-types? existing new-type)
         (->TypeEnv (assoc types path (narrowest-type existing new-type)))
