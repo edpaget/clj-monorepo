@@ -12,12 +12,13 @@
   (testing "explains player exhausted conflict"
     (let [result (explain/explain-constraint [:player-exhausted] [:= false] true)]
       (is (= :player-exhausted (:key result)))
-      (is (string? (:message result)))
+      (is (= "Player is exhausted and cannot act" (:message result)))
       (is (= true (:witness result)))))
 
   (testing "explains player off court"
     (let [result (explain/explain-constraint [:player-on-court] [:= true])]
-      (is (= :player-off-court (:key result)))))
+      (is (= :player-off-court (:key result)))
+      (is (= "Player must be on the court" (:message result)))))
 
   (testing "returns nil for unknown constraint"
     (is (nil? (explain/explain-constraint [:unknown-path] [:= "value"])))))
