@@ -127,40 +127,40 @@
 
 (deftest categorize-block-targets-test
   (testing "block requires adjacency to ball carrier"
-    (let [state (-> (fixtures/base-game-state)
-                    (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                    (fixtures/with-player-at fixtures/away-player-1 [2 10])
-                    (fixtures/with-ball-possessed fixtures/away-player-1))
+    (let [state   (-> (fixtures/base-game-state)
+                      (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                      (fixtures/with-player-at fixtures/away-player-1 [2 10])
+                      (fixtures/with-ball-possessed fixtures/away-player-1))
           targets (targeting/categorize-block-targets state fixtures/home-player-1)]
       (is (= :not-adjacent (:reason (get targets fixtures/away-player-1))))))
 
   (testing "block requires target to have ball"
-    (let [state (-> (fixtures/base-game-state)
-                    (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                    (fixtures/with-player-at fixtures/away-player-1 [2 4]))
+    (let [state   (-> (fixtures/base-game-state)
+                      (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                      (fixtures/with-player-at fixtures/away-player-1 [2 4]))
           targets (targeting/categorize-block-targets state fixtures/home-player-1)]
       (is (= :not-ball-carrier (:reason (get targets fixtures/away-player-1)))))))
 
 (deftest categorize-screen-targets-test
   (testing "screen requires adjacency"
-    (let [state (-> (fixtures/base-game-state)
-                    (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                    (fixtures/with-player-at fixtures/away-player-1 [2 10]))
+    (let [state   (-> (fixtures/base-game-state)
+                      (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                      (fixtures/with-player-at fixtures/away-player-1 [2 10]))
           targets (targeting/categorize-screen-targets state fixtures/home-player-1)]
       (is (= :not-adjacent (:reason (get targets fixtures/away-player-1))))))
 
   (testing "screen is valid when adjacent"
-    (let [state (-> (fixtures/base-game-state)
-                    (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                    (fixtures/with-player-at fixtures/away-player-1 [2 4]))
+    (let [state   (-> (fixtures/base-game-state)
+                      (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                      (fixtures/with-player-at fixtures/away-player-1 [2 4]))
           targets (targeting/categorize-screen-targets state fixtures/home-player-1)]
       (is (= :valid (:status (get targets fixtures/away-player-1))))))
 
   (testing "screen blocked when actor exhausted"
-    (let [state (-> (fixtures/base-game-state)
-                    (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                    (fixtures/with-player-at fixtures/away-player-1 [2 4])
-                    (fixtures/with-exhausted fixtures/home-player-1))
+    (let [state   (-> (fixtures/base-game-state)
+                      (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                      (fixtures/with-player-at fixtures/away-player-1 [2 4])
+                      (fixtures/with-exhausted fixtures/home-player-1))
           targets (targeting/categorize-screen-targets state fixtures/home-player-1)]
       (is (= :actor-exhausted (:reason (get targets fixtures/away-player-1)))))))
 

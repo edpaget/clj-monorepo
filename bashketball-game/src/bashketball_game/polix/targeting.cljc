@@ -30,9 +30,9 @@
   (:require
    [bashketball-game.board :as board]
    [bashketball-game.movement :as movement]
-   [bashketball-game.state :as state]
+   [bashketball-game.polix.explain :as explain]
    [bashketball-game.polix.validation :as validation]
-   [bashketball-game.polix.explain :as explain]))
+   [bashketball-game.state :as state]))
 
 ;; =============================================================================
 ;; Move Target Categorization
@@ -162,7 +162,7 @@
   This is optimized for UI use where multiple action states are needed
   at once."
   [game-state team]
-  (let [base-action {:player team}
+  (let [base-action  {:player team}
         action-types [:bashketball/move-player
                       :bashketball/substitute
                       :bashketball/play-card
@@ -246,13 +246,13 @@
       (into {}
             (for [[pid player] opponents]
               [pid
-               (let [holder?  (and (= (:status ball) :ball-status/POSSESSED)
-                                   (= (:holder-id ball) pid))
+               (let [holder?   (and (= (:status ball) :ball-status/POSSESSED)
+                                    (= (:holder-id ball) pid))
                      on-court? (some? (:position player))
                      adjacent? (and on-court?
                                     (= 1 (board/hex-distance (:position actor)
                                                              (:position player))))
-                     basket   (get-target-basket-position opp-team)
+                     basket    (get-target-basket-position opp-team)
                      in-range? (and on-court?
                                     (<= (board/hex-distance (:position player) basket) 4))]
                  (cond

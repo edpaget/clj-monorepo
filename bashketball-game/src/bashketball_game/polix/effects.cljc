@@ -54,7 +54,12 @@
   - `:bashketball/initiate-skill-test` - Start a skill test for a player
   - `:bashketball/modify-skill-test` - Add a modifier to the pending skill test
   - `:bashketball/offer-choice` - Present a choice to a player (pauses execution)
-  - `:bashketball/force-choice` - Force a target player to choose between options"
+  - `:bashketball/force-choice` - Force a target player to choose between options
+  - `:bashketball/add-modifier` - Add stat modifier to player
+  - `:bashketball/remove-modifier` - Remove modifier by ID
+  - `:bashketball/clear-modifiers` - Clear all modifiers from player
+  - `:bashketball/attach-ability` - Attach ability card to player
+  - `:bashketball/detach-ability` - Detach ability card from player"
   []
 
   (fx/register-effect! :bashketball/move-player
@@ -191,4 +196,64 @@
                            (assoc (fx/success new-state [action])
                                   :pending {:type :forced-choice
                                             :choice-id (get-in new-state [:pending-choice :id])
-                                            :target resolved-target})))))
+                                            :target resolved-target}))))
+
+  ;; Modifier Effects
+
+  (fx/register-effect! :bashketball/add-modifier
+                       (fn [state {:keys [player-id stat amount source expires-at]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-stat      (resolve-param stat ctx state)
+                               resolved-amount    (resolve-param amount ctx state)
+                               resolved-source    (resolve-param source ctx state)
+                               resolved-expires   (resolve-param expires-at ctx state)
+                               action             {:type :bashketball/add-modifier
+                                                   :player-id resolved-player-id
+                                                   :stat resolved-stat
+                                                   :amount resolved-amount
+                                                   :source resolved-source
+                                                   :expires-at resolved-expires}
+                               new-state          (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  (fx/register-effect! :bashketball/remove-modifier
+                       (fn [state {:keys [player-id modifier-id]} ctx _opts]
+                         (let [resolved-player-id   (resolve-param player-id ctx state)
+                               resolved-modifier-id (resolve-param modifier-id ctx state)
+                               action               {:type :bashketball/remove-modifier
+                                                     :player-id resolved-player-id
+                                                     :modifier-id resolved-modifier-id}
+                               new-state            (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  (fx/register-effect! :bashketball/clear-modifiers
+                       (fn [state {:keys [player-id]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               action             {:type :bashketball/clear-modifiers
+                                                   :player-id resolved-player-id}
+                               new-state          (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  ;; Ability Effects
+
+  (fx/register-effect! :bashketball/attach-ability
+                       (fn [state {:keys [player instance-id target-id]} ctx _opts]
+                         (let [resolved-player   (resolve-param player ctx state)
+                               resolved-instance (resolve-param instance-id ctx state)
+                               resolved-target   (resolve-param target-id ctx state)
+                               action            {:type :bashketball/attach-ability
+                                                  :player resolved-player
+                                                  :instance-id resolved-instance
+                                                  :target-id resolved-target}
+                               new-state         (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  (fx/register-effect! :bashketball/detach-ability
+                       (fn [state {:keys [player-id instance-id]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-instance  (resolve-param instance-id ctx state)
+                               action             {:type :bashketball/detach-ability
+                                                   :player-id resolved-player-id
+                                                   :instance-id resolved-instance}
+                               new-state          (actions/do-action state action)]
+                           (fx/success new-state [action])))))

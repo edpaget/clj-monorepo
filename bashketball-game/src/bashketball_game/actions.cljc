@@ -351,8 +351,8 @@
   (when-not (:pending-skill-test state)
     (throw (ex-info "No pending skill test to resolve" {})))
   (let [{:keys [base-value modifiers fate]} (:pending-skill-test state)
-        modifier-total (reduce + 0 (map :amount modifiers))
-        total          (+ base-value modifier-total (or fate 0))]
+        modifier-total                      (reduce + 0 (map :amount modifiers))
+        total                               (+ base-value modifier-total (or fate 0))]
     (-> state
         (assoc-in [:pending-skill-test :total] total)
         (assoc :event-data {:skill-test (assoc (:pending-skill-test state) :total total)}))))

@@ -69,7 +69,7 @@
                           [:player-on-court? :doc/state :target/id]
                           [:within-range? :doc/state :actor/id :target/id 6]
                           [:= [:player-team :doc/state :actor/id]
-                              [:player-team :doc/state :target/id]]]
+                           [:player-team :doc/state :target/id]]]
      :action/targets     [:actor/id :target/id]
      :action/effect      {:effect/type :bashketball/initiate-skill-test
                           :actor-id    :actor/id
@@ -85,7 +85,7 @@
                           [:adjacent? :doc/state :actor/id :target/id]
                           [:has-ball? :doc/state :target/id]
                           [:not [:= [:player-team :doc/state :actor/id]
-                                    [:player-team :doc/state :target/id]]]]
+                                 [:player-team :doc/state :target/id]]]]
      :action/targets     [:actor/id :target/id]
      :action/effect      {:effect/type :bashketball/initiate-skill-test
                           :actor-id    :actor/id
@@ -106,7 +106,7 @@
      :action/requires    [:and
                           [:adjacent? :doc/state :actor/id :target/id]
                           [:not [:= [:player-team :doc/state :actor/id]
-                                    [:player-team :doc/state :target/id]]]
+                                 [:player-team :doc/state :target/id]]]
                           [:not [:player-exhausted? :doc/state :actor/id]]]
      :action/targets     [:actor/id :target/id]
      :action/effect      {:effect/type :polix.effects/sequence
@@ -121,7 +121,7 @@
      :action/requires    [:and
                           [:adjacent? :doc/state :actor/id :target/id]
                           [:not [:= [:player-team :doc/state :actor/id]
-                                    [:player-team :doc/state :target/id]]]
+                                 [:player-team :doc/state :target/id]]]
                           [:not [:player-exhausted? :doc/state :actor/id]]]
      :action/targets     [:actor/id :target/id]
      :action/effect      {:effect/type  :bashketball/initiate-skill-test

@@ -11,6 +11,7 @@
    [bashketball-game.board :as board]
    [bashketball-game.movement :as movement]
    [bashketball-game.state :as state]
+   [clojure.string :as str]
    [polix.operators :as op]))
 
 (defn register-operators!
@@ -44,7 +45,17 @@
   - `:adjacent?` - Whether two players are in neighboring hexes
   - `:within-range?` - Whether entity is within N hexes of target (player or :basket)
   - `:ball-holder` - Player ID holding the ball, or nil
-  - `:opponent-team` - The opposing team keyword"
+  - `:opponent-team` - The opposing team keyword
+  - `:stat-value` - Effective stat value with modifiers
+  - `:player-size` - Player's size (:size/SM, :size/MD, :size/LG)
+  - `:size-comparison` - Compare two players' sizes
+  - `:in-zoc?` - Whether position is in defender's ZoC
+  - `:zoc-defenders` - Set of defenders exerting ZoC on position
+  - `:pass-path-zoc` - Defenders whose ZoC intersects pass path
+  - `:scoring-zone` - Scoring zone (:two-point or :three-point)
+  - `:cards-in-hand` - Number of cards in team's hand
+  - `:distance-advantage` - Advantage level from distance
+  - `:size-advantage` - Advantage level from size comparison"
   []
 
   (op/register-operator! :hex-distance
@@ -146,7 +157,7 @@
 
   (op/register-operator! :within-range?
                          {:eval (fn [game-state entity-id target max-range]
-                                  (let [entity (state/get-basketball-player game-state entity-id)
+                                  (let [entity     (state/get-basketball-player game-state entity-id)
                                         entity-pos (:position entity)
                                         target-pos (if (= target :basket)
                                                      (let [team (state/get-basketball-player-team game-state entity-id)]
@@ -168,7 +179,105 @@
                                   (case team
                                     :team/HOME :team/AWAY
                                     :team/AWAY :team/HOME
-                                    nil))}))
+                                    nil))})
+
+  ;; Phase 1 Operators: Stats, Size, ZoC, Scoring
+
+  (op/register-operator! :stat-value
+                         {:eval (fn [game-state player-id stat]
+                                  (let [player     (state/get-basketball-player game-state player-id)
+                                        stat-name  (name stat)
+                                        stats-key  (keyword (str/lower-case stat-name))
+                                        base-value (get-in player [:stats stats-key] 0)
+                                        modifiers  (:modifiers player)
+                                        stat-mods  (filter #(= (:stat %) stat) modifiers)
+                                        mod-total  (reduce + 0 (map :amount stat-mods))]
+                                    (+ base-value mod-total)))})
+
+  (op/register-operator! :player-size
+                         {:eval (fn [game-state player-id]
+                                  (get-in (state/get-basketball-player game-state player-id)
+                                          [:stats :size]))})
+
+  (op/register-operator! :size-comparison
+                         {:eval (fn [game-state player-a-id player-b-id]
+                                  (let [size-order {:size/SM 0 :size/MD 1 :size/LG 2}
+                                        size-a     (get-in (state/get-basketball-player game-state player-a-id)
+                                                           [:stats :size])
+                                        size-b     (get-in (state/get-basketball-player game-state player-b-id)
+                                                           [:stats :size])
+                                        ord-a      (get size-order size-a 1)
+                                        ord-b      (get size-order size-b 1)]
+                                    (cond
+                                      (> ord-a ord-b) :larger
+                                      (< ord-a ord-b) :smaller
+                                      :else :same)))})
+
+  (op/register-operator! :in-zoc?
+                         {:eval (fn [game-state position defender-id]
+                                  (let [defender (state/get-basketball-player game-state defender-id)
+                                        def-pos  (:position defender)]
+                                    (and def-pos
+                                         (not (:exhausted defender))
+                                         (<= (board/hex-distance position def-pos) 1))))})
+
+  (op/register-operator! :zoc-defenders
+                         {:eval (fn [game-state position defending-team]
+                                  (let [defenders (state/get-on-court-players game-state defending-team)]
+                                    (->> defenders
+                                         (filter (fn [player-id]
+                                                   (let [player  (state/get-basketball-player game-state player-id)
+                                                         def-pos (:position player)]
+                                                     (and def-pos
+                                                          (not (:exhausted player))
+                                                          (<= (board/hex-distance position def-pos) 1)))))
+                                         set)))})
+
+  (op/register-operator! :pass-path-zoc
+                         {:eval (fn [game-state from-pos to-pos defending-team]
+                                  (let [path-hexes (board/hex-line from-pos to-pos)
+                                        defenders  (state/get-on-court-players game-state defending-team)]
+                                    (->> defenders
+                                         (filter (fn [player-id]
+                                                   (let [player  (state/get-basketball-player game-state player-id)
+                                                         def-pos (:position player)]
+                                                     (and def-pos
+                                                          (not (:exhausted player))
+                                                          (some #(<= (board/hex-distance % def-pos) 1)
+                                                                path-hexes)))))
+                                         set)))})
+
+  (op/register-operator! :scoring-zone
+                         {:eval (fn [position _target-basket]
+                                  (let [[_q r] position]
+                                    (if (or (<= r 3) (>= r 10))
+                                      :two-point
+                                      :three-point)))})
+
+  (op/register-operator! :cards-in-hand
+                         {:eval (fn [game-state team]
+                                  (count (state/get-hand game-state team)))})
+
+  (op/register-operator! :distance-advantage
+                         {:eval (fn [distance]
+                                  (cond
+                                    (<= distance 2) :advantage
+                                    (<= distance 4) :normal
+                                    :else :disadvantage))})
+
+  (op/register-operator! :size-advantage
+                         {:eval (fn [game-state actor-id target-id]
+                                  (let [size-order  {:size/SM 0 :size/MD 1 :size/LG 2}
+                                        actor-size  (get-in (state/get-basketball-player game-state actor-id)
+                                                            [:stats :size])
+                                        target-size (get-in (state/get-basketball-player game-state target-id)
+                                                            [:stats :size])
+                                        ord-actor   (get size-order actor-size 1)
+                                        ord-target  (get size-order target-size 1)]
+                                    (cond
+                                      (> ord-actor ord-target) :advantage
+                                      (< ord-actor ord-target) :disadvantage
+                                      :else :normal)))}))
 
 (defn hex-distance
   "Computes hex distance between two positions.
@@ -299,7 +408,7 @@
   When `:basket`, uses the entity's target basket based on their team.
   Returns nil if either entity is not on the court."
   [game-state entity-id target max-range]
-  (let [entity (state/get-basketball-player game-state entity-id)
+  (let [entity     (state/get-basketball-player game-state entity-id)
         entity-pos (:position entity)
         target-pos (if (= target :basket)
                      (let [team (state/get-basketball-player-team game-state entity-id)]
@@ -324,3 +433,120 @@
     :team/HOME :team/AWAY
     :team/AWAY :team/HOME
     nil))
+
+;; Phase 1 Convenience Wrappers
+
+(defn stat-value
+  "Returns the effective stat value for a player, including modifiers.
+
+  Takes a stat keyword like `:stat/SHOOTING` and returns the base value
+  plus any active modifiers for that stat."
+  [game-state player-id stat]
+  (let [player     (state/get-basketball-player game-state player-id)
+        stat-name  (name stat)
+        stats-key  (keyword (str/lower-case stat-name))
+        base-value (get-in player [:stats stats-key] 0)
+        modifiers  (:modifiers player)
+        stat-mods  (filter #(= (:stat %) stat) modifiers)
+        mod-total  (reduce + 0 (map :amount stat-mods))]
+    (+ base-value mod-total)))
+
+(defn player-size
+  "Returns the size of a player (:size/SM, :size/MD, or :size/LG)."
+  [game-state player-id]
+  (get-in (state/get-basketball-player game-state player-id)
+          [:stats :size]))
+
+(defn size-comparison
+  "Compares two players' sizes, returning :larger, :same, or :smaller.
+
+  Returns the comparison from player-a's perspective relative to player-b."
+  [game-state player-a-id player-b-id]
+  (let [size-order {:size/SM 0 :size/MD 1 :size/LG 2}
+        size-a     (player-size game-state player-a-id)
+        size-b     (player-size game-state player-b-id)
+        ord-a      (get size-order size-a 1)
+        ord-b      (get size-order size-b 1)]
+    (cond
+      (> ord-a ord-b) :larger
+      (< ord-a ord-b) :smaller
+      :else :same)))
+
+(defn in-zoc?
+  "Returns true if position is within defender's Zone of Control.
+
+  A defender exerts ZoC if they are unexhausted and within 1 hex of the position."
+  [game-state position defender-id]
+  (let [defender (state/get-basketball-player game-state defender-id)
+        def-pos  (:position defender)]
+    (and def-pos
+         (not (:exhausted defender))
+         (<= (board/hex-distance position def-pos) 1))))
+
+(defn zoc-defenders
+  "Returns set of defender IDs exerting ZoC on the given position.
+
+  Only includes unexhausted defenders within 1 hex of the position."
+  [game-state position defending-team]
+  (let [defenders (state/get-on-court-players game-state defending-team)]
+    (->> defenders
+         (filter #(in-zoc? game-state position %))
+         set)))
+
+(defn pass-path-zoc
+  "Returns set of defenders whose ZoC intersects the pass path.
+
+  Checks all hexes along the line from `from-pos` to `to-pos` and returns
+  any unexhausted defenders from `defending-team` whose ZoC covers any hex."
+  [game-state from-pos to-pos defending-team]
+  (let [path-hexes (board/hex-line from-pos to-pos)
+        defenders  (state/get-on-court-players game-state defending-team)]
+    (->> defenders
+         (filter (fn [player-id]
+                   (let [player  (state/get-basketball-player game-state player-id)
+                         def-pos (:position player)]
+                     (and def-pos
+                          (not (:exhausted player))
+                          (some #(<= (board/hex-distance % def-pos) 1)
+                                path-hexes)))))
+         set)))
+
+(defn scoring-zone
+  "Returns :two-point or :three-point based on position on the court.
+
+  Two-point zone: columns 0-3 (left basket) or 10-13 (right basket).
+  Three-point zone: columns 4-9 (middle of court)."
+  [position]
+  (let [[_q r] position]
+    (if (or (<= r 3) (>= r 10))
+      :two-point
+      :three-point)))
+
+(defn cards-in-hand
+  "Returns the number of cards in the team's hand."
+  [game-state team]
+  (count (state/get-hand game-state team)))
+
+(defn distance-advantage
+  "Returns advantage level based on distance.
+
+  Close (1-2 hexes): :advantage
+  Medium (3-4 hexes): :normal
+  Long (5+ hexes): :disadvantage"
+  [distance]
+  (cond
+    (<= distance 2) :advantage
+    (<= distance 4) :normal
+    :else :disadvantage))
+
+(defn size-advantage
+  "Returns advantage level from size comparison between actor and target.
+
+  Larger actor: :advantage
+  Same size: :normal
+  Smaller actor: :disadvantage"
+  [game-state actor-id target-id]
+  (case (size-comparison game-state actor-id target-id)
+    :larger :advantage
+    :smaller :disadvantage
+    :normal))

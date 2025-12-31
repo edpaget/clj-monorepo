@@ -5,10 +5,26 @@
   with the polix libraries. Call once at application startup before evaluating
   any policies or applying any effects.
 
+  ## Available Modules
+
+  After calling [[initialize!]], the following modules are available:
+
+  - [[bashketball-game.polix.operators]] - Game state operators (ZoC, size, stats)
+  - [[bashketball-game.polix.effects]] - State mutation effects (modifiers, abilities)
+  - [[bashketball-game.polix.zoc]] - Zone of Control policies
+  - [[bashketball-game.polix.skill-tests]] - Skill test resolution with advantage
+  - [[bashketball-game.polix.scoring]] - Scoring zones and distance modifiers
+  - [[bashketball-game.polix.standard-action-policies]] - Standard action preconditions
+
   For trigger integration, see [[bashketball-game.polix.triggers]]."
   (:require
    [bashketball-game.polix.effects :as effects]
-   [bashketball-game.polix.operators :as operators]))
+   [bashketball-game.polix.operators :as operators]
+   ;; Load policy modules to make them available
+   [bashketball-game.polix.scoring]
+   [bashketball-game.polix.skill-tests]
+   [bashketball-game.polix.standard-action-policies]
+   [bashketball-game.polix.zoc]))
 
 (defn initialize!
   "Initializes all bashketball polix integrations.
