@@ -126,18 +126,26 @@
            actions loading status-text on-add-score]}]
   ($ :div {:class "border-t bg-white"}
      ;; Hand section - takes available space
-     ($ :div {:class "px-3 py-2 border-b"}
-        ;; Header with toggle
-        ($ :div {:class "flex items-center justify-between mb-1"}
-           ($ :div {:class "text-xs font-medium text-slate-500"}
-              (if discard-mode
-                (str "Select cards to discard (" (count discard-cards) " selected)")
-                "Your Hand"))
-           (when (seq hand)
-             ($ :button
-                {:class    "text-slate-400 hover:text-slate-600 text-xs"
-                 :on-click on-expand-toggle}
-                (if expanded "Collapse" "Expand"))))
+     (let [hand-count (count hand)
+           at-limit?  (>= hand-count 8)]
+       ($ :div {:class "px-3 py-2 border-b"}
+          ;; Header with toggle
+          ($ :div {:class "flex items-center justify-between mb-1"}
+             ($ :div {:class "text-xs font-medium text-slate-500"}
+                (if discard-mode
+                  (str "Select cards to discard (" (count discard-cards) " selected)")
+                  ($ :<>
+                     "Your Hand "
+                     ($ :span {:class (cn "font-mono"
+                                          (if at-limit?
+                                            "text-red-600 font-bold"
+                                            "text-slate-400"))}
+                        (str "(" hand-count "/8)")))))
+             (when (seq hand)
+               ($ :button
+                  {:class    "text-slate-400 hover:text-slate-600 text-xs"
+                   :on-click on-expand-toggle}
+                  (if expanded "Collapse" "Expand"))))
         ($ player-hand {:hand            hand
                         :catalog         catalog
                         :display-mode    (if expanded :preview :compact)
@@ -146,7 +154,7 @@
                         :discard-cards   discard-cards
                         :on-card-click   on-card-click
                         :on-detail-click on-detail-click
-                        :disabled        disabled}))
+                        :disabled        disabled})))
 
      ;; Actions section
      ($ :div {:class "px-3 py-2"}

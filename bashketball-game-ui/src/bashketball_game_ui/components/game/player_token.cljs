@@ -12,6 +12,16 @@
 
 (def ^:private token-radius 22)
 
+(def ^:private size-labels
+  {:size/SM "S"
+   :size/MD "M"
+   :size/LG "L"})
+
+(def ^:private size-colors
+  {:size/SM {:fill "#f59e0b" :stroke "#d97706"}  ;; amber
+   :size/MD {:fill "#10b981" :stroke "#059669"}  ;; emerald
+   :size/LG {:fill "#6366f1" :stroke "#4f46e5"}}) ;; indigo
+
 (defn- valid-position?
   "Returns true if position is a valid [q r] vector."
   [pos]
@@ -42,6 +52,9 @@
         colors              (get team-colors team (:team/HOME team-colors))
         exhausted?          (:exhausted player)
         attachment-count    (count (:attachments player))
+        player-size         (get-in player [:stats :size])
+        size-label          (get size-labels (keyword player-size))
+        size-color          (get size-colors (keyword player-size) {:fill "#94a3b8" :stroke "#64748b"})
         first-letter        (or (some-> (:name player) first str) "?")
         jersey-num          (str first-letter player-num)
 
@@ -156,4 +169,22 @@
                       :font-size   "10"
                       :font-weight "bold"
                       :style       {:user-select "none"}}
-               (str attachment-count)))))))
+               (str attachment-count))))
+
+       ;; Size badge (top-left of token)
+       (when size-label
+         ($ :g
+            ($ :circle {:cx           (- cx 16)
+                        :cy           (- cy 16)
+                        :r            10
+                        :fill         (:fill size-color)
+                        :stroke       (:stroke size-color)
+                        :stroke-width 1})
+            ($ :text {:x           (- cx 16)
+                      :y           (- cy 12)
+                      :text-anchor "middle"
+                      :fill        "#ffffff"
+                      :font-size   "10"
+                      :font-weight "bold"
+                      :style       {:user-select "none"}}
+               size-label))))))

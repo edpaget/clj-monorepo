@@ -39,6 +39,13 @@
   [phase]
   (get phase-colors (keyword phase) "bg-slate-100 text-slate-700"))
 
+(defn- calculate-quarter
+  "Calculates the current quarter from turn number.
+  Each quarter has 12 turns (6 per player)."
+  [turn-number]
+  (when (and turn-number (pos? turn-number))
+    (inc (quot (dec turn-number) 12))))
+
 (defui nav-menu
   "Hamburger menu with navigation links."
   []
@@ -93,11 +100,14 @@
         ($ :span {:class "text-xs text-slate-500 font-mono"}
            (when game-id (subs (str game-id) 0 8))))
 
-     ;; Right: turn, phase badge, score, action buttons
+     ;; Right: quarter/turn, phase badge, score, action buttons
      ($ :div {:class "flex items-center gap-3"}
-        ;; Turn number
-        ($ :span {:class "text-xs text-slate-500"}
-           (str "T" (or turn-number "—")))
+        ;; Quarter and turn number
+        (let [quarter (calculate-quarter turn-number)]
+          ($ :span {:class "text-xs text-slate-500"}
+             (if quarter
+               (str "Q" quarter " T" turn-number)
+               (str "T" (or turn-number "—")))))
 
         ;; Phase badge
         ($ :span {:class (cn "px-2 py-0.5 text-xs font-medium rounded"

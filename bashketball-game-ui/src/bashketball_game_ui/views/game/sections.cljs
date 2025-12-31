@@ -512,12 +512,12 @@
              :on-click on-peek-opponent-deck
              :class    "text-teal-600 border-teal-300 hover:bg-teal-50"})
 
-      ;; Standard Action (secondary) - discard 2 to play standard action
+      ;; Standard Action (secondary) - discard 3 to play standard action
       show-standard-action
       (conj {:id       :standard-action
              :label    "Standard Action"
              :on-click on-enter-standard-action
-             :disabled (< my-hand-count 2)
+             :disabled (< my-hand-count 3)
              :class    "text-indigo-600 border-indigo-300 hover:bg-indigo-50"})
 
       ;; Cancel Standard Action
@@ -529,9 +529,9 @@
       ;; Proceed Standard Action (Continue to select action)
       standard-action-active
       (conj {:id       :proceed-standard-action
-             :label    (str "Continue (" standard-action-count "/2)")
+             :label    (str "Continue (" standard-action-count "/3)")
              :on-click on-proceed-standard-action
-             :disabled (not= standard-action-count 2)
+             :disabled (not= standard-action-count 3)
              :variant  :default
              :class    "bg-indigo-600 hover:bg-indigo-700"})
 
