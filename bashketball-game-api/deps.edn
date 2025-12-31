@@ -20,7 +20,7 @@
   local/oidc                    {:local/root "../oidc"}
   local/oidc-google             {:local/root "../oidc-google"}
   local/graphql-server          {:local/root "../graphql-server"}
-  io.github.bashketball/cards   {:mvn/version "0.9.0-SNAPSHOT"}}
+  io.github.bashketball/cards   {:mvn/version "0.9.0"}}
  :mvn/repos {"github" {:url "https://maven.pkg.github.com/bashketball/cards"}}
  :aliases
  {:test
