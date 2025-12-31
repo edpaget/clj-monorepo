@@ -128,7 +128,9 @@
                          :changes-repo changes-repo
                          :card-service card-service
                          :set-service set-service})
-          :enable-graphiql? true})
+          :enable-graphiql? true
+          :scalars {:PolicyExpr {:parse identity
+                                 :serialize identity}}})
         (oidc-ring/oidc-middleware
          {:client github-oidc-client
           :login-path "/auth/github/login"

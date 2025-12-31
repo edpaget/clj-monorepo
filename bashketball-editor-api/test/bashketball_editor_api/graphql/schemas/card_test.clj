@@ -61,7 +61,10 @@
                 :def 4
                 :speed 4
                 :size :size/MD
-                :abilities ["Clutch" "Fadeaway"]
+                :abilities [{:ability/id "clutch"
+                             :ability/name "Clutch"}
+                            {:ability/id "fadeaway"
+                             :ability/name "Fadeaway"}]
                 :player-subtypes [:player-subtype/HUMAN]}]
       (is (m/validate schemas/PlayerCard card))))
 
@@ -89,7 +92,9 @@
                 :set-slug "base-set"
                 :card-type :card-type/ABILITY_CARD
                 :fate 3
-                :abilities ["Jump twice in one turn"]}]
+                :abilities [{:ability/id "double-jump"
+                             :ability/name "Double Jump"
+                             :ability/description "Jump twice in one turn"}]}]
       (is (m/validate schemas/AbilityCard card)))))
 
 (deftest play-card-schema-test
@@ -99,7 +104,10 @@
                 :set-slug "base-set"
                 :card-type :card-type/PLAY_CARD
                 :fate 2
-                :play "Score on a fast break"}]
+                :play {:play/id "fast-break"
+                       :play/name "Fast Break"
+                       :play/description "Score on a fast break"
+                       :play/effect {:effect/type :bashketball/score}}}]
       (is (m/validate schemas/PlayCard card)))))
 
 (deftest split-play-card-schema-test
@@ -109,8 +117,12 @@
                 :set-slug "base-set"
                 :card-type :card-type/SPLIT_PLAY_CARD
                 :fate 3
-                :offense "Drive to the basket"
-                :defense "Set a pick"}]
+                :offense {:action/id "drive"
+                          :action/name "Drive to the Basket"
+                          :action/effect {:effect/type :bashketball/move-player}}
+                :defense {:action/id "pick"
+                          :action/name "Set a Pick"
+                          :action/effect {:effect/type :bashketball/set-pick}}}]
       (is (m/validate schemas/SplitPlayCard card)))))
 
 (deftest coaching-card-schema-test
@@ -120,7 +132,10 @@
                 :set-slug "base-set"
                 :card-type :card-type/COACHING_CARD
                 :fate 1
-                :coaching "Reset your team's positions"}]
+                :call {:call/id "time-out"
+                       :call/name "Time Out"
+                       :call/description "Reset your team's positions"
+                       :call/effect {:effect/type :bashketball/reset-positions}}}]
       (is (m/validate schemas/CoachingCard card)))))
 
 (deftest standard-action-card-schema-test
@@ -130,8 +145,12 @@
                 :set-slug "base-set"
                 :card-type :card-type/STANDARD_ACTION_CARD
                 :fate 0
-                :offense "Move one space"
-                :defense "Block"}]
+                :offense {:action/id "move"
+                          :action/name "Move One Space"
+                          :action/effect {:effect/type :bashketball/move-player}}
+                :defense {:action/id "block"
+                          :action/name "Block"
+                          :action/effect {:effect/type :bashketball/block}}}]
       (is (m/validate schemas/StandardActionCard card)))))
 
 (deftest team-asset-card-schema-test
@@ -141,7 +160,9 @@
                 :set-slug "base-set"
                 :card-type :card-type/TEAM_ASSET_CARD
                 :fate 5
-                :asset-power "+1 to all shots at home"}]
+                :asset-power {:asset/id "home-court"
+                              :asset/name "Home Court Advantage"
+                              :asset/description "+1 to all shots at home"}}]
       (is (m/validate schemas/TeamAssetCard card)))))
 
 (deftest game-card-multi-schema-test
@@ -160,7 +181,9 @@
                   :set-slug "base-set"
                   :card-type :card-type/PLAY_CARD
                   :fate 2
-                  :play "Score quickly"}]
+                  :play {:play/id "fast-break"
+                         :play/name "Score Quickly"
+                         :play/effect {:effect/type :bashketball/score}}}]
       (is (m/validate schemas/GameCard player))
       (is (m/validate schemas/GameCard play)))))
 
