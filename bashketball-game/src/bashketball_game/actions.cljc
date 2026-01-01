@@ -206,6 +206,53 @@
          old-position (update :board board/remove-occupant old-position))
         (update :board board/set-occupant position {:type :occupant/BASKETBALL_PLAYER :id player-id}))))
 
+(defmethod -apply-action :bashketball/begin-movement
+  [state {:keys [player-id speed]}]
+  (let [player   (state/get-basketball-player state player-id)
+        team     (state/get-basketball-player-team state player-id)
+        position (:position player)]
+    (state/set-pending-movement state
+                                {:id               (generate-id)
+                                 :player-id        player-id
+                                 :team             team
+                                 :starting-position position
+                                 :current-position position
+                                 :initial-speed    speed
+                                 :remaining-speed  speed
+                                 :path-taken       [position]
+                                 :step-number      0})))
+
+(defmethod -apply-action :bashketball/do-move-step
+  [state {:keys [player-id to-position cost]}]
+  (let [player       (state/get-basketball-player state player-id)
+        old-position (:position player)
+        movement     (state/get-pending-movement state)]
+    (-> state
+        (state/update-basketball-player player-id assoc :position to-position)
+        (cond->
+         old-position (update :board board/remove-occupant old-position))
+        (update :board board/set-occupant to-position {:type :occupant/BASKETBALL_PLAYER :id player-id})
+        (state/update-pending-movement
+         (fn [m]
+           (-> m
+               (assoc :current-position to-position)
+               (update :remaining-speed - cost)
+               (update :path-taken conj to-position)
+               (update :step-number inc))))
+        (assoc :event-data {:from-position old-position
+                            :to-position   to-position
+                            :cost          cost
+                            :remaining     (- (:remaining-speed movement) cost)}))))
+
+(defmethod -apply-action :bashketball/end-movement
+  [state {:keys [player-id]}]
+  (let [movement (state/get-pending-movement state)]
+    (-> state
+        (state/clear-pending-movement)
+        (assoc :event-data {:player-id   player-id
+                            :path-taken  (:path-taken movement)
+                            :total-steps (:step-number movement)}))))
+
 (defmethod -apply-action :bashketball/exhaust-player
   [state {:keys [player-id]}]
   (state/update-basketball-player state player-id assoc :exhausted true))

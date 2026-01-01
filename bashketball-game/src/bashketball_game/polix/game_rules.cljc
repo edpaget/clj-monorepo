@@ -37,13 +37,31 @@
             :player [:ctx :event :player]
             :count [:ctx :event :count]}})
 
+(def move-step-rule
+  "Default rule for move-step: produces terminal do-move-step effect.
+
+  Computes movement cost declaratively using `:bashketball-fn/step-cost`,
+  which factors in base cost and ZoC penalties based on game state."
+  {:id "rule/move-step"
+   :event-types #{:bashketball/player-entering-hex.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-move-step
+            :player-id [:ctx :event :player-id]
+            :to-position [:ctx :event :to-position]
+            :cost [:bashketball-fn/step-cost
+                   [:ctx :event :player-id]
+                   [:ctx :event :to-position]]}})
+
 ;;; ---------------------------------------------------------------------------
 ;;; Rule Registry
 ;;; ---------------------------------------------------------------------------
 
 (def default-rules
   "All default game rules. Add new rules here as more actions are migrated."
-  [draw-cards-rule])
+  [draw-cards-rule
+   move-step-rule])
 
 (defn register-game-rules!
   "Registers all default game rules in the trigger registry.

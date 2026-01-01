@@ -16,6 +16,7 @@
   Directly modify state. Only called by catchall game rules or internally."
   (:require
    [bashketball-game.actions :as actions]
+   [bashketball-game.polix.functions :as functions]
    [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
    [polix.effects.core :as fx]))
@@ -27,6 +28,7 @@
   - Keywords: looked up in context bindings, returned as-is if not found
   - Vectors starting with :ctx: resolved from context path
   - Vectors starting with :state: resolved from state path
+  - Vectors starting with :bashketball-fn/...: calls registered function
   - Other values: returned as-is"
   [param ctx state]
   (cond
@@ -41,6 +43,16 @@
     (and (vector? param)
          (= :state (first param)))
     (get-in state (rest param))
+
+    (and (vector? param)
+         (keyword? (first param))
+         (= "bashketball-fn" (namespace (first param))))
+    (let [[fn-key & args] param
+          resolved-args (mapv #(resolve-param % ctx state) args)
+          f (functions/get-fn fn-key)]
+      (if f
+        (apply f state ctx resolved-args)
+        (throw (ex-info "Unknown function" {:fn-key fn-key}))))
 
     :else
     param))
@@ -89,6 +101,92 @@
                                action             {:type :bashketball/move-player
                                                    :player-id resolved-player-id
                                                    :position resolved-position}
+                               new-state          (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  ;; Step-by-step Movement Effects
+
+  (fx/register-effect! :bashketball/begin-movement
+                       (fn [state {:keys [player-id speed]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-speed     (resolve-param speed ctx state)
+                               action             {:type :bashketball/begin-movement
+                                                   :player-id resolved-player-id
+                                                   :speed resolved-speed}
+                               new-state          (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  (fx/register-effect! :bashketball/move-step
+                       (fn [state {:keys [player-id to-position]} ctx opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-position  (resolve-param to-position ctx state)
+                               player             (state/get-basketball-player state resolved-player-id)
+                               from-position      (:position player)
+                               team               (state/get-basketball-player-team state resolved-player-id)
+                               movement           (state/get-pending-movement state)
+                               ;; Fire exit event
+                               exit-event         {:event-type      :bashketball/player-exiting-hex.request
+                                                   :team            team
+                                                   :player-id       resolved-player-id
+                                                   :from-position   from-position
+                                                   :to-position     resolved-position
+                                                   :remaining-speed (:remaining-speed movement)
+                                                   :step-number     (:step-number movement)
+                                                   :causation       (:causation opts)}
+                               exit-result        (triggers/fire-request-event
+                                                   {:state            state
+                                                    :registry         (:registry opts)
+                                                    :event-counters   (:event-counters opts)
+                                                    :executing-triggers (:executing-triggers opts)}
+                                                   exit-event)]
+                           (if (:prevented? exit-result)
+                             {:state            (:state exit-result)
+                              :applied          []
+                              :failed           []
+                              :pending          nil
+                              :prevented?       true
+                              :event-counters   (:event-counters exit-result)
+                              :registry         (:registry exit-result)}
+                             ;; Fire enter event - cost computed by catchall rule via :bashketball-fn/step-cost
+                             (let [enter-event  {:event-type       :bashketball/player-entering-hex.request
+                                                 :team             team
+                                                 :player-id        resolved-player-id
+                                                 :from-position    from-position
+                                                 :to-position      resolved-position
+                                                 :remaining-speed  (:remaining-speed movement)
+                                                 :step-number      (:step-number movement)
+                                                 :causation        (:causation opts)}
+                                   enter-result (triggers/fire-request-event
+                                                 {:state              (:state exit-result)
+                                                  :registry           (:registry exit-result)
+                                                  :event-counters     (:event-counters exit-result)
+                                                  :executing-triggers (:executing-triggers exit-result)}
+                                                 enter-event)]
+                               {:state            (:state enter-result)
+                                :applied          []
+                                :failed           []
+                                :pending          nil
+                                :prevented?       (:prevented? enter-result)
+                                :event-counters   (:event-counters enter-result)
+                                :registry         (:registry enter-result)})))))
+
+  (fx/register-effect! :bashketball/do-move-step
+                       (fn [state {:keys [player-id to-position cost]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-position  (resolve-param to-position ctx state)
+                               resolved-cost      (resolve-param cost ctx state)
+                               action             {:type :bashketball/do-move-step
+                                                   :player-id resolved-player-id
+                                                   :to-position resolved-position
+                                                   :cost resolved-cost}
+                               new-state          (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  (fx/register-effect! :bashketball/end-movement
+                       (fn [state {:keys [player-id]} ctx _opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               action             {:type :bashketball/end-movement
+                                                   :player-id resolved-player-id}
                                new-state          (actions/do-action state action)]
                            (fx/success new-state [action]))))
 

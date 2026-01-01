@@ -313,6 +313,25 @@
    [:waiting-for Team]
    [:context {:optional true} :map]])
 
+;; -----------------------------------------------------------------------------
+;; Movement Schemas
+
+(def PendingMovement
+  "A movement action in progress.
+
+  Tracks the movement context for step-by-step movement through the hex grid.
+  Each step fires exit/enter events that triggers can intercept."
+  [:map {:graphql/type :PendingMovement}
+   [:id :string]
+   [:player-id :string]
+   [:team enums/Team]
+   [:starting-position HexPosition]
+   [:current-position HexPosition]
+   [:initial-speed :int]
+   [:remaining-speed :int]
+   [:path-taken [:vector HexPosition]]
+   [:step-number :int]])
+
 (def Event
   "A logged game event."
   [:map {:graphql/type :Event}
@@ -349,7 +368,8 @@
    [:events [:vector Event]]
    [:metadata :map]
    [:pending-skill-test {:optional true} [:maybe PendingSkillTest]]
-   [:pending-choice {:optional true} [:maybe PendingChoice]]])
+   [:pending-choice {:optional true} [:maybe PendingChoice]]
+   [:pending-movement {:optional true} [:maybe PendingMovement]]])
 
 ;; -----------------------------------------------------------------------------
 ;; Action Schemas
@@ -412,6 +432,31 @@
    [:type [:= :bashketball/move-player]]
    [:player-id :string]
    [:position HexPosition]])
+
+(def BeginMovementAction
+  "Action to begin step-by-step movement for a player.
+
+  Creates a movement context tracking the player's speed budget and path."
+  [:map
+   [:type [:= :bashketball/begin-movement]]
+   [:player-id :string]
+   [:speed :int]])
+
+(def DoMoveStepAction
+  "Action to move a player one hex and deduct movement cost.
+
+  Updates the movement context with new position, path, and remaining speed."
+  [:map
+   [:type [:= :bashketball/do-move-step]]
+   [:player-id :string]
+   [:to-position HexPosition]
+   [:cost :int]])
+
+(def EndMovementAction
+  "Action to end a player's movement and clear the movement context."
+  [:map
+   [:type [:= :bashketball/end-movement]]
+   [:player-id :string]])
 
 (def ExhaustPlayerAction
   [:map
@@ -709,6 +754,9 @@
    [:bashketball/shuffle-deck ShuffleDeckAction]
    [:bashketball/return-discard ReturnDiscardAction]
    [:bashketball/move-player MovePlayerAction]
+   [:bashketball/begin-movement BeginMovementAction]
+   [:bashketball/do-move-step DoMoveStepAction]
+   [:bashketball/end-movement EndMovementAction]
    [:bashketball/exhaust-player ExhaustPlayerAction]
    [:bashketball/refresh-player RefreshPlayerAction]
    [:bashketball/refresh-all RefreshAllAction]

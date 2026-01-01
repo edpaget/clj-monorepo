@@ -250,3 +250,27 @@
   "Returns the inline card definition from a token instance."
   [token-instance]
   (:card token-instance))
+
+;;; ---------------------------------------------------------------------------
+;;; Pending Movement Accessors
+;;; ---------------------------------------------------------------------------
+
+(defn get-pending-movement
+  "Returns the pending movement context, or nil if no movement in progress."
+  [state]
+  (:pending-movement state))
+
+(defn set-pending-movement
+  "Sets the pending movement context."
+  [state movement]
+  (assoc state :pending-movement movement))
+
+(defn clear-pending-movement
+  "Clears the pending movement context."
+  [state]
+  (dissoc state :pending-movement))
+
+(defn update-pending-movement
+  "Updates the pending movement context by applying f with args."
+  [state f & args]
+  (apply update state :pending-movement f args))

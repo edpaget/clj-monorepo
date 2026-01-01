@@ -6,6 +6,7 @@
   constructed from any data source (GraphQL on frontend, classpath on backend)."
   (:require
    [bashketball-game.board :as board]
+   [bashketball-game.polix.zoc :as zoc]
    [bashketball-game.state :as state]))
 
 (defn get-player-speed
@@ -49,3 +50,27 @@
    (can-move-to? game-state player-id position nil))
   ([game-state player-id position catalog]
    (contains? (valid-move-positions game-state player-id catalog) position)))
+
+(defn compute-step-cost
+  "Computes the total movement cost to step into a hex.
+
+  Returns a map with:
+  - `:base-cost` - always 1
+  - `:zoc-cost` - extra cost from ZoC (0, 1, or 2 based on defender size)
+  - `:total-cost` - sum of base and ZoC costs
+  - `:zoc-defender-ids` - vector of defender IDs exerting ZoC
+
+  The ZoC cost is the maximum from any defender exerting ZoC on the target hex:
+  - Larger defender: +2
+  - Same size: +1
+  - Smaller: +0"
+  [game-state mover-id to-position]
+  (let [mover-team    (state/get-basketball-player-team game-state mover-id)
+        opposing-team (if (= mover-team :team/HOME) :team/AWAY :team/HOME)
+        defenders     (zoc/zoc-defenders game-state to-position opposing-team)
+        zoc-costs     (map #(zoc/zoc-movement-cost game-state mover-id %) defenders)
+        zoc-cost      (if (seq zoc-costs) (apply max zoc-costs) 0)]
+    {:base-cost 1
+     :zoc-cost zoc-cost
+     :total-cost (+ 1 zoc-cost)
+     :zoc-defender-ids (vec defenders)}))

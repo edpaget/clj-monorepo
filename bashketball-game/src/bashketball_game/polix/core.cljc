@@ -21,6 +21,7 @@
   For trigger integration, see [[bashketball-game.polix.triggers]]."
   (:require
    [bashketball-game.polix.effects :as effects]
+   [bashketball-game.polix.functions :as functions]
    [bashketball-game.polix.operators :as operators]
    ;; Load policy modules to make them available
    [bashketball-game.polix.phase-policies]
@@ -36,10 +37,12 @@
   Registers:
   - Bashketball operators with polix (see [[operators/register-operators!]])
   - Bashketball effects with polix (see [[effects/register-effects!]])
+  - Bashketball functions for declarative rules (see [[functions/register-game-functions!]])
 
   Call once at application startup before evaluating any policies or
-  applying any effects. Safe to call multiple times - operators and effects
-  will be re-registered."
+  applying any effects. Safe to call multiple times - operators, effects,
+  and functions will be re-registered."
   []
   (operators/register-operators!)
-  (effects/register-effects!))
+  (effects/register-effects!)
+  (functions/register-game-functions!))
