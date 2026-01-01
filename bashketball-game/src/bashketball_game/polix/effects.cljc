@@ -5,10 +5,18 @@
   descriptions of state mutations that can be stored in card EDN and resolved
   at runtime. Use [[register-effects!]] at application startup.
 
-  Each effect delegates to the corresponding action in [[bashketball-game.actions]],
-  reusing validation and event logging."
+  ## Effect Types
+
+  There are two categories of effects:
+
+  **Request Effects** (e.g., `:bashketball/draw-cards`):
+  Fire events through the trigger system, allowing card abilities to intercept.
+
+  **Terminal Effects** (e.g., `:bashketball/do-draw-cards`):
+  Directly modify state. Only called by catchall game rules or internally."
   (:require
    [bashketball-game.actions :as actions]
+   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
    [polix.effects.core :as fx]))
 
@@ -42,13 +50,18 @@
 
   Call once at application startup before applying any effects.
 
-  Effects registered:
+  **Request Effects** (fire events through triggers):
+  - `:bashketball/draw-cards` - Draw cards (fires event if registry provided)
+
+  **Terminal Effects** (directly modify state):
+  - `:bashketball/do-draw-cards` - Terminal: actually draw cards
+
+  **Legacy Effects** (call actions directly):
   - `:bashketball/move-player` - Move player to a position
   - `:bashketball/exhaust-player` - Mark player as exhausted
   - `:bashketball/refresh-player` - Remove exhaustion from player
   - `:bashketball/give-ball` - Set ball possessed by player
   - `:bashketball/loose-ball` - Set ball loose at position
-  - `:bashketball/draw-cards` - Draw cards from deck
   - `:bashketball/discard-cards` - Discard cards by instance IDs
   - `:bashketball/add-score` - Add points to a team's score
   - `:bashketball/initiate-skill-test` - Start a skill test for a player
@@ -60,6 +73,8 @@
   - `:bashketball/clear-modifiers` - Clear all modifiers from player
   - `:bashketball/attach-ability` - Attach ability card to player
   - `:bashketball/detach-ability` - Detach ability card from player
+
+  **Phase Effects** (direct state mutations):
   - `:do-set-phase` - Direct phase mutation
   - `:do-set-quarter` - Direct quarter mutation
   - `:do-reset-turn-number` - Reset turn to 1
@@ -110,14 +125,51 @@
                            (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/draw-cards
+                       (fn [state {:keys [player count]} ctx opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               resolved-count (resolve-param count ctx state)]
+                           ;; Check if we should use event-driven path
+                           (if (:registry opts)
+                             ;; Event-driven: fire request event through triggers
+                             (let [event {:event-type :bashketball/draw-cards.request
+                                          :team resolved-player
+                                          :player resolved-player
+                                          :count (or resolved-count 1)
+                                          :causation (:causation opts)}
+                                   result (triggers/fire-request-event
+                                           {:state state
+                                            :registry (:registry opts)
+                                            :event-counters (:event-counters opts)
+                                            :executing-triggers (:executing-triggers opts)}
+                                           event)]
+                               ;; Return effect result with updated context
+                               {:state (:state result)
+                                :applied []
+                                :failed []
+                                :pending nil
+                                :event-counters (:event-counters result)
+                                :registry (:registry result)})
+                             ;; Legacy path: call action directly
+                             (let [action {:type :bashketball/draw-cards
+                                           :player resolved-player
+                                           :count resolved-count}
+                                   new-state (actions/do-action state action)]
+                               (fx/success new-state [action]))))))
+
+  ;; Terminal effect: directly modifies state (called by catchall game rule)
+  (fx/register-effect! :bashketball/do-draw-cards
                        (fn [state {:keys [player count]} ctx _opts]
                          (let [resolved-player (resolve-param player ctx state)
-                               resolved-count  (resolve-param count ctx state)
-                               action          {:type :bashketball/draw-cards
-                                                :player resolved-player
-                                                :count resolved-count}
-                               new-state       (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               resolved-count (or (resolve-param count ctx state) 1)
+                               deck-path [:players resolved-player :deck]
+                               draw-pile (get-in state (conj deck-path :draw-pile))
+                               drawn (vec (take resolved-count draw-pile))
+                               remaining (vec (drop resolved-count draw-pile))
+                               new-state (-> state
+                                             (assoc-in (conj deck-path :draw-pile) remaining)
+                                             (update-in (conj deck-path :hand) into drawn))]
+                           (fx/success new-state [{:drew drawn
+                                                   :count (clojure.core/count drawn)}]))))
 
   (fx/register-effect! :bashketball/discard-cards
                        (fn [state {:keys [player instance-ids]} ctx _opts]
