@@ -338,6 +338,7 @@
    [:game-id :string]
    [:phase enums/GamePhase]
    [:turn-number :int]
+   [:quarter {:optional true} [:int {:min 1 :max 4}]]
    [:active-player enums/Team]
    [:score Score]
    [:board Board]
@@ -361,6 +362,11 @@
 (def AdvanceTurnAction
   [:map
    [:type [:= :bashketball/advance-turn]]])
+
+(def AdvanceQuarterAction
+  "Advances to the next quarter, resetting turn number to 1."
+  [:map
+   [:type [:= :bashketball/advance-quarter]]])
 
 (def SetActivePlayerAction
   [:map
@@ -694,6 +700,7 @@
   [:multi {:dispatch :type}
    [:bashketball/set-phase SetPhaseAction]
    [:bashketball/advance-turn AdvanceTurnAction]
+   [:bashketball/advance-quarter AdvanceQuarterAction]
    [:bashketball/set-active-player SetActivePlayerAction]
    [:bashketball/set-actions SetActionsAction]
    [:bashketball/draw-cards DrawCardsAction]

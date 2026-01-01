@@ -15,12 +15,16 @@
   - [[bashketball-game.polix.skill-tests]] - Skill test resolution with advantage
   - [[bashketball-game.polix.scoring]] - Scoring zones and distance modifiers
   - [[bashketball-game.polix.standard-action-policies]] - Standard action preconditions
+  - [[bashketball-game.polix.phase-policies]] - Turn structure and phase transitions
+  - [[bashketball-game.polix.phase-triggers]] - Phase transition automation
 
   For trigger integration, see [[bashketball-game.polix.triggers]]."
   (:require
    [bashketball-game.polix.effects :as effects]
    [bashketball-game.polix.operators :as operators]
    ;; Load policy modules to make them available
+   [bashketball-game.polix.phase-policies]
+   [bashketball-game.polix.phase-triggers]
    [bashketball-game.polix.scoring]
    [bashketball-game.polix.skill-tests]
    [bashketball-game.polix.standard-action-policies]

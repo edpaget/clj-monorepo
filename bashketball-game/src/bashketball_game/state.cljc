@@ -85,6 +85,7 @@
   {:game-id (generate-id)
    :phase :phase/SETUP
    :turn-number 1
+   :quarter 1
    :active-player :team/HOME
    :score {:team/HOME 0 :team/AWAY 0}
    :board (board/create-board)

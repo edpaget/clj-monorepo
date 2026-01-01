@@ -59,7 +59,12 @@
   - `:bashketball/remove-modifier` - Remove modifier by ID
   - `:bashketball/clear-modifiers` - Clear all modifiers from player
   - `:bashketball/attach-ability` - Attach ability card to player
-  - `:bashketball/detach-ability` - Detach ability card from player"
+  - `:bashketball/detach-ability` - Detach ability card from player
+  - `:do-set-phase` - Direct phase mutation
+  - `:do-set-quarter` - Direct quarter mutation
+  - `:do-reset-turn-number` - Reset turn to 1
+  - `:do-increment-turn` - Increment turn number
+  - `:do-swap-active-player` - Swap active player between HOME/AWAY"
   []
 
   (fx/register-effect! :bashketball/move-player
@@ -256,4 +261,27 @@
                                                    :player-id resolved-player-id
                                                    :instance-id resolved-instance}
                                new-state          (actions/do-action state action)]
-                           (fx/success new-state [action])))))
+                           (fx/success new-state [action]))))
+
+  ;; Phase Effects (direct state mutations)
+
+  (fx/register-effect! :do-set-phase
+                       (fn [state {:keys [phase]} _ctx _opts]
+                         (fx/success (assoc state :phase phase) [])))
+
+  (fx/register-effect! :do-set-quarter
+                       (fn [state {:keys [quarter]} _ctx _opts]
+                         (fx/success (assoc state :quarter quarter) [])))
+
+  (fx/register-effect! :do-reset-turn-number
+                       (fn [state _params _ctx _opts]
+                         (fx/success (assoc state :turn-number 1) [])))
+
+  (fx/register-effect! :do-increment-turn
+                       (fn [state _params _ctx _opts]
+                         (fx/success (update state :turn-number inc) [])))
+
+  (fx/register-effect! :do-swap-active-player
+                       (fn [state _params _ctx _opts]
+                         (let [swap-fn {:team/HOME :team/AWAY :team/AWAY :team/HOME}]
+                           (fx/success (update state :active-player swap-fn) [])))))

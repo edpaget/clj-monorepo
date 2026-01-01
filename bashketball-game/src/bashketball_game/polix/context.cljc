@@ -22,17 +22,22 @@
   The document contains game-level fields under the `:doc/` namespace:
   - `:doc/phase` - Current game phase
   - `:doc/turn-number` - Current turn number
+  - `:doc/quarter` - Current quarter (1-4)
   - `:doc/active-player` - Team currently taking their turn
+  - `:doc/hand-size` - Number of cards in active player's hand
   - `:doc/score` - Score map {:team/HOME n :team/AWAY m}
   - `:doc/ball` - Ball state map
   - `:doc/state` - Full game state (for operators that need deep access)"
   [game-state]
-  {:doc/phase (:phase game-state)
-   :doc/turn-number (:turn-number game-state)
-   :doc/active-player (:active-player game-state)
-   :doc/score (:score game-state)
-   :doc/ball (:ball game-state)
-   :doc/state game-state})
+  (let [active-player (:active-player game-state)]
+    {:doc/phase (:phase game-state)
+     :doc/turn-number (:turn-number game-state)
+     :doc/quarter (get game-state :quarter 1)
+     :doc/active-player active-player
+     :doc/hand-size (count (state/get-hand game-state active-player))
+     :doc/score (:score game-state)
+     :doc/ball (:ball game-state)
+     :doc/state game-state}))
 
 (defn build-action-document
   "Builds a document for validating an action.
