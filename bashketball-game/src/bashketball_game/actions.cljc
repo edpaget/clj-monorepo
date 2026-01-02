@@ -122,11 +122,11 @@
 ;; -----------------------------------------------------------------------------
 ;; Game Flow Actions
 
-(defmethod -apply-action :bashketball/set-phase
+(defmethod -apply-action :bashketball/do-set-phase
   [state {:keys [phase]}]
   (assoc state :phase phase))
 
-(defmethod -apply-action :bashketball/advance-turn
+(defmethod -apply-action :bashketball/do-advance-turn
   [state _action]
   (-> state
       (update :turn-number inc)

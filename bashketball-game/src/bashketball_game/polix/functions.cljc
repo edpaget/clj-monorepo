@@ -22,7 +22,9 @@
                    [:ctx :event :to-position]]}}
   ```"
   (:require
-   [bashketball-game.movement :as movement]))
+   [bashketball-game.movement :as movement]
+   [bashketball-game.polix.phase-policies :as phase-policies]
+   [bashketball-game.state :as state]))
 
 (defonce ^:private registry (atom {}))
 
@@ -75,4 +77,25 @@
                 (fn [_state _ctx & nums]
                   (if (seq nums)
                     (apply max nums)
-                    0))))
+                    0)))
+
+  ;; Hand limit and draw functions
+  (register-fn! :bashketball-fn/hand-limit
+                (fn [_state _ctx _team]
+                  ;; Base hand limit from phase policies.
+                  ;; Future: card abilities could modify this.
+                  phase-policies/hand-limit))
+
+  (register-fn! :bashketball-fn/draw-count
+                (fn [_state _ctx _team base-count]
+                  ;; Returns the actual draw count.
+                  ;; Future: card abilities could modify (bonus draws, restrictions).
+                  base-count))
+
+  (register-fn! :bashketball-fn/cards-to-discard
+                (fn [game-state _ctx team]
+                  ;; Computes how many cards over the hand limit.
+                  ;; Returns 0 if at or below limit.
+                  (let [hand-size  (count (state/get-hand game-state team))
+                        hand-limit phase-policies/hand-limit]
+                    (max 0 (- hand-size hand-limit))))))

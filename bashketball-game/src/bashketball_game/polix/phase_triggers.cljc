@@ -1,10 +1,11 @@
 (ns bashketball-game.polix.phase-triggers
   "Phase transition triggers for turn structure automation.
 
-  Registers triggers that:
-  1. Validate phase transitions (before trigger)
-  2. Execute phase-specific effects (after triggers)
-  3. Handle turn/quarter advancement
+  Registers triggers that respond to phase transition events in the
+  event-driven architecture:
+  1. Validate phase transitions (on phase-starting.request)
+  2. Execute phase-specific effects (on phase-starting.request)
+  3. Handle hand limit checks (on draw-cards.request)
 
   Call [[register-phase-triggers!]] at application startup after
   creating the game's trigger registry."
@@ -17,92 +18,83 @@
   "phase-system")
 
 (def validate-phase-transition
-  "Before trigger that validates phase transitions.
+  "Trigger that validates phase transitions.
 
-  Prevents set-phase action if the transition is not allowed per
-  [[phase-policies/valid-transitions]]."
-  {:event-types #{:bashketball/set-phase.before}
+  Fires on `:bashketball/phase-starting.request` events and prevents invalid
+  transitions based on [[phase-policies/valid-transitions]]. Uses priority 0
+  to fire before any other phase triggers."
+  {:event-types #{:bashketball/phase-starting.request}
    :timing :polix.triggers.timing/before
    :condition [:fn
                (fn [doc]
-                 (let [from-phase (get doc :phase)
-                       to-phase   (get doc :phase)]
-                   (pp/valid-transition? from-phase to-phase)))]
+                 (let [from-phase (:phase doc)
+                       to-phase   (get-in doc [:event :to-phase])]
+                   (not (pp/valid-transition? from-phase to-phase))))]
    :effect {:type :prevent}
    :priority 0})
 
 (def upkeep-entry-trigger
-  "After trigger that executes UPKEEP phase effects.
+  "Trigger that executes UPKEEP phase effects.
 
-  When entering UPKEEP phase:
-  - Refreshes all exhausted players on the active team"
-  {:event-types #{:bashketball/set-phase.after}
+  Fires on `:bashketball/phase-starting.request` when entering UPKEEP:
+  - Refreshes all exhausted players on the active team
+
+  Uses priority 100 to fire before the catchall rule (priority 1000)."
+  {:event-types #{:bashketball/phase-starting.request}
    :timing :polix.triggers.timing/after
-   :condition [:= :doc/phase :phase/UPKEEP]
-   :effect {:effect/type :bashketball/refresh-all
-            :team :doc/active-player}
-   :priority 10})
+   :condition [:= [:ctx :event :to-phase] :phase/UPKEEP]
+   :effect {:type :bashketball/refresh-all
+            :team [:ctx :event :team]}
+   :priority 100})
 
 (def end-of-turn-entry-trigger
-  "After trigger that executes END_OF_TURN (draw) phase effects.
+  "Trigger that executes END_OF_TURN (draw) phase effects.
 
-  When entering END_OF_TURN phase:
+  Fires on `:bashketball/phase-starting.request` when entering END_OF_TURN:
   - Active player draws 3 cards
-  - If over hand limit (8), must discard down to limit"
-  {:event-types #{:bashketball/set-phase.after}
+
+  Uses priority 100 to fire before the catchall rule (priority 1000).
+  Hand limit checking is handled by [[build-hand-limit-check-trigger]]."
+  {:event-types #{:bashketball/phase-starting.request}
    :timing :polix.triggers.timing/after
-   :condition [:= :doc/phase :phase/END_OF_TURN]
-   :effect {:effect/type :bashketball/draw-cards
-            :player :doc/active-player
+   :condition [:= [:ctx :event :to-phase] :phase/END_OF_TURN]
+   :effect {:type :bashketball/draw-cards
+            :player [:ctx :event :team]
             :count 3}
-   :priority 10})
+   :priority 100})
 
-(defn build-hand-limit-check-trigger
-  "After trigger that checks hand limit after drawing.
+(def hand-limit-check-trigger
+  "Trigger that checks hand limit after drawing cards.
 
-  If active player's hand exceeds 8 cards, offers a choice to discard."
-  []
-  {:event-types #{:bashketball/draw-cards.after}
+  Fires on `:bashketball/draw-cards.request` events. If the active player's
+  hand exceeds 8 cards, fires the hand-limit check effect which may
+  offer a discard choice.
+
+  Uses `:bashketball-fn/cards-to-discard` to compute excess cards."
+  {:event-types #{:bashketball/draw-cards.request}
    :timing :polix.triggers.timing/after
-   :condition [:and
-               [:= :doc/phase :phase/END_OF_TURN]
-               [:> [:fn (fn [doc]
-                          (let [state        (:state doc)
-                                active-team  (:active-player state)]
-                            (count (state/get-hand state active-team))))]
-                pp/hand-limit]]
-   :effect {:effect/type :bashketball/offer-choice
-            :choice-type :discard-to-hand-limit
-            :waiting-for :doc/active-player
-            :context {:target-count pp/hand-limit}}
-   :priority 20})
+   :condition [:> [:bashketball-fn/cards-to-discard [:ctx :event :player]] 0]
+   :effect {:type :bashketball/check-hand-limit
+            :team [:ctx :event :player]}
+   :priority 200})
 
-(def turn-advancement-triggers
-  "Triggers for turn and quarter advancement.
-
-  After END_OF_TURN completes (no pending choice):
-  - Increment turn number
-  - Swap active player
-  - If turn > 12, advance quarter
-  - Set phase to UPKEEP for next turn"
-  [{:event-types #{:bashketball/clear-choice.after}
-    :timing :polix.triggers.timing/after
-    :condition [:and
-                [:= :doc/phase :phase/END_OF_TURN]
-                [:= [:doc :pending-choice :type] :discard-to-hand-limit]]
-    :effect {:effect/type :do-advance-turn}
-    :priority 100}])
+(def phase-triggers
+  "All phase-related triggers for registration."
+  [validate-phase-transition
+   upkeep-entry-trigger
+   end-of-turn-entry-trigger
+   hand-limit-check-trigger])
 
 (defn register-phase-triggers!
   "Registers all phase-related triggers in the given registry.
 
   Returns the updated registry with phase triggers added."
-  [registry]
-  (-> registry
-      ;; Note: validate-phase-transition needs custom implementation
-      ;; because it requires checking from/to phase comparison
-      ;; For now, we'll implement validation in the action handler
-      ))
+  [registry register-fn]
+  (reduce
+   (fn [reg trigger]
+     (register-fn reg trigger phase-trigger-source nil nil))
+   registry
+   phase-triggers))
 
 (defn check-hand-limit
   "Checks if player needs to discard cards due to hand limit.

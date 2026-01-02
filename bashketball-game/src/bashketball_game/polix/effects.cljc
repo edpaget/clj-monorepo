@@ -413,11 +413,168 @@
                                new-state          (actions/do-action state action)]
                            (fx/success new-state [action]))))
 
-  ;; Phase Effects (direct state mutations)
+  ;; Phase Effects
 
+  ;; Request effect: fires events for phase transitions, allowing card abilities to intercept
+  (fx/register-effect! :bashketball/transition-phase
+                       (fn [state {:keys [to-phase]} ctx opts]
+                         (let [resolved-to-phase (resolve-param to-phase ctx state)
+                               from-phase        (:phase state)
+                               team              (:active-player state)]
+                           ;; Fire phase-ending.request for the current phase
+                           (if (nil? from-phase)
+                             ;; No current phase, skip to starting the new phase
+                             (let [start-event {:event-type :bashketball/phase-starting.request
+                                                :team       team
+                                                :from-phase nil
+                                                :to-phase   resolved-to-phase
+                                                :causation  (:causation opts)}
+                                   start-result (triggers/fire-request-event
+                                                 {:state              state
+                                                  :registry           (:registry opts)
+                                                  :event-counters     (:event-counters opts)
+                                                  :executing-triggers (:executing-triggers opts)}
+                                                 start-event)]
+                               {:state            (:state start-result)
+                                :applied          []
+                                :failed           []
+                                :pending          nil
+                                :prevented?       (:prevented? start-result)
+                                :event-counters   (:event-counters start-result)
+                                :registry         (:registry start-result)})
+                             ;; Fire ending event for current phase
+                             (let [end-event {:event-type :bashketball/phase-ending.request
+                                              :team       team
+                                              :from-phase from-phase
+                                              :to-phase   resolved-to-phase
+                                              :causation  (:causation opts)}
+                                   end-result (triggers/fire-request-event
+                                               {:state              state
+                                                :registry           (:registry opts)
+                                                :event-counters     (:event-counters opts)
+                                                :executing-triggers (:executing-triggers opts)}
+                                               end-event)]
+                               (if (:prevented? end-result)
+                                 {:state            (:state end-result)
+                                  :applied          []
+                                  :failed           []
+                                  :pending          nil
+                                  :prevented?       true
+                                  :event-counters   (:event-counters end-result)
+                                  :registry         (:registry end-result)}
+                                 ;; Fire starting event for new phase
+                                 (let [start-event {:event-type :bashketball/phase-starting.request
+                                                    :team       team
+                                                    :from-phase from-phase
+                                                    :to-phase   resolved-to-phase
+                                                    :causation  (:causation opts)}
+                                       start-result (triggers/fire-request-event
+                                                     {:state              (:state end-result)
+                                                      :registry           (:registry end-result)
+                                                      :event-counters     (:event-counters end-result)
+                                                      :executing-triggers (:executing-triggers end-result)}
+                                                     start-event)]
+                                   {:state            (:state start-result)
+                                    :applied          []
+                                    :failed           []
+                                    :pending          nil
+                                    :prevented?       (:prevented? start-result)
+                                    :event-counters   (:event-counters start-result)
+                                    :registry         (:registry start-result)})))))))
+
+  ;; Terminal effect: uses action handler
+  (fx/register-effect! :bashketball/do-set-phase
+                       (fn [state {:keys [phase]} ctx _opts]
+                         (let [resolved-phase (resolve-param phase ctx state)
+                               action         {:type :bashketball/do-set-phase
+                                               :phase resolved-phase}
+                               new-state      (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  ;; Legacy alias for backward compatibility with phase_triggers
   (fx/register-effect! :do-set-phase
                        (fn [state {:keys [phase]} _ctx _opts]
                          (fx/success (assoc state :phase phase) [])))
+
+  ;; Turn Effects
+
+  ;; Request effect: fires events for turn transitions with auto-sequence to UPKEEP
+  (fx/register-effect! :bashketball/end-turn
+                       (fn [state _params _ctx opts]
+                         (let [team        (:active-player state)
+                               turn-number (:turn-number state)]
+                           ;; Fire turn-ending.request event
+                           (let [end-event  {:event-type  :bashketball/turn-ending.request
+                                             :team        team
+                                             :turn-number turn-number
+                                             :causation   (:causation opts)}
+                                 end-result (triggers/fire-request-event
+                                             {:state              state
+                                              :registry           (:registry opts)
+                                              :event-counters     (:event-counters opts)
+                                              :executing-triggers (:executing-triggers opts)}
+                                             end-event)]
+                             (if (:prevented? end-result)
+                               {:state            (:state end-result)
+                                :applied          []
+                                :failed           []
+                                :pending          nil
+                                :prevented?       true
+                                :event-counters   (:event-counters end-result)
+                                :registry         (:registry end-result)}
+                               ;; Fire turn-starting.request for new turn
+                               (let [start-event  {:event-type  :bashketball/turn-starting.request
+                                                   :team        team
+                                                   :turn-number (inc turn-number)
+                                                   :causation   (:causation opts)}
+                                     start-result (triggers/fire-request-event
+                                                   {:state              (:state end-result)
+                                                    :registry           (:registry end-result)
+                                                    :event-counters     (:event-counters end-result)
+                                                    :executing-triggers (:executing-triggers end-result)}
+                                                   start-event)]
+                                 {:state            (:state start-result)
+                                  :applied          []
+                                  :failed           []
+                                  :pending          nil
+                                  :prevented?       (:prevented? start-result)
+                                  :event-counters   (:event-counters start-result)
+                                  :registry         (:registry start-result)}))))))
+
+  ;; Terminal effect: advances turn counter and swaps active player
+  (fx/register-effect! :bashketball/do-advance-turn
+                       (fn [state _params ctx _opts]
+                         (let [action    {:type :bashketball/do-advance-turn}
+                               new-state (actions/do-action state action)]
+                           (fx/success new-state [action]))))
+
+  ;; Hand Limit Effects
+
+  ;; Check if over hand limit and offer discard choice if needed
+  (fx/register-effect! :bashketball/check-hand-limit
+                       (fn [game-state {:keys [team]} ctx opts]
+                         (let [resolved-team (resolve-param team ctx game-state)
+                               hand          (state/get-hand game-state resolved-team)
+                               hand-size     (count hand)
+                               hand-limit    8
+                               excess        (max 0 (- hand-size hand-limit))]
+                           (if (pos? excess)
+                             ;; Over limit: directly offer the choice
+                             (let [action    {:type :bashketball/offer-choice
+                                              :choice-type :discard-to-hand-limit
+                                              :waiting-for resolved-team
+                                              :options (mapv (fn [card]
+                                                               {:id (keyword (:instance-id card))
+                                                                :label (:card-slug card)})
+                                                             hand)
+                                              :context {:discard-count excess
+                                                        :hand-limit hand-limit}}
+                                   new-state (actions/do-action game-state action)]
+                               (assoc (fx/success new-state [action])
+                                      :pending {:type :choice
+                                                :choice-id (get-in new-state [:pending-choice :id])}))
+                             ;; Under or at limit: no action needed
+                             (fx/success game-state [])))))
 
   (fx/register-effect! :do-set-quarter
                        (fn [state {:keys [quarter]} _ctx _opts]

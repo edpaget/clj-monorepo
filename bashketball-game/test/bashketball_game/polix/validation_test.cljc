@@ -229,5 +229,5 @@
       (is (polix/satisfied?
            (validation/validate-action
             state
-            {:type :bashketball/set-phase
+            {:type :bashketball/do-set-phase
              :phase :phase/UPKEEP}))))))

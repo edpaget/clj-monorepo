@@ -15,9 +15,9 @@
     (is (not (m/validate schema/HexPosition [0 14])))))
 
 (deftest action-schema-test
-  (testing "set-phase action"
-    (is (schema/valid-action? {:type :bashketball/set-phase :phase :phase/ACTIONS}))
-    (is (not (schema/valid-action? {:type :bashketball/set-phase :phase :invalid}))))
+  (testing "do-set-phase action"
+    (is (schema/valid-action? {:type :bashketball/do-set-phase :phase :phase/ACTIONS}))
+    (is (not (schema/valid-action? {:type :bashketball/do-set-phase :phase :invalid}))))
 
   (testing "move-player action"
     (is (schema/valid-action? {:type :bashketball/move-player

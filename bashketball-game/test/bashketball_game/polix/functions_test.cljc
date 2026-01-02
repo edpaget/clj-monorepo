@@ -24,7 +24,11 @@
       (is (contains? fns :bashketball-fn/zoc-defender-ids)))
     (testing "includes arithmetic helpers"
       (is (contains? fns :bashketball-fn/add))
-      (is (contains? fns :bashketball-fn/max)))))
+      (is (contains? fns :bashketball-fn/max)))
+    (testing "includes hand limit and draw functions"
+      (is (contains? fns :bashketball-fn/hand-limit))
+      (is (contains? fns :bashketball-fn/draw-count))
+      (is (contains? fns :bashketball-fn/cards-to-discard)))))
 
 (deftest get-fn-returns-function-test
   (testing "returns registered function"
@@ -98,3 +102,40 @@
       (is (= 7 (f {} {} 7))))
     (testing "handles empty args"
       (is (= 0 (f {} {}))))))
+
+;;; ---------------------------------------------------------------------------
+;;; Hand Limit and Draw Function Tests
+;;; ---------------------------------------------------------------------------
+
+(deftest hand-limit-test
+  (let [f (functions/get-fn :bashketball-fn/hand-limit)]
+    (testing "returns base hand limit"
+      (is (= 8 (f {} {} :team/HOME))))))
+
+(deftest draw-count-test
+  (let [f (functions/get-fn :bashketball-fn/draw-count)]
+    (testing "returns base count without modifiers"
+      (is (= 3 (f {} {} :team/HOME 3))))))
+
+(deftest cards-to-discard-under-limit-test
+  (let [game (-> (fixtures/base-game-state)
+                 (fixtures/with-drawn-cards :team/HOME 5))
+        f    (functions/get-fn :bashketball-fn/cards-to-discard)]
+    (testing "returns 0 when under hand limit"
+      (is (= 0 (f game {} :team/HOME))))))
+
+(deftest cards-to-discard-at-limit-test
+  (let [;; Manually set exactly 8 cards in hand
+        cards (vec (for [i (range 8)] {:instance-id (str "card-" i) :card-slug (str "card-" i)}))
+        game  (assoc-in (fixtures/base-game-state) [:players :team/HOME :deck :hand] cards)
+        f     (functions/get-fn :bashketball-fn/cards-to-discard)]
+    (testing "returns 0 when at hand limit"
+      (is (= 0 (f game {} :team/HOME))))))
+
+(deftest cards-to-discard-over-limit-test
+  (let [;; Manually add 10 cards to hand to exceed the 8-card limit
+        cards (vec (for [i (range 10)] {:instance-id (str "card-" i) :card-slug (str "card-" i)}))
+        game  (assoc-in (fixtures/base-game-state) [:players :team/HOME :deck :hand] cards)
+        f     (functions/get-fn :bashketball-fn/cards-to-discard)]
+    (testing "returns excess when over hand limit"
+      (is (= 2 (f game {} :team/HOME))))))

@@ -30,15 +30,15 @@
   (let [game (state/create-game test-config)]
 
     (testing "valid action is applied"
-      (is (actions/do-action game {:type :bashketball/set-phase :phase :phase/ACTIONS})))
+      (is (actions/do-action game {:type :bashketball/do-set-phase :phase :phase/ACTIONS})))
 
     (testing "invalid action throws"
       (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                   (actions/do-action game {:type :bashketball/set-phase :phase :invalid}))))))
+                   (actions/do-action game {:type :bashketball/do-set-phase :phase :invalid}))))))
 
 (deftest apply-action-event-logging-test
   (let [game    (state/create-game test-config)
-        updated (actions/do-action game {:type :bashketball/set-phase :phase :phase/ACTIONS})]
+        updated (actions/do-action game {:type :bashketball/do-set-phase :phase :phase/ACTIONS})]
 
     (testing "event is logged"
       (is (= 1 (count (:events updated)))))
@@ -47,16 +47,16 @@
       (is (string? (:timestamp (first (:events updated))))))
 
     (testing "event has action data"
-      (is (= :bashketball/set-phase (:type (first (:events updated))))))))
+      (is (= :bashketball/do-set-phase (:type (first (:events updated))))))))
 
 (deftest set-phase-action-test
   (let [game    (state/create-game test-config)
-        updated (actions/do-action game {:type :bashketball/set-phase :phase :phase/ACTIONS})]
+        updated (actions/do-action game {:type :bashketball/do-set-phase :phase :phase/ACTIONS})]
     (is (= :phase/ACTIONS (state/get-phase updated)))))
 
 (deftest advance-turn-action-test
   (let [game    (state/create-game test-config)
-        updated (actions/do-action game {:type :bashketball/advance-turn})]
+        updated (actions/do-action game {:type :bashketball/do-advance-turn})]
 
     (testing "turn number increments"
       (is (= 2 (:turn-number updated))))
@@ -239,7 +239,7 @@
       (is (thrown-with-msg?
            #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
            #"Board invariant violation"
-           (actions/do-action corrupted {:type :bashketball/set-phase :phase :phase/ACTIONS}))))))
+           (actions/do-action corrupted {:type :bashketball/do-set-phase :phase :phase/ACTIONS}))))))
 
 (deftest exhaust-refresh-player-test
   (let [game      (state/create-game test-config)

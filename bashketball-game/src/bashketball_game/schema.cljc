@@ -374,14 +374,18 @@
 ;; -----------------------------------------------------------------------------
 ;; Action Schemas
 
-(def SetPhaseAction
+(def DoSetPhaseAction
+  "Terminal action to set the game phase. Use `:bashketball/transition-phase` effect
+   for event-driven phase changes that can be intercepted by card abilities."
   [:map
-   [:type [:= :bashketball/set-phase]]
+   [:type [:= :bashketball/do-set-phase]]
    [:phase enums/GamePhase]])
 
-(def AdvanceTurnAction
+(def DoAdvanceTurnAction
+  "Terminal action to advance to the next turn. Use `:bashketball/end-turn` effect
+   for event-driven turn transitions that can be intercepted by card abilities."
   [:map
-   [:type [:= :bashketball/advance-turn]]])
+   [:type [:= :bashketball/do-advance-turn]]])
 
 (def AdvanceQuarterAction
   "Advances to the next quarter, resetting turn number to 1."
@@ -743,8 +747,8 @@
 (def Action
   "Multi-schema for all action types, dispatching on :type."
   [:multi {:dispatch :type}
-   [:bashketball/set-phase SetPhaseAction]
-   [:bashketball/advance-turn AdvanceTurnAction]
+   [:bashketball/do-set-phase DoSetPhaseAction]
+   [:bashketball/do-advance-turn DoAdvanceTurnAction]
    [:bashketball/advance-quarter AdvanceQuarterAction]
    [:bashketball/set-active-player SetActivePlayerAction]
    [:bashketball/set-actions SetActionsAction]

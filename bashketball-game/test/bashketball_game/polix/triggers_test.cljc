@@ -48,9 +48,9 @@
 (deftest action->events-works-for-all-action-types-test
   (let [game (fixtures/base-game-state)]
 
-    (testing "set-phase generates events"
-      (let [events (triggers/action->events game {:type :bashketball/set-phase :phase :phase/ACTIONS})]
-        (is (= :bashketball/set-phase.before (get-in events [:before :type])))))
+    (testing "do-set-phase generates events"
+      (let [events (triggers/action->events game {:type :bashketball/do-set-phase :phase :phase/ACTIONS})]
+        (is (= :bashketball/do-set-phase.before (get-in events [:before :type])))))
 
     (testing "exhaust-player generates events"
       (let [events (triggers/action->events game {:type :bashketball/exhaust-player :player-id "p1"})]
@@ -112,7 +112,7 @@
 (deftest apply-action-without-registry-test
   (let [game   (fixtures/base-game-state)
         result (actions/apply-action {:state game :registry nil}
-                                     {:type :bashketball/set-phase :phase :phase/ACTIONS})]
+                                     {:type :bashketball/do-set-phase :phase :phase/ACTIONS})]
 
     (testing "returns expected structure"
       (is (contains? result :state))
@@ -129,7 +129,7 @@
   (let [game     (fixtures/base-game-state)
         registry (triggers/create-registry)
         result   (actions/apply-action {:state game :registry registry}
-                                       {:type :bashketball/set-phase :phase :phase/ACTIONS})]
+                                       {:type :bashketball/do-set-phase :phase :phase/ACTIONS})]
 
     (testing "action is applied"
       (is (= :phase/ACTIONS (state/get-phase (:state result)))))
@@ -146,14 +146,14 @@
         game     (fixtures/base-game-state)
         registry (-> (triggers/create-registry)
                      (triggers/register-trigger
-                      {:event-types #{:bashketball/set-phase.after}
+                      {:event-types #{:bashketball/do-set-phase.after}
                        :timing :polix.triggers.timing/after
                        :effect {:type :test/mark-fired}}
                       "test-ability"
                       :team/HOME
                       fixtures/home-player-1))
         result   (actions/apply-action {:state game :registry registry}
-                                       {:type :bashketball/set-phase :phase :phase/ACTIONS})]
+                                       {:type :bashketball/do-set-phase :phase :phase/ACTIONS})]
 
     (testing "trigger fired"
       (is @fired?))
@@ -172,14 +172,14 @@
         game     (fixtures/base-game-state)
         registry (-> (triggers/create-registry)
                      (triggers/register-trigger
-                      {:event-types #{:bashketball/set-phase.before}
+                      {:event-types #{:bashketball/do-set-phase.before}
                        :timing :polix.triggers.timing/before
                        :effect {:type :test/prevent}}
                       "test-ability"
                       :team/HOME
                       fixtures/home-player-1))
         result   (actions/apply-action {:state game :registry registry}
-                                       {:type :bashketball/set-phase :phase :phase/ACTIONS})]
+                                       {:type :bashketball/do-set-phase :phase :phase/ACTIONS})]
 
     (testing "action was prevented"
       (is (:prevented? result)))
@@ -196,7 +196,7 @@
         game     (fixtures/base-game-state)
         registry (-> (triggers/create-registry)
                      (triggers/register-trigger
-                      {:event-types #{:bashketball/set-phase.after}
+                      {:event-types #{:bashketball/do-set-phase.after}
                        :timing :polix.triggers.timing/after
                         ;; Condition: phase must be :phase/ACTIONS
                        :condition [:= :doc/phase [:literal :phase/ACTIONS]]
@@ -208,13 +208,13 @@
     (testing "trigger fires when condition matches"
       (reset! fired? false)
       (actions/apply-action {:state game :registry registry}
-                            {:type :bashketball/set-phase :phase :phase/ACTIONS})
+                            {:type :bashketball/do-set-phase :phase :phase/ACTIONS})
       (is @fired?))
 
     (testing "trigger does not fire when condition doesn't match"
       (reset! fired? false)
       (actions/apply-action {:state game :registry registry}
-                            {:type :bashketball/set-phase :phase :phase/UPKEEP})
+                            {:type :bashketball/do-set-phase :phase :phase/UPKEEP})
       (is (not @fired?)))))
 
 (deftest apply-action-once-trigger-removed-after-fire-test
@@ -226,7 +226,7 @@
         game        (fixtures/base-game-state)
         registry    (-> (triggers/create-registry)
                         (triggers/register-trigger
-                         {:event-types #{:bashketball/set-phase.after}
+                         {:event-types #{:bashketball/do-set-phase.after}
                           :timing :polix.triggers.timing/after
                           :once? true
                           :effect {:type :test/count-fires}}
@@ -234,9 +234,9 @@
                          :team/HOME
                          fixtures/home-player-1))
         result1     (actions/apply-action {:state game :registry registry}
-                                          {:type :bashketball/set-phase :phase :phase/ACTIONS})
+                                          {:type :bashketball/do-set-phase :phase :phase/ACTIONS})
         result2     (actions/apply-action {:state (:state result1) :registry (:registry result1)}
-                                          {:type :bashketball/set-phase :phase :phase/UPKEEP})]
+                                          {:type :bashketball/do-set-phase :phase :phase/UPKEEP})]
 
     (testing "trigger fired once"
       (is (= 1 @fired-count)))

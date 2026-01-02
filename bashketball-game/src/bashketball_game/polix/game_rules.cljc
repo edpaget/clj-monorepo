@@ -27,7 +27,8 @@
 (def draw-cards-rule
   "Default rule for draw-cards: produces terminal do-draw-cards effect.
 
-  Resolves `:player` and `:count` from the event data."
+  Uses `:bashketball-fn/draw-count` to compute the actual draw count,
+  allowing card abilities to modify the base count."
   {:id "rule/draw-cards"
    :event-types #{:bashketball/draw-cards.request}
    :timing :polix.triggers.timing/after
@@ -35,7 +36,9 @@
    :condition nil
    :effect {:type :bashketball/do-draw-cards
             :player [:ctx :event :player]
-            :count [:ctx :event :count]}})
+            :count [:bashketball-fn/draw-count
+                    [:ctx :event :player]
+                    [:ctx :event :count]]}})
 
 (def move-step-rule
   "Default rule for move-step: produces terminal do-move-step effect.
@@ -55,13 +58,60 @@
                    [:ctx :event :to-position]]}})
 
 ;;; ---------------------------------------------------------------------------
+;;; Phase Transition Rules
+;;; ---------------------------------------------------------------------------
+
+(def phase-starting-rule
+  "Default rule for phase starting: sets the game phase.
+
+  Fires after `:bashketball/phase-starting.request` event."
+  {:id "rule/phase-starting"
+   :event-types #{:bashketball/phase-starting.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-set-phase
+            :phase [:ctx :event :to-phase]}})
+
+;;; ---------------------------------------------------------------------------
+;;; Turn Transition Rules
+;;; ---------------------------------------------------------------------------
+
+(def turn-ending-rule
+  "Default rule for turn ending: advances the turn counter and swaps active player.
+
+  Fires after `:bashketball/turn-ending.request` event."
+  {:id "rule/turn-ending"
+   :event-types #{:bashketball/turn-ending.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-advance-turn}})
+
+(def turn-starting-rule
+  "Default rule for turn starting: transitions to UPKEEP phase.
+
+  Fires after `:bashketball/turn-starting.request` event.
+  Auto-sequences into UPKEEP phase for the new turn."
+  {:id "rule/turn-starting"
+   :event-types #{:bashketball/turn-starting.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/transition-phase
+            :to-phase :phase/UPKEEP}})
+
+;;; ---------------------------------------------------------------------------
 ;;; Rule Registry
 ;;; ---------------------------------------------------------------------------
 
 (def default-rules
   "All default game rules. Add new rules here as more actions are migrated."
   [draw-cards-rule
-   move-step-rule])
+   move-step-rule
+   phase-starting-rule
+   turn-ending-rule
+   turn-starting-rule])
 
 (defn register-game-rules!
   "Registers all default game rules in the trigger registry.
