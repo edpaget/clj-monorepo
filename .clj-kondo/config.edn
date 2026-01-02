@@ -3,6 +3,7 @@
             graphql-server.core/defstreamer clj-kondo.lint-as/def-catch-all
             graphql-server.core/def-resolver-map clj-kondo.lint-as/def-catch-all
             db.core/with-connection clj-kondo.lint-as/def-catch-all
+            db.core/with-transaction clj-kondo.lint-as/def-catch-all
             polix.core/defpolicy clj-kondo.lint-as/def-catch-all
             repository.test/with-repository clojure.core/let}
  :linters {:unresolved-symbol {:exclude [resolvers
