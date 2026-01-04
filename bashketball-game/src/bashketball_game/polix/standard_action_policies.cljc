@@ -163,8 +163,8 @@
     (if (= stealer-size :size/SM)
       (map (fn [s]
              (if (and (= (:source s) :size)
-                      (= (:advantage s) :disadvantage))
-               (assoc s :advantage :normal)
+                      (= (:advantage s) :advantage/DISADVANTAGE))
+               (assoc s :advantage :advantage/NORMAL)
                s))
            base-sources)
       base-sources)))

@@ -378,13 +378,14 @@
             :context      context})))
 
 (defmethod -apply-action :bashketball/modify-skill-test
-  [state {:keys [source amount reason]}]
+  [state {:keys [source amount advantage reason]}]
   (when-not (:pending-skill-test state)
     (throw (ex-info "No pending skill test to modify"
-                    {:source source :amount amount})))
+                    {:source source :amount amount :advantage advantage})))
   (update-in state [:pending-skill-test :modifiers]
-             conj (cond-> {:source source :amount amount}
-                    reason (assoc :reason reason))))
+             conj (cond-> {:source source :amount (or amount 0)}
+                    reason    (assoc :reason reason)
+                    advantage (assoc :advantage advantage))))
 
 (defmethod -apply-action :bashketball/set-skill-test-fate
   [state {:keys [fate]}]

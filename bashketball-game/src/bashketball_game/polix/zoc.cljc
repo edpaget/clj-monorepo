@@ -93,9 +93,9 @@
   "Returns the disadvantage level for shooting while in a defender's ZoC.
 
   Based on size comparison:
-  - Smaller defender: :normal (no disadvantage from ZoC)
-  - Same size defender: :disadvantage
-  - Larger defender: :double-disadvantage
+  - Smaller defender: :advantage/NORMAL (no disadvantage from ZoC)
+  - Same size defender: :advantage/DISADVANTAGE
+  - Larger defender: :advantage/DOUBLE_DISADVANTAGE
 
   Returns nil if the defender doesn't exert ZoC on the shooter's position."
   [game-state shooter-id defender-id]
@@ -107,17 +107,17 @@
             shooter-ord   (get size-order shooter-size 1)
             defender-ord  (get size-order defender-size 1)]
         (cond
-          (< defender-ord shooter-ord) :normal           ; smaller defender
-          (= defender-ord shooter-ord) :disadvantage     ; same size
-          :else :double-disadvantage)))))                ; larger defender
+          (< defender-ord shooter-ord) :advantage/NORMAL              ; smaller defender
+          (= defender-ord shooter-ord) :advantage/DISADVANTAGE        ; same size
+          :else :advantage/DOUBLE_DISADVANTAGE)))))                ; larger defender
 
 (defn passing-zoc-disadvantage
   "Returns the disadvantage level for passing through a defender's ZoC.
 
   For passes, smaller defenders are actually better at interception:
-  - Larger defender in path: :normal
-  - Same size defender in path: :disadvantage
-  - Smaller defender in path: :double-disadvantage
+  - Larger defender in path: :advantage/NORMAL
+  - Same size defender in path: :advantage/DISADVANTAGE
+  - Smaller defender in path: :advantage/DOUBLE_DISADVANTAGE
 
   Returns nil if the defender's ZoC doesn't intersect the pass path."
   [game-state passer-id target-pos defender-id]
@@ -134,9 +134,9 @@
                 passer-ord    (get size-order passer-size 1)
                 defender-ord  (get size-order defender-size 1)]
             (cond
-              (> defender-ord passer-ord) :normal           ; larger defender
-              (= defender-ord passer-ord) :disadvantage     ; same size
-              :else :double-disadvantage)))))))             ; smaller defender
+              (> defender-ord passer-ord) :advantage/NORMAL              ; larger defender
+              (= defender-ord passer-ord) :advantage/DISADVANTAGE        ; same size
+              :else :advantage/DOUBLE_DISADVANTAGE)))))))             ; smaller defender
 
 (defn collect-shooting-zoc-sources
   "Collects all ZoC-based disadvantage sources for a shot.
@@ -169,10 +169,12 @@
 (defn worst-disadvantage
   "Returns the worst disadvantage from a collection of sources.
 
-  Ordering: :double-disadvantage > :disadvantage > :normal > nil"
+  Ordering: :advantage/DOUBLE_DISADVANTAGE > :advantage/DISADVANTAGE > :advantage/NORMAL > nil"
   [sources]
   (let [disadvantages (keep :disadvantage sources)
-        priority      {:double-disadvantage 2 :disadvantage 1 :normal 0}]
+        priority      {:advantage/DOUBLE_DISADVANTAGE 2
+                       :advantage/DISADVANTAGE 1
+                       :advantage/NORMAL 0}]
     (when (seq disadvantages)
       (first (sort-by #(- (get priority % -1)) disadvantages)))))
 

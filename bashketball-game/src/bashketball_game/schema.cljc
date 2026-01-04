@@ -67,6 +67,15 @@
   "Placement destination for token cards."
   [:enum {:graphql/type :TokenPlacement} :placement/ASSET :placement/ATTACH])
 
+(def Advantage
+  "Advantage levels for skill tests.
+
+  Positive advantages reveal more fate cards and pick the best result.
+  Negative advantages reveal more cards but pick the worst."
+  [:enum {:graphql/type :Advantage}
+   :advantage/DOUBLE_ADVANTAGE :advantage/ADVANTAGE :advantage/NORMAL
+   :advantage/DISADVANTAGE :advantage/DOUBLE_DISADVANTAGE])
+
 ;; -----------------------------------------------------------------------------
 ;; Component Schemas
 
@@ -251,11 +260,16 @@
 
   Modifiers are added by triggers during the skill test flow and accumulated
   into the final total. The `:source` identifies what added the modifier
-  (e.g., ability ID, card slug) for display and debugging."
+  (e.g., ability ID, card slug) for display and debugging.
+
+  Modifiers can provide numeric bonuses via `:amount` and/or affect fate
+  selection via `:advantage`. Advantage modifiers are combined with other
+  advantage sources (distance, ZoC, size) to determine fate card selection."
   [:map {:graphql/type :SkillTestModifier}
    [:source :string]
    [:amount :int]
-   [:reason {:optional true} :string]])
+   [:reason {:optional true} :string]
+   [:advantage {:optional true} Advantage]])
 
 (def SkillTestContext
   "Context describing what initiated a skill test.
@@ -571,11 +585,13 @@
   "Action to add a modifier to the pending skill test.
 
   Called by triggers during the before or fate-revealed phases to add
-  bonuses or penalties to the test."
+  bonuses or penalties to the test. At least one of `:amount` or `:advantage`
+  should be provided."
   [:map
    [:type [:= :bashketball/modify-skill-test]]
    [:source :string]
-   [:amount :int]
+   [:amount {:optional true} :int]
+   [:advantage {:optional true} Advantage]
    [:reason {:optional true} :string]])
 
 (def SetSkillTestFateAction

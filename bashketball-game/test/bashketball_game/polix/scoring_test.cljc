@@ -136,15 +136,15 @@
 
 (deftest distance-advantage-close
   (testing "close distance gives advantage"
-    (is (= :advantage (scoring/distance-advantage 2)))))
+    (is (= :advantage/ADVANTAGE (scoring/distance-advantage 2)))))
 
 (deftest distance-advantage-medium
   (testing "medium distance is normal"
-    (is (= :normal (scoring/distance-advantage 4)))))
+    (is (= :advantage/NORMAL (scoring/distance-advantage 4)))))
 
 (deftest distance-advantage-long
   (testing "long distance gives disadvantage"
-    (is (= :disadvantage (scoring/distance-advantage 6)))))
+    (is (= :advantage/DISADVANTAGE (scoring/distance-advantage 6)))))
 
 ;; =============================================================================
 ;; Court Position Tests
@@ -224,7 +224,7 @@
       (is (= 2 (:point-value summary)))
       (is (= 2 (:distance summary)))
       (is (= :close (:distance-category summary)))
-      (is (= :advantage (:distance-advantage summary)))
+      (is (= :advantage/ADVANTAGE (:distance-advantage summary)))
       (is (true? (:in-paint summary))))))
 
 (deftest shooting-position-summary-three-point
@@ -236,7 +236,7 @@
       (is (= 3 (:point-value summary)))
       (is (= 6 (:distance summary)))
       (is (= :long (:distance-category summary)))
-      (is (= :disadvantage (:distance-advantage summary)))
+      (is (= :advantage/DISADVANTAGE (:distance-advantage summary)))
       (is (false? (:in-paint summary))))))
 
 (deftest shooting-position-summary-off-court

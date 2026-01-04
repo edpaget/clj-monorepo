@@ -303,15 +303,19 @@
                            (fx/success new-state [action]))))
 
   (fx/register-effect! :bashketball/modify-skill-test
-                       (fn [state {:keys [source amount reason]} ctx _opts]
-                         (let [resolved-source (resolve-param source ctx state)
-                               resolved-amount (resolve-param amount ctx state)
-                               action          {:type :bashketball/modify-skill-test
-                                                :source resolved-source
-                                                :amount resolved-amount
-                                                :reason reason}
-                               new-state       (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                       (fn [state {:keys [source amount advantage reason]} ctx _opts]
+                         (if (:pending-skill-test state)
+                           (let [resolved-source    (resolve-param source ctx state)
+                                 resolved-amount    (when amount (resolve-param amount ctx state))
+                                 resolved-advantage (when advantage (resolve-param advantage ctx state))
+                                 action             (cond-> {:type :bashketball/modify-skill-test
+                                                             :source resolved-source}
+                                                      resolved-amount    (assoc :amount resolved-amount)
+                                                      resolved-advantage (assoc :advantage resolved-advantage)
+                                                      reason             (assoc :reason reason))
+                                 new-state          (actions/do-action state action)]
+                             (fx/success new-state [action]))
+                           (fx/success state []))))
 
   ;; Choice Effects
 

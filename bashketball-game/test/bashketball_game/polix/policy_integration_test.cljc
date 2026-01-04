@@ -160,7 +160,7 @@
                        (f/with-player-at f/away-player-2 [2 6]))   ; SM goblin
           sources  (sap/screen-advantage-sources state f/home-player-1 f/away-player-2)
           combined (skill/combine-advantage-sources sources)]
-      (is (= :advantage (:net-level combined)))))
+      (is (= :advantage/ADVANTAGE (:net-level combined)))))
 
   (testing "smaller defender gets disadvantage"
     (let [state    (-> (f/base-game-state)
@@ -168,7 +168,7 @@
                        (f/with-player-at f/away-player-1 [2 6]))   ; LG troll
           sources  (sap/screen-advantage-sources state f/home-player-2 f/away-player-1)
           combined (skill/combine-advantage-sources sources)]
-      (is (= :disadvantage (:net-level combined))))))
+      (is (= :advantage/DISADVANTAGE (:net-level combined))))))
 
 ;; =============================================================================
 ;; Scenario: Modifiers Affect Skill Test Difficulty
@@ -211,19 +211,19 @@
 
 (deftest advantage-sources-combine-for-net-level
   (testing "multiple sources combine to net advantage level"
-    (let [sources  [{:source :distance :advantage :advantage}      ; +1
-                    {:source :uncontested :advantage :advantage}   ; +1
-                    {:source :size :advantage :disadvantage}]      ; -1
+    (let [sources  [{:source :distance :advantage :advantage/ADVANTAGE}      ; +1
+                    {:source :uncontested :advantage :advantage/ADVANTAGE}   ; +1
+                    {:source :size :advantage :advantage/DISADVANTAGE}]      ; -1
           combined (skill/combine-advantage-sources sources)]
       ;; Net: +1 = advantage
-      (is (= :advantage (:net-level combined)))))
+      (is (= :advantage/ADVANTAGE (:net-level combined)))))
 
   (testing "capped at double-advantage/double-disadvantage"
-    (let [sources  [{:source :a :advantage :advantage}
-                    {:source :b :advantage :advantage}
-                    {:source :c :advantage :advantage}]
+    (let [sources  [{:source :a :advantage :advantage/ADVANTAGE}
+                    {:source :b :advantage :advantage/ADVANTAGE}
+                    {:source :c :advantage :advantage/ADVANTAGE}]
           combined (skill/combine-advantage-sources sources)]
-      (is (= :double-advantage (:net-level combined))))))
+      (is (= :advantage/DOUBLE_ADVANTAGE (:net-level combined))))))
 
 ;; =============================================================================
 ;; Scenario: Fate Selection Based on Advantage
@@ -231,13 +231,13 @@
 
 (deftest fate-selection-with-advantage
   (testing "advantage picks best of 2 fate values"
-    (is (= 2 (skill/fate-reveal-count :advantage)))
-    (is (= :best (skill/fate-selection-mode :advantage)))
+    (is (= 2 (skill/fate-reveal-count :advantage/ADVANTAGE)))
+    (is (= :best (skill/fate-selection-mode :advantage/ADVANTAGE)))
     (is (= 6 (skill/select-fate [3 6] :best))))
 
   (testing "disadvantage picks worst of 2 fate values"
-    (is (= 2 (skill/fate-reveal-count :disadvantage)))
-    (is (= :worst (skill/fate-selection-mode :disadvantage)))
+    (is (= 2 (skill/fate-reveal-count :advantage/DISADVANTAGE)))
+    (is (= :worst (skill/fate-selection-mode :advantage/DISADVANTAGE)))
     (is (= 3 (skill/select-fate [3 6] :worst)))))
 
 ;; =============================================================================
@@ -287,7 +287,7 @@
           sources  (sap/steal-advantage-sources state f/home-player-2 f/away-player-1)
           combined (skill/combine-advantage-sources sources)]
       ;; Small defender should have :normal instead of :disadvantage
-      (is (= :normal (:net-level combined))))))
+      (is (= :advantage/NORMAL (:net-level combined))))))
 
 ;; =============================================================================
 ;; Scenario: Targeting API Provides UI Information

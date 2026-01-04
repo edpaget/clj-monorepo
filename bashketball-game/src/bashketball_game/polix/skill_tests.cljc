@@ -21,11 +21,11 @@
 
 (def advantage-order
   "Ordering of advantage levels from best to worst."
-  {:double-advantage 2
-   :advantage 1
-   :normal 0
-   :disadvantage -1
-   :double-disadvantage -2})
+  {:advantage/DOUBLE_ADVANTAGE 2
+   :advantage/ADVANTAGE 1
+   :advantage/NORMAL 0
+   :advantage/DISADVANTAGE -1
+   :advantage/DOUBLE_DISADVANTAGE -2})
 
 (defn compute-difficulty
   "Computes skill test difficulty from effective stat value.
@@ -47,11 +47,11 @@
   [value]
   (let [clamped (max -2 (min 2 value))]
     (case clamped
-      2 :double-advantage
-      1 :advantage
-      0 :normal
-      -1 :disadvantage
-      -2 :double-disadvantage)))
+      2 :advantage/DOUBLE_ADVANTAGE
+      1 :advantage/ADVANTAGE
+      0 :advantage/NORMAL
+      -1 :advantage/DISADVANTAGE
+      -2 :advantage/DOUBLE_DISADVANTAGE)))
 
 (defn combine-advantage-sources
   "Combines multiple advantage sources into a net advantage level.
@@ -67,14 +67,14 @@
 (defn distance->advantage
   "Returns advantage level based on distance.
 
-  Close (1-2 hexes): :advantage
-  Medium (3-4 hexes): :normal
-  Long (5+ hexes): :disadvantage"
+  Close (1-2 hexes): :advantage/ADVANTAGE
+  Medium (3-4 hexes): :advantage/NORMAL
+  Long (5+ hexes): :advantage/DISADVANTAGE"
   [distance]
   (cond
-    (<= distance 2) :advantage
-    (<= distance 4) :normal
-    :else :disadvantage))
+    (<= distance 2) :advantage/ADVANTAGE
+    (<= distance 4) :advantage/NORMAL
+    :else :advantage/DISADVANTAGE))
 
 (defn distance-advantage-source
   "Creates a distance-based advantage source.
@@ -95,18 +95,18 @@
 (defn size->advantage
   "Returns advantage level from size comparison.
 
-  Larger actor: :advantage
-  Same size: :normal
-  Smaller actor: :disadvantage"
+  Larger actor: :advantage/ADVANTAGE
+  Same size: :advantage/NORMAL
+  Smaller actor: :advantage/DISADVANTAGE"
   [game-state actor-id target-id]
   (let [actor-size  (get-in (state/get-basketball-player game-state actor-id) [:stats :size])
         target-size (get-in (state/get-basketball-player game-state target-id) [:stats :size])
         ord-actor   (get size-order actor-size 1)
         ord-target  (get size-order target-size 1)]
     (cond
-      (> ord-actor ord-target) :advantage
-      (< ord-actor ord-target) :disadvantage
-      :else :normal)))
+      (> ord-actor ord-target) :advantage/ADVANTAGE
+      (< ord-actor ord-target) :advantage/DISADVANTAGE
+      :else :advantage/NORMAL)))
 
 (defn size-advantage-source
   "Creates a size-based advantage source.
@@ -127,7 +127,7 @@
   Uncontested actions get advantage."
   []
   {:source :uncontested
-   :advantage :advantage})
+   :advantage :advantage/ADVANTAGE})
 
 (defn shooting-advantage-sources
   "Collects all advantage sources for a shot attempt.
@@ -224,11 +224,11 @@
   Double disadvantage: 3 (pick worst)"
   [advantage-level]
   (case advantage-level
-    :double-advantage 3
-    :advantage 2
-    :normal 1
-    :disadvantage 2
-    :double-disadvantage 3))
+    :advantage/DOUBLE_ADVANTAGE 3
+    :advantage/ADVANTAGE 2
+    :advantage/NORMAL 1
+    :advantage/DISADVANTAGE 2
+    :advantage/DOUBLE_DISADVANTAGE 3))
 
 (defn fate-selection-mode
   "Returns how to select from revealed fate cards.
@@ -238,9 +238,9 @@
   :single - only one card, use it"
   [advantage-level]
   (case advantage-level
-    (:double-advantage :advantage) :best
-    :normal :single
-    (:disadvantage :double-disadvantage) :worst))
+    (:advantage/DOUBLE_ADVANTAGE :advantage/ADVANTAGE) :best
+    :advantage/NORMAL :single
+    (:advantage/DISADVANTAGE :advantage/DOUBLE_DISADVANTAGE) :worst))
 
 (defn select-fate
   "Selects the fate value from revealed cards based on advantage.

@@ -96,14 +96,14 @@
 (defn distance-advantage
   "Returns the advantage level for a given distance.
 
-  - Close (1-2): :advantage
-  - Medium (3-4): :normal
-  - Long (5+): :disadvantage"
+  - Close (1-2): :advantage/ADVANTAGE
+  - Medium (3-4): :advantage/NORMAL
+  - Long (5+): :advantage/DISADVANTAGE"
   [distance]
   (case (distance-category distance)
-    :close :advantage
-    :medium :normal
-    :long :disadvantage))
+    :close :advantage/ADVANTAGE
+    :medium :advantage/NORMAL
+    :long :advantage/DISADVANTAGE))
 
 (defn in-paint?
   "Returns true if the position is in the paint (close to basket).

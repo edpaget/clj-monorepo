@@ -136,7 +136,7 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-2 [2 8])   ; SM elf shooter
                     (f/with-player-at f/away-player-1 [2 9]))] ; LG troll defender
-      (is (= :double-disadvantage
+      (is (= :advantage/DOUBLE_DISADVANTAGE
              (zoc/shooting-zoc-disadvantage state f/home-player-2 f/away-player-1))))))
 
 (deftest shooting-zoc-same-size-disadvantage
@@ -144,7 +144,7 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-3 [2 8])   ; MD dwarf
                     (f/with-player-at f/away-player-3 [2 9]))] ; MD human
-      (is (= :disadvantage
+      (is (= :advantage/DISADVANTAGE
              (zoc/shooting-zoc-disadvantage state f/home-player-3 f/away-player-3))))))
 
 (deftest shooting-zoc-smaller-defender-normal
@@ -152,7 +152,7 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 8])   ; LG orc
                     (f/with-player-at f/away-player-2 [2 9]))] ; SM goblin
-      (is (= :normal
+      (is (= :advantage/NORMAL
              (zoc/shooting-zoc-disadvantage state f/home-player-1 f/away-player-2))))))
 
 (deftest shooting-zoc-defender-not-adjacent
@@ -222,11 +222,11 @@
       (is (= 2 (count sources)))
       ;; LG troll vs SM elf = double-disadvantage
       (is (some #(and (= (:defender-id %) f/away-player-1)
-                      (= (:disadvantage %) :double-disadvantage))
+                      (= (:disadvantage %) :advantage/DOUBLE_DISADVANTAGE))
                 sources))
       ;; SM goblin vs SM elf = same size = disadvantage
       (is (some #(and (= (:defender-id %) f/away-player-2)
-                      (= (:disadvantage %) :disadvantage))
+                      (= (:disadvantage %) :advantage/DISADVANTAGE))
                 sources)))))
 
 (deftest collect-passing-zoc-sources-test

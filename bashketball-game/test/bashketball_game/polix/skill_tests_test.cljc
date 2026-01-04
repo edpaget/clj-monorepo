@@ -29,23 +29,23 @@
 
 (deftest advantage-value-test
   (testing "converts advantage keywords to numeric values"
-    (is (= 2 (skill-tests/advantage-value :double-advantage)))
-    (is (= 1 (skill-tests/advantage-value :advantage)))
-    (is (= 0 (skill-tests/advantage-value :normal)))
-    (is (= -1 (skill-tests/advantage-value :disadvantage)))
-    (is (= -2 (skill-tests/advantage-value :double-disadvantage)))))
+    (is (= 2 (skill-tests/advantage-value :advantage/DOUBLE_ADVANTAGE)))
+    (is (= 1 (skill-tests/advantage-value :advantage/ADVANTAGE)))
+    (is (= 0 (skill-tests/advantage-value :advantage/NORMAL)))
+    (is (= -1 (skill-tests/advantage-value :advantage/DISADVANTAGE)))
+    (is (= -2 (skill-tests/advantage-value :advantage/DOUBLE_DISADVANTAGE)))))
 
 (deftest value-to-advantage-test
   (testing "converts numeric values back to advantage keywords"
-    (is (= :double-advantage (skill-tests/value->advantage 2)))
-    (is (= :advantage (skill-tests/value->advantage 1)))
-    (is (= :normal (skill-tests/value->advantage 0)))
-    (is (= :disadvantage (skill-tests/value->advantage -1)))
-    (is (= :double-disadvantage (skill-tests/value->advantage -2))))
+    (is (= :advantage/DOUBLE_ADVANTAGE (skill-tests/value->advantage 2)))
+    (is (= :advantage/ADVANTAGE (skill-tests/value->advantage 1)))
+    (is (= :advantage/NORMAL (skill-tests/value->advantage 0)))
+    (is (= :advantage/DISADVANTAGE (skill-tests/value->advantage -1)))
+    (is (= :advantage/DOUBLE_DISADVANTAGE (skill-tests/value->advantage -2))))
 
   (testing "clamps extreme values"
-    (is (= :double-advantage (skill-tests/value->advantage 5)))
-    (is (= :double-disadvantage (skill-tests/value->advantage -5)))))
+    (is (= :advantage/DOUBLE_ADVANTAGE (skill-tests/value->advantage 5)))
+    (is (= :advantage/DOUBLE_DISADVANTAGE (skill-tests/value->advantage -5)))))
 
 ;; =============================================================================
 ;; Advantage Source Combination Tests
@@ -54,38 +54,38 @@
 (deftest combine-single-source
   (testing "single source determines net level"
     (let [result (skill-tests/combine-advantage-sources
-                  [{:source :distance :advantage :advantage}])]
-      (is (= :advantage (:net-level result)))
+                  [{:source :distance :advantage :advantage/ADVANTAGE}])]
+      (is (= :advantage/ADVANTAGE (:net-level result)))
       (is (= 1 (count (:sources result)))))))
 
 (deftest combine-canceling-sources
   (testing "advantage and disadvantage cancel out"
     (let [result (skill-tests/combine-advantage-sources
-                  [{:source :distance :advantage :advantage}
-                   {:source :zoc :advantage :disadvantage}])]
-      (is (= :normal (:net-level result))))))
+                  [{:source :distance :advantage :advantage/ADVANTAGE}
+                   {:source :zoc :advantage :advantage/DISADVANTAGE}])]
+      (is (= :advantage/NORMAL (:net-level result))))))
 
 (deftest combine-stacking-sources
   (testing "multiple advantages stack up to double"
     (let [result (skill-tests/combine-advantage-sources
-                  [{:source :distance :advantage :advantage}
-                   {:source :uncontested :advantage :advantage}])]
-      (is (= :double-advantage (:net-level result))))))
+                  [{:source :distance :advantage :advantage/ADVANTAGE}
+                   {:source :uncontested :advantage :advantage/ADVANTAGE}])]
+      (is (= :advantage/DOUBLE_ADVANTAGE (:net-level result))))))
 
 (deftest combine-stacking-disadvantages
   (testing "multiple disadvantages stack"
     (let [result (skill-tests/combine-advantage-sources
-                  [{:source :zoc :advantage :disadvantage}
-                   {:source :size :advantage :disadvantage}])]
-      (is (= :double-disadvantage (:net-level result))))))
+                  [{:source :zoc :advantage :advantage/DISADVANTAGE}
+                   {:source :size :advantage :advantage/DISADVANTAGE}])]
+      (is (= :advantage/DOUBLE_DISADVANTAGE (:net-level result))))))
 
 (deftest combine-mixed-sources
   (testing "net advantage from multiple sources"
     (let [result (skill-tests/combine-advantage-sources
-                  [{:source :distance :advantage :advantage}
-                   {:source :uncontested :advantage :advantage}
-                   {:source :size :advantage :disadvantage}])]
-      (is (= :advantage (:net-level result))))))
+                  [{:source :distance :advantage :advantage/ADVANTAGE}
+                   {:source :uncontested :advantage :advantage/ADVANTAGE}
+                   {:source :size :advantage :advantage/DISADVANTAGE}])]
+      (is (= :advantage/ADVANTAGE (:net-level result))))))
 
 ;; =============================================================================
 ;; Distance Advantage Tests
@@ -93,25 +93,25 @@
 
 (deftest distance-advantage-close
   (testing "close range (1-2 hexes) gives advantage"
-    (is (= :advantage (skill-tests/distance->advantage 1)))
-    (is (= :advantage (skill-tests/distance->advantage 2)))))
+    (is (= :advantage/ADVANTAGE (skill-tests/distance->advantage 1)))
+    (is (= :advantage/ADVANTAGE (skill-tests/distance->advantage 2)))))
 
 (deftest distance-advantage-medium
   (testing "medium range (3-4 hexes) is normal"
-    (is (= :normal (skill-tests/distance->advantage 3)))
-    (is (= :normal (skill-tests/distance->advantage 4)))))
+    (is (= :advantage/NORMAL (skill-tests/distance->advantage 3)))
+    (is (= :advantage/NORMAL (skill-tests/distance->advantage 4)))))
 
 (deftest distance-advantage-long
   (testing "long range (5+ hexes) gives disadvantage"
-    (is (= :disadvantage (skill-tests/distance->advantage 5)))
-    (is (= :disadvantage (skill-tests/distance->advantage 7)))))
+    (is (= :advantage/DISADVANTAGE (skill-tests/distance->advantage 5)))
+    (is (= :advantage/DISADVANTAGE (skill-tests/distance->advantage 7)))))
 
 (deftest distance-advantage-source-test
   (testing "creates proper distance advantage source"
     (let [source (skill-tests/distance-advantage-source 2)]
       (is (= :distance (:source source)))
       (is (= 2 (:distance source)))
-      (is (= :advantage (:advantage source))))))
+      (is (= :advantage/ADVANTAGE (:advantage source))))))
 
 ;; =============================================================================
 ;; Size Advantage Tests
@@ -122,21 +122,21 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 3])   ; LG orc
                     (f/with-player-at f/away-player-2 [2 4]))] ; SM goblin
-      (is (= :advantage (skill-tests/size->advantage state f/home-player-1 f/away-player-2))))))
+      (is (= :advantage/ADVANTAGE (skill-tests/size->advantage state f/home-player-1 f/away-player-2))))))
 
 (deftest size-advantage-smaller-actor
   (testing "smaller actor gets disadvantage"
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-2 [2 3])   ; SM elf
                     (f/with-player-at f/away-player-1 [2 4]))] ; LG troll
-      (is (= :disadvantage (skill-tests/size->advantage state f/home-player-2 f/away-player-1))))))
+      (is (= :advantage/DISADVANTAGE (skill-tests/size->advantage state f/home-player-2 f/away-player-1))))))
 
 (deftest size-advantage-same-size
   (testing "same size is normal"
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-3 [2 3])   ; MD dwarf
                     (f/with-player-at f/away-player-3 [2 4]))] ; MD human
-      (is (= :normal (skill-tests/size->advantage state f/home-player-3 f/away-player-3))))))
+      (is (= :advantage/NORMAL (skill-tests/size->advantage state f/home-player-3 f/away-player-3))))))
 
 (deftest size-advantage-source-test
   (testing "creates proper size advantage source"
@@ -147,7 +147,7 @@
       (is (= :size (:source source)))
       (is (= f/home-player-1 (:actor-id source)))
       (is (= f/away-player-2 (:target-id source)))
-      (is (= :advantage (:advantage source))))))
+      (is (= :advantage/ADVANTAGE (:advantage source))))))
 
 ;; =============================================================================
 ;; Uncontested Advantage Tests
@@ -157,7 +157,7 @@
   (testing "creates uncontested advantage source"
     (let [source (skill-tests/uncontested-advantage-source)]
       (is (= :uncontested (:source source)))
-      (is (= :advantage (:advantage source))))))
+      (is (= :advantage/ADVANTAGE (:advantage source))))))
 
 ;; =============================================================================
 ;; Fate Reveal Count Tests
@@ -165,19 +165,19 @@
 
 (deftest fate-reveal-count-test
   (testing "double advantage reveals 3 cards"
-    (is (= 3 (skill-tests/fate-reveal-count :double-advantage))))
+    (is (= 3 (skill-tests/fate-reveal-count :advantage/DOUBLE_ADVANTAGE))))
 
   (testing "advantage reveals 2 cards"
-    (is (= 2 (skill-tests/fate-reveal-count :advantage))))
+    (is (= 2 (skill-tests/fate-reveal-count :advantage/ADVANTAGE))))
 
   (testing "normal reveals 1 card"
-    (is (= 1 (skill-tests/fate-reveal-count :normal))))
+    (is (= 1 (skill-tests/fate-reveal-count :advantage/NORMAL))))
 
   (testing "disadvantage reveals 2 cards"
-    (is (= 2 (skill-tests/fate-reveal-count :disadvantage))))
+    (is (= 2 (skill-tests/fate-reveal-count :advantage/DISADVANTAGE))))
 
   (testing "double disadvantage reveals 3 cards"
-    (is (= 3 (skill-tests/fate-reveal-count :double-disadvantage)))))
+    (is (= 3 (skill-tests/fate-reveal-count :advantage/DOUBLE_DISADVANTAGE)))))
 
 ;; =============================================================================
 ;; Fate Selection Mode Tests
@@ -185,19 +185,19 @@
 
 (deftest fate-selection-mode-test
   (testing "double advantage picks best"
-    (is (= :best (skill-tests/fate-selection-mode :double-advantage))))
+    (is (= :best (skill-tests/fate-selection-mode :advantage/DOUBLE_ADVANTAGE))))
 
   (testing "advantage picks best"
-    (is (= :best (skill-tests/fate-selection-mode :advantage))))
+    (is (= :best (skill-tests/fate-selection-mode :advantage/ADVANTAGE))))
 
   (testing "normal uses single"
-    (is (= :single (skill-tests/fate-selection-mode :normal))))
+    (is (= :single (skill-tests/fate-selection-mode :advantage/NORMAL))))
 
   (testing "disadvantage picks worst"
-    (is (= :worst (skill-tests/fate-selection-mode :disadvantage))))
+    (is (= :worst (skill-tests/fate-selection-mode :advantage/DISADVANTAGE))))
 
   (testing "double disadvantage picks worst"
-    (is (= :worst (skill-tests/fate-selection-mode :double-disadvantage)))))
+    (is (= :worst (skill-tests/fate-selection-mode :advantage/DOUBLE_DISADVANTAGE)))))
 
 ;; =============================================================================
 ;; Fate Selection Tests
@@ -277,7 +277,7 @@
           sources (skill-tests/defense-advantage-sources state f/home-player-1 f/away-player-2)]
       (is (= 1 (count sources)))
       (is (= :size (:source (first sources))))
-      (is (= :advantage (:advantage (first sources)))))))
+      (is (= :advantage/ADVANTAGE (:advantage (first sources)))))))
 
 ;; =============================================================================
 ;; Tipoff Advantage Sources Tests
@@ -291,4 +291,4 @@
           sources (skill-tests/tipoff-advantage-sources state f/home-player-1 f/away-player-2)]
       (is (= 1 (count sources)))
       (is (= :size (:source (first sources))))
-      (is (= :advantage (:advantage (first sources)))))))
+      (is (= :advantage/ADVANTAGE (:advantage (first sources)))))))

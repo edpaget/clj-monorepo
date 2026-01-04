@@ -79,7 +79,7 @@
           sources (sap/shoot-advantage-sources state f/home-player-2)]
       (is (not (some #(= :uncontested (:source %)) sources)))
       (is (some #(and (= :zoc (:source %))
-                      (= :double-disadvantage (:disadvantage %)))
+                      (= :advantage/DOUBLE_DISADVANTAGE (:disadvantage %)))
                 sources)))))
 
 ;; =============================================================================
@@ -228,7 +228,7 @@
           sources (sap/steal-advantage-sources state f/home-player-2 f/away-player-1)]
       ;; Size source should be :normal, not :disadvantage
       (is (some #(and (= :size (:source %))
-                      (= :normal (:advantage %)))
+                      (= :advantage/NORMAL (:advantage %)))
                 sources)))))
 
 ;; =============================================================================
@@ -276,7 +276,7 @@
                       (f/with-player-at f/away-player-2 [2 6]))   ; SM goblin
           sources (sap/screen-advantage-sources state f/home-player-1 f/away-player-2)]
       (is (some #(and (= :size (:source %))
-                      (= :advantage (:advantage %)))
+                      (= :advantage/ADVANTAGE (:advantage %)))
                 sources)))))
 
 ;; =============================================================================
@@ -321,7 +321,7 @@
       (is (= 6 (:difficulty setup)))
       ;; Distance 2 (close) = advantage, uncontested = advantage
       ;; Net: advantage + advantage = double-advantage
-      (is (= :double-advantage (:advantage setup)))
+      (is (= :advantage/DOUBLE_ADVANTAGE (:advantage setup)))
       (is (some #(= :distance (:source %)) (:advantage-sources setup)))
       (is (some #(= :uncontested (:source %)) (:advantage-sources setup))))))
 
@@ -336,7 +336,7 @@
       (is (= 7 (:difficulty setup)))
       ;; Distance 2 (close) = advantage, uncontested = advantage
       ;; Net: advantage + advantage = double-advantage
-      (is (= :double-advantage (:advantage setup)))
+      (is (= :advantage/DOUBLE_ADVANTAGE (:advantage setup)))
       (is (some #(= :distance (:source %)) (:advantage-sources setup)))
       (is (some #(= :uncontested (:source %)) (:advantage-sources setup))))))
 
@@ -350,5 +350,5 @@
       ;; Orc defense 4, steal difficulty = 8 - (4 - 2) = 6
       (is (= 6 (:difficulty setup)))
       ;; LG orc vs LG troll = same size = normal
-      (is (= :normal (:advantage setup)))
+      (is (= :advantage/NORMAL (:advantage setup)))
       (is (some #(= :size (:source %)) (:advantage-sources setup))))))
