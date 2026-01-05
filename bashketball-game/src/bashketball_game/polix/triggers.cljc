@@ -28,6 +28,9 @@
    [polix.triggers.registry :as registry]
    [polix.unify :as unify]))
 
+;; Forward declaration for choice-event used in action->events
+(declare choice-event)
+
 (defn- event-type-with-suffix
   "Appends a suffix to an action type keyword.
 
@@ -42,7 +45,10 @@
   Returns `{:before event :after event}` where each event contains:
   - `:type` - action type with `.before` or `.after` suffix
   - All action fields (player-id, position, etc.)
-  - `:turn-number`, `:active-player`, `:phase` from game state"
+  - `:turn-number`, `:active-player`, `:phase` from game state
+
+  Special handling for `:bashketball/submit-choice` to use [[choice-event]]
+  for proper choice field inclusion in the event."
   [game-state action]
   (let [action-type (:type action)
         base-fields (-> action
@@ -50,8 +56,13 @@
                         (assoc :turn-number (:turn-number game-state)
                                :active-player (:active-player game-state)
                                :phase (:phase game-state)))]
-    {:before (assoc base-fields :type (event-type-with-suffix action-type ".before"))
-     :after (assoc base-fields :type (event-type-with-suffix action-type ".after"))}))
+    (if (= action-type :bashketball/submit-choice)
+      ;; submit-choice uses choice-event to include pending choice fields
+      {:before nil
+       :after  (choice-event game-state "submitted")}
+      ;; default: generate before/after events from action type
+      {:before (assoc base-fields :type (event-type-with-suffix action-type ".before"))
+       :after  (assoc base-fields :type (event-type-with-suffix action-type ".after"))})))
 
 (defn- enrich-event
   "Adds game state context to an event for trigger processing.

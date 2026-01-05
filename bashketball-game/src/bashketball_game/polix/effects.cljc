@@ -320,13 +320,14 @@
   ;; Choice Effects
 
   (fx/register-effect! :bashketball/offer-choice
-                       (fn [state {:keys [choice-type options waiting-for context]} ctx _opts]
+                       (fn [state {:keys [choice-type options waiting-for context continuation]} ctx _opts]
                          (let [resolved-team (resolve-param waiting-for ctx state)
-                               action        {:type :bashketball/offer-choice
-                                              :choice-type choice-type
-                                              :options options
-                                              :waiting-for resolved-team
-                                              :context context}
+                               action        (cond-> {:type        :bashketball/offer-choice
+                                                      :choice-type choice-type
+                                                      :options     options
+                                                      :waiting-for resolved-team}
+                                               context      (assoc :context context)
+                                               continuation (assoc :continuation continuation))
                                new-state     (actions/do-action state action)]
                            ;; Return with pending flag so caller knows execution should pause
                            (assoc (fx/success new-state [action])
@@ -356,6 +357,19 @@
                                   :pending {:type :forced-choice
                                             :choice-id (get-in new-state [:pending-choice :id])
                                             :target resolved-target}))))
+
+  (fx/register-effect! :bashketball/execute-choice-continuation
+                       (fn [state _params ctx opts]
+                         (if-let [{:keys [continuation selected]} (:pending-choice state)]
+                           (if continuation
+                             (let [ctx'   (update ctx :bindings assoc :choice/selected selected)
+                                   state' (dissoc state :pending-choice)
+                                   effect (if (vector? continuation)
+                                            {:type :polix.effects/sequence :effects continuation}
+                                            continuation)]
+                               (fx/apply-effect state' effect ctx' opts))
+                             (fx/success (dissoc state :pending-choice) []))
+                           (fx/success state []))))
 
   ;; Modifier Effects
 

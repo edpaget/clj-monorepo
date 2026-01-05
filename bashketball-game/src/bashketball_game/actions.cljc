@@ -413,13 +413,14 @@
 ;; Choice Actions
 
 (defmethod -apply-action :bashketball/offer-choice
-  [state {:keys [choice-type options waiting-for context]}]
+  [state {:keys [choice-type options waiting-for context continuation]}]
   (assoc state :pending-choice
-         {:id          (generate-id)
-          :type        choice-type
-          :options     options
-          :waiting-for waiting-for
-          :context     context}))
+         (cond-> {:id          (generate-id)
+                  :type        choice-type
+                  :options     options
+                  :waiting-for waiting-for}
+           context      (assoc :context context)
+           continuation (assoc :continuation continuation))))
 
 (defmethod -apply-action :bashketball/submit-choice
   [state {:keys [choice-id selected]}]

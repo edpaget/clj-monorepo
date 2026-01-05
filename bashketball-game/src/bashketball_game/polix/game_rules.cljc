@@ -102,6 +102,22 @@
             :to-phase :phase/UPKEEP}})
 
 ;;; ---------------------------------------------------------------------------
+;;; Choice Continuation Rules
+;;; ---------------------------------------------------------------------------
+
+(def choice-submitted-rule
+  "Default rule for choice submission: executes continuation if present.
+
+  Fires after `:bashketball/choice.submitted` event. Binds `:choice/selected`
+  in context before executing the continuation effect."
+  {:id "rule/choice-submitted"
+   :event-types #{:bashketball/choice.submitted}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/execute-choice-continuation}})
+
+;;; ---------------------------------------------------------------------------
 ;;; Rule Registry
 ;;; ---------------------------------------------------------------------------
 
@@ -111,7 +127,8 @@
    move-step-rule
    phase-starting-rule
    turn-ending-rule
-   turn-starting-rule])
+   turn-starting-rule
+   choice-submitted-rule])
 
 (defn register-game-rules!
   "Registers all default game rules in the trigger registry.

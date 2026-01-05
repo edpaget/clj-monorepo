@@ -319,13 +319,15 @@
   "A choice awaiting player input.
 
   When a choice effect is applied, the game pauses until the player submits
-  their selection via a submit-choice action."
+  their selection via a submit-choice action. If a `:continuation` is provided,
+  it will be executed after the selection with `:choice/selected` bound in context."
   [:map {:graphql/type :PendingChoice}
    [:id :string]
    [:type :keyword]
    [:options [:vector ChoiceOption]]
    [:waiting-for Team]
-   [:context {:optional true} :map]])
+   [:context {:optional true} :map]
+   [:continuation {:optional true} [:or :map [:vector :map]]]])
 
 ;; -----------------------------------------------------------------------------
 ;; Movement Schemas
@@ -621,13 +623,15 @@
   "Action to present a choice to a player.
 
   Sets pending-choice in the game state, pausing execution until the
-  player submits their selection."
+  player submits their selection. If `:continuation` is provided, it will
+  be executed after submission with `:choice/selected` bound in context."
   [:map
    [:type [:= :bashketball/offer-choice]]
    [:choice-type :keyword]
    [:options [:vector ChoiceOption]]
    [:waiting-for Team]
-   [:context {:optional true} :map]])
+   [:context {:optional true} :map]
+   [:continuation {:optional true} [:or :map [:vector :map]]]])
 
 (def SubmitChoiceAction
   "Action to submit a player's choice selection.
