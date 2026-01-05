@@ -7,8 +7,8 @@
    [bashketball-game.actions :as actions]
    [bashketball-game.polix.core :as polix]
    [bashketball-game.polix.fixtures :as f]
-   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.polix.game-rules :as game-rules]
+   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
    [clojure.test :refer [deftest is testing use-fixtures]]
    [polix.effects.core :as fx]))
@@ -54,12 +54,12 @@
       (is (nil? (get-in result [:pending-choice :continuation]))))))
 
 (deftest submit-choice-sets-selected-test
-  (let [game   (-> (f/base-game-state)
-                   (actions/do-action {:type :bashketball/offer-choice
-                                       :choice-type :test-choice
-                                       :options [{:id :option-a :label "A"}
-                                                 {:id :option-b :label "B"}]
-                                       :waiting-for :team/HOME}))
+  (let [game      (-> (f/base-game-state)
+                      (actions/do-action {:type :bashketball/offer-choice
+                                          :choice-type :test-choice
+                                          :options [{:id :option-a :label "A"}
+                                                    {:id :option-b :label "B"}]
+                                          :waiting-for :team/HOME}))
         choice-id (get-in game [:pending-choice :id])
         result    (actions/do-action game
                                      {:type :bashketball/submit-choice

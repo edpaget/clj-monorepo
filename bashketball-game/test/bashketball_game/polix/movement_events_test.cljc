@@ -21,12 +21,12 @@
 ;;; ---------------------------------------------------------------------------
 
 (deftest begin-movement-action-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3]))
-        result (actions/do-action game
-                                  {:type :bashketball/begin-movement
-                                   :player-id fixtures/home-player-1
-                                   :speed 3})
+  (let [game     (-> (fixtures/base-game-state)
+                     (fixtures/with-player-at fixtures/home-player-1 [2 3]))
+        result   (actions/do-action game
+                                    {:type :bashketball/begin-movement
+                                     :player-id fixtures/home-player-1
+                                     :speed 3})
         movement (state/get-pending-movement result)]
     (testing "creates pending movement context"
       (is (some? movement))
@@ -43,18 +43,18 @@
       (is (= 0 (:step-number movement))))))
 
 (deftest do-move-step-action-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                 (actions/do-action {:type :bashketball/begin-movement
+  (let [game     (-> (fixtures/base-game-state)
+                     (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                     (actions/do-action {:type :bashketball/begin-movement
+                                         :player-id fixtures/home-player-1
+                                         :speed 3}))
+        result   (actions/do-action game
+                                    {:type :bashketball/do-move-step
                                      :player-id fixtures/home-player-1
-                                     :speed 3}))
-        result (actions/do-action game
-                                  {:type :bashketball/do-move-step
-                                   :player-id fixtures/home-player-1
-                                   :to-position [2 4]
-                                   :cost 1})
+                                     :to-position [2 4]
+                                     :cost 1})
         movement (state/get-pending-movement result)
-        player (state/get-basketball-player result fixtures/home-player-1)]
+        player   (state/get-basketball-player result fixtures/home-player-1)]
     (testing "moves player to new position"
       (is (= [2 4] (:position player))))
 
@@ -65,15 +65,15 @@
       (is (= 1 (:step-number movement))))))
 
 (deftest end-movement-action-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                 (actions/do-action {:type :bashketball/begin-movement
-                                     :player-id fixtures/home-player-1
-                                     :speed 3})
-                 (actions/do-action {:type :bashketball/do-move-step
-                                     :player-id fixtures/home-player-1
-                                     :to-position [2 4]
-                                     :cost 1}))
+  (let [game   (-> (fixtures/base-game-state)
+                   (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                   (actions/do-action {:type :bashketball/begin-movement
+                                       :player-id fixtures/home-player-1
+                                       :speed 3})
+                   (actions/do-action {:type :bashketball/do-move-step
+                                       :player-id fixtures/home-player-1
+                                       :to-position [2 4]
+                                       :cost 1}))
         result (actions/do-action game
                                   {:type :bashketball/end-movement
                                    :player-id fixtures/home-player-1})]
@@ -140,32 +140,32 @@
 ;;; ---------------------------------------------------------------------------
 
 (deftest begin-movement-effect-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3]))
-        result (fx/apply-effect game
-                                {:type :bashketball/begin-movement
-                                 :player-id fixtures/home-player-1
-                                 :speed 3}
-                                {}
-                                {:validate? false})
+  (let [game     (-> (fixtures/base-game-state)
+                     (fixtures/with-player-at fixtures/home-player-1 [2 3]))
+        result   (fx/apply-effect game
+                                  {:type :bashketball/begin-movement
+                                   :player-id fixtures/home-player-1
+                                   :speed 3}
+                                  {}
+                                  {:validate? false})
         movement (state/get-pending-movement (:state result))]
     (testing "effect creates movement context"
       (is (some? movement))
       (is (= 3 (:remaining-speed movement))))))
 
 (deftest do-move-step-effect-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                 (actions/do-action {:type :bashketball/begin-movement
-                                     :player-id fixtures/home-player-1
-                                     :speed 3}))
-        result (fx/apply-effect game
-                                {:type :bashketball/do-move-step
-                                 :player-id fixtures/home-player-1
-                                 :to-position [2 4]
-                                 :cost 2}
-                                {}
-                                {:validate? false})
+  (let [game     (-> (fixtures/base-game-state)
+                     (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                     (actions/do-action {:type :bashketball/begin-movement
+                                         :player-id fixtures/home-player-1
+                                         :speed 3}))
+        result   (fx/apply-effect game
+                                  {:type :bashketball/do-move-step
+                                   :player-id fixtures/home-player-1
+                                   :to-position [2 4]
+                                   :cost 2}
+                                  {}
+                                  {:validate? false})
         movement (state/get-pending-movement (:state result))]
     (testing "effect moves player and deducts cost"
       (is (= [2 4] (:position (state/get-basketball-player (:state result) fixtures/home-player-1))))
@@ -177,25 +177,25 @@
 
 (deftest move-step-fires-exit-event-test
   (let [exit-events (atom [])
-        _ (fx/register-effect! :test/record-exit
-                               (fn [state _params ctx _opts]
-                                 (swap! exit-events conj (:event ctx))
-                                 (fx/success state [])))
-        game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                 (actions/do-action {:type :bashketball/begin-movement
-                                     :player-id fixtures/home-player-1
-                                     :speed 3}))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!)
-                     (triggers/register-trigger
-                      {:event-types #{:bashketball/player-exiting-hex.request}
-                       :timing :polix.triggers.timing/before
-                       :priority 100
-                       :effect {:type :test/record-exit}}
-                      "exit-recorder"
-                      :team/HOME
-                      nil))]
+        _           (fx/register-effect! :test/record-exit
+                                         (fn [state _params ctx _opts]
+                                           (swap! exit-events conj (:event ctx))
+                                           (fx/success state [])))
+        game        (-> (fixtures/base-game-state)
+                        (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                        (actions/do-action {:type :bashketball/begin-movement
+                                            :player-id fixtures/home-player-1
+                                            :speed 3}))
+        registry    (-> (triggers/create-registry)
+                        (game-rules/register-game-rules!)
+                        (triggers/register-trigger
+                         {:event-types #{:bashketball/player-exiting-hex.request}
+                          :timing :polix.triggers.timing/before
+                          :priority 100
+                          :effect {:type :test/record-exit}}
+                         "exit-recorder"
+                         :team/HOME
+                         nil))]
 
     (reset! exit-events [])
     (fx/apply-effect game
@@ -216,25 +216,25 @@
 
 (deftest move-step-fires-enter-event-test
   (let [enter-events (atom [])
-        _ (fx/register-effect! :test/record-enter
-                               (fn [state _params ctx _opts]
-                                 (swap! enter-events conj (:event ctx))
-                                 (fx/success state [])))
-        game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                 (actions/do-action {:type :bashketball/begin-movement
-                                     :player-id fixtures/home-player-1
-                                     :speed 3}))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!)
-                     (triggers/register-trigger
-                      {:event-types #{:bashketball/player-entering-hex.request}
-                       :timing :polix.triggers.timing/before
-                       :priority 100
-                       :effect {:type :test/record-enter}}
-                      "enter-recorder"
-                      :team/HOME
-                      nil))]
+        _            (fx/register-effect! :test/record-enter
+                                          (fn [state _params ctx _opts]
+                                            (swap! enter-events conj (:event ctx))
+                                            (fx/success state [])))
+        game         (-> (fixtures/base-game-state)
+                         (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                         (actions/do-action {:type :bashketball/begin-movement
+                                             :player-id fixtures/home-player-1
+                                             :speed 3}))
+        registry     (-> (triggers/create-registry)
+                         (game-rules/register-game-rules!)
+                         (triggers/register-trigger
+                          {:event-types #{:bashketball/player-entering-hex.request}
+                           :timing :polix.triggers.timing/before
+                           :priority 100
+                           :effect {:type :test/record-enter}}
+                          "enter-recorder"
+                          :team/HOME
+                          nil))]
 
     (reset! enter-events [])
     (fx/apply-effect game
@@ -254,21 +254,21 @@
         (is (= fixtures/home-player-1 (:player-id event)))))))
 
 (deftest move-step-catchall-rule-moves-player-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3])
-                 (actions/do-action {:type :bashketball/begin-movement
-                                     :player-id fixtures/home-player-1
-                                     :speed 3}))
+  (let [game     (-> (fixtures/base-game-state)
+                     (fixtures/with-player-at fixtures/home-player-1 [2 3])
+                     (actions/do-action {:type :bashketball/begin-movement
+                                         :player-id fixtures/home-player-1
+                                         :speed 3}))
         registry (-> (triggers/create-registry)
                      (game-rules/register-game-rules!))
-        result (fx/apply-effect game
-                                {:type :bashketball/move-step
-                                 :player-id fixtures/home-player-1
-                                 :to-position [2 4]}
-                                {}
-                                {:registry registry
-                                 :validate? false})
-        player (state/get-basketball-player (:state result) fixtures/home-player-1)]
+        result   (fx/apply-effect game
+                                  {:type :bashketball/move-step
+                                   :player-id fixtures/home-player-1
+                                   :to-position [2 4]}
+                                  {}
+                                  {:registry registry
+                                   :validate? false})
+        player   (state/get-basketball-player (:state result) fixtures/home-player-1)]
     (testing "catchall rule produces do-move-step effect"
       (is (= [2 4] (:position player))))))
 
@@ -277,34 +277,34 @@
 ;;; ---------------------------------------------------------------------------
 
 (deftest complete-movement-flow-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-1 [2 3]))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!))
+  (let [game        (-> (fixtures/base-game-state)
+                        (fixtures/with-player-at fixtures/home-player-1 [2 3]))
+        registry    (-> (triggers/create-registry)
+                        (game-rules/register-game-rules!))
 
         ;; Begin movement
-        game-1 (actions/do-action game
-                                  {:type :bashketball/begin-movement
-                                   :player-id fixtures/home-player-1
-                                   :speed 3})
+        game-1      (actions/do-action game
+                                       {:type :bashketball/begin-movement
+                                        :player-id fixtures/home-player-1
+                                        :speed 3})
 
         ;; Take first step
-        result-1 (fx/apply-effect game-1
-                                  {:type :bashketball/move-step
-                                   :player-id fixtures/home-player-1
-                                   :to-position [2 4]}
-                                  {}
-                                  {:registry registry
-                                   :validate? false})
+        result-1    (fx/apply-effect game-1
+                                     {:type :bashketball/move-step
+                                      :player-id fixtures/home-player-1
+                                      :to-position [2 4]}
+                                     {}
+                                     {:registry registry
+                                      :validate? false})
 
         ;; Take second step
-        result-2 (fx/apply-effect (:state result-1)
-                                  {:type :bashketball/move-step
-                                   :player-id fixtures/home-player-1
-                                   :to-position [2 5]}
-                                  {}
-                                  {:registry (:registry result-1)
-                                   :validate? false})
+        result-2    (fx/apply-effect (:state result-1)
+                                     {:type :bashketball/move-step
+                                      :player-id fixtures/home-player-1
+                                      :to-position [2 5]}
+                                     {}
+                                     {:registry (:registry result-1)
+                                      :validate? false})
 
         ;; End movement
         final-state (actions/do-action (:state result-2)

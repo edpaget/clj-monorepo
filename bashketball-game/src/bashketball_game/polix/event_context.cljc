@@ -40,9 +40,9 @@
   The count represents how many times this event type has occurred for
   this team during this turn, including the current occurrence."
   [ctx event]
-  (let [key (counter-key (:state ctx) event)
+  (let [key  (counter-key (:state ctx) event)
         ctx' (update-in ctx [:event-counters key] (fnil inc 0))
-        cnt (get-in ctx' [:event-counters key])]
+        cnt  (get-in ctx' [:event-counters key])]
     [ctx' cnt]))
 
 (defn get-counter

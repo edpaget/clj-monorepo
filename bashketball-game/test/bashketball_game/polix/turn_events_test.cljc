@@ -1,7 +1,6 @@
 (ns bashketball-game.polix.turn-events-test
   "Tests for event-driven turn and phase transitions."
   (:require
-   [bashketball-game.actions :as actions]
    [bashketball-game.polix.core :as polix]
    [bashketball-game.polix.fixtures :as fixtures]
    [bashketball-game.polix.game-rules :as game-rules]
@@ -53,11 +52,11 @@
                      (game-rules/register-game-rules!))
         fired    (atom [])
         _        (fx/register-effect! :test/capture-ending
-                                      (fn [s _params ctx _opts]
+                                      (fn [s _params _ctx _opts]
                                         (swap! fired conj :ending)
                                         (fx/success s [])))
         _        (fx/register-effect! :test/capture-starting
-                                      (fn [s _params ctx _opts]
+                                      (fn [s _params _ctx _opts]
                                         (swap! fired conj :starting)
                                         (fx/success s [])))
         registry (-> registry
@@ -111,7 +110,7 @@
                        :priority 50
                        :effect {:type :test/capture-turn-event}}
                       "test-starting" nil nil))
-        result   (fx/apply-effect game
+        _        (fx/apply-effect game
                                   {:type :bashketball/end-turn}
                                   {}
                                   {:registry registry})]

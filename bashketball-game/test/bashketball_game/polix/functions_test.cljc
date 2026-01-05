@@ -43,7 +43,7 @@
 (deftest step-cost-no-zoc-test
   (let [game (-> (fixtures/base-game-state)
                  (fixtures/with-player-at fixtures/home-player-1 [2 3]))
-        f (functions/get-fn :bashketball-fn/step-cost)
+        f    (functions/get-fn :bashketball-fn/step-cost)
         cost (f game {} fixtures/home-player-1 [2 4])]
     (testing "returns base cost with no defenders"
       (is (= 1 cost)))))
@@ -52,13 +52,13 @@
   (let [game (-> (fixtures/base-game-state)
                  (fixtures/with-player-at fixtures/home-player-2 [2 3])
                  (fixtures/with-player-at fixtures/away-player-1 [2 4]))
-        f (functions/get-fn :bashketball-fn/step-cost)
+        f    (functions/get-fn :bashketball-fn/step-cost)
         cost (f game {} fixtures/home-player-2 [2 4])]
     (testing "includes ZoC cost from larger defender"
       (is (= 3 cost)))))
 
 (deftest base-cost-test
-  (let [f (functions/get-fn :bashketball-fn/base-cost)
+  (let [f    (functions/get-fn :bashketball-fn/base-cost)
         cost (f {} {})]
     (testing "always returns 1"
       (is (= 1 cost)))))
@@ -67,16 +67,16 @@
   (let [game (-> (fixtures/base-game-state)
                  (fixtures/with-player-at fixtures/home-player-2 [2 3])
                  (fixtures/with-player-at fixtures/away-player-1 [2 4]))
-        f (functions/get-fn :bashketball-fn/zoc-cost)
+        f    (functions/get-fn :bashketball-fn/zoc-cost)
         cost (f game {} fixtures/home-player-2 [2 4])]
     (testing "returns ZoC penalty from larger defender"
       (is (= 2 cost)))))
 
 (deftest zoc-defender-ids-test
-  (let [game (-> (fixtures/base-game-state)
-                 (fixtures/with-player-at fixtures/home-player-2 [2 3])
-                 (fixtures/with-player-at fixtures/away-player-1 [2 4]))
-        f (functions/get-fn :bashketball-fn/zoc-defender-ids)
+  (let [game      (-> (fixtures/base-game-state)
+                      (fixtures/with-player-at fixtures/home-player-2 [2 3])
+                      (fixtures/with-player-at fixtures/away-player-1 [2 4]))
+        f         (functions/get-fn :bashketball-fn/zoc-defender-ids)
         defenders (f game {} fixtures/home-player-2 [2 4])]
     (testing "returns defender IDs in ZoC"
       (is (= [fixtures/away-player-1] defenders)))))

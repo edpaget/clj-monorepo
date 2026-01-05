@@ -7,8 +7,8 @@
    [bashketball-game.actions :as actions]
    [bashketball-game.polix.core :as polix]
    [bashketball-game.polix.fixtures :as f]
-   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.polix.game-rules :as game-rules]
+   [bashketball-game.polix.triggers :as triggers]
    [clojure.test :refer [deftest is testing use-fixtures]]
    [polix.effects.core :as fx]))
 

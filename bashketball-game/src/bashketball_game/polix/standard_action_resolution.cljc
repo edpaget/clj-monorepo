@@ -27,7 +27,9 @@
    ```"
   (:require
    [bashketball-game.effect-catalog :as catalog]
-   [bashketball-game.polix.triggers :as triggers]))
+   [bashketball-game.polix.triggers :as triggers]
+   [polix.residual :as res]
+   [polix.unify :as unify]))
 
 ;; =============================================================================
 ;; Response Asset Discovery
@@ -81,22 +83,39 @@
         event-type    (:type event)]
     (= trigger-event event-type)))
 
+(defn- build-response-document
+  "Builds a document for response condition evaluation.
+
+  The document contains event fields plus game state context for
+  evaluating conditions like 'action-type = :shoot' or 'attacker is adjacent'."
+  [game-state event _trigger]
+  (merge
+   {:state game-state
+    :event-type (:type event)
+    :action-type (:action-type event)
+    :attacker-id (:attacker-id event)
+    :defender-id (:defender-id event)
+    :acting-team (:acting-team event)}
+   (dissoc event :type)))
+
 (defn evaluate-response-condition
   "Evaluates a response trigger's condition against the current context.
 
-   Returns true if:
-   - No condition defined (always matches)
-   - Condition evaluates to satisfied
+  Returns true if:
+  - No condition defined (always matches)
+  - Condition evaluates to satisfied
 
-   Returns false if condition has conflicts or residuals.
+  Returns false if condition has conflicts or residuals.
 
-   Note: Full condition evaluation using polix.unify will be implemented
-   when the condition evaluation system is integrated."
-  [_game-state trigger _event _registry]
+  Uses [[polix.unify/unify]] to evaluate the condition against a document
+  built from the event and game state."
+  [game-state trigger event _registry]
   (let [condition (:trigger/condition trigger)]
-    ;; For now, assume condition matches if no condition or any condition
-    ;; Full condition evaluation would use polix.unify here
-    (or (nil? condition) true)))
+    (if (nil? condition)
+      true
+      (let [document (build-response-document game-state event trigger)
+            result   (unify/unify condition document {})]
+        (res/satisfied? result)))))
 
 (defn find-matching-responses
   "Finds Response assets that match the current event.
@@ -182,6 +201,52 @@
    {:self/team    defending-team
     :self/asset-id (:instance-id asset)}
    (dissoc event :type)))
+
+;; =============================================================================
+;; Orchestration Functions
+;; =============================================================================
+
+(defn build-offense-continuation
+  "Builds the offense continuation: skill test → result evaluation.
+
+  Takes a params map with `:action-type`, `:attacker-id`, `:defender-id`,
+  `:success-effect`, and `:failure-effect`. Returns an effect that chains
+  skill test execution to result evaluation."
+  [{:keys [action-type attacker-id defender-id success-effect failure-effect]}]
+  {:type :bashketball/execute-skill-test-flow
+   :action-type action-type
+   :attacker-id attacker-id
+   :defender-id defender-id
+   :result-continuation {:type :bashketball/evaluate-skill-test-result
+                         :success-effect success-effect
+                         :failure-effect failure-effect
+                         :after-event-params {:action-type action-type
+                                              :attacker-id attacker-id
+                                              :defender-id defender-id}}})
+
+(defn build-response-chain
+  "Builds nested continuation chain for response prompts.
+
+  Each response becomes an offer-choice with Apply/Pass options,
+  where the continuation is either the next response or the offense continuation.
+  Responses are processed in reverse order so the first response in the list
+  is the outermost (first prompted)."
+  [responses offense-continuation]
+  (reduce
+   (fn [next-cont {:keys [asset prompt effect]}]
+     {:type :bashketball/offer-choice
+      :choice-type :response-prompt
+      :options [{:id :apply :label "Apply"}
+                {:id :pass :label "Pass"}]
+      :waiting-for (:owner asset)
+      :context {:response-asset asset
+                :response-prompt prompt}
+      :continuation {:type :bashketball/process-response-choice
+                     :response-asset asset
+                     :response-effect effect
+                     :next-continuation next-cont}})
+   offense-continuation
+   (reverse responses)))
 
 ;; =============================================================================
 ;; Standard Action Resolution Flow

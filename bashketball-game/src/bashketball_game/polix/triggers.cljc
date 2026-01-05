@@ -210,7 +210,7 @@
   [trigger event]
   (if-let [condition (:condition trigger)]
     (let [document (build-trigger-document trigger event)
-          result (unify/unify condition document {:event event})]
+          result   (unify/unify condition document {:event event})]
       (cond
         (res/satisfied? result) :satisfied
         (res/has-conflicts? result) :conflict
@@ -223,18 +223,18 @@
 
   Propagates the causation chain so child events know their ancestry."
   [ctx trigger event]
-  (let [causation (event-ctx/add-to-causation (:causation event) (:id trigger))
+  (let [causation  (event-ctx/add-to-causation (:causation event) (:id trigger))
         effect-ctx {:state (:state ctx)
                     :event event
                     :trigger trigger
                     :self (:self trigger)
                     :owner (:owner trigger)
                     :source (:source trigger)}
-        opts {:registry (:registry ctx)
-              :event-counters (:event-counters ctx)
-              :executing-triggers (:executing-triggers ctx)
-              :event-depth (:event-depth ctx)
-              :causation causation}]
+        opts       {:registry (:registry ctx)
+                    :event-counters (:event-counters ctx)
+                    :executing-triggers (:executing-triggers ctx)
+                    :event-depth (:event-depth ctx)
+                    :causation causation}]
     (fx/apply-effect (:state ctx) (:effect trigger) effect-ctx opts)))
 
 (defn- process-single-trigger
@@ -242,18 +242,18 @@
   [ctx trigger event]
   (let [condition-result (evaluate-condition trigger event)]
     (if (= :satisfied condition-result)
-      (let [ctx-locked (event-ctx/lock-trigger ctx (:id trigger))
+      (let [ctx-locked    (event-ctx/lock-trigger ctx (:id trigger))
             effect-result (apply-trigger-effect ctx-locked trigger event)
-            ctx-unlocked (event-ctx/unlock-trigger
-                          (assoc ctx-locked :state (:state effect-result))
-                          (:id trigger))
+            ctx-unlocked  (event-ctx/unlock-trigger
+                           (assoc ctx-locked :state (:state effect-result))
+                           (:id trigger))
             ;; Merge any context updates from effect (counters, registry)
-            ctx-merged (merge ctx-unlocked
-                              (select-keys effect-result [:event-counters :registry]))
-            new-registry (if (:once? trigger)
-                           (registry/unregister-trigger
-                            (:registry ctx-merged) (:id trigger))
-                           (:registry ctx-merged))]
+            ctx-merged    (merge ctx-unlocked
+                                 (select-keys effect-result [:event-counters :registry]))
+            new-registry  (if (:once? trigger)
+                            (registry/unregister-trigger
+                             (:registry ctx-merged) (:id trigger))
+                            (:registry ctx-merged))]
         {:ctx (assoc ctx-merged :registry new-registry)
          :result {:trigger-id (:id trigger)
                   :fired? true
@@ -307,26 +307,26 @@
   - `:event-counters` - updated counters
   - `:results` - trigger processing results
   - `:prevented?` - whether action was prevented"
-  [{:keys [state registry] :as initial-ctx} event]
+  [{:as initial-ctx} event]
   (let [;; Increment depth for recursion protection
-        ctx' (event-ctx/increment-depth initial-ctx)
+        ctx'                  (event-ctx/increment-depth initial-ctx)
         ;; Increment counter before processing
-        [ctx'' occurrence] (event-ctx/increment-counter ctx' event)
+        [ctx'' occurrence]    (event-ctx/increment-counter ctx' event)
         ;; Add occurrence and ensure event-type is set
-        event' (-> event
-                   (assoc :occurrence-this-turn occurrence)
-                   (cond-> (not (:event-type event))
-                     (assoc :event-type (:type event))))
+        event'                (-> event
+                                  (assoc :occurrence-this-turn occurrence)
+                                  (cond-> (not (:event-type event))
+                                    (assoc :event-type (:type event))))
         ;; Get all triggers for this event type
-        all-triggers (registry/get-triggers-for-event
-                      (:registry ctx'')
-                      (:event-type event'))
+        all-triggers          (registry/get-triggers-for-event
+                               (:registry ctx'')
+                               (:event-type event'))
         ;; Process triggers with causation filtering
         {:keys [ctx results]} (process-triggers-with-causation ctx'' event' all-triggers)
         ;; Check if any trigger prevented the action
-        prevented? (some #(get-in % [:effect-result :prevented?]) results)
+        prevented?            (some #(get-in % [:effect-result :prevented?]) results)
         ;; Decrement depth on the final context
-        ctx-final (event-ctx/decrement-depth ctx)]
+        ctx-final             (event-ctx/decrement-depth ctx)]
     {:state (:state ctx-final)
      :registry (:registry ctx-final)
      :event-counters (:event-counters ctx-final)

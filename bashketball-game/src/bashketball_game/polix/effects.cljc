@@ -17,6 +17,8 @@
   (:require
    [bashketball-game.actions :as actions]
    [bashketball-game.polix.functions :as functions]
+   [bashketball-game.polix.standard-action-policies :as sap]
+   [bashketball-game.polix.standard-action-resolution :as sar]
    [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
    [polix.effects.core :as fx]))
@@ -48,8 +50,8 @@
          (keyword? (first param))
          (= "bashketball-fn" (namespace (first param))))
     (let [[fn-key & args] param
-          resolved-args (mapv #(resolve-param % ctx state) args)
-          f (functions/get-fn fn-key)]
+          resolved-args   (mapv #(resolve-param % ctx state) args)
+          f               (functions/get-fn fn-key)]
       (if f
         (apply f state ctx resolved-args)
         (throw (ex-info "Unknown function" {:fn-key fn-key}))))
@@ -91,7 +93,16 @@
   - `:do-set-quarter` - Direct quarter mutation
   - `:do-reset-turn-number` - Reset turn to 1
   - `:do-increment-turn` - Increment turn number
-  - `:do-swap-active-player` - Swap active player between HOME/AWAY"
+  - `:do-swap-active-player` - Swap active player between HOME/AWAY
+
+  **Event Effects**:
+  - `:bashketball/fire-event` - Fire an event through the trigger system
+
+  **Standard Action Resolution Effects**:
+  - `:bashketball/resolve-standard-action` - Full resolution orchestration
+  - `:bashketball/process-response-choice` - Handle Apply/Pass response choice
+  - `:bashketball/execute-skill-test-flow` - Setup and initiate skill test
+  - `:bashketball/evaluate-skill-test-result` - Branch on success/failure"
   []
 
   (fx/register-effect! :bashketball/move-player
@@ -225,15 +236,15 @@
   (fx/register-effect! :bashketball/draw-cards
                        (fn [state {:keys [player count]} ctx opts]
                          (let [resolved-player (resolve-param player ctx state)
-                               resolved-count (resolve-param count ctx state)]
+                               resolved-count  (resolve-param count ctx state)]
                            ;; Check if we should use event-driven path
                            (if (:registry opts)
                              ;; Event-driven: fire request event through triggers
-                             (let [event {:event-type :bashketball/draw-cards.request
-                                          :team resolved-player
-                                          :player resolved-player
-                                          :count (or resolved-count 1)
-                                          :causation (:causation opts)}
+                             (let [event  {:event-type :bashketball/draw-cards.request
+                                           :team resolved-player
+                                           :player resolved-player
+                                           :count (or resolved-count 1)
+                                           :causation (:causation opts)}
                                    result (triggers/fire-request-event
                                            {:state state
                                             :registry (:registry opts)
@@ -248,9 +259,9 @@
                                 :event-counters (:event-counters result)
                                 :registry (:registry result)})
                              ;; Legacy path: call action directly
-                             (let [action {:type :bashketball/draw-cards
-                                           :player resolved-player
-                                           :count resolved-count}
+                             (let [action    {:type :bashketball/draw-cards
+                                              :player resolved-player
+                                              :count resolved-count}
                                    new-state (actions/do-action state action)]
                                (fx/success new-state [action]))))))
 
@@ -258,14 +269,14 @@
   (fx/register-effect! :bashketball/do-draw-cards
                        (fn [state {:keys [player count]} ctx _opts]
                          (let [resolved-player (resolve-param player ctx state)
-                               resolved-count (or (resolve-param count ctx state) 1)
-                               deck-path [:players resolved-player :deck]
-                               draw-pile (get-in state (conj deck-path :draw-pile))
-                               drawn (vec (take resolved-count draw-pile))
-                               remaining (vec (drop resolved-count draw-pile))
-                               new-state (-> state
-                                             (assoc-in (conj deck-path :draw-pile) remaining)
-                                             (update-in (conj deck-path :hand) into drawn))]
+                               resolved-count  (or (resolve-param count ctx state) 1)
+                               deck-path       [:players resolved-player :deck]
+                               draw-pile       (get-in state (conj deck-path :draw-pile))
+                               drawn           (vec (take resolved-count draw-pile))
+                               remaining       (vec (drop resolved-count draw-pile))
+                               new-state       (-> state
+                                                   (assoc-in (conj deck-path :draw-pile) remaining)
+                                                   (update-in (conj deck-path :hand) into drawn))]
                            (fx/success new-state [{:drew drawn
                                                    :count (clojure.core/count drawn)}]))))
 
@@ -442,11 +453,11 @@
                            ;; Fire phase-ending.request for the current phase
                            (if (nil? from-phase)
                              ;; No current phase, skip to starting the new phase
-                             (let [start-event {:event-type :bashketball/phase-starting.request
-                                                :team       team
-                                                :from-phase nil
-                                                :to-phase   resolved-to-phase
-                                                :causation  (:causation opts)}
+                             (let [start-event  {:event-type :bashketball/phase-starting.request
+                                                 :team       team
+                                                 :from-phase nil
+                                                 :to-phase   resolved-to-phase
+                                                 :causation  (:causation opts)}
                                    start-result (triggers/fire-request-event
                                                  {:state              state
                                                   :registry           (:registry opts)
@@ -461,11 +472,11 @@
                                 :event-counters   (:event-counters start-result)
                                 :registry         (:registry start-result)})
                              ;; Fire ending event for current phase
-                             (let [end-event {:event-type :bashketball/phase-ending.request
-                                              :team       team
-                                              :from-phase from-phase
-                                              :to-phase   resolved-to-phase
-                                              :causation  (:causation opts)}
+                             (let [end-event  {:event-type :bashketball/phase-ending.request
+                                               :team       team
+                                               :from-phase from-phase
+                                               :to-phase   resolved-to-phase
+                                               :causation  (:causation opts)}
                                    end-result (triggers/fire-request-event
                                                {:state              state
                                                 :registry           (:registry opts)
@@ -481,11 +492,11 @@
                                   :event-counters   (:event-counters end-result)
                                   :registry         (:registry end-result)}
                                  ;; Fire starting event for new phase
-                                 (let [start-event {:event-type :bashketball/phase-starting.request
-                                                    :team       team
-                                                    :from-phase from-phase
-                                                    :to-phase   resolved-to-phase
-                                                    :causation  (:causation opts)}
+                                 (let [start-event  {:event-type :bashketball/phase-starting.request
+                                                     :team       team
+                                                     :from-phase from-phase
+                                                     :to-phase   resolved-to-phase
+                                                     :causation  (:causation opts)}
                                        start-result (triggers/fire-request-event
                                                      {:state              (:state end-result)
                                                       :registry           (:registry end-result)
@@ -520,48 +531,47 @@
   (fx/register-effect! :bashketball/end-turn
                        (fn [state _params _ctx opts]
                          (let [team        (:active-player state)
-                               turn-number (:turn-number state)]
-                           ;; Fire turn-ending.request event
-                           (let [end-event  {:event-type  :bashketball/turn-ending.request
-                                             :team        team
-                                             :turn-number turn-number
-                                             :causation   (:causation opts)}
-                                 end-result (triggers/fire-request-event
-                                             {:state              state
-                                              :registry           (:registry opts)
-                                              :event-counters     (:event-counters opts)
-                                              :executing-triggers (:executing-triggers opts)}
-                                             end-event)]
-                             (if (:prevented? end-result)
-                               {:state            (:state end-result)
+                               turn-number (:turn-number state)
+                               end-event   {:event-type  :bashketball/turn-ending.request
+                                            :team        team
+                                            :turn-number turn-number
+                                            :causation   (:causation opts)}
+                               end-result  (triggers/fire-request-event
+                                            {:state              state
+                                             :registry           (:registry opts)
+                                             :event-counters     (:event-counters opts)
+                                             :executing-triggers (:executing-triggers opts)}
+                                            end-event)]
+                           (if (:prevented? end-result)
+                             {:state            (:state end-result)
+                              :applied          []
+                              :failed           []
+                              :pending          nil
+                              :prevented?       true
+                              :event-counters   (:event-counters end-result)
+                              :registry         (:registry end-result)}
+                               ;; Fire turn-starting.request for new turn
+                             (let [start-event  {:event-type  :bashketball/turn-starting.request
+                                                 :team        team
+                                                 :turn-number (inc turn-number)
+                                                 :causation   (:causation opts)}
+                                   start-result (triggers/fire-request-event
+                                                 {:state              (:state end-result)
+                                                  :registry           (:registry end-result)
+                                                  :event-counters     (:event-counters end-result)
+                                                  :executing-triggers (:executing-triggers end-result)}
+                                                 start-event)]
+                               {:state            (:state start-result)
                                 :applied          []
                                 :failed           []
                                 :pending          nil
-                                :prevented?       true
-                                :event-counters   (:event-counters end-result)
-                                :registry         (:registry end-result)}
-                               ;; Fire turn-starting.request for new turn
-                               (let [start-event  {:event-type  :bashketball/turn-starting.request
-                                                   :team        team
-                                                   :turn-number (inc turn-number)
-                                                   :causation   (:causation opts)}
-                                     start-result (triggers/fire-request-event
-                                                   {:state              (:state end-result)
-                                                    :registry           (:registry end-result)
-                                                    :event-counters     (:event-counters end-result)
-                                                    :executing-triggers (:executing-triggers end-result)}
-                                                   start-event)]
-                                 {:state            (:state start-result)
-                                  :applied          []
-                                  :failed           []
-                                  :pending          nil
-                                  :prevented?       (:prevented? start-result)
-                                  :event-counters   (:event-counters start-result)
-                                  :registry         (:registry start-result)}))))))
+                                :prevented?       (:prevented? start-result)
+                                :event-counters   (:event-counters start-result)
+                                :registry         (:registry start-result)})))))
 
   ;; Terminal effect: advances turn counter and swaps active player
   (fx/register-effect! :bashketball/do-advance-turn
-                       (fn [state _params ctx _opts]
+                       (fn [state _params _ctx _opts]
                          (let [action    {:type :bashketball/do-advance-turn}
                                new-state (actions/do-action state action)]
                            (fx/success new-state [action]))))
@@ -570,7 +580,7 @@
 
   ;; Check if over hand limit and offer discard choice if needed
   (fx/register-effect! :bashketball/check-hand-limit
-                       (fn [game-state {:keys [team]} ctx opts]
+                       (fn [game-state {:keys [team]} ctx _opts]
                          (let [resolved-team (resolve-param team ctx game-state)
                                hand          (state/get-hand game-state resolved-team)
                                hand-size     (count hand)
@@ -609,4 +619,143 @@
   (fx/register-effect! :do-swap-active-player
                        (fn [state _params _ctx _opts]
                          (let [swap-fn {:team/HOME :team/AWAY :team/AWAY :team/HOME}]
-                           (fx/success (update state :active-player swap-fn) [])))))
+                           (fx/success (update state :active-player swap-fn) []))))
+
+  ;; Event Firing Effect
+
+  (fx/register-effect! :bashketball/fire-event
+                       (fn [state {:keys [event-type params]} _ctx opts]
+                         (let [event  (merge (or params {})
+                                             {:type          event-type
+                                              :event-type    event-type
+                                              :turn-number   (:turn-number state)
+                                              :active-player (:active-player state)
+                                              :phase         (:phase state)
+                                              :causation     (:causation opts)})
+                               result (triggers/fire-request-event
+                                       {:state              state
+                                        :registry           (:registry opts)
+                                        :event-counters     (:event-counters opts)
+                                        :executing-triggers (:executing-triggers opts)}
+                                       event)]
+                           {:state          (:state result)
+                            :applied        []
+                            :failed         []
+                            :pending        nil
+                            :prevented?     (:prevented? result)
+                            :event-counters (:event-counters result)
+                            :registry       (:registry result)})))
+
+  ;; Standard Action Resolution Effects
+
+  (fx/register-effect! :bashketball/process-response-choice
+                       (fn [state {:keys [response-asset response-effect next-continuation]} ctx opts]
+                         (let [selected (get-in ctx [:bindings :choice/selected])]
+                           (if (= selected :apply)
+                             ;; Reveal and apply the response, then continue
+                             (let [team    (:owner response-asset)
+                                   state'  (sar/reveal-response-asset state team response-asset)
+                                   effects (if response-effect
+                                             [response-effect next-continuation]
+                                             [next-continuation])]
+                               (fx/apply-effect state'
+                                                {:type :polix.effects/sequence :effects effects}
+                                                ctx
+                                                opts))
+                             ;; Pass - just continue to next step
+                             (fx/apply-effect state next-continuation ctx opts)))))
+
+  (fx/register-effect! :bashketball/execute-skill-test-flow
+                       (fn [state {:keys [action-type attacker-id defender-id result-continuation]} ctx opts]
+                         (let [resolved-attacker    (resolve-param attacker-id ctx state)
+                               resolved-defender    (resolve-param defender-id ctx state)
+                               ;; Get the appropriate skill test setup based on action type
+                               test-config          (case action-type
+                                                      :shoot (sap/setup-shoot-test state resolved-attacker)
+                                                      :pass  (sap/setup-pass-test state resolved-attacker resolved-defender)
+                                                      :steal (sap/setup-steal-test state resolved-attacker resolved-defender)
+                                                      :screen (sap/setup-screen-test state resolved-attacker resolved-defender)
+                                                      :check (sap/setup-check-test state resolved-attacker resolved-defender)
+                                                      :block (sap/setup-shoot-test state resolved-defender))
+                               {:keys [difficulty]} test-config
+                               attacker-pos         (:position (state/get-basketball-player state resolved-attacker))
+                               ;; Build proper SkillTestContext
+                               skill-test-context   (cond-> {:type action-type}
+                                                      attacker-pos     (assoc :origin attacker-pos)
+                                                      resolved-defender (assoc :defender-id resolved-defender
+                                                                               :target resolved-defender))
+                               ;; Build sequence: initiate skill test, then resolve with continuation
+                               effects              [{:type :bashketball/initiate-skill-test
+                                                      :actor-id resolved-attacker
+                                                      :stat (case action-type
+                                                              (:shoot :block) :stat/SHOOTING
+                                                              (:pass) :stat/PASSING
+                                                              (:steal :screen :check) :stat/DEFENSE)
+                                                      :target-value difficulty
+                                                      :context skill-test-context}
+                                                     result-continuation]]
+                           (fx/apply-effect state
+                                            {:type :polix.effects/sequence :effects effects}
+                                            ctx
+                                            opts))))
+
+  (fx/register-effect! :bashketball/evaluate-skill-test-result
+                       (fn [state {:keys [success-effect failure-effect after-event-params]} ctx opts]
+                         (let [test-result    (:last-skill-test-result state)
+                               success?       (get test-result :success? false)
+                               ;; Select the appropriate effect based on success/failure
+                               outcome-effect (if success? success-effect failure-effect)
+                               ;; Build after event with success info
+                               after-event    {:type :bashketball/fire-event
+                                               :event-type :bashketball/standard-action.after
+                                               :params (assoc after-event-params :success? success?)}
+                               ;; Chain outcome effect (if present) with after event
+                               effects        (if outcome-effect
+                                                [outcome-effect after-event]
+                                                [after-event])]
+                           (fx/apply-effect state
+                                            {:type :polix.effects/sequence :effects effects}
+                                            ctx
+                                            opts))))
+
+  (fx/register-effect! :bashketball/resolve-standard-action
+                       (fn [game-state params ctx opts]
+                         (let [{:keys [action-type attacker-id defender-id
+                                       success-effect failure-effect effect-catalog]} params
+                               resolved-attacker                                      (resolve-param attacker-id ctx game-state)
+                               resolved-defender                                      (resolve-param defender-id ctx game-state)
+                               attacker-team                                          (state/get-basketball-player-team game-state resolved-attacker)
+                               defending-team                                         (sap/opposing-team attacker-team)
+                               ;; Build the offense continuation (skill test → result)
+                               offense-cont                                           (sar/build-offense-continuation
+                                                                                       {:action-type    action-type
+                                                                                        :attacker-id    resolved-attacker
+                                                                                        :defender-id    resolved-defender
+                                                                                        :success-effect success-effect
+                                                                                        :failure-effect failure-effect})
+                               ;; Find matching responses for defending team
+                               before-event                                           {:type        :bashketball/standard-action.before
+                                                                                       :action-type action-type
+                                                                                       :attacker-id resolved-attacker
+                                                                                       :defender-id resolved-defender
+                                                                                       :acting-team attacker-team}
+                               responses                                              (when effect-catalog
+                                                                                        (sar/find-matching-responses
+                                                                                         game-state effect-catalog (:registry opts)
+                                                                                         before-event defending-team))
+                               ;; Build full continuation chain with response prompts
+                               full-continuation                                      (if (seq responses)
+                                                                                        (sar/build-response-chain responses offense-cont)
+                                                                                        offense-cont)
+                               ;; Build the effect sequence: before event → continuation chain
+                               effects                                                [{:type       :bashketball/fire-event
+                                                                                        :event-type :bashketball/standard-action.before
+                                                                                        :params     {:action-type action-type
+                                                                                                     :attacker-id resolved-attacker
+                                                                                                     :defender-id resolved-defender
+                                                                                                     :acting-team attacker-team}}
+                                                                                       full-continuation]]
+                           (fx/apply-effect game-state
+                                            {:type :polix.effects/sequence :effects effects}
+                                            ctx
+                                            opts)))))
