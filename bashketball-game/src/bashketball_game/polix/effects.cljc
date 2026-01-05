@@ -23,6 +23,18 @@
    [bashketball-game.state :as state]
    [polix.effects.core :as fx]))
 
+(defn normalize-effect
+  "Normalizes an effect definition from schema format to runtime format.
+
+   Converts `:effect/type` to `:type` recursively through nested effects.
+   This allows effects defined with the schema key to be applied via polix."
+  [effect]
+  (when effect
+    (cond-> effect
+      (:effect/type effect) (-> (assoc :type (:effect/type effect))
+                                (dissoc :effect/type))
+      (:effects effect)     (update :effects #(mapv normalize-effect %)))))
+
 (defn- resolve-param
   "Resolves a parameter value from context bindings.
 
@@ -102,7 +114,12 @@
   - `:bashketball/resolve-standard-action` - Full resolution orchestration
   - `:bashketball/process-response-choice` - Handle Apply/Pass response choice
   - `:bashketball/execute-skill-test-flow` - Setup and initiate skill test
-  - `:bashketball/evaluate-skill-test-result` - Branch on success/failure"
+  - `:bashketball/evaluate-skill-test-result` - Branch on success/failure
+
+  **Play Card Resolution Effects**:
+  - `:bashketball/play-card` - Play card resolution with response support
+  - `:bashketball/do-play-card` - Terminal: apply play effect and fire after event
+  - `:bashketball/do-fire-signal` - Terminal: apply signal effect from fuel card"
   []
 
   (fx/register-effect! :bashketball/move-player
@@ -758,4 +775,98 @@
                            (fx/apply-effect game-state
                                             {:type :polix.effects/sequence :effects effects}
                                             ctx
-                                            opts)))))
+                                            opts))))
+
+  ;; =========================================================================
+  ;; Play Card Resolution Effects
+  ;; =========================================================================
+
+  (fx/register-effect! :bashketball/play-card
+                       (fn [state {:keys [main-card fuel-cards targets play-effect
+                                          effect-context effect-catalog]} ctx opts]
+                         (if (:registry opts)
+                           ;; Event-driven path
+                           (let [team           (:self/team effect-context)
+                                 defending-team (if (= team :team/HOME) :team/AWAY :team/HOME)
+
+                                 ;; Step 1: Process fuel cards (fire signal events)
+                                 fuel-ctx (reduce
+                                           (fn [acc fuel-card]
+                                             (if-let [signal-effect (:signal-effect fuel-card)]
+                                               (let [event {:event-type     :bashketball/card-discarded-as-fuel.request
+                                                            :team           team
+                                                            :fuel-card      fuel-card
+                                                            :signal-effect  signal-effect
+                                                            :signal-context (:signal-context fuel-card)
+                                                            :main-card      main-card
+                                                            :main-targets   targets}]
+                                                 (triggers/fire-request-event acc event))
+                                               acc))
+                                           {:state            state
+                                            :registry         (:registry opts)
+                                            :event-counters   (:event-counters opts)}
+                                           fuel-cards)
+
+                                 ;; Step 2: Build play execution continuation
+                                 play-continuation {:type           :bashketball/do-play-card
+                                                    :play-effect    play-effect
+                                                    :effect-context effect-context}
+
+                                 ;; Step 3: Check for matching Response assets
+                                 before-event {:type        :bashketball/play-card.before
+                                               :team        team
+                                               :card-slug   (:card-slug main-card)
+                                               :instance-id (:instance-id main-card)
+                                               :targets     targets}
+                                 responses    (sar/find-matching-responses
+                                               (:state fuel-ctx) effect-catalog (:registry fuel-ctx)
+                                               before-event defending-team)
+
+                                 ;; Step 4: Build response chain (if any) + play continuation
+                                 full-continuation (if (seq responses)
+                                                     (sar/build-response-chain responses play-continuation)
+                                                     play-continuation)]
+
+                             ;; Step 5: Apply the full continuation
+                             (fx/apply-effect (:state fuel-ctx) full-continuation ctx
+                                              (assoc opts
+                                                     :registry       (:registry fuel-ctx)
+                                                     :event-counters (:event-counters fuel-ctx))))
+
+                           ;; Legacy path - normalize and apply effect directly with bindings
+                           (fx/apply-effect state (normalize-effect play-effect) {:bindings effect-context} opts))))
+
+  (fx/register-effect! :bashketball/do-play-card
+                       (fn [state {:keys [play-effect effect-context]} _ctx opts]
+                         ;; Apply the play effect with context bindings
+                         (let [effect-result (fx/apply-effect state play-effect {:bindings effect-context} opts)]
+                           (if (:pending effect-result)
+                             effect-result
+                             ;; Fire after event
+                             (let [team         (:self/team effect-context)
+                                   after-event  {:event-type  :bashketball/play-card.after
+                                                 :team        team
+                                                 :card-slug   (:card/slug effect-context)
+                                                 :instance-id (:card/instance-id effect-context)}
+                                   after-result (triggers/fire-request-event
+                                                 {:state          (:state effect-result)
+                                                  :registry       (or (:registry effect-result) (:registry opts))
+                                                  :event-counters (or (:event-counters effect-result) (:event-counters opts))}
+                                                 after-event)]
+                               {:state          (:state after-result)
+                                :applied        (:applied effect-result)
+                                :failed         []
+                                :pending        nil
+                                :event-counters (:event-counters after-result)
+                                :registry       (:registry after-result)})))))
+
+  (fx/register-effect! :bashketball/do-fire-signal
+                       (fn [state {:keys [signal-effect signal-context]} ctx opts]
+                         ;; Resolve path expressions (e.g., [:ctx :event :signal-effect])
+                         ;; and normalize effects from schema format
+                         (let [resolved-effect  (resolve-param signal-effect ctx state)
+                               resolved-context (resolve-param signal-context ctx state)
+                               normalized       (normalize-effect resolved-effect)]
+                           (if normalized
+                             (fx/apply-effect state normalized {:bindings resolved-context} opts)
+                             (fx/success state []))))))

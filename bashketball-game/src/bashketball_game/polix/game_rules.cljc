@@ -118,6 +118,25 @@
    :effect {:type :bashketball/execute-choice-continuation}})
 
 ;;; ---------------------------------------------------------------------------
+;;; Play Card Rules
+;;; ---------------------------------------------------------------------------
+
+(def fuel-discarded-rule
+  "Default rule for card-discarded-as-fuel: fires signal effect if present.
+
+  When a coaching card with a signal is discarded as fuel, this rule
+  applies the signal effect. The signal effect and context are provided
+  in the event by the play-card orchestration."
+  {:id "rule/fuel-discarded"
+   :event-types #{:bashketball/card-discarded-as-fuel.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-fire-signal
+            :signal-effect [:ctx :event :signal-effect]
+            :signal-context [:ctx :event :signal-context]}})
+
+;;; ---------------------------------------------------------------------------
 ;;; Rule Registry
 ;;; ---------------------------------------------------------------------------
 
@@ -128,7 +147,8 @@
    phase-starting-rule
    turn-ending-rule
    turn-starting-rule
-   choice-submitted-rule])
+   choice-submitted-rule
+   fuel-discarded-rule])
 
 (defn register-game-rules!
   "Registers all default game rules in the trigger registry.

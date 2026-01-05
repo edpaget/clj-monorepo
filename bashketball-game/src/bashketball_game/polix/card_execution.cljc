@@ -30,11 +30,24 @@
    ```"
   (:require
    [bashketball-game.effect-catalog :as catalog]
-   [bashketball-game.polix.triggers :as triggers]))
+   [bashketball-game.polix.triggers :as triggers]
+   [polix.effects.core :as fx]))
 
 ;; =============================================================================
 ;; Effect Resolution Helpers
 ;; =============================================================================
+
+(defn normalize-effect
+  "Normalizes an effect definition from schema format to runtime format.
+
+   Converts `:effect/type` to `:type` recursively through nested effects.
+   This allows effects defined with the schema key to be applied via polix."
+  [effect]
+  (when effect
+    (cond-> effect
+      (:effect/type effect) (-> (assoc :type (:effect/type effect))
+                                (dissoc :effect/type))
+      (:effects effect)     (update :effects #(mapv normalize-effect %)))))
 
 (defn get-play-effect
   "Returns the play effect definition for a play card.
@@ -511,3 +524,84 @@
   [effect-catalog state preparation mode targets team & {:keys [ordered-signals]}]
   (execute-action-with-mode effect-catalog state preparation mode targets team
                             :ordered-signals ordered-signals))
+
+;; =============================================================================
+;; Event-Driven Play Card Execution
+;; =============================================================================
+
+(defn execute-play-card
+  "Executes a play card through the event-driven system.
+
+   Fires events allowing card abilities and Response assets to intercept.
+   Processes fuel card signals before the main play effect.
+
+   Takes:
+   - `effect-catalog` - for looking up effects and signals
+   - `state` - current game state
+   - `registry` - trigger registry
+   - `main-card` - the play card instance being played
+   - `fuel-cards` - cards discarded as fuel (usually 1)
+   - `targets` - target bindings map (e.g., `{:target/player-id \"p1\"}`)
+   - `team` - team playing the card
+
+   Returns an effect result map with `:state`, `:registry`, `:event-counters`,
+   and possibly `:pending` if waiting for a choice."
+  [effect-catalog state registry main-card fuel-cards targets team]
+  (let [play-def       (catalog/get-play effect-catalog (:card-slug main-card))
+        play-effect    (normalize-effect (:play/effect play-def))
+        effect-context (build-effect-context state main-card team targets)
+        ;; Collect signal info for fuel cards - normalize signal effects too
+        fuel-with-signals (mapv (fn [fuel-card]
+                                  (let [signal (get-signal effect-catalog (:card-slug fuel-card))]
+                                    (cond-> fuel-card
+                                      signal (assoc :signal-effect (normalize-effect (:signal/effect signal))
+                                                    :signal-context (build-signal-context
+                                                                     state fuel-card main-card targets team)))))
+                                fuel-cards)]
+    (fx/apply-effect state
+                     {:type           :bashketball/play-card
+                      :main-card      main-card
+                      :fuel-cards     fuel-with-signals
+                      :targets        targets
+                      :play-effect    play-effect
+                      :effect-context effect-context
+                      :effect-catalog effect-catalog}
+                     {:bindings {:self/team team}}
+                     {:registry       registry
+                      :validate?      false
+                      :effect-catalog effect-catalog})))
+
+(defn execute-play-card-with-ordering
+  "Executes a play card, handling signal ordering when needed.
+
+   If multiple coaching cards with signals are discarded as fuel, prompts
+   the player to choose the signal execution order before proceeding.
+
+   Returns either:
+   - An effect result if no ordering needed or after ordering is resolved
+   - A map with `:pending` choice if signal ordering is required"
+  [effect-catalog state registry main-card fuel-cards targets team]
+  (let [signals (collect-signals effect-catalog fuel-cards)]
+    (if (needs-signal-ordering? signals)
+      ;; Return pending choice for signal order
+      {:state   (assoc state :pending-choice
+                       {:id          (str #?(:clj (java.util.UUID/randomUUID)
+                                             :cljs (random-uuid)))
+                        :type        :signal-ordering
+                        :options     (mapv (fn [{:keys [fuel-card]}]
+                                             {:id    (keyword (:instance-id fuel-card))
+                                              :label (:card-slug fuel-card)})
+                                           signals)
+                        :waiting-for team
+                        :context     {:signals        signals
+                                      :main-card      main-card
+                                      :fuel-cards     fuel-cards
+                                      :targets        targets
+                                      :effect-catalog effect-catalog}
+                        :continuation {:type           :bashketball/play-card
+                                       :main-card      main-card
+                                       :targets        targets
+                                       :effect-catalog effect-catalog}})
+       :pending {:type :choice}}
+      ;; No ordering needed
+      (execute-play-card effect-catalog state registry main-card fuel-cards targets team))))
