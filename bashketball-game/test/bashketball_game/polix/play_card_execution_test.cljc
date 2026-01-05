@@ -177,14 +177,16 @@
         (is (not (:exhausted player)))))))
 
 ;; =============================================================================
-;; Legacy Path Tests
+;; Direct Effect Application Test
 ;; =============================================================================
 
-(deftest play-card-legacy-path-without-registry-test
+(deftest play-card-direct-effect-test
   (let [cat      (test-catalog sample-play-card)
         game     (-> (f/base-game-state)
                      (f/with-player-at f/home-player-1 [2 5])
                      (f/with-exhausted f/home-player-1))
+        registry (-> (triggers/create-registry)
+                     (game-rules/register-game-rules!))
         main-card {:instance-id "card-1" :card-slug "fast-break"}
         play-def  (catalog/get-play cat "fast-break")
         context   {:self/team :team/HOME
@@ -197,7 +199,8 @@
                                    :play-effect (:play/effect play-def)
                                    :effect-context context}
                                   {}
-                                  {:validate? false})]
-    (testing "legacy path works without registry"
+                                  {:validate? false
+                                   :registry registry})]
+    (testing "play effect is applied with registry"
       (let [player (state/get-basketball-player (:state result) f/home-player-1)]
         (is (not (:exhausted player)))))))

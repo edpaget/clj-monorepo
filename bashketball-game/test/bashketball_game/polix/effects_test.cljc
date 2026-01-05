@@ -1,17 +1,25 @@
 (ns bashketball-game.polix.effects-test
   (:require
+   [bashketball-game.polix.core :as polix]
    [bashketball-game.polix.effects :as effects]
    [bashketball-game.polix.fixtures :as fixtures]
+   [bashketball-game.polix.game-rules :as game-rules]
+   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
    [clojure.test :refer [deftest is testing use-fixtures]]
    [polix.effects.core :as fx]))
 
 (use-fixtures :once
   (fn [f]
-    (effects/register-effects!)
+    (polix/initialize!)
     (f)))
 
-(def no-validate {:validate? false})
+(defn opts-with-registry
+  "Returns opts map with a registry containing game rules."
+  []
+  {:validate? false
+   :registry (-> (triggers/create-registry)
+                 (game-rules/register-game-rules!))})
 
 (deftest move-player-effect-test
   (let [state  (-> (fixtures/base-game-state)
@@ -20,7 +28,7 @@
                                 {:type :bashketball/move-player
                                  :player-id fixtures/home-player-1
                                  :position [2 5]}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "moves player to new position"
       (is (= [2 5] (:position (state/get-basketball-player (:state result) fixtures/home-player-1)))))
 
@@ -35,7 +43,7 @@
         result (fx/apply-effect state
                                 {:type :bashketball/exhaust-player
                                  :player-id fixtures/home-player-1}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "marks player as exhausted"
       (is (true? (:exhausted (state/get-basketball-player (:state result) fixtures/home-player-1)))))))
 
@@ -45,7 +53,7 @@
         result (fx/apply-effect state
                                 {:type :bashketball/refresh-player
                                  :player-id fixtures/home-player-1}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "removes exhaustion from player"
       (is (false? (:exhausted (state/get-basketball-player (:state result) fixtures/home-player-1)))))))
 
@@ -54,7 +62,7 @@
         result (fx/apply-effect state
                                 {:type :bashketball/give-ball
                                  :player-id fixtures/home-player-1}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "sets ball as possessed by player"
       (is (= :ball-status/POSSESSED (:status (state/get-ball (:state result)))))
       (is (= fixtures/home-player-1 (:holder-id (state/get-ball (:state result))))))))
@@ -65,7 +73,7 @@
         result (fx/apply-effect state
                                 {:type :bashketball/loose-ball
                                  :position [3 5]}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "sets ball as loose at position"
       (is (= :ball-status/LOOSE (:status (state/get-ball (:state result)))))
       (is (= [3 5] (:position (state/get-ball (:state result))))))))
@@ -76,7 +84,7 @@
                                 {:type :bashketball/draw-cards
                                  :player :team/HOME
                                  :count 3}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "draws cards into hand"
       (is (= 3 (count (state/get-hand (:state result) :team/HOME)))))
 
@@ -89,7 +97,7 @@
                                 {:type :bashketball/add-score
                                  :team :team/HOME
                                  :points 3}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "adds points to team score"
       (is (= 3 (get-in (state/get-score (:state result)) [:team/HOME]))))))
 
@@ -102,7 +110,7 @@
                                 {:type :bashketball/move-player
                                  :player-id :self
                                  :position :target-position}
-                                ctx no-validate)]
+                                ctx (opts-with-registry))]
     (testing "resolves :self binding"
       (is (= [2 6] (:position (state/get-basketball-player (:state result) fixtures/home-player-1)))))))
 
@@ -115,7 +123,7 @@
                                 {:type :bashketball/discard-cards
                                  :player :team/HOME
                                  :instance-ids ids}
-                                {} no-validate)]
+                                {} (opts-with-registry))]
     (testing "removes card from hand"
       (is (= 2 (count (state/get-hand (:state result) :team/HOME)))))
 
@@ -131,10 +139,7 @@
                                   {:type :bashketball/add-score
                                    :team :team/HOME
                                    :points 2}]
-                                 {} no-validate)]
+                                 {} (opts-with-registry))]
     (testing "both effects applied"
       (is (= 2 (count (state/get-hand (:state result) :team/HOME))))
-      (is (= 2 (get-in (state/get-score (:state result)) [:team/HOME]))))
-
-    (testing "all effects recorded as applied"
-      (is (= 2 (count (:applied result)))))))
+      (is (= 2 (get-in (state/get-score (:state result)) [:team/HOME]))))))

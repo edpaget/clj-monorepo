@@ -15,12 +15,15 @@
   **Terminal Effects** (e.g., `:bashketball/do-draw-cards`):
   Directly modify state. Only called by catchall game rules or internally."
   (:require
-   [bashketball-game.actions :as actions]
+   [bashketball-game.actions :as actions] ;; TODO: Remove after full migration
+   [bashketball-game.board :as board]
    [bashketball-game.polix.functions :as functions]
    [bashketball-game.polix.standard-action-policies :as sap]
    [bashketball-game.polix.standard-action-resolution :as sar]
+   [bashketball-game.polix.terminal-utils :as tu]
    [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
+   [clojure.string :as str]
    [polix.effects.core :as fx]))
 
 (defn normalize-effect
@@ -70,6 +73,12 @@
 
     :else
     param))
+
+(defn- stat->stats-key
+  "Converts a stat keyword to the corresponding stats map key.
+   e.g. :stat/SHOOTING -> :shooting"
+  [stat]
+  (-> stat name str/lower-case keyword))
 
 (defn register-effects!
   "Registers all bashketball effects with polix.
@@ -126,11 +135,24 @@
                        (fn [state {:keys [player-id position]} ctx _opts]
                          (let [resolved-player-id (resolve-param player-id ctx state)
                                resolved-position  (resolve-param position ctx state)
-                               action             {:type :bashketball/move-player
-                                                   :player-id resolved-player-id
-                                                   :position resolved-position}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               player             (state/get-basketball-player state resolved-player-id)
+                               old-position       (:position player)
+                               new-state          (-> state
+                                                      (state/update-basketball-player resolved-player-id
+                                                                                      assoc :position resolved-position)
+                                                      (cond->
+                                                       old-position (update :board board/remove-occupant old-position))
+                                                      (update :board board/set-occupant resolved-position
+                                                              {:type :occupant/BASKETBALL_PLAYER :id resolved-player-id})
+                                                      (tu/log-event :bashketball/move-player
+                                                                    {:player-id resolved-player-id
+                                                                     :from-position old-position
+                                                                     :to-position resolved-position})
+                                                      (tu/check-board-invariants! {:effect :move-player
+                                                                                   :player-id resolved-player-id
+                                                                                   :position resolved-position}))]
+                           (fx/success new-state [{:player-id resolved-player-id
+                                                   :position resolved-position}]))))
 
   ;; Step-by-step Movement Effects
 
@@ -138,11 +160,27 @@
                        (fn [state {:keys [player-id speed]} ctx _opts]
                          (let [resolved-player-id (resolve-param player-id ctx state)
                                resolved-speed     (resolve-param speed ctx state)
-                               action             {:type :bashketball/begin-movement
-                                                   :player-id resolved-player-id
-                                                   :speed resolved-speed}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               player             (state/get-basketball-player state resolved-player-id)
+                               team               (state/get-basketball-player-team state resolved-player-id)
+                               position           (:position player)
+                               movement-id        (tu/generate-id)
+                               new-state          (-> state
+                                                      (state/set-pending-movement
+                                                       {:id               movement-id
+                                                        :player-id        resolved-player-id
+                                                        :team             team
+                                                        :starting-position position
+                                                        :current-position position
+                                                        :initial-speed    resolved-speed
+                                                        :remaining-speed  resolved-speed
+                                                        :path-taken       [position]
+                                                        :step-number      0})
+                                                      (tu/log-event :bashketball/begin-movement
+                                                                    {:player-id resolved-player-id
+                                                                     :position position
+                                                                     :speed resolved-speed}))]
+                           (fx/success new-state [{:player-id resolved-player-id
+                                                   :speed resolved-speed}]))))
 
   (fx/register-effect! :bashketball/move-step
                        (fn [state {:keys [player-id to-position]} ctx opts]
@@ -203,84 +241,163 @@
                          (let [resolved-player-id (resolve-param player-id ctx state)
                                resolved-position  (resolve-param to-position ctx state)
                                resolved-cost      (resolve-param cost ctx state)
-                               action             {:type :bashketball/do-move-step
-                                                   :player-id resolved-player-id
+                               player             (state/get-basketball-player state resolved-player-id)
+                               old-position       (:position player)
+                               movement           (state/get-pending-movement state)
+                               new-state          (-> state
+                                                      (state/update-basketball-player resolved-player-id
+                                                                                      assoc :position resolved-position)
+                                                      (cond->
+                                                       old-position (update :board board/remove-occupant old-position))
+                                                      (update :board board/set-occupant resolved-position
+                                                              {:type :occupant/BASKETBALL_PLAYER :id resolved-player-id})
+                                                      (state/update-pending-movement
+                                                       (fn [m]
+                                                         (-> m
+                                                             (assoc :current-position resolved-position)
+                                                             (update :remaining-speed - resolved-cost)
+                                                             (update :path-taken conj resolved-position)
+                                                             (update :step-number inc))))
+                                                      (tu/log-event :bashketball/move-step
+                                                                    {:player-id resolved-player-id
+                                                                     :from-position old-position
+                                                                     :to-position resolved-position
+                                                                     :cost resolved-cost
+                                                                     :remaining (- (:remaining-speed movement) resolved-cost)})
+                                                      (tu/check-board-invariants! {:effect :do-move-step
+                                                                                   :player-id resolved-player-id
+                                                                                   :to-position resolved-position}))]
+                           (fx/success new-state [{:player-id resolved-player-id
                                                    :to-position resolved-position
-                                                   :cost resolved-cost}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                                                   :cost resolved-cost}]))))
 
   (fx/register-effect! :bashketball/end-movement
                        (fn [state {:keys [player-id]} ctx _opts]
                          (let [resolved-player-id (resolve-param player-id ctx state)
-                               action             {:type :bashketball/end-movement
-                                                   :player-id resolved-player-id}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               movement           (state/get-pending-movement state)
+                               new-state          (-> state
+                                                      (state/clear-pending-movement)
+                                                      (tu/log-event :bashketball/end-movement
+                                                                    {:player-id   resolved-player-id
+                                                                     :path-taken  (:path-taken movement)
+                                                                     :total-steps (:step-number movement)}))]
+                           (fx/success new-state [{:player-id   resolved-player-id
+                                                   :path-taken  (:path-taken movement)
+                                                   :total-steps (:step-number movement)}]))))
+
+  ;; =========================================================================
+  ;; Player State Effects (Event-Driven)
+  ;; =========================================================================
 
   (fx/register-effect! :bashketball/exhaust-player
+                       (fn [state {:keys [player-id]} ctx opts]
+                         (let [resolved-id (resolve-param player-id ctx state)
+                               team        (state/get-basketball-player-team state resolved-id)
+                               event       {:event-type :bashketball/exhaust-player.request
+                                            :player-id resolved-id
+                                            :team team
+                                            :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-exhaust-player
                        (fn [state {:keys [player-id]} ctx _opts]
-                         (let [resolved-player-id (resolve-param player-id ctx state)
-                               action             {:type :bashketball/exhaust-player
-                                                   :player-id resolved-player-id}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                         (let [resolved-id (resolve-param player-id ctx state)
+                               new-state   (-> state
+                                               (state/update-basketball-player resolved-id assoc :exhausted true)
+                                               (tu/log-event :bashketball/exhaust-player {:player-id resolved-id}))]
+                           (fx/success new-state [{:player-id resolved-id}]))))
 
   (fx/register-effect! :bashketball/refresh-player
+                       (fn [state {:keys [player-id]} ctx opts]
+                         (let [resolved-id (resolve-param player-id ctx state)
+                               team        (state/get-basketball-player-team state resolved-id)
+                               event       {:event-type :bashketball/refresh-player.request
+                                            :player-id resolved-id
+                                            :team team
+                                            :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-refresh-player
                        (fn [state {:keys [player-id]} ctx _opts]
-                         (let [resolved-player-id (resolve-param player-id ctx state)
-                               action             {:type :bashketball/refresh-player
-                                                   :player-id resolved-player-id}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                         (let [resolved-id (resolve-param player-id ctx state)
+                               new-state   (-> state
+                                               (state/update-basketball-player resolved-id assoc :exhausted false)
+                                               (tu/log-event :bashketball/refresh-player {:player-id resolved-id}))]
+                           (fx/success new-state [{:player-id resolved-id}]))))
+
+  ;; =========================================================================
+  ;; Ball State Effects (Event-Driven)
+  ;; =========================================================================
 
   (fx/register-effect! :bashketball/give-ball
-                       (fn [state {:keys [player-id]} ctx _opts]
-                         (let [resolved-player-id (resolve-param player-id ctx state)
-                               action             {:type :bashketball/set-ball-possessed
-                                                   :holder-id resolved-player-id}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                       (fn [state {:keys [player-id]} ctx opts]
+                         (let [resolved-id (resolve-param player-id ctx state)
+                               team        (state/get-basketball-player-team state resolved-id)
+                               event       {:event-type :bashketball/set-ball-possessed.request
+                                            :holder-id resolved-id
+                                            :team team
+                                            :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-set-ball-possessed
+                       (fn [state {:keys [holder-id]} ctx _opts]
+                         (let [resolved-id (resolve-param holder-id ctx state)
+                               new-state   (-> state
+                                               (assoc :ball {:status :ball-status/POSSESSED :holder-id resolved-id})
+                                               (tu/log-event :bashketball/set-ball-possessed {:holder-id resolved-id}))]
+                           (fx/success new-state [{:holder-id resolved-id}]))))
 
   (fx/register-effect! :bashketball/loose-ball
+                       (fn [state {:keys [position]} ctx opts]
+                         (let [resolved-pos (resolve-param position ctx state)
+                               event        {:event-type :bashketball/set-ball-loose.request
+                                             :position resolved-pos
+                                             :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-set-ball-loose
                        (fn [state {:keys [position]} ctx _opts]
-                         (let [resolved-position (resolve-param position ctx state)
-                               action            {:type :bashketball/set-ball-loose
-                                                  :position resolved-position}
-                               new-state         (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                         (let [resolved-pos (resolve-param position ctx state)
+                               new-state    (-> state
+                                                (assoc :ball {:status :ball-status/LOOSE :position resolved-pos})
+                                                (tu/log-event :bashketball/set-ball-loose {:position resolved-pos}))]
+                           (fx/success new-state [{:position resolved-pos}]))))
 
   (fx/register-effect! :bashketball/draw-cards
                        (fn [state {:keys [player count]} ctx opts]
                          (let [resolved-player (resolve-param player ctx state)
-                               resolved-count  (resolve-param count ctx state)]
-                           ;; Check if we should use event-driven path
-                           (if (:registry opts)
-                             ;; Event-driven: fire request event through triggers
-                             (let [event  {:event-type :bashketball/draw-cards.request
-                                           :team resolved-player
-                                           :player resolved-player
-                                           :count (or resolved-count 1)
-                                           :causation (:causation opts)}
-                                   result (triggers/fire-request-event
-                                           {:state state
-                                            :registry (:registry opts)
-                                            :event-counters (:event-counters opts)
-                                            :executing-triggers (:executing-triggers opts)}
-                                           event)]
-                               ;; Return effect result with updated context
-                               {:state (:state result)
-                                :applied []
-                                :failed []
-                                :pending nil
-                                :event-counters (:event-counters result)
-                                :registry (:registry result)})
-                             ;; Legacy path: call action directly
-                             (let [action    {:type :bashketball/draw-cards
-                                              :player resolved-player
-                                              :count resolved-count}
-                                   new-state (actions/do-action state action)]
-                               (fx/success new-state [action]))))))
+                               resolved-count  (resolve-param count ctx state)
+                               event           {:event-type :bashketball/draw-cards.request
+                                                :team resolved-player
+                                                :player resolved-player
+                                                :count (or resolved-count 1)
+                                                :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
 
   ;; Terminal effect: directly modifies state (called by catchall game rule)
   (fx/register-effect! :bashketball/do-draw-cards
@@ -297,38 +414,96 @@
                            (fx/success new-state [{:drew drawn
                                                    :count (clojure.core/count drawn)}]))))
 
+  ;; =========================================================================
+  ;; Card & Score Effects (Event-Driven)
+  ;; =========================================================================
+
   (fx/register-effect! :bashketball/discard-cards
+                       (fn [state {:keys [player instance-ids]} ctx opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               resolved-ids    (resolve-param instance-ids ctx state)
+                               event           {:event-type :bashketball/discard-cards.request
+                                                :player resolved-player
+                                                :instance-ids resolved-ids
+                                                :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-discard-cards
                        (fn [state {:keys [player instance-ids]} ctx _opts]
                          (let [resolved-player (resolve-param player ctx state)
                                resolved-ids    (resolve-param instance-ids ctx state)
-                               action          {:type :bashketball/discard-cards
-                                                :player resolved-player
-                                                :instance-ids resolved-ids}
-                               new-state       (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               deck-path       [:players resolved-player :deck]
+                               hand            (get-in state (conj deck-path :hand))
+                               id-set          (set resolved-ids)
+                               discarded       (filterv #(id-set (:instance-id %)) hand)
+                               new-hand        (filterv #(not (id-set (:instance-id %))) hand)
+                               new-state       (-> state
+                                                   (assoc-in (conj deck-path :hand) new-hand)
+                                                   (update-in (conj deck-path :discard) into discarded)
+                                                   (tu/log-event :bashketball/discard-cards
+                                                                 {:player resolved-player
+                                                                  :instance-ids resolved-ids}))]
+                           (fx/success new-state [{:discarded discarded}]))))
 
   (fx/register-effect! :bashketball/add-score
+                       (fn [state {:keys [team points]} ctx opts]
+                         (let [resolved-team   (resolve-param team ctx state)
+                               resolved-points (resolve-param points ctx state)
+                               event           {:event-type :bashketball/add-score.request
+                                                :team resolved-team
+                                                :points resolved-points
+                                                :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-add-score
                        (fn [state {:keys [team points]} ctx _opts]
                          (let [resolved-team   (resolve-param team ctx state)
                                resolved-points (resolve-param points ctx state)
-                               action          {:type :bashketball/add-score
-                                                :team resolved-team
-                                                :points resolved-points}
-                               new-state       (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               new-state       (-> state
+                                                   (update-in [:score resolved-team] + resolved-points)
+                                                   (tu/log-event :bashketball/add-score
+                                                                 {:team resolved-team
+                                                                  :points resolved-points}))]
+                           (fx/success new-state [{:team resolved-team :points resolved-points}]))))
 
   ;; Skill Test Effects
 
   (fx/register-effect! :bashketball/initiate-skill-test
                        (fn [state {:keys [actor-id stat target-value context]} ctx _opts]
                          (let [resolved-actor (resolve-param actor-id ctx state)
-                               action         {:type :bashketball/initiate-skill-test
-                                               :actor-id resolved-actor
-                                               :stat stat
-                                               :target-value target-value
-                                               :context context}
-                               new-state      (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               player         (state/get-basketball-player state resolved-actor)
+                               stats-key      (stat->stats-key stat)
+                               base-value     (get-in player [:stats stats-key] 0)
+                               skill-test-id  (tu/generate-id)
+                               new-state      (-> state
+                                                  (assoc :pending-skill-test
+                                                         {:id           skill-test-id
+                                                          :actor-id     resolved-actor
+                                                          :stat         stat
+                                                          :base-value   base-value
+                                                          :modifiers    []
+                                                          :fate         nil
+                                                          :total        nil
+                                                          :target-value target-value
+                                                          :context      context})
+                                                  (tu/log-event :bashketball/initiate-skill-test
+                                                                {:actor-id resolved-actor
+                                                                 :stat stat
+                                                                 :base-value base-value
+                                                                 :target-value target-value}))]
+                           (fx/success new-state [{:actor-id resolved-actor
+                                                   :stat stat
+                                                   :target-value target-value}]))))
 
   (fx/register-effect! :bashketball/modify-skill-test
                        (fn [state {:keys [source amount advantage reason]} ctx _opts]
@@ -336,13 +511,13 @@
                            (let [resolved-source    (resolve-param source ctx state)
                                  resolved-amount    (when amount (resolve-param amount ctx state))
                                  resolved-advantage (when advantage (resolve-param advantage ctx state))
-                                 action             (cond-> {:type :bashketball/modify-skill-test
-                                                             :source resolved-source}
-                                                      resolved-amount    (assoc :amount resolved-amount)
-                                                      resolved-advantage (assoc :advantage resolved-advantage)
-                                                      reason             (assoc :reason reason))
-                                 new-state          (actions/do-action state action)]
-                             (fx/success new-state [action]))
+                                 modifier           (cond-> {:source resolved-source :amount (or resolved-amount 0)}
+                                                      reason             (assoc :reason reason)
+                                                      resolved-advantage (assoc :advantage resolved-advantage))
+                                 new-state          (-> state
+                                                        (update-in [:pending-skill-test :modifiers] conj modifier)
+                                                        (tu/log-event :bashketball/modify-skill-test modifier))]
+                             (fx/success new-state [modifier]))
                            (fx/success state []))))
 
   ;; Choice Effects
@@ -350,17 +525,20 @@
   (fx/register-effect! :bashketball/offer-choice
                        (fn [state {:keys [choice-type options waiting-for context continuation]} ctx _opts]
                          (let [resolved-team (resolve-param waiting-for ctx state)
-                               action        (cond-> {:type        :bashketball/offer-choice
-                                                      :choice-type choice-type
-                                                      :options     options
-                                                      :waiting-for resolved-team}
-                                               context      (assoc :context context)
-                                               continuation (assoc :continuation continuation))
-                               new-state     (actions/do-action state action)]
+                               choice-id     (tu/generate-id)
+                               pending-choice (cond-> {:id          choice-id
+                                                       :type        choice-type
+                                                       :options     options
+                                                       :waiting-for resolved-team}
+                                                context      (assoc :context context)
+                                                continuation (assoc :continuation continuation))
+                               new-state     (-> state
+                                                 (assoc :pending-choice pending-choice)
+                                                 (tu/log-event :bashketball/offer-choice pending-choice))]
                            ;; Return with pending flag so caller knows execution should pause
-                           (assoc (fx/success new-state [action])
+                           (assoc (fx/success new-state [pending-choice])
                                   :pending {:type :choice
-                                            :choice-id (get-in new-state [:pending-choice :id])}))))
+                                            :choice-id choice-id}))))
 
   (fx/register-effect! :bashketball/force-choice
                        (fn [game-state {:keys [target choice-type options context]} ctx _opts]
@@ -372,18 +550,21 @@
                                                          {:id opt :label (name opt)}
                                                          opt))
                                                      options)
-                               action          {:type :bashketball/offer-choice
-                                                :choice-type (or choice-type :forced-choice)
-                                                :options choice-options
+                               choice-id       (tu/generate-id)
+                               pending-choice  {:id          choice-id
+                                                :type        (or choice-type :forced-choice)
+                                                :options     choice-options
                                                 :waiting-for target-team
-                                                :context (merge context
-                                                                {:force-target resolved-target
-                                                                 :original-options options})}
-                               new-state       (actions/do-action game-state action)]
+                                                :context     (merge context
+                                                                    {:force-target resolved-target
+                                                                     :original-options options})}
+                               new-state       (-> game-state
+                                                   (assoc :pending-choice pending-choice)
+                                                   (tu/log-event :bashketball/force-choice pending-choice))]
                            ;; Return with pending flag so caller knows execution should pause
-                           (assoc (fx/success new-state [action])
+                           (assoc (fx/success new-state [pending-choice])
                                   :pending {:type :forced-choice
-                                            :choice-id (get-in new-state [:pending-choice :id])
+                                            :choice-id choice-id
                                             :target resolved-target}))))
 
   (fx/register-effect! :bashketball/execute-choice-continuation
@@ -399,41 +580,109 @@
                              (fx/success (dissoc state :pending-choice) []))
                            (fx/success state []))))
 
-  ;; Modifier Effects
+  ;; =========================================================================
+  ;; Modifier Effects (Event-Driven)
+  ;; =========================================================================
 
   (fx/register-effect! :bashketball/add-modifier
+                       (fn [state {:keys [player-id stat amount source expires-at]} ctx opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-stat      (resolve-param stat ctx state)
+                               resolved-amount    (resolve-param amount ctx state)
+                               resolved-source    (resolve-param source ctx state)
+                               resolved-expires   (resolve-param expires-at ctx state)
+                               team               (state/get-basketball-player-team state resolved-player-id)
+                               event              {:event-type :bashketball/add-modifier.request
+                                                   :player-id resolved-player-id
+                                                   :stat resolved-stat
+                                                   :amount resolved-amount
+                                                   :source resolved-source
+                                                   :expires-at resolved-expires
+                                                   :team team
+                                                   :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-add-modifier
                        (fn [state {:keys [player-id stat amount source expires-at]} ctx _opts]
                          (let [resolved-player-id (resolve-param player-id ctx state)
                                resolved-stat      (resolve-param stat ctx state)
                                resolved-amount    (resolve-param amount ctx state)
                                resolved-source    (resolve-param source ctx state)
                                resolved-expires   (resolve-param expires-at ctx state)
-                               action             {:type :bashketball/add-modifier
-                                                   :player-id resolved-player-id
-                                                   :stat resolved-stat
-                                                   :amount resolved-amount
-                                                   :source resolved-source
-                                                   :expires-at resolved-expires}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               modifier           (cond-> {:id     (tu/generate-id)
+                                                           :stat   resolved-stat
+                                                           :amount resolved-amount}
+                                                    resolved-source  (assoc :source resolved-source)
+                                                    resolved-expires (assoc :expires-at resolved-expires))
+                               new-state          (-> state
+                                                      (state/update-basketball-player
+                                                       resolved-player-id update :modifiers conj modifier)
+                                                      (tu/log-event :bashketball/add-modifier
+                                                                    {:player-id resolved-player-id
+                                                                     :modifier modifier}))]
+                           (fx/success new-state [{:modifier modifier}]))))
 
   (fx/register-effect! :bashketball/remove-modifier
+                       (fn [state {:keys [player-id modifier-id]} ctx opts]
+                         (let [resolved-player-id   (resolve-param player-id ctx state)
+                               resolved-modifier-id (resolve-param modifier-id ctx state)
+                               team                 (state/get-basketball-player-team state resolved-player-id)
+                               event                {:event-type :bashketball/remove-modifier.request
+                                                     :player-id resolved-player-id
+                                                     :modifier-id resolved-modifier-id
+                                                     :team team
+                                                     :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-remove-modifier
                        (fn [state {:keys [player-id modifier-id]} ctx _opts]
                          (let [resolved-player-id   (resolve-param player-id ctx state)
                                resolved-modifier-id (resolve-param modifier-id ctx state)
-                               action               {:type :bashketball/remove-modifier
-                                                     :player-id resolved-player-id
-                                                     :modifier-id resolved-modifier-id}
-                               new-state            (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               new-state            (-> state
+                                                        (state/update-basketball-player
+                                                         resolved-player-id update :modifiers
+                                                         (fn [mods]
+                                                           (vec (remove #(= (:id %) resolved-modifier-id) mods))))
+                                                        (tu/log-event :bashketball/remove-modifier
+                                                                      {:player-id resolved-player-id
+                                                                       :modifier-id resolved-modifier-id}))]
+                           (fx/success new-state [{:player-id resolved-player-id
+                                                   :modifier-id resolved-modifier-id}]))))
 
   (fx/register-effect! :bashketball/clear-modifiers
+                       (fn [state {:keys [player-id]} ctx opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               team               (state/get-basketball-player-team state resolved-player-id)
+                               event              {:event-type :bashketball/clear-modifiers.request
+                                                   :player-id resolved-player-id
+                                                   :team team
+                                                   :causation (:causation opts)}]
+                           (triggers/fire-request-event
+                            {:state              state
+                             :registry           (:registry opts)
+                             :event-counters     (:event-counters opts)
+                             :executing-triggers (:executing-triggers opts)}
+                            event))))
+
+  (fx/register-effect! :bashketball/do-clear-modifiers
                        (fn [state {:keys [player-id]} ctx _opts]
                          (let [resolved-player-id (resolve-param player-id ctx state)
-                               action             {:type :bashketball/clear-modifiers
-                                                   :player-id resolved-player-id}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               new-state          (-> state
+                                                      (state/update-basketball-player
+                                                       resolved-player-id assoc :modifiers [])
+                                                      (tu/log-event :bashketball/clear-modifiers
+                                                                    {:player-id resolved-player-id}))]
+                           (fx/success new-state [{:player-id resolved-player-id}]))))
 
   ;; Ability Effects
 
@@ -528,14 +777,14 @@
                                     :event-counters   (:event-counters start-result)
                                     :registry         (:registry start-result)})))))))
 
-  ;; Terminal effect: uses action handler
+  ;; Terminal effect: sets game phase
   (fx/register-effect! :bashketball/do-set-phase
                        (fn [state {:keys [phase]} ctx _opts]
                          (let [resolved-phase (resolve-param phase ctx state)
-                               action         {:type :bashketball/do-set-phase
-                                               :phase resolved-phase}
-                               new-state      (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               new-state      (-> state
+                                                  (assoc :phase resolved-phase)
+                                                  (tu/log-event :bashketball/set-phase {:phase resolved-phase}))]
+                           (fx/success new-state [{:phase resolved-phase}]))))
 
   ;; Legacy alias for backward compatibility with phase_triggers
   (fx/register-effect! :do-set-phase
@@ -589,9 +838,17 @@
   ;; Terminal effect: advances turn counter and swaps active player
   (fx/register-effect! :bashketball/do-advance-turn
                        (fn [state _params _ctx _opts]
-                         (let [action    {:type :bashketball/do-advance-turn}
-                               new-state (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                         (let [prev-active (:active-player state)
+                               new-active  ({:team/HOME :team/AWAY :team/AWAY :team/HOME} prev-active)
+                               new-turn    (inc (:turn-number state))
+                               new-state   (-> state
+                                               (assoc :turn-number new-turn)
+                                               (assoc :active-player new-active)
+                                               (tu/log-event :bashketball/advance-turn
+                                                             {:turn-number new-turn
+                                                              :active-player new-active}))]
+                           (fx/success new-state [{:turn-number new-turn
+                                                   :active-player new-active}]))))
 
   ;; Hand Limit Effects
 
@@ -604,20 +861,24 @@
                                hand-limit    8
                                excess        (max 0 (- hand-size hand-limit))]
                            (if (pos? excess)
-                             ;; Over limit: directly offer the choice
-                             (let [action    {:type :bashketball/offer-choice
-                                              :choice-type :discard-to-hand-limit
-                                              :waiting-for resolved-team
-                                              :options (mapv (fn [card]
-                                                               {:id (keyword (:instance-id card))
-                                                                :label (:card-slug card)})
-                                                             hand)
-                                              :context {:discard-count excess
-                                                        :hand-limit hand-limit}}
-                                   new-state (actions/do-action game-state action)]
-                               (assoc (fx/success new-state [action])
+                             ;; Over limit: directly create pending-choice
+                             (let [choice-id     (tu/generate-id)
+                                   options       (mapv (fn [card]
+                                                         {:id (keyword (:instance-id card))
+                                                          :label (:card-slug card)})
+                                                       hand)
+                                   pending-choice {:id          choice-id
+                                                   :type        :discard-to-hand-limit
+                                                   :options     options
+                                                   :waiting-for resolved-team
+                                                   :context     {:discard-count excess
+                                                                 :hand-limit hand-limit}}
+                                   new-state     (-> game-state
+                                                     (assoc :pending-choice pending-choice)
+                                                     (tu/log-event :bashketball/check-hand-limit pending-choice))]
+                               (assoc (fx/success new-state [pending-choice])
                                       :pending {:type :choice
-                                                :choice-id (get-in new-state [:pending-choice :id])}))
+                                                :choice-id choice-id}))
                              ;; Under or at limit: no action needed
                              (fx/success game-state [])))))
 
@@ -838,8 +1099,9 @@
 
   (fx/register-effect! :bashketball/do-play-card
                        (fn [state {:keys [play-effect effect-context]} _ctx opts]
-                         ;; Apply the play effect with context bindings
-                         (let [effect-result (fx/apply-effect state play-effect {:bindings effect-context} opts)]
+                         ;; Apply the play effect with context bindings (normalize :effect/type -> :type)
+                         (let [effect-result (fx/apply-effect state (normalize-effect play-effect)
+                                                              {:bindings effect-context} opts)]
                            (if (:pending effect-result)
                              effect-result
                              ;; Fire after event

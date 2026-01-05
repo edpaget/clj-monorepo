@@ -118,6 +118,119 @@
    :effect {:type :bashketball/execute-choice-continuation}})
 
 ;;; ---------------------------------------------------------------------------
+;;; Player State Rules
+;;; ---------------------------------------------------------------------------
+
+(def exhaust-player-rule
+  "Default rule for exhaust-player: marks player as exhausted."
+  {:id "rule/exhaust-player"
+   :event-types #{:bashketball/exhaust-player.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-exhaust-player
+            :player-id [:ctx :event :player-id]}})
+
+(def refresh-player-rule
+  "Default rule for refresh-player: removes exhaustion from player."
+  {:id "rule/refresh-player"
+   :event-types #{:bashketball/refresh-player.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-refresh-player
+            :player-id [:ctx :event :player-id]}})
+
+;;; ---------------------------------------------------------------------------
+;;; Ball State Rules
+;;; ---------------------------------------------------------------------------
+
+(def set-ball-possessed-rule
+  "Default rule for set-ball-possessed: gives ball to a player."
+  {:id "rule/set-ball-possessed"
+   :event-types #{:bashketball/set-ball-possessed.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-set-ball-possessed
+            :holder-id [:ctx :event :holder-id]}})
+
+(def set-ball-loose-rule
+  "Default rule for set-ball-loose: sets ball loose at a position."
+  {:id "rule/set-ball-loose"
+   :event-types #{:bashketball/set-ball-loose.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-set-ball-loose
+            :position [:ctx :event :position]}})
+
+;;; ---------------------------------------------------------------------------
+;;; Card & Score Rules
+;;; ---------------------------------------------------------------------------
+
+(def discard-cards-rule
+  "Default rule for discard-cards: moves cards from hand to discard."
+  {:id "rule/discard-cards"
+   :event-types #{:bashketball/discard-cards.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-discard-cards
+            :player [:ctx :event :player]
+            :instance-ids [:ctx :event :instance-ids]}})
+
+(def add-score-rule
+  "Default rule for add-score: adds points to a team's score."
+  {:id "rule/add-score"
+   :event-types #{:bashketball/add-score.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-add-score
+            :team [:ctx :event :team]
+            :points [:ctx :event :points]}})
+
+;;; ---------------------------------------------------------------------------
+;;; Modifier Rules
+;;; ---------------------------------------------------------------------------
+
+(def add-modifier-rule
+  "Default rule for add-modifier: adds a stat modifier to a player."
+  {:id "rule/add-modifier"
+   :event-types #{:bashketball/add-modifier.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-add-modifier
+            :player-id [:ctx :event :player-id]
+            :stat [:ctx :event :stat]
+            :amount [:ctx :event :amount]
+            :source [:ctx :event :source]
+            :expires-at [:ctx :event :expires-at]}})
+
+(def remove-modifier-rule
+  "Default rule for remove-modifier: removes a modifier from a player."
+  {:id "rule/remove-modifier"
+   :event-types #{:bashketball/remove-modifier.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-remove-modifier
+            :player-id [:ctx :event :player-id]
+            :modifier-id [:ctx :event :modifier-id]}})
+
+(def clear-modifiers-rule
+  "Default rule for clear-modifiers: clears all modifiers from a player."
+  {:id "rule/clear-modifiers"
+   :event-types #{:bashketball/clear-modifiers.request}
+   :timing :polix.triggers.timing/after
+   :priority 1000
+   :condition nil
+   :effect {:type :bashketball/do-clear-modifiers
+            :player-id [:ctx :event :player-id]}})
+
+;;; ---------------------------------------------------------------------------
 ;;; Play Card Rules
 ;;; ---------------------------------------------------------------------------
 
@@ -142,12 +255,27 @@
 
 (def default-rules
   "All default game rules. Add new rules here as more actions are migrated."
-  [draw-cards-rule
+  [;; Core game flow
+   draw-cards-rule
    move-step-rule
    phase-starting-rule
    turn-ending-rule
    turn-starting-rule
    choice-submitted-rule
+   ;; Player state
+   exhaust-player-rule
+   refresh-player-rule
+   ;; Ball state
+   set-ball-possessed-rule
+   set-ball-loose-rule
+   ;; Cards & scoring
+   discard-cards-rule
+   add-score-rule
+   ;; Modifiers
+   add-modifier-rule
+   remove-modifier-rule
+   clear-modifiers-rule
+   ;; Play card
    fuel-discarded-rule])
 
 (defn register-game-rules!
