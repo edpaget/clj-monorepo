@@ -4,7 +4,6 @@
   Tests the continuation mechanism where effects can pause for player input
   and resume after selection with `:choice/selected` bound in context."
   (:require
-   [bashketball-game.actions :as actions]
    [bashketball-game.polix.core :as polix]
    [bashketball-game.polix.fixtures :as f]
    [bashketball-game.polix.game-rules :as game-rules]
@@ -18,21 +17,26 @@
     (polix/initialize!)
     (f)))
 
+(defn- apply-effect
+  "Helper to apply effect and return just the state."
+  [game-state effect]
+  (:state (fx/apply-effect game-state effect {} {})))
+
 ;; =============================================================================
-;; Action Tests
+;; Effect Tests
 ;; =============================================================================
 
 (deftest offer-choice-stores-continuation-test
   (let [continuation {:type :bashketball/exhaust-player
                       :player-id :choice/selected}
         game         (f/base-game-state)
-        result       (actions/do-action game
-                                        {:type :bashketball/offer-choice
-                                         :choice-type :select-target
-                                         :options [{:id :player-1 :label "Player 1"}
-                                                   {:id :player-2 :label "Player 2"}]
-                                         :waiting-for :team/HOME
-                                         :continuation continuation})]
+        result       (apply-effect game
+                                   {:type :bashketball/offer-choice
+                                    :choice-type :select-target
+                                    :options [{:id :player-1 :label "Player 1"}
+                                              {:id :player-2 :label "Player 2"}]
+                                    :waiting-for :team/HOME
+                                    :continuation continuation})]
     (testing "stores continuation in pending-choice"
       (is (= continuation (get-in result [:pending-choice :continuation]))))
 
@@ -43,34 +47,30 @@
 
 (deftest offer-choice-without-continuation-test
   (let [game   (f/base-game-state)
-        result (actions/do-action game
-                                  {:type :bashketball/offer-choice
-                                   :choice-type :simple-choice
-                                   :options [{:id :yes :label "Yes"}
-                                             {:id :no :label "No"}]
-                                   :waiting-for :team/AWAY})]
+        result (apply-effect game
+                             {:type :bashketball/offer-choice
+                              :choice-type :simple-choice
+                              :options [{:id :yes :label "Yes"}
+                                        {:id :no :label "No"}]
+                              :waiting-for :team/AWAY})]
     (testing "works without continuation"
       (is (some? (:pending-choice result)))
       (is (nil? (get-in result [:pending-choice :continuation]))))))
 
 (deftest submit-choice-sets-selected-test
-  (let [game      (-> (f/base-game-state)
-                      (actions/do-action {:type :bashketball/offer-choice
-                                          :choice-type :test-choice
-                                          :options [{:id :option-a :label "A"}
-                                                    {:id :option-b :label "B"}]
-                                          :waiting-for :team/HOME}))
+  (let [game      (apply-effect (f/base-game-state)
+                                {:type :bashketball/offer-choice
+                                 :choice-type :test-choice
+                                 :options [{:id :option-a :label "A"}
+                                           {:id :option-b :label "B"}]
+                                 :waiting-for :team/HOME})
         choice-id (get-in game [:pending-choice :id])
-        result    (actions/do-action game
-                                     {:type :bashketball/submit-choice
-                                      :choice-id choice-id
-                                      :selected :option-a})]
+        result    (apply-effect game
+                                {:type :bashketball/do-submit-choice
+                                 :choice-id choice-id
+                                 :selected :option-a})]
     (testing "sets selected on pending-choice"
       (is (= :option-a (get-in result [:pending-choice :selected]))))))
-
-;; =============================================================================
-;; Effect Tests
-;; =============================================================================
 
 (deftest offer-choice-effect-passes-continuation-test
   (let [game         (f/base-game-state)
@@ -146,31 +146,6 @@
                                   {:registry registry})]
     (testing "no-op when no pending choice"
       (is (nil? (get-in (:state result) [:pending-choice]))))))
-
-;; =============================================================================
-;; Event Generation Tests
-;; =============================================================================
-
-(deftest submit-choice-generates-choice-submitted-event-test
-  (let [game   (-> (f/base-game-state)
-                   (actions/do-action {:type :bashketball/offer-choice
-                                       :choice-type :test-choice
-                                       :options [{:id :opt-a :label "A"}]
-                                       :waiting-for :team/HOME}))
-        action {:type :bashketball/submit-choice
-                :choice-id (get-in game [:pending-choice :id])
-                :selected :opt-a}
-        events (triggers/action->events game action)]
-    (testing "generates choice.submitted event"
-      (is (= :bashketball/choice.submitted (get-in events [:after :type]))))
-
-    (testing "event includes choice fields"
-      (is (= :team/HOME (get-in events [:after :waiting-for])))
-      (is (some? (get-in events [:after :id])))
-      (is (= [{:id :opt-a :label "A"}] (get-in events [:after :options]))))
-
-    (testing "no before event for submit-choice"
-      (is (nil? (:before events))))))
 
 ;; =============================================================================
 ;; Integration Tests

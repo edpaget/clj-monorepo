@@ -1,11 +1,22 @@
 (ns bashketball-game.polix.card-effects-test
-  (:require [bashketball-game.actions :as actions]
-            [bashketball-game.effect-catalog :as catalog]
+  (:require [bashketball-game.effect-catalog :as catalog]
             [bashketball-game.polix.card-effects :as card-effects]
+            [bashketball-game.polix.core :as polix]
             [bashketball-game.polix.fixtures :as fixtures]
             [bashketball-game.polix.triggers :as triggers]
             [bashketball-game.state :as state]
-            [clojure.test :refer [deftest is testing]]))
+            [clojure.test :refer [deftest is testing use-fixtures]]
+            [polix.effects.core :as fx]))
+
+(use-fixtures :once
+  (fn [f]
+    (polix/initialize!)
+    (f)))
+
+(defn- apply-effect
+  "Helper to apply effect and return just the state."
+  [game-state effect]
+  (:state (fx/apply-effect game-state effect {} {})))
 
 ;; =============================================================================
 ;; Test Cards with Structured Abilities
@@ -304,28 +315,26 @@
 ;; Tests: Update Registry for Action
 ;; =============================================================================
 
-(deftest update-registry-for-substitute-action-test
-  (testing "substitute updates registry correctly"
+(deftest substitute-effect-updates-registry-test
+  (testing "substitute effect updates registry correctly"
     (let [game-state  (-> (fixtures/base-game-state)
                           (fixtures/with-player-at fixtures/home-player-1 [1 3]))
           ;; Register trigger for player on court
           initial-reg (card-effects/initialize-game-triggers game-state test-catalog)
           _           (is (= 1 (count-triggers initial-reg)))  ;; orc-center has 1 ability
           ;; Substitute: orc-center leaves, elf-point-guard enters
-          new-state   (actions/do-action game-state
-                                         {:type :bashketball/substitute
-                                          :on-court-id fixtures/home-player-1
-                                          :off-court-id fixtures/home-player-2})
-          action      {:type :bashketball/substitute
-                       :on-court-id fixtures/home-player-1
-                       :off-court-id fixtures/home-player-2}
-          updated-reg (card-effects/update-registry-for-action
-                       initial-reg test-catalog game-state new-state action)]
+          result      (fx/apply-effect game-state
+                                       {:type :bashketball/do-substitute
+                                        :on-court-id fixtures/home-player-1
+                                        :off-court-id fixtures/home-player-2}
+                                       {}
+                                       {:registry initial-reg
+                                        :effect-catalog test-catalog})]
       ;; orc-center trigger removed, elf-point-guard has no abilities
-      (is (= 0 (count-triggers updated-reg))))))
+      (is (= 0 (count-triggers (:registry result)))))))
 
-(deftest update-registry-for-attach-action-test
-  (testing "attach-ability registers triggers"
+(deftest attach-ability-effect-registers-triggers-test
+  (testing "attach-ability effect registers triggers"
     (let [game-state        (-> (fixtures/base-game-state)
                                 (fixtures/with-player-at fixtures/home-player-1 [1 3])
                                 (fixtures/with-drawn-cards :team/HOME 3))
@@ -333,23 +342,20 @@
           game-with-ability (update-in game-state [:players :team/HOME :deck :hand]
                                        conj {:instance-id "ability-card-1"
                                              :card-slug "quick-release"})
-          ;; Attach it
-          new-state         (actions/do-action game-with-ability
-                                               {:type :bashketball/attach-ability
-                                                :player :team/HOME
-                                                :instance-id "ability-card-1"
-                                                :target-player-id fixtures/home-player-1})
-          action            {:type :bashketball/attach-ability
-                             :player :team/HOME
-                             :instance-id "ability-card-1"
-                             :target-player-id fixtures/home-player-1}
-          registry          (card-effects/update-registry-for-action
-                             (triggers/create-registry) test-catalog game-with-ability new-state action)]
-      (is (= 1 (count-triggers registry)))
-      (is (has-trigger-for-source? registry "ability-card-1")))))
+          ;; Attach it using effect
+          result            (fx/apply-effect game-with-ability
+                                             {:type :bashketball/attach-ability
+                                              :player :team/HOME
+                                              :instance-id "ability-card-1"
+                                              :target-player-id fixtures/home-player-1}
+                                             {}
+                                             {:registry (triggers/create-registry)
+                                              :effect-catalog test-catalog})]
+      (is (= 1 (count-triggers (:registry result))))
+      (is (has-trigger-for-source? (:registry result) "ability-card-1")))))
 
-(deftest update-registry-for-detach-action-test
-  (testing "detach-ability unregisters triggers"
+(deftest detach-ability-effect-unregisters-triggers-test
+  (testing "detach-ability effect unregisters triggers"
     (let [game-state           (-> (fixtures/base-game-state)
                                    (fixtures/with-player-at fixtures/home-player-1 [1 3]))
           ;; Manually add attachment to player
@@ -368,35 +374,33 @@
                                 fixtures/home-player-1
                                 :team/HOME)
           _                    (is (= 1 (count-triggers initial-reg)))
-          ;; Detach it
-          new-state            (actions/do-action game-with-attachment
-                                                  {:type :bashketball/detach-ability
-                                                   :player :team/HOME
-                                                   :target-player-id fixtures/home-player-1
-                                                   :instance-id "ability-card-1"})
-          action               {:type :bashketball/detach-ability
-                                :player :team/HOME
-                                :target-player-id fixtures/home-player-1
-                                :instance-id "ability-card-1"}
-          updated-reg          (card-effects/update-registry-for-action
-                                initial-reg test-catalog game-with-attachment new-state action)]
-      (is (= 0 (count-triggers updated-reg))))))
+          ;; Detach it using effect
+          result               (fx/apply-effect game-with-attachment
+                                                {:type :bashketball/detach-ability
+                                                 :player :team/HOME
+                                                 :target-player-id fixtures/home-player-1
+                                                 :instance-id "ability-card-1"}
+                                                {}
+                                                {:registry initial-reg
+                                                 :effect-catalog test-catalog})]
+      (is (= 0 (count-triggers (:registry result)))))))
 
 ;; =============================================================================
-;; Tests: Integration with apply-action
+;; Tests: Effect Integration with Registry
 ;; =============================================================================
 
-(deftest apply-action-updates-registry-test
-  (testing "apply-action with catalog updates registry on substitute"
+(deftest effect-updates-registry-on-substitute-test
+  (testing "effect with catalog updates registry on substitute"
     (let [game-state (-> (fixtures/base-game-state)
                          (fixtures/with-player-at fixtures/home-player-1 [1 3]))
           registry   (card-effects/initialize-game-triggers game-state test-catalog)
-          ctx        {:state game-state :registry registry :catalog test-catalog}
-          result     (actions/apply-action ctx
-                                           {:type :bashketball/substitute
-                                            :on-court-id fixtures/home-player-1
-                                            :off-court-id fixtures/home-player-2})]
-      (is (not (:prevented? result)))
+          result     (fx/apply-effect game-state
+                                      {:type :bashketball/do-substitute
+                                       :on-court-id fixtures/home-player-1
+                                       :off-court-id fixtures/home-player-2}
+                                      {}
+                                      {:registry registry
+                                       :effect-catalog test-catalog})]
       ;; orc-center had 1 trigger, elf-point-guard has 0
       (is (= 0 (count-triggers (:registry result)))))))
 
@@ -479,8 +483,8 @@
 ;; Tests: Play-Card and Move-Asset Registry Updates
 ;; =============================================================================
 
-(deftest update-registry-for-play-card-test
-  (testing "play-card registers triggers when card is a team asset"
+(deftest play-card-effect-registers-triggers-test
+  (testing "stage and resolve registers triggers when card is a team asset"
     (let [game-state     (-> (fixtures/base-game-state)
                              (fixtures/with-drawn-cards :team/HOME 3))
           ;; Add asset card definition to deck catalog AND card to hand
@@ -490,20 +494,23 @@
                              (update-in [:players :team/HOME :deck :hand]
                                         conj {:instance-id "asset-card-1"
                                               :card-slug "home-court-advantage"}))
-          ;; Play it
-          new-state      (actions/do-action game-with-card
-                                            {:type :bashketball/play-card
-                                             :player :team/HOME
-                                             :instance-id "asset-card-1"})
-          action         {:type :bashketball/play-card
-                          :player :team/HOME
-                          :instance-id "asset-card-1"}
-          registry       (card-effects/update-registry-for-action
-                          (triggers/create-registry) test-catalog game-with-card new-state action)]
-      (is (= 1 (count-triggers registry)))
-      (is (has-trigger-for-source? registry "asset-card-1"))))
+          ;; Stage the card first
+          staged-result  (fx/apply-effect game-with-card
+                                          {:type :bashketball/do-stage-card
+                                           :player :team/HOME
+                                           :instance-id "asset-card-1"}
+                                          {} {})
+          ;; Then resolve it to move to assets and register triggers
+          result         (fx/apply-effect (:state staged-result)
+                                          {:type :bashketball/do-resolve-card
+                                           :instance-id "asset-card-1"}
+                                          {}
+                                          {:registry (triggers/create-registry)
+                                           :effect-catalog test-catalog})]
+      (is (= 1 (count-triggers (:registry result))))
+      (is (has-trigger-for-source? (:registry result) "asset-card-1"))))
 
-  (testing "play-card does not register triggers for non-asset cards"
+  (testing "stage and resolve does not register triggers for non-asset cards"
     (let [game-state     (-> (fixtures/base-game-state)
                              (fixtures/with-drawn-cards :team/HOME 3))
           ;; Add a non-asset card definition to deck catalog AND card to hand
@@ -513,20 +520,23 @@
                              (update-in [:players :team/HOME :deck :hand]
                                         conj {:instance-id "play-card-1"
                                               :card-slug "elf-point-guard"}))
-          ;; Play it - should go to discard, not assets
-          new-state      (actions/do-action game-with-card
-                                            {:type :bashketball/play-card
-                                             :player :team/HOME
-                                             :instance-id "play-card-1"})
-          action         {:type :bashketball/play-card
-                          :player :team/HOME
-                          :instance-id "play-card-1"}
-          registry       (card-effects/update-registry-for-action
-                          (triggers/create-registry) test-catalog game-with-card new-state action)]
-      (is (= 0 (count-triggers registry))))))
+          ;; Stage the card first
+          staged-result  (fx/apply-effect game-with-card
+                                          {:type :bashketball/do-stage-card
+                                           :player :team/HOME
+                                           :instance-id "play-card-1"}
+                                          {} {})
+          ;; Resolve - should go to discard, not assets
+          result         (fx/apply-effect (:state staged-result)
+                                          {:type :bashketball/do-resolve-card
+                                           :instance-id "play-card-1"}
+                                          {}
+                                          {:registry (triggers/create-registry)
+                                           :effect-catalog test-catalog})]
+      (is (= 0 (count-triggers (:registry result)))))))
 
-(deftest update-registry-for-move-asset-test
-  (testing "move-asset unregisters triggers when asset removed"
+(deftest move-asset-effect-unregisters-triggers-test
+  (testing "move-asset effect unregisters triggers when asset removed"
     (let [game-state      (fixtures/base-game-state)
           ;; Add asset to team's assets
           game-with-asset (update-in game-state [:players :team/HOME :assets]
@@ -539,19 +549,16 @@
                            {:instance-id "asset-card-1" :card-slug "home-court-advantage"}
                            :team/HOME)
           _               (is (= 1 (count-triggers initial-reg)))
-          ;; Move asset to discard
-          new-state       (actions/do-action game-with-asset
-                                             {:type :bashketball/move-asset
-                                              :player :team/HOME
-                                              :instance-id "asset-card-1"
-                                              :destination :DISCARD})
-          action          {:type :bashketball/move-asset
-                           :player :team/HOME
-                           :instance-id "asset-card-1"
-                           :destination :DISCARD}
-          updated-reg     (card-effects/update-registry-for-action
-                           initial-reg test-catalog game-with-asset new-state action)]
-      (is (= 0 (count-triggers updated-reg))))))
+          ;; Move asset to discard using effect
+          result          (fx/apply-effect game-with-asset
+                                           {:type :bashketball/do-move-asset
+                                            :player :team/HOME
+                                            :instance-id "asset-card-1"
+                                            :destination :DISCARD}
+                                           {}
+                                           {:registry initial-reg
+                                            :effect-catalog test-catalog})]
+      (is (= 0 (count-triggers (:registry result)))))))
 
 ;; =============================================================================
 ;; Tests: Initialize Game with Assets

@@ -23,6 +23,7 @@
    [bashketball-game.polix.terminal-utils :as tu]
    [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
+   [clojure.set :as set]
    [clojure.string :as str]
    [polix.effects.core :as fx]))
 
@@ -524,6 +525,40 @@
                              (fx/success new-state [modifier]))
                            (fx/success state []))))
 
+  (fx/register-effect! :bashketball/do-set-skill-test-fate
+                       (fn [state {:keys [fate]} ctx _opts]
+                         (if (:pending-skill-test state)
+                           (let [resolved-fate (resolve-param fate ctx state)
+                                 new-state     (-> state
+                                                   (assoc-in [:pending-skill-test :fate] resolved-fate)
+                                                   (tu/log-event :bashketball/set-skill-test-fate
+                                                                 {:fate resolved-fate}))]
+                             (fx/success new-state [{:fate resolved-fate}]))
+                           (fx/success state []))))
+
+  (fx/register-effect! :bashketball/do-resolve-skill-test
+                       (fn [state _params _ctx _opts]
+                         (if-let [pending (:pending-skill-test state)]
+                           (let [{:keys [base-value modifiers fate]} pending
+                                 modifier-total (reduce + 0 (map :amount modifiers))
+                                 total          (+ base-value modifier-total (or fate 0))
+                                 resolved-test  (assoc pending :total total)
+                                 new-state      (-> state
+                                                    (assoc-in [:pending-skill-test :total] total)
+                                                    (tu/log-event :bashketball/resolve-skill-test
+                                                                  {:skill-test resolved-test}))]
+                             (fx/success new-state [{:skill-test resolved-test}]))
+                           (fx/success state []))))
+
+  (fx/register-effect! :bashketball/do-clear-skill-test
+                       (fn [state _params _ctx _opts]
+                         (let [cleared   (:pending-skill-test state)
+                               new-state (-> state
+                                             (dissoc :pending-skill-test)
+                                             (tu/log-event :bashketball/clear-skill-test
+                                                           {:cleared-test cleared}))]
+                           (fx/success new-state [{:cleared-test cleared}]))))
+
   ;; Choice Effects
 
   (fx/register-effect! :bashketball/offer-choice
@@ -584,6 +619,31 @@
                              (fx/success (dissoc state :pending-choice) []))
                            (fx/success state []))))
 
+  (fx/register-effect! :bashketball/do-submit-choice
+                       (fn [state {:keys [choice-id selected]} ctx _opts]
+                         (if-let [pending (:pending-choice state)]
+                           (let [resolved-choice-id (resolve-param choice-id ctx state)
+                                 resolved-selected  (resolve-param selected ctx state)]
+                             (if (= resolved-choice-id (:id pending))
+                               (let [new-state (-> state
+                                                   (assoc-in [:pending-choice :selected] resolved-selected)
+                                                   (tu/log-event :bashketball/submit-choice
+                                                                 {:choice-id resolved-choice-id
+                                                                  :selected resolved-selected}))]
+                                 (fx/success new-state [{:choice-id resolved-choice-id
+                                                         :selected resolved-selected}]))
+                               (fx/success state [])))
+                           (fx/success state []))))
+
+  (fx/register-effect! :bashketball/do-clear-choice
+                       (fn [state _params _ctx _opts]
+                         (let [cleared   (:pending-choice state)
+                               new-state (-> state
+                                             (dissoc :pending-choice)
+                                             (tu/log-event :bashketball/clear-choice
+                                                           {:cleared-choice cleared}))]
+                           (fx/success new-state [{:cleared-choice cleared}]))))
+
   ;; =========================================================================
   ;; Modifier Effects (Event-Driven)
   ;; =========================================================================
@@ -612,13 +672,14 @@
                             event))))
 
   (fx/register-effect! :bashketball/do-add-modifier
-                       (fn [state {:keys [player-id stat amount source expires-at]} ctx _opts]
+                       (fn [state {:keys [player-id id stat amount source expires-at]} ctx _opts]
                          (let [resolved-player-id (resolve-param player-id ctx state)
+                               resolved-id        (or (resolve-param id ctx state) (tu/generate-id))
                                resolved-stat      (resolve-param stat ctx state)
                                resolved-amount    (resolve-param amount ctx state)
                                resolved-source    (resolve-param source ctx state)
                                resolved-expires   (resolve-param expires-at ctx state)
-                               modifier           (cond-> {:id     (tu/generate-id)
+                               modifier           (cond-> {:id     resolved-id
                                                            :stat   resolved-stat
                                                            :amount resolved-amount}
                                                     resolved-source  (assoc :source resolved-source)
@@ -892,6 +953,141 @@
                                                               :active-player new-active}))]
                            (fx/success new-state [{:turn-number new-turn
                                                    :active-player new-active}]))))
+
+  (fx/register-effect! :bashketball/do-set-active-player
+                       (fn [state {:keys [player]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               new-state       (-> state
+                                                   (assoc :active-player resolved-player)
+                                                   (tu/log-event :bashketball/set-active-player
+                                                                 {:player resolved-player}))]
+                           (fx/success new-state [{:player resolved-player}]))))
+
+  ;; Player Resource Effects
+
+  (fx/register-effect! :bashketball/do-set-actions
+                       (fn [state {:keys [player amount]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               resolved-amount (resolve-param amount ctx state)
+                               new-state       (-> state
+                                                   (assoc-in [:players resolved-player :actions-remaining] resolved-amount)
+                                                   (tu/log-event :bashketball/set-actions
+                                                                 {:player resolved-player
+                                                                  :amount resolved-amount}))]
+                           (fx/success new-state [{:player resolved-player :amount resolved-amount}]))))
+
+  (fx/register-effect! :bashketball/do-remove-cards
+                       (fn [state {:keys [player instance-ids]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               resolved-ids    (resolve-param instance-ids ctx state)
+                               deck-path       [:players resolved-player :deck]
+                               hand            (get-in state (conj deck-path :hand))
+                               id-set          (set resolved-ids)
+                               removed         (filterv #(id-set (:instance-id %)) hand)
+                               new-hand        (filterv #(not (id-set (:instance-id %))) hand)
+                               new-state       (-> state
+                                                   (assoc-in (conj deck-path :hand) new-hand)
+                                                   (update-in (conj deck-path :removed) into removed)
+                                                   (tu/log-event :bashketball/remove-cards
+                                                                 {:player resolved-player
+                                                                  :instance-ids resolved-ids
+                                                                  :removed-cards removed}))]
+                           (fx/success new-state [{:player resolved-player :removed-cards removed}]))))
+
+  (fx/register-effect! :bashketball/do-shuffle-deck
+                       (fn [state {:keys [player]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               new-state       (-> state
+                                                   (update-in [:players resolved-player :deck :draw-pile] shuffle)
+                                                   (tu/log-event :bashketball/shuffle-deck
+                                                                 {:player resolved-player}))]
+                           (fx/success new-state [{:player resolved-player}]))))
+
+  (fx/register-effect! :bashketball/do-return-discard
+                       (fn [state {:keys [player]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               deck-path       [:players resolved-player :deck]
+                               discard         (get-in state (conj deck-path :discard))
+                               new-state       (-> state
+                                                   (update-in (conj deck-path :draw-pile) into discard)
+                                                   (assoc-in (conj deck-path :discard) [])
+                                                   (tu/log-event :bashketball/return-discard
+                                                                 {:player resolved-player
+                                                                  :count (count discard)}))]
+                           (fx/success new-state [{:player resolved-player :count (count discard)}]))))
+
+  ;; Stack Effects
+
+  (fx/register-effect! :bashketball/do-push-stack
+                       (fn [state {:keys [effect]} ctx _opts]
+                         (let [resolved-effect (resolve-param effect ctx state)
+                               new-state       (-> state
+                                                   (update :stack conj resolved-effect)
+                                                   (tu/log-event :bashketball/push-stack
+                                                                 {:effect resolved-effect}))]
+                           (fx/success new-state [{:effect resolved-effect}]))))
+
+  (fx/register-effect! :bashketball/do-pop-stack
+                       (fn [state _params _ctx _opts]
+                         (let [popped    (peek (:stack state))
+                               new-state (-> state
+                                             (update :stack pop)
+                                             (tu/log-event :bashketball/pop-stack
+                                                           {:popped-effect popped}))]
+                           (fx/success new-state [{:popped-effect popped}]))))
+
+  (fx/register-effect! :bashketball/do-clear-stack
+                       (fn [state _params _ctx _opts]
+                         (let [cleared   (:stack state)
+                               new-state (-> state
+                                             (assoc :stack [])
+                                             (tu/log-event :bashketball/clear-stack
+                                                           {:cleared-count (count cleared)}))]
+                           (fx/success new-state [{:cleared-count (count cleared)}]))))
+
+  ;; Ball In-Air Effect
+
+  (fx/register-effect! :bashketball/do-set-ball-in-air
+                       (fn [state {:keys [origin target action-type]} ctx _opts]
+                         (let [resolved-origin (resolve-param origin ctx state)
+                               resolved-target (resolve-param target ctx state)
+                               resolved-action (resolve-param action-type ctx state)
+                               new-state       (-> state
+                                                   (assoc :ball {:status      :ball-status/IN_AIR
+                                                                 :origin      resolved-origin
+                                                                 :target      resolved-target
+                                                                 :action-type resolved-action})
+                                                   (tu/log-event :bashketball/set-ball-in-air
+                                                                 {:origin resolved-origin
+                                                                  :target resolved-target
+                                                                  :action-type resolved-action}))]
+                           (fx/success new-state [{:origin resolved-origin
+                                                   :target resolved-target}]))))
+
+  ;; Reveal Fate (for skill tests)
+
+  (fx/register-effect! :bashketball/do-reveal-fate
+                       (fn [state {:keys [player]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               deck-path       [:players resolved-player :deck]
+                               draw-pile       (get-in state (conj deck-path :draw-pile))
+                               revealed        (first draw-pile)
+                               new-state       (-> state
+                                                   (update-in (conj deck-path :draw-pile) (comp vec rest))
+                                                   (update-in (conj deck-path :discard) conj revealed)
+                                                   (tu/log-event :bashketball/reveal-fate
+                                                                 {:player resolved-player
+                                                                  :revealed-card revealed}))]
+                           (fx/success new-state [{:revealed-card revealed}]))))
+
+  ;; Record Skill Test (event logging only)
+
+  (fx/register-effect! :bashketball/do-record-skill-test
+                       (fn [state {:keys [skill-test]} ctx _opts]
+                         (let [resolved-test (resolve-param skill-test ctx state)
+                               new-state     (tu/log-event state :bashketball/record-skill-test
+                                                           {:skill-test resolved-test})]
+                           (fx/success new-state [{:skill-test resolved-test}]))))
 
   ;; Hand Limit Effects
 
@@ -1174,4 +1370,317 @@
                                normalized       (normalize-effect resolved-effect)]
                            (if normalized
                              (fx/apply-effect state normalized {:bindings resolved-context} opts)
-                             (fx/success state []))))))
+                             (fx/success state [])))))
+
+  ;; =========================================================================
+  ;; Lifecycle Effects (with registry updates)
+  ;; =========================================================================
+
+  (fx/register-effect! :bashketball/do-substitute
+                       (fn [state {:keys [on-court-id off-court-id]} ctx opts]
+                         (let [resolved-on-court  (resolve-param on-court-id ctx state)
+                               resolved-off-court (resolve-param off-court-id ctx state)
+                               on-court-pos       (:position (state/get-basketball-player state resolved-on-court))
+                               team               (state/get-basketball-player-team state resolved-on-court)
+                               new-state          (-> state
+                                                      (state/update-basketball-player resolved-on-court assoc :position nil)
+                                                      (state/update-basketball-player resolved-off-court assoc :position on-court-pos)
+                                                      (cond->
+                                                       on-court-pos
+                                                        (update :board board/set-occupant on-court-pos
+                                                                {:type :occupant/BASKETBALL_PLAYER :id resolved-off-court}))
+                                                      (tu/log-event :bashketball/substitute
+                                                                    {:on-court-id resolved-on-court
+                                                                     :off-court-id resolved-off-court
+                                                                     :position on-court-pos}))
+                               entering-player    (state/get-basketball-player new-state resolved-off-court)
+                               new-registry       (when (and (:registry opts) (:effect-catalog opts))
+                                                    (-> (:registry opts)
+                                                        (card-effects/handle-player-leaving-court resolved-on-court)
+                                                        (card-effects/handle-player-entering-court
+                                                         (:effect-catalog opts) entering-player team)))]
+                           (cond-> (fx/success new-state [{:on-court-id resolved-on-court
+                                                           :off-court-id resolved-off-court}])
+                             new-registry (assoc :registry new-registry)))))
+
+  (fx/register-effect! :bashketball/do-move-asset
+                       (fn [state {:keys [player instance-id destination]} ctx opts]
+                         (let [resolved-player      (resolve-param player ctx state)
+                               resolved-instance-id (resolve-param instance-id ctx state)
+                               resolved-destination (resolve-param destination ctx state)
+                               assets               (get-in state [:players resolved-player :assets])
+                               moved-card           (first (filter #(= (:instance-id %) resolved-instance-id) assets))
+                               is-token?            (state/token? moved-card)
+                               new-assets           (filterv #(not= (:instance-id %) resolved-instance-id) assets)
+                               dest-key             ({:DISCARD :discard :REMOVED :removed} resolved-destination)
+                               new-state            (-> state
+                                                        (assoc-in [:players resolved-player :assets] new-assets)
+                                                        (cond->
+                                                         (not is-token?)
+                                                          (update-in [:players resolved-player :deck dest-key] conj moved-card))
+                                                        (tu/log-event :bashketball/move-asset
+                                                                      {:moved-asset    moved-card
+                                                                       :destination    (if is-token? :deleted resolved-destination)
+                                                                       :token-deleted? is-token?}))
+                               new-registry         (when (:registry opts)
+                                                      (card-effects/unregister-asset-triggers
+                                                       (:registry opts) resolved-instance-id))]
+                           (cond-> (fx/success new-state [{:instance-id resolved-instance-id
+                                                           :destination (if is-token? :deleted resolved-destination)}])
+                             new-registry (assoc :registry new-registry)))))
+
+  (fx/register-effect! :bashketball/do-create-token
+                       (fn [state {:keys [player card placement target-player-id]} ctx opts]
+                         (let [resolved-player    (resolve-param player ctx state)
+                               resolved-card      (resolve-param card ctx state)
+                               resolved-placement (resolve-param placement ctx state)
+                               resolved-target    (resolve-param target-player-id ctx state)
+                               ;; Normalize the token card
+                               normalized-card    (let [card-type (keyword "card-type" (name (:card-type resolved-card)))
+                                                        base      (-> resolved-card
+                                                                      (assoc :card-type card-type)
+                                                                      (update :set-slug #(or % "tokens")))]
+                                                    (case card-type
+                                                      :card-type/TEAM_ASSET_CARD
+                                                      (update base :asset-power #(or % ""))
+                                                      :card-type/ABILITY_CARD
+                                                      (-> base
+                                                          (update :fate #(or % 0))
+                                                          (update :abilities #(or % [])))
+                                                      base))
+                               instance-id        (tu/generate-id)
+                               token-instance     {:instance-id instance-id
+                                                   :token       true
+                                                   :card        normalized-card}
+                               new-state          (-> state
+                                                      (cond->
+                                                       (= resolved-placement :placement/ASSET)
+                                                        (update-in [:players resolved-player :assets] conj token-instance)
+
+                                                        (= resolved-placement :placement/ATTACH)
+                                                        (state/update-basketball-player
+                                                         resolved-target update :attachments conj
+                                                         {:instance-id        instance-id
+                                                          :token              true
+                                                          :card               normalized-card
+                                                          :removable          (get resolved-card :removable true)
+                                                          :detach-destination (get resolved-card :detach-destination :detach/DISCARD)
+                                                          :attached-at        (tu/now)}))
+                                                      (tu/log-event :bashketball/create-token
+                                                                    {:created-token    token-instance
+                                                                     :placement        resolved-placement
+                                                                     :target-player-id resolved-target}))
+                               new-registry       (when (and (:registry opts) (:effect-catalog opts))
+                                                    (case resolved-placement
+                                                      :placement/ASSET
+                                                      (card-effects/register-asset-triggers
+                                                       (:registry opts) (:effect-catalog opts)
+                                                       token-instance resolved-player)
+
+                                                      :placement/ATTACH
+                                                      (let [team (state/get-basketball-player-team new-state resolved-target)]
+                                                        (card-effects/register-attached-abilities
+                                                         (:registry opts) (:effect-catalog opts)
+                                                         token-instance resolved-target team))
+
+                                                      (:registry opts)))]
+                           (cond-> (fx/success new-state [{:instance-id instance-id
+                                                           :placement resolved-placement}])
+                             new-registry (assoc :registry new-registry)))))
+
+  (fx/register-effect! :bashketball/do-resolve-card
+                       (fn [state {:keys [instance-id target-player-id]} ctx opts]
+                         (let [resolved-instance-id (resolve-param instance-id ctx state)
+                               resolved-target      (resolve-param target-player-id ctx state)
+                               play-area-card       (state/find-card-in-play-area state resolved-instance-id)
+                               owner                (:played-by play-area-card)
+                               card-slug            (:card-slug play-area-card)
+                               is-virtual           (:virtual play-area-card)
+                               card-instance        {:instance-id resolved-instance-id :card-slug card-slug}
+                               ;; Look up card type from owner's deck
+                               cards                (get-in state [:players owner :deck :cards])
+                               card-def             (some #(when (= (:slug %) card-slug) %) cards)
+                               is-asset             (and (not is-virtual)
+                                                         (= (:card-type card-def) :card-type/TEAM_ASSET_CARD))
+                               is-attach            (and (not is-virtual)
+                                                         resolved-target
+                                                         (= (:card-type card-def) :card-type/ABILITY_CARD))
+                               new-state            (-> state
+                                                        (update :play-area (fn [pa] (filterv #(not= (:instance-id %) resolved-instance-id) pa)))
+                                                        (cond->
+                                                         is-attach
+                                                          (as-> s
+                                                                (let [props      (state/get-ability-card-properties s owner card-slug)
+                                                                      attachment {:instance-id        resolved-instance-id
+                                                                                  :card-slug          card-slug
+                                                                                  :removable          (:removable props)
+                                                                                  :detach-destination (:detach-destination props)
+                                                                                  :attached-at        (tu/now)}]
+                                                                  (state/update-basketball-player s resolved-target
+                                                                                                  update :attachments conj attachment)))
+
+                                                          is-asset
+                                                          (update-in [:players owner :assets] conj card-instance)
+
+                                                          (and (not is-virtual) (not is-asset) (not is-attach))
+                                                          (update-in [:players owner :deck :discard] conj card-instance))
+                                                        (tu/log-event :bashketball/resolve-card
+                                                                      (cond-> {:resolved-card play-area-card
+                                                                               :virtual       is-virtual}
+                                                                        resolved-target (assoc :target-player-id resolved-target))))
+                               new-registry         (when (and (:registry opts) (:effect-catalog opts))
+                                                      (cond
+                                                        is-attach
+                                                        (let [attachment (state/find-attachment new-state resolved-target resolved-instance-id)
+                                                              team       (state/get-basketball-player-team new-state resolved-target)]
+                                                          (card-effects/register-attached-abilities
+                                                           (:registry opts) (:effect-catalog opts)
+                                                           attachment resolved-target team))
+
+                                                        is-asset
+                                                        (let [asset (first (filter #(= (:instance-id %) resolved-instance-id)
+                                                                                   (get-in new-state [:players owner :assets])))]
+                                                          (card-effects/register-asset-triggers
+                                                           (:registry opts) (:effect-catalog opts)
+                                                           asset owner))
+
+                                                        :else (:registry opts)))]
+                           (cond-> (fx/success new-state [{:instance-id resolved-instance-id
+                                                           :resolved-card play-area-card}])
+                             new-registry (assoc :registry new-registry)))))
+
+  ;; =========================================================================
+  ;; Card Staging Effects
+  ;; =========================================================================
+
+  (fx/register-effect! :bashketball/do-stage-card
+                       (fn [state {:keys [player instance-id]} ctx _opts]
+                         (let [resolved-player      (resolve-param player ctx state)
+                               resolved-instance-id (resolve-param instance-id ctx state)
+                               deck-path            [:players resolved-player :deck]
+                               hand                 (get-in state (conj deck-path :hand))
+                               card                 (first (filter #(= (:instance-id %) resolved-instance-id) hand))]
+                           (if-not card
+                             (throw (ex-info "Card not in hand"
+                                             {:player resolved-player :instance-id resolved-instance-id}))
+                             (let [new-hand       (filterv #(not= (:instance-id %) resolved-instance-id) hand)
+                                   play-area-card {:instance-id (:instance-id card)
+                                                   :card-slug   (:card-slug card)
+                                                   :played-by   resolved-player}
+                                   new-state      (-> state
+                                                      (assoc-in (conj deck-path :hand) new-hand)
+                                                      (update :play-area conj play-area-card)
+                                                      (tu/log-event :bashketball/stage-card
+                                                                    {:staged-card card
+                                                                     :player resolved-player}))]
+                               (fx/success new-state [{:instance-id resolved-instance-id
+                                                        :card card}]))))))
+
+  (fx/register-effect! :bashketball/do-stage-virtual-standard-action
+                       (fn [state {:keys [player discard-instance-ids card-slug]} ctx _opts]
+                         (let [resolved-player      (resolve-param player ctx state)
+                               resolved-discard-ids (resolve-param discard-instance-ids ctx state)
+                               resolved-card-slug   (resolve-param card-slug ctx state)
+                               deck-path            [:players resolved-player :deck]
+                               hand                 (get-in state (conj deck-path :hand))
+                               id-set               (set resolved-discard-ids)
+                               discarded            (filterv #(id-set (:instance-id %)) hand)
+                               new-hand             (filterv #(not (id-set (:instance-id %))) hand)
+                               instance-id          (tu/generate-id)
+                               play-area-card       {:instance-id instance-id
+                                                     :card-slug   resolved-card-slug
+                                                     :played-by   resolved-player
+                                                     :virtual     true}
+                               new-state            (-> state
+                                                        (assoc-in (conj deck-path :hand) new-hand)
+                                                        (update-in (conj deck-path :discard) into discarded)
+                                                        (update :play-area conj play-area-card)
+                                                        (tu/log-event :bashketball/stage-virtual-standard-action
+                                                                      {:discarded-cards discarded
+                                                                       :virtual-card    play-area-card}))]
+                           (fx/success new-state [{:instance-id instance-id
+                                                    :discarded discarded
+                                                    :virtual-card play-area-card}]))))
+
+  (fx/register-effect! :bashketball/do-examine-cards
+                       (fn [state {:keys [player count]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               resolved-count  (resolve-param count ctx state)
+                               deck-path       [:players resolved-player :deck]
+                               draw-pile       (get-in state (conj deck-path :draw-pile))
+                               actual-count    (min resolved-count (clojure.core/count draw-pile))
+                               examined        (vec (take actual-count draw-pile))
+                               remaining       (vec (drop actual-count draw-pile))
+                               new-state       (-> state
+                                                   (assoc-in (conj deck-path :draw-pile) remaining)
+                                                   (assoc-in (conj deck-path :examined) examined)
+                                                   (tu/log-event :bashketball/examine-cards
+                                                                 {:examined-cards  examined
+                                                                  :requested-count resolved-count
+                                                                  :actual-count    actual-count}))]
+                           (fx/success new-state [{:examined examined
+                                                    :actual-count actual-count}]))))
+
+  (fx/register-effect! :bashketball/do-resolve-examined-cards
+                       (fn [state {:keys [player placements]} ctx _opts]
+                         (let [resolved-player     (resolve-param player ctx state)
+                               resolved-placements (resolve-param placements ctx state)
+                               deck-path           [:players resolved-player :deck]
+                               examined            (get-in state (conj deck-path :examined))
+                               ;; Validate placements match examined cards
+                               examined-ids        (set (map :instance-id examined))
+                               placement-ids       (set (map :instance-id resolved-placements))
+                               _                   (when (not= examined-ids placement-ids)
+                                                     (throw (ex-info "Placements must include all examined cards"
+                                                                     {:examined-ids  examined-ids
+                                                                      :placement-ids placement-ids
+                                                                      :missing       (set/difference examined-ids placement-ids)
+                                                                      :extra         (set/difference placement-ids examined-ids)})))
+                               ;; Group cards by destination
+                               examined-by-id      (into {} (map (juxt :instance-id identity) examined))
+                               grouped             (group-by :destination resolved-placements)
+                               top-cards           (mapv #(examined-by-id (:instance-id %)) (get grouped :examine/TOP []))
+                               bottom-cards        (mapv #(examined-by-id (:instance-id %)) (get grouped :examine/BOTTOM []))
+                               discard-cards       (mapv #(examined-by-id (:instance-id %)) (get grouped :examine/DISCARD []))
+                               draw-pile           (get-in state (conj deck-path :draw-pile))
+                               new-state           (-> state
+                                                       (assoc-in (conj deck-path :examined) [])
+                                                       (assoc-in (conj deck-path :draw-pile) (into top-cards draw-pile))
+                                                       (update-in (conj deck-path :draw-pile) into bottom-cards)
+                                                       (update-in (conj deck-path :discard) into discard-cards)
+                                                       (tu/log-event :bashketball/resolve-examined-cards
+                                                                     {:resolved-placements resolved-placements
+                                                                      :top-count           (clojure.core/count top-cards)
+                                                                      :bottom-count        (clojure.core/count bottom-cards)
+                                                                      :discard-count       (clojure.core/count discard-cards)}))]
+                           (fx/success new-state [{:top-count (clojure.core/count top-cards)
+                                                    :bottom-count (clojure.core/count bottom-cards)
+                                                    :discard-count (clojure.core/count discard-cards)}]))))
+
+  ;; =========================================================================
+  ;; Orchestration Effects
+  ;; =========================================================================
+
+  (fx/register-effect! :bashketball/start-from-tipoff
+                       (fn [state {:keys [player]} ctx _opts]
+                         (let [resolved-player (resolve-param player ctx state)
+                               new-state       (-> state
+                                                   (assoc :phase :phase/UPKEEP)
+                                                   (assoc :active-player resolved-player)
+                                                   (tu/log-event :bashketball/start-from-tipoff
+                                                                 {:player resolved-player}))]
+                           (fx/success new-state [{:player resolved-player}]))))
+
+  (fx/register-effect! :bashketball/refresh-all
+                       (fn [state {:keys [team]} ctx _opts]
+                         (let [resolved-team (resolve-param team ctx state)
+                               player-ids    (keys (state/get-all-players state resolved-team))
+                               new-state     (reduce (fn [s pid]
+                                                       (state/update-basketball-player s pid assoc :exhausted false))
+                                                     state
+                                                     player-ids)
+                               new-state'    (tu/log-event new-state :bashketball/refresh-all
+                                                           {:team resolved-team
+                                                            :player-count (count player-ids)})]
+                           (fx/success new-state' [{:team resolved-team
+                                                     :refreshed-count (count player-ids)}])))))

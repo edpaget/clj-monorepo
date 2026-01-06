@@ -7,7 +7,6 @@
   - Skill tests use source-tracked advantages
   - Scoring zones affect point values"
   (:require
-   [bashketball-game.actions :as actions]
    [bashketball-game.polix.fixtures :as f]
    [bashketball-game.polix.operators :as ops]
    [bashketball-game.polix.scoring :as scoring]
@@ -18,7 +17,8 @@
    [bashketball-game.polix.zoc :as zoc]
    [bashketball-game.state :as state]
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [polix.core :as polix]))
+   [polix.core :as polix]
+   [polix.effects.core :as fx]))
 
 (use-fixtures :once
   (fn [t]
@@ -179,12 +179,13 @@
     (let [base-state   (-> (f/base-game-state)
                            (f/with-player-at f/home-player-1 [2 10])
                            (f/with-ball-possessed f/home-player-1))
-          buffed-state (actions/do-action base-state
-                                          {:type :bashketball/add-modifier
-                                           :player-id f/home-player-1
-                                           :modifier {:id "buff-1"
-                                                      :stat :stat/SHOOTING
-                                                      :amount 2}})]
+          buffed-state (:state (fx/apply-effect base-state
+                                                {:type :bashketball/do-add-modifier
+                                                 :player-id f/home-player-1
+                                                 :id "buff-1"
+                                                 :stat :stat/SHOOTING
+                                                 :amount 2}
+                                                {} {}))]
       ;; Base: shooting 2, difficulty 6
       ;; Buffed: shooting 4, difficulty 4
       (is (= 6 (sap/shoot-difficulty base-state f/home-player-1)))
@@ -195,14 +196,20 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 10])
                     (f/with-ball-possessed f/home-player-1)
-                    (actions/do-action {:type :bashketball/add-modifier
-                                        :player-id f/home-player-1
-                                        :modifier {:id "buff-1"
-                                                   :stat :stat/SHOOTING
-                                                   :amount 2}})
-                    (actions/do-action {:type :bashketball/remove-modifier
-                                        :player-id f/home-player-1
-                                        :modifier-id "buff-1"}))]
+                    (as-> s
+                          (:state (fx/apply-effect s
+                                                   {:type :bashketball/do-add-modifier
+                                                    :player-id f/home-player-1
+                                                    :id "buff-1"
+                                                    :stat :stat/SHOOTING
+                                                    :amount 2}
+                                                   {} {})))
+                    (as-> s
+                          (:state (fx/apply-effect s
+                                                   {:type :bashketball/do-remove-modifier
+                                                    :player-id f/home-player-1
+                                                    :modifier-id "buff-1"}
+                                                   {} {}))))]
       (is (= 6 (sap/shoot-difficulty state f/home-player-1))))))
 
 ;; =============================================================================
@@ -269,9 +276,10 @@
                       (f/with-player-at f/home-player-1 [2 11])
                       (f/with-ball-possessed f/home-player-1))
           points  (scoring/point-value [2 11])
-          updated (actions/do-action state {:type :bashketball/add-score
-                                            :team :team/HOME
-                                            :points points})]
+          updated (:state (fx/apply-effect state {:type :bashketball/do-add-score
+                                                  :team :team/HOME
+                                                  :points points}
+                                           {} {}))]
       (is (= 2 (get-in (state/get-score updated) [:team/HOME]))))))
 
 ;; =============================================================================

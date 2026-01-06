@@ -418,3 +418,190 @@
       (let [event (last (:events (:state result)))]
         (is (= :deleted (:destination event)))
         (is (true? (:token-deleted? event)))))))
+
+;; =============================================================================
+;; Phase and Turn Effect Tests
+;; =============================================================================
+
+(deftest do-set-phase-effect-test
+  (let [state  (fixtures/base-game-state)
+        result (fx/apply-effect state
+                                {:type :bashketball/do-set-phase
+                                 :phase :phase/ACTIONS}
+                                {} (opts-with-registry))]
+    (testing "sets phase correctly"
+      (is (= :phase/ACTIONS (state/get-phase (:state result)))))))
+
+(deftest do-advance-turn-effect-test
+  (let [state  (fixtures/base-game-state)
+        result (fx/apply-effect state
+                                {:type :bashketball/do-advance-turn}
+                                {} (opts-with-registry))]
+    (testing "increments turn number"
+      (is (= 2 (:turn-number (:state result)))))
+    (testing "switches active player"
+      (is (= :team/AWAY (state/get-active-player (:state result)))))))
+
+;; =============================================================================
+;; Modifier Effect Tests
+;; =============================================================================
+
+(deftest do-add-modifier-effect-test
+  (let [state  (fixtures/base-game-state)
+        result (fx/apply-effect state
+                                {:type :bashketball/do-add-modifier
+                                 :player-id fixtures/home-player-1
+                                 :stat :stat/SHOOTING
+                                 :amount 2
+                                 :source "test-buff"}
+                                {} (opts-with-registry))
+        player (state/get-basketball-player (:state result) fixtures/home-player-1)]
+    (testing "adds modifier to player"
+      (is (= 1 (count (:modifiers player)))))
+    (testing "modifier has correct stat and amount"
+      (let [modifier (first (:modifiers player))]
+        (is (= :stat/SHOOTING (:stat modifier)))
+        (is (= 2 (:amount modifier)))))))
+
+(deftest do-remove-modifier-effect-test
+  (let [modifier {:id "buff-1" :stat :stat/SHOOTING :amount 2}
+        state    (-> (fixtures/base-game-state)
+                     (state/update-basketball-player fixtures/home-player-1
+                                                     assoc :modifiers [modifier]))
+        result   (fx/apply-effect state
+                                  {:type :bashketball/do-remove-modifier
+                                   :player-id fixtures/home-player-1
+                                   :modifier-id "buff-1"}
+                                  {} (opts-with-registry))
+        player   (state/get-basketball-player (:state result) fixtures/home-player-1)]
+    (testing "removes modifier from player"
+      (is (empty? (:modifiers player))))))
+
+(deftest do-clear-modifiers-effect-test
+  (let [modifiers [{:id "buff-1" :stat :stat/SHOOTING :amount 2}
+                   {:id "buff-2" :stat :stat/SPEED :amount 1}]
+        state     (-> (fixtures/base-game-state)
+                      (state/update-basketball-player fixtures/home-player-1
+                                                      assoc :modifiers modifiers))
+        result    (fx/apply-effect state
+                                   {:type :bashketball/do-clear-modifiers
+                                    :player-id fixtures/home-player-1}
+                                   {} (opts-with-registry))
+        player    (state/get-basketball-player (:state result) fixtures/home-player-1)]
+    (testing "clears all modifiers from player"
+      (is (empty? (:modifiers player))))))
+
+;; =============================================================================
+;; Movement Edge Case Tests
+;; =============================================================================
+
+(deftest move-player-first-move-from-nil-test
+  (let [state  (fixtures/base-game-state)
+        result (fx/apply-effect state
+                                {:type :bashketball/move-player
+                                 :player-id fixtures/home-player-1
+                                 :position [2 3]}
+                                {} (opts-with-registry))]
+    (testing "player moves from nil position"
+      (is (= [2 3] (:position (state/get-basketball-player (:state result) fixtures/home-player-1)))))
+    (testing "board has occupant at new position"
+      (is (= {:type :occupant/BASKETBALL_PLAYER :id fixtures/home-player-1}
+             (get-in (:state result) [:board :occupants [2 3]]))))))
+
+(deftest move-player-consecutive-moves-test
+  (let [state  (-> (fixtures/base-game-state)
+                   (fixtures/with-player-at fixtures/home-player-1 [2 3]))
+        move1  (fx/apply-effect state
+                                {:type :bashketball/move-player
+                                 :player-id fixtures/home-player-1
+                                 :position [2 5]}
+                                {} (opts-with-registry))
+        move2  (fx/apply-effect (:state move1)
+                                {:type :bashketball/move-player
+                                 :player-id fixtures/home-player-1
+                                 :position [3 6]}
+                                {} (opts-with-registry))]
+    (testing "player at final position"
+      (is (= [3 6] (:position (state/get-basketball-player (:state move2) fixtures/home-player-1)))))
+    (testing "old position cleared"
+      (is (nil? (get-in (:state move2) [:board :occupants [2 5]]))))
+    (testing "new position has occupant"
+      (is (= {:type :occupant/BASKETBALL_PLAYER :id fixtures/home-player-1}
+             (get-in (:state move2) [:board :occupants [3 6]]))))))
+
+(deftest move-multiple-players-test
+  (let [state  (fixtures/base-game-state)
+        move1  (fx/apply-effect state
+                                {:type :bashketball/move-player
+                                 :player-id fixtures/home-player-1
+                                 :position [2 3]}
+                                {} (opts-with-registry))
+        move2  (fx/apply-effect (:state move1)
+                                {:type :bashketball/move-player
+                                 :player-id fixtures/home-player-2
+                                 :position [3 4]}
+                                {} (opts-with-registry))]
+    (testing "both players at correct positions"
+      (is (= [2 3] (:position (state/get-basketball-player (:state move2) fixtures/home-player-1))))
+      (is (= [3 4] (:position (state/get-basketball-player (:state move2) fixtures/home-player-2)))))
+    (testing "board has both occupants"
+      (is (= 2 (count (get-in (:state move2) [:board :occupants])))))))
+
+;; =============================================================================
+;; Skill Test Effect Tests
+;; =============================================================================
+
+(deftest initiate-skill-test-effect-test
+  (let [state  (-> (fixtures/base-game-state)
+                   (fixtures/with-player-at fixtures/home-player-1 [2 3]))
+        result (fx/apply-effect state
+                                {:type :bashketball/initiate-skill-test
+                                 :actor-id fixtures/home-player-1
+                                 :stat :stat/SHOOTING
+                                 :target-value 5
+                                 :context {:action :shoot}}
+                                {} (opts-with-registry))]
+    (testing "creates pending skill test"
+      (is (some? (:pending-skill-test (:state result)))))
+    (testing "skill test has correct actor"
+      (is (= fixtures/home-player-1 (get-in (:state result) [:pending-skill-test :actor-id]))))
+    (testing "skill test has correct stat"
+      (is (= :stat/SHOOTING (get-in (:state result) [:pending-skill-test :stat]))))))
+
+(deftest modify-skill-test-effect-test
+  (let [state  (-> (fixtures/base-game-state)
+                   (assoc :pending-skill-test {:actor-id fixtures/home-player-1
+                                               :stat :stat/SHOOTING
+                                               :base-value 3
+                                               :modifiers []
+                                               :target-value 5}))
+        result (fx/apply-effect state
+                                {:type :bashketball/modify-skill-test
+                                 :stat :stat/SHOOTING
+                                 :amount 2
+                                 :source "ability-buff"}
+                                {} (opts-with-registry))]
+    (testing "adds modifier to skill test"
+      (is (= 1 (count (get-in (:state result) [:pending-skill-test :modifiers])))))
+    (testing "modifier has correct amount"
+      (is (= 2 (:amount (first (get-in (:state result) [:pending-skill-test :modifiers]))))))))
+
+;; =============================================================================
+;; Offer Choice Effect Test
+;; =============================================================================
+
+(deftest offer-choice-effect-test
+  (let [state  (fixtures/base-game-state)
+        result (fx/apply-effect state
+                                {:type :bashketball/offer-choice
+                                 :choice-type :choice/SELECT_TARGET
+                                 :options [{:id "opt-1" :label "Player 1"}
+                                           {:id "opt-2" :label "Player 2"}]
+                                 :waiting-for :team/HOME}
+                                {} (opts-with-registry))]
+    (testing "creates pending choice"
+      (is (some? (:pending-choice (:state result)))))
+    (testing "choice has correct type"
+      (is (= :choice/SELECT_TARGET (get-in (:state result) [:pending-choice :type]))))
+    (testing "choice has options"
+      (is (= 2 (count (get-in (:state result) [:pending-choice :options])))))))

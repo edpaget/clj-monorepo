@@ -4,7 +4,6 @@
   Tests the `:bashketball/modify-skill-test` effect which allows card abilities
   to add modifiers to pending skill tests during the skill test flow."
   (:require
-   [bashketball-game.actions :as actions]
    [bashketball-game.polix.core :as polix]
    [bashketball-game.polix.fixtures :as f]
    [bashketball-game.polix.game-rules :as game-rules]
@@ -17,27 +16,33 @@
     (polix/initialize!)
     (f)))
 
+(defn- apply-effect
+  "Helper to apply effect and return just the state."
+  [game-state effect]
+  (:state (fx/apply-effect game-state effect {} {})))
+
 (defn with-pending-skill-test
   "Adds a pending skill test to the game state for testing."
   [game-state]
-  (actions/do-action game-state
-                     {:type :bashketball/initiate-skill-test
-                      :actor-id f/home-player-1
-                      :stat :stat/SHOOTING
-                      :target-value 5
-                      :context {:type :shoot}}))
+  (-> game-state
+      (f/with-player-at f/home-player-1 [2 3])
+      (apply-effect {:type :bashketball/initiate-skill-test
+                     :actor-id f/home-player-1
+                     :stat :stat/SHOOTING
+                     :target-value 5
+                     :context {:type :shoot}})))
 
 ;; =============================================================================
-;; Action Tests
+;; Action Tests (now using effects)
 ;; =============================================================================
 
 (deftest modify-skill-test-adds-numeric-modifier-test
   (let [game   (-> (f/base-game-state)
                    (with-pending-skill-test))
-        result (actions/do-action game
-                                  {:type :bashketball/modify-skill-test
-                                   :source "test-ability"
-                                   :amount 2})]
+        result (apply-effect game
+                             {:type :bashketball/modify-skill-test
+                              :source "test-ability"
+                              :amount 2})]
     (testing "adds modifier to pending skill test"
       (is (= 1 (count (get-in result [:pending-skill-test :modifiers])))))
 
@@ -49,10 +54,10 @@
 (deftest modify-skill-test-adds-advantage-modifier-test
   (let [game   (-> (f/base-game-state)
                    (with-pending-skill-test))
-        result (actions/do-action game
-                                  {:type :bashketball/modify-skill-test
-                                   :source "clutch-ability"
-                                   :advantage :advantage/ADVANTAGE})]
+        result (apply-effect game
+                             {:type :bashketball/modify-skill-test
+                              :source "clutch-ability"
+                              :advantage :advantage/ADVANTAGE})]
     (testing "adds modifier with advantage"
       (let [modifier (first (get-in result [:pending-skill-test :modifiers]))]
         (is (= "clutch-ability" (:source modifier)))
@@ -62,12 +67,12 @@
 (deftest modify-skill-test-adds-combined-modifier-test
   (let [game   (-> (f/base-game-state)
                    (with-pending-skill-test))
-        result (actions/do-action game
-                                  {:type :bashketball/modify-skill-test
-                                   :source "power-play"
-                                   :amount 3
-                                   :advantage :advantage/ADVANTAGE
-                                   :reason "+3 and advantage from power play"})]
+        result (apply-effect game
+                             {:type :bashketball/modify-skill-test
+                              :source "power-play"
+                              :amount 3
+                              :advantage :advantage/ADVANTAGE
+                              :reason "+3 and advantage from power play"})]
     (testing "modifier has both amount and advantage"
       (let [modifier (first (get-in result [:pending-skill-test :modifiers]))]
         (is (= "power-play" (:source modifier)))
@@ -75,27 +80,28 @@
         (is (= :advantage/ADVANTAGE (:advantage modifier)))
         (is (= "+3 and advantage from power play" (:reason modifier)))))))
 
-(deftest modify-skill-test-throws-without-pending-test
-  (let [game (f/base-game-state)]
-    (testing "throws when no pending skill test"
-      (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error)
-                            #"No pending skill test"
-                            (actions/do-action game
-                                               {:type :bashketball/modify-skill-test
-                                                :source "test"
-                                                :amount 1}))))))
+(deftest modify-skill-test-no-op-without-pending-test
+  (let [game   (f/base-game-state)
+        result (fx/apply-effect game
+                                {:type :bashketball/modify-skill-test
+                                 :source "test"
+                                 :amount 1}
+                                {} {})]
+    (testing "effect is no-op when no pending skill test"
+      (is (nil? (:pending-skill-test (:state result))))
+      (is (empty? (:applied result))))))
 
 (deftest modify-skill-test-accumulates-modifiers-test
   (let [game   (-> (f/base-game-state)
                    (with-pending-skill-test))
         result (-> game
-                   (actions/do-action {:type :bashketball/modify-skill-test
-                                       :source "ability-1"
-                                       :amount 2})
-                   (actions/do-action {:type :bashketball/modify-skill-test
-                                       :source "ability-2"
-                                       :amount -1
-                                       :advantage :advantage/DISADVANTAGE}))]
+                   (apply-effect {:type :bashketball/modify-skill-test
+                                  :source "ability-1"
+                                  :amount 2})
+                   (apply-effect {:type :bashketball/modify-skill-test
+                                  :source "ability-2"
+                                  :amount -1
+                                  :advantage :advantage/DISADVANTAGE}))]
     (testing "accumulates multiple modifiers"
       (is (= 2 (count (get-in result [:pending-skill-test :modifiers])))))
 
@@ -163,15 +169,15 @@
 (deftest modifiers-included-in-resolution-test
   (let [game   (-> (f/base-game-state)
                    (with-pending-skill-test)
-                   (actions/do-action {:type :bashketball/modify-skill-test
-                                       :source "bonus-1"
-                                       :amount 2})
-                   (actions/do-action {:type :bashketball/modify-skill-test
-                                       :source "bonus-2"
-                                       :amount 3})
-                   (actions/do-action {:type :bashketball/set-skill-test-fate
-                                       :fate 4}))
-        result (actions/do-action game {:type :bashketball/resolve-skill-test})]
+                   (apply-effect {:type :bashketball/modify-skill-test
+                                  :source "bonus-1"
+                                  :amount 2})
+                   (apply-effect {:type :bashketball/modify-skill-test
+                                  :source "bonus-2"
+                                  :amount 3})
+                   (apply-effect {:type :bashketball/do-set-skill-test-fate
+                                  :fate 4}))
+        result (apply-effect game {:type :bashketball/do-resolve-skill-test})]
     (testing "total includes base value, modifiers, and fate"
       (let [total (get-in result [:pending-skill-test :total])
             base  (get-in result [:pending-skill-test :base-value])]

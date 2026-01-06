@@ -4,8 +4,9 @@
   Provides a minimal valid game state and helper functions for setting up
   test scenarios."
   (:require
-   [bashketball-game.actions :as actions]
-   [bashketball-game.state :as state]))
+   [bashketball-game.polix.effects :as effects]
+   [bashketball-game.state :as state]
+   [polix.effects.core :as fx]))
 
 (def test-config
   "Minimal game configuration for testing."
@@ -33,44 +34,50 @@
 (defn base-game-state
   "Creates a fresh game state for testing."
   []
+  (effects/register-effects!)
   (state/create-game test-config))
 
 (defn with-player-at
   "Places a player at the given position."
   [game-state player-id position]
-  (actions/do-action game-state
-                     {:type :bashketball/move-player
-                      :player-id player-id
-                      :position position}))
+  (:state (fx/apply-effect game-state
+                           {:type :bashketball/move-player
+                            :player-id player-id
+                            :position position}
+                           {} {})))
 
 (defn with-exhausted
   "Marks a player as exhausted."
   [game-state player-id]
-  (actions/do-action game-state
-                     {:type :bashketball/exhaust-player
-                      :player-id player-id}))
+  (:state (fx/apply-effect game-state
+                           {:type :bashketball/do-exhaust-player
+                            :player-id player-id}
+                           {} {})))
 
 (defn with-ball-possessed
   "Sets the ball as possessed by a player."
   [game-state player-id]
-  (actions/do-action game-state
-                     {:type :bashketball/set-ball-possessed
-                      :holder-id player-id}))
+  (:state (fx/apply-effect game-state
+                           {:type :bashketball/do-set-ball-possessed
+                            :holder-id player-id}
+                           {} {})))
 
 (defn with-ball-loose
   "Sets the ball as loose at a position."
   [game-state position]
-  (actions/do-action game-state
-                     {:type :bashketball/set-ball-loose
-                      :position position}))
+  (:state (fx/apply-effect game-state
+                           {:type :bashketball/do-set-ball-loose
+                            :position position}
+                           {} {})))
 
 (defn with-drawn-cards
   "Draws cards for a team."
   [game-state team count]
-  (actions/do-action game-state
-                     {:type :bashketball/draw-cards
-                      :player team
-                      :count count}))
+  (:state (fx/apply-effect game-state
+                           {:type :bashketball/do-draw-cards
+                            :player team
+                            :count count}
+                           {} {})))
 
 (def home-player-1 "HOME-orc-center-0")
 (def home-player-2 "HOME-elf-point-guard-1")

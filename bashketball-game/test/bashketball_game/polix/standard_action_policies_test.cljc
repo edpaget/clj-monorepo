@@ -4,11 +4,11 @@
   Tests how standard actions (Shoot/Block, Pass/Steal, Screen/Check)
   interact with game state, validation, and skill test setup."
   (:require
-   [bashketball-game.actions :as actions]
    [bashketball-game.polix.fixtures :as f]
    [bashketball-game.polix.operators :as ops]
    [bashketball-game.polix.standard-action-policies :as sap]
-   [clojure.test :refer [deftest is testing use-fixtures]]))
+   [clojure.test :refer [deftest is testing use-fixtures]]
+   [polix.effects.core :as fx]))
 
 (use-fixtures :once
   (fn [t]
@@ -297,13 +297,17 @@
 
 (deftest shoot-with-modifier-changes-difficulty
   (testing "modifiers affect skill test difficulty"
-    (let [modifier {:id "buff-1" :stat :stat/SHOOTING :amount 2}
-          state    (-> (f/base-game-state)
-                       (f/with-player-at f/home-player-1 [2 9])
-                       (f/with-ball-possessed f/home-player-1)
-                       (actions/do-action {:type :bashketball/add-modifier
-                                           :player-id f/home-player-1
-                                           :modifier modifier}))]
+    (let [state (-> (f/base-game-state)
+                    (f/with-player-at f/home-player-1 [2 9])
+                    (f/with-ball-possessed f/home-player-1)
+                    (as-> s
+                          (:state (fx/apply-effect s
+                                                   {:type :bashketball/do-add-modifier
+                                                    :player-id f/home-player-1
+                                                    :id "buff-1"
+                                                    :stat :stat/SHOOTING
+                                                    :amount 2}
+                                                   {} {}))))]
       ;; BASE shooting 2 + modifier 2 = 4, difficulty = 8 - 4 = 4
       (is (= 4 (sap/shoot-difficulty state f/home-player-1))))))
 
