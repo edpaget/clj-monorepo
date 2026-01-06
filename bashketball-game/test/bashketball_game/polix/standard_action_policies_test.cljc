@@ -7,8 +7,15 @@
    [bashketball-game.polix.fixtures :as f]
    [bashketball-game.polix.operators :as ops]
    [bashketball-game.polix.standard-action-policies :as sap]
+   [bashketball-game.polix.triggers :as triggers]
    [clojure.test :refer [deftest is testing use-fixtures]]
    [polix.effects.core :as fx]))
+
+(defn- test-ctx
+  "Creates test context with state and empty registry."
+  [game-state]
+  {:state game-state
+   :registry (triggers/create-registry)})
 
 (use-fixtures :once
   (fn [t]
@@ -56,9 +63,10 @@
   (testing "shoot difficulty uses shooting stat"
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 9])
-                    (f/with-ball-possessed f/home-player-1))]
+                    (f/with-ball-possessed f/home-player-1))
+          ctx   (test-ctx state)]
       ;; HOME orc has shooting 2, difficulty = 8 - 2 = 6
-      (is (= 6 (sap/shoot-difficulty state f/home-player-1))))))
+      (is (= 6 (sap/shoot-difficulty ctx f/home-player-1))))))
 
 (deftest shoot-advantage-uncontested
   (testing "uncontested shot gets distance + uncontested advantage"
@@ -164,9 +172,10 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-2 [2 5])    ; SM elf, passing 4
                     (f/with-player-at f/home-player-1 [2 8])
-                    (f/with-ball-possessed f/home-player-2))]
+                    (f/with-ball-possessed f/home-player-2))
+          ctx   (test-ctx state)]
       ;; Elf has passing 4, difficulty = 8 - 4 = 4
-      (is (= 4 (sap/pass-difficulty state f/home-player-2))))))
+      (is (= 4 (sap/pass-difficulty ctx f/home-player-2))))))
 
 (deftest pass-advantage-uncontested
   (testing "uncontested pass gets distance + uncontested advantage"
@@ -215,9 +224,10 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 5])    ; LG orc, defense 4
                     (f/with-player-at f/away-player-1 [2 6])
-                    (f/with-ball-possessed f/away-player-1))]
+                    (f/with-ball-possessed f/away-player-1))
+          ctx   (test-ctx state)]
       ;; Orc has defense 4, difficulty = 8 - (4 - 2) = 6
-      (is (= 6 (sap/steal-difficulty state f/home-player-1))))))
+      (is (= 6 (sap/steal-difficulty ctx f/home-player-1))))))
 
 (deftest steal-advantage-small-defender
   (testing "small defender ignores size disadvantage on steal"
@@ -265,9 +275,10 @@
   (testing "screen difficulty uses defense stat minus 1"
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 5])    ; LG orc, defense 4
-                    (f/with-player-at f/away-player-1 [2 6]))]
+                    (f/with-player-at f/away-player-1 [2 6]))
+          ctx   (test-ctx state)]
       ;; Orc has defense 4, difficulty = 8 - (4 - 1) = 5
-      (is (= 5 (sap/screen-difficulty state f/home-player-1))))))
+      (is (= 5 (sap/screen-difficulty ctx f/home-player-1))))))
 
 (deftest screen-advantage-larger-screener
   (testing "larger screener gets advantage"
@@ -307,9 +318,10 @@
                                                     :id "buff-1"
                                                     :stat :stat/SHOOTING
                                                     :amount 2}
-                                                   {} {}))))]
+                                                   {} {}))))
+          ctx   (test-ctx state)]
       ;; BASE shooting 2 + modifier 2 = 4, difficulty = 8 - 4 = 4
-      (is (= 4 (sap/shoot-difficulty state f/home-player-1))))))
+      (is (= 4 (sap/shoot-difficulty ctx f/home-player-1))))))
 
 ;; =============================================================================
 ;; Full Skill Test Setup Tests
@@ -320,7 +332,8 @@
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 11])
                     (f/with-ball-possessed f/home-player-1))
-          setup (sap/setup-shoot-test state f/home-player-1)]
+          ctx   (test-ctx state)
+          setup (sap/setup-shoot-test ctx f/home-player-1)]
       ;; Orc shooting 2, difficulty = 8 - 2 = 6
       (is (= 6 (:difficulty setup)))
       ;; Distance 2 (close) = advantage, uncontested = advantage
@@ -335,7 +348,8 @@
                     (f/with-player-at f/home-player-1 [2 5])
                     (f/with-player-at f/home-player-2 [2 7])
                     (f/with-ball-possessed f/home-player-1))
-          setup (sap/setup-pass-test state f/home-player-1 f/home-player-2)]
+          ctx   (test-ctx state)
+          setup (sap/setup-pass-test ctx f/home-player-1 f/home-player-2)]
       ;; Orc passing 1, difficulty = 8 - 1 = 7
       (is (= 7 (:difficulty setup)))
       ;; Distance 2 (close) = advantage, uncontested = advantage
@@ -350,7 +364,8 @@
                     (f/with-player-at f/home-player-1 [2 5])
                     (f/with-player-at f/away-player-1 [2 6])
                     (f/with-ball-possessed f/away-player-1))
-          setup (sap/setup-steal-test state f/home-player-1 f/away-player-1)]
+          ctx   (test-ctx state)
+          setup (sap/setup-steal-test ctx f/home-player-1 f/away-player-1)]
       ;; Orc defense 4, steal difficulty = 8 - (4 - 2) = 6
       (is (= 6 (:difficulty setup)))
       ;; LG orc vs LG troll = same size = normal

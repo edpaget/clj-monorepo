@@ -47,26 +47,27 @@
   - `:valid-positions` - set of valid move positions (when not blocked)
 
   Uses BFS reachability from [[bashketball-game.movement/valid-move-positions]]
-  for efficiency rather than evaluating each position individually."
-  ([game-state player-id]
-   (categorize-move-targets game-state player-id nil))
-  ([game-state player-id catalog]
-   (let [player (state/get-basketball-player game-state player-id)]
-     (cond
-       (nil? player)
-       {:blocked true :reason :player-not-found}
+  for efficiency rather than evaluating each position individually.
 
-       (nil? (:position player))
-       {:blocked true :reason :player-off-court}
+  Requires context with `:state` and `:registry`."
+  [{:keys [state] :as ctx} player-id]
+  {:pre [(some? state) (some? (:registry ctx))]}
+  (let [player (state/get-basketball-player state player-id)]
+    (cond
+      (nil? player)
+      {:blocked true :reason :player-not-found}
 
-       (:exhausted player)
-       {:blocked true :reason :player-exhausted}
+      (nil? (:position player))
+      {:blocked true :reason :player-off-court}
 
-       :else
-       (let [valid-positions (movement/valid-move-positions game-state player-id catalog)]
-         (if (empty? valid-positions)
-           {:blocked true :reason :no-valid-moves}
-           {:blocked false :valid-positions valid-positions}))))))
+      (:exhausted player)
+      {:blocked true :reason :player-exhausted}
+
+      :else
+      (let [valid-positions (movement/valid-move-positions ctx player-id)]
+        (if (empty? valid-positions)
+          {:blocked true :reason :no-valid-moves}
+          {:blocked false :valid-positions valid-positions})))))
 
 ;; =============================================================================
 ;; Pass Target Categorization

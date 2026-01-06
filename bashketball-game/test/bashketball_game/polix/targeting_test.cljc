@@ -5,7 +5,14 @@
   (:require
    [bashketball-game.polix.fixtures :as f]
    [bashketball-game.polix.targeting :as targeting]
+   [bashketball-game.polix.triggers :as triggers]
    [clojure.test :refer [deftest is testing]]))
+
+(defn- test-ctx
+  "Creates test context with state and empty registry."
+  [game-state]
+  {:state game-state
+   :registry (triggers/create-registry)})
 
 ;; =============================================================================
 ;; Move Target Tests
@@ -14,14 +21,16 @@
 (deftest categorize-move-targets-player-not-found
   (testing "returns blocked when player not found"
     (let [state  (f/base-game-state)
-          result (targeting/categorize-move-targets state "nonexistent")]
+          ctx    (test-ctx state)
+          result (targeting/categorize-move-targets ctx "nonexistent")]
       (is (:blocked result))
       (is (= :player-not-found (:reason result))))))
 
 (deftest categorize-move-targets-player-off-court
   (testing "returns blocked when player is off court"
     (let [state  (f/base-game-state)
-          result (targeting/categorize-move-targets state f/home-player-1)]
+          ctx    (test-ctx state)
+          result (targeting/categorize-move-targets ctx f/home-player-1)]
       (is (:blocked result))
       (is (= :player-off-court (:reason result))))))
 
@@ -30,7 +39,8 @@
     (let [state  (-> (f/base-game-state)
                      (f/with-player-at f/home-player-1 [2 3])
                      (f/with-exhausted f/home-player-1))
-          result (targeting/categorize-move-targets state f/home-player-1)]
+          ctx    (test-ctx state)
+          result (targeting/categorize-move-targets ctx f/home-player-1)]
       (is (:blocked result))
       (is (= :player-exhausted (:reason result))))))
 
@@ -38,7 +48,8 @@
   (testing "returns valid positions when player can move"
     (let [state     (-> (f/base-game-state)
                         (f/with-player-at f/home-player-1 [2 3]))
-          result    (targeting/categorize-move-targets state f/home-player-1)
+          ctx       (test-ctx state)
+          result    (targeting/categorize-move-targets ctx f/home-player-1)
           positions (:valid-positions result)]
       (is (not (:blocked result)))
       ;; Orc center has speed 2, should reach adjacent hexes from [2 3]

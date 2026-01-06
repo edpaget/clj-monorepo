@@ -10,9 +10,18 @@
   (:require
    [bashketball-game.board :as board]
    [bashketball-game.movement :as movement]
+   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
    [clojure.string :as str]
    [polix.operators :as op]))
+
+(defn- operator-context
+  "Creates a context for operator evaluation with state and empty registry.
+
+  Operators check current state validity, they don't fire triggers."
+  [game-state]
+  {:state game-state
+   :registry (triggers/create-registry)})
 
 (defn register-operators!
   "Registers all bashketball operators with polix.
@@ -75,7 +84,7 @@
 
   (op/register-operator! :can-move-to?
                          {:eval (fn [game-state player-id position]
-                                  (movement/can-move-to? game-state player-id position))})
+                                  (movement/can-move-to? (operator-context game-state) player-id position))})
 
   (op/register-operator! :valid-position?
                          {:eval (fn [position _]
@@ -319,9 +328,10 @@
 (defn can-move-to?
   "Returns true if the player can legally move to the position.
 
-  Convenience wrapper for use in tests and direct calls."
+  Convenience wrapper for use in tests and direct calls.
+  Creates an empty registry context for movement validation."
   [game-state player-id position]
-  (movement/can-move-to? game-state player-id position))
+  (movement/can-move-to? (operator-context game-state) player-id position))
 
 (defn card-in-hand?
   "Returns true if a card with the given instance-id is in the team's hand.

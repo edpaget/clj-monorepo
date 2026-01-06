@@ -8,9 +8,10 @@
 
   ## Function Signature
 
-  Functions receive `(state ctx & resolved-args)` where:
+  Functions receive `(state ctx opts & resolved-args)` where:
   - `state` - current game state
   - `ctx` - effect context with `:event`, `:trigger`, etc.
+  - `opts` - effect options with `:registry`, etc.
   - `resolved-args` - arguments after path resolution
 
   ## Usage in Rules
@@ -53,47 +54,50 @@
   []
   ;; Movement cost functions
   (register-fn! :bashketball-fn/step-cost
-                (fn [state _ctx player-id to-position]
-                  (:total-cost (movement/compute-step-cost state player-id to-position))))
+                (fn [state _ctx opts player-id to-position]
+                  (let [ctx {:state state :registry (:registry opts)}]
+                    (:total-cost (movement/compute-step-cost ctx player-id to-position)))))
 
   (register-fn! :bashketball-fn/base-cost
-                (fn [_state _ctx]
+                (fn [_state _ctx _opts]
                   1))
 
   (register-fn! :bashketball-fn/zoc-cost
-                (fn [state _ctx player-id to-position]
-                  (:zoc-cost (movement/compute-step-cost state player-id to-position))))
+                (fn [state _ctx opts player-id to-position]
+                  (let [ctx {:state state :registry (:registry opts)}]
+                    (:zoc-cost (movement/compute-step-cost ctx player-id to-position)))))
 
   (register-fn! :bashketball-fn/zoc-defender-ids
-                (fn [state _ctx player-id to-position]
-                  (:zoc-defender-ids (movement/compute-step-cost state player-id to-position))))
+                (fn [state _ctx opts player-id to-position]
+                  (let [ctx {:state state :registry (:registry opts)}]
+                    (:zoc-defender-ids (movement/compute-step-cost ctx player-id to-position)))))
 
   ;; Arithmetic helpers
   (register-fn! :bashketball-fn/add
-                (fn [_state _ctx & nums]
+                (fn [_state _ctx _opts & nums]
                   (apply + nums)))
 
   (register-fn! :bashketball-fn/max
-                (fn [_state _ctx & nums]
+                (fn [_state _ctx _opts & nums]
                   (if (seq nums)
                     (apply max nums)
                     0)))
 
   ;; Hand limit and draw functions
   (register-fn! :bashketball-fn/hand-limit
-                (fn [_state _ctx _team]
+                (fn [_state _ctx _opts _team]
                   ;; Base hand limit from phase policies.
                   ;; Future: card abilities could modify this.
                   phase-policies/hand-limit))
 
   (register-fn! :bashketball-fn/draw-count
-                (fn [_state _ctx _team base-count]
+                (fn [_state _ctx _opts _team base-count]
                   ;; Returns the actual draw count.
                   ;; Future: card abilities could modify (bonus draws, restrictions).
                   base-count))
 
   (register-fn! :bashketball-fn/cards-to-discard
-                (fn [game-state _ctx team]
+                (fn [game-state _ctx _opts team]
                   ;; Computes how many cards over the hand limit.
                   ;; Returns 0 if at or below limit.
                   (let [hand-size  (count (state/get-hand game-state team))

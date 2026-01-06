@@ -13,12 +13,19 @@
    [bashketball-game.polix.skill-tests :as skill]
    [bashketball-game.polix.standard-action-policies :as sap]
    [bashketball-game.polix.targeting :as targeting]
+   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.polix.validation :as validation]
    [bashketball-game.polix.zoc :as zoc]
    [bashketball-game.state :as state]
    [clojure.test :refer [deftest is testing use-fixtures]]
    [polix.core :as polix]
    [polix.effects.core :as fx]))
+
+(defn- test-ctx
+  "Creates test context with state and empty registry."
+  [game-state]
+  {:state game-state
+   :registry (triggers/create-registry)})
 
 (use-fixtures :once
   (fn [t]
@@ -68,7 +75,8 @@
   (testing "shoot action goes through targeting -> validation -> skill setup"
     (let [state (-> (f/base-game-state)
                     (f/with-player-at f/home-player-1 [2 10])
-                    (f/with-ball-possessed f/home-player-1))]
+                    (f/with-ball-possessed f/home-player-1))
+          ctx   (test-ctx state)]
 
       (testing "targeting shows shoot is available"
         (let [availability (targeting/categorize-shoot-availability state f/home-player-1)]
@@ -79,7 +87,7 @@
 
       (testing "skill test setup has correct difficulty"
         ;; Orc has shooting 2, difficulty = 8 - 2 = 6
-        (is (= 6 (sap/shoot-difficulty state f/home-player-1))))
+        (is (= 6 (sap/shoot-difficulty ctx f/home-player-1))))
 
       (testing "scoring zone returns correct point value"
         ;; Position [2 10] is in two-point zone
@@ -188,8 +196,8 @@
                                                 {} {}))]
       ;; Base: shooting 2, difficulty 6
       ;; Buffed: shooting 4, difficulty 4
-      (is (= 6 (sap/shoot-difficulty base-state f/home-player-1)))
-      (is (= 4 (sap/shoot-difficulty buffed-state f/home-player-1))))))
+      (is (= 6 (sap/shoot-difficulty (test-ctx base-state) f/home-player-1)))
+      (is (= 4 (sap/shoot-difficulty (test-ctx buffed-state) f/home-player-1))))))
 
 (deftest modifier-removal-restores-difficulty
   (testing "removing modifier restores original difficulty"
@@ -210,7 +218,7 @@
                                                     :player-id f/home-player-1
                                                     :modifier-id "buff-1"}
                                                    {} {}))))]
-      (is (= 6 (sap/shoot-difficulty state f/home-player-1))))))
+      (is (= 6 (sap/shoot-difficulty (test-ctx state) f/home-player-1))))))
 
 ;; =============================================================================
 ;; Scenario: Advantage Sources Combine Correctly
@@ -305,7 +313,8 @@
   (testing "targeting API returns valid move positions"
     (let [state        (-> (f/base-game-state)
                            (f/with-player-at f/home-player-1 [2 5]))
-          move-targets (targeting/categorize-move-targets state f/home-player-1)
+          ctx          (test-ctx state)
+          move-targets (targeting/categorize-move-targets ctx f/home-player-1)
           positions    (:valid-positions move-targets)]
       (is (not (:blocked move-targets)))
       ;; Orc center has speed 2, should reach adjacent hexes

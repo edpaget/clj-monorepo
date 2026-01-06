@@ -29,8 +29,17 @@
    [bashketball-game.board :as board]
    [bashketball-game.movement :as movement]
    [bashketball-game.polix.policies :as policies]
+   [bashketball-game.polix.triggers :as triggers]
    [bashketball-game.state :as state]
    [polix.core :as polix]))
+
+(defn- validation-context
+  "Creates a context for validation with state and empty registry.
+
+  Validation doesn't fire triggers - it just checks current state validity."
+  [game-state]
+  {:state game-state
+   :registry (triggers/create-registry)})
 
 ;; =============================================================================
 ;; Document Building
@@ -73,7 +82,7 @@
   [game-state player-id position]
   (when (and player-id position)
     {:valid-position (board/valid-position? position)
-     :can-move-to (movement/can-move-to? game-state player-id position)}))
+     :can-move-to (movement/can-move-to? (validation-context game-state) player-id position)}))
 
 (defn- compute-card-context
   "Computes pre-evaluated values for card actions."

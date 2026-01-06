@@ -7,11 +7,15 @@
   Each action has:
   - Precondition checking
   - Advantage source collection
-  - Skill test setup with proper difficulty and advantage"
+  - Skill test setup with proper difficulty and advantage
+
+  Setup functions that compute difficulty require context with `:state` and
+  `:registry` to support event-based modifier injection."
   (:require
    [bashketball-game.board :as board]
    [bashketball-game.polix.operators :as ops]
    [bashketball-game.polix.skill-tests :as skill]
+   [bashketball-game.polix.stats :as stats]
    [bashketball-game.state :as state]))
 
 (defn target-basket
@@ -64,10 +68,12 @@
 (defn shoot-difficulty
   "Returns the difficulty for a Shoot skill test.
 
-  Difficulty = 8 - effective shooting stat"
-  [game-state shooter-id]
-  (let [shooting (ops/stat-value game-state shooter-id :stat/SHOOTING)]
-    (skill/compute-difficulty shooting)))
+  Difficulty = 8 - effective shooting stat.
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state registry] :as ctx} shooter-id]
+  {:pre [(some? state) (some? registry)]}
+  (let [{:keys [value]} (stats/get-effective-stat ctx shooter-id :shooting)]
+    (skill/compute-difficulty value)))
 
 ;; =============================================================================
 ;; Block Action
@@ -127,10 +133,12 @@
 (defn pass-difficulty
   "Returns the difficulty for a Pass skill test.
 
-  Difficulty = 8 - effective passing stat"
-  [game-state passer-id]
-  (let [passing (ops/stat-value game-state passer-id :stat/PASSING)]
-    (skill/compute-difficulty passing)))
+  Difficulty = 8 - effective passing stat.
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state registry] :as ctx} passer-id]
+  {:pre [(some? state) (some? registry)]}
+  (let [{:keys [value]} (stats/get-effective-stat ctx passer-id :passing)]
+    (skill/compute-difficulty value)))
 
 ;; =============================================================================
 ;; Steal Action
@@ -173,10 +181,12 @@
   "Returns the difficulty for a Steal skill test.
 
   Difficulty = 8 - (effective defense stat - 2)
-  Note: Steal has a -2 penalty (Defend-2)"
-  [game-state stealer-id]
-  (let [defense (ops/stat-value game-state stealer-id :stat/DEFENSE)]
-    (skill/compute-difficulty (- defense 2))))
+  Note: Steal has a -2 penalty (Defend-2).
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state registry] :as ctx} stealer-id]
+  {:pre [(some? state) (some? registry)]}
+  (let [{:keys [value]} (stats/get-effective-stat ctx stealer-id :defense)]
+    (skill/compute-difficulty (- value 2))))
 
 ;; =============================================================================
 ;; Screen Action
@@ -209,10 +219,12 @@
   "Returns the difficulty for a Screen skill test.
 
   Difficulty = 8 - (effective defense stat - 1)
-  Note: Screen has a -1 penalty (Defend-1)"
-  [game-state screener-id]
-  (let [defense (ops/stat-value game-state screener-id :stat/DEFENSE)]
-    (skill/compute-difficulty (- defense 1))))
+  Note: Screen has a -1 penalty (Defend-1).
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state registry] :as ctx} screener-id]
+  {:pre [(some? state) (some? registry)]}
+  (let [{:keys [value]} (stats/get-effective-stat ctx screener-id :defense)]
+    (skill/compute-difficulty (- value 1))))
 
 ;; =============================================================================
 ;; Check Action
@@ -241,10 +253,12 @@
   "Returns the difficulty for a Check skill test.
 
   Difficulty = 8 - (effective defense stat - 1)
-  Note: Check has a -1 penalty (Defend-1)"
-  [game-state checker-id]
-  (let [defense (ops/stat-value game-state checker-id :stat/DEFENSE)]
-    (skill/compute-difficulty (- defense 1))))
+  Note: Check has a -1 penalty (Defend-1).
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state registry] :as ctx} checker-id]
+  {:pre [(some? state) (some? registry)]}
+  (let [{:keys [value]} (stats/get-effective-stat ctx checker-id :defense)]
+    (skill/compute-difficulty (- value 1))))
 
 ;; =============================================================================
 ;; Skill Test Setup Helpers
@@ -253,54 +267,64 @@
 (defn setup-shoot-test
   "Creates a skill test configuration for a Shoot action.
 
-  Returns a map with :difficulty, :advantage-sources, and :advantage."
-  [game-state shooter-id]
-  (let [sources  (shoot-advantage-sources game-state shooter-id)
+  Returns a map with :difficulty, :advantage-sources, and :advantage.
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state] :as ctx} shooter-id]
+  {:pre [(some? state) (some? (:registry ctx))]}
+  (let [sources  (shoot-advantage-sources state shooter-id)
         combined (skill/combine-advantage-sources sources)]
-    {:difficulty (shoot-difficulty game-state shooter-id)
+    {:difficulty (shoot-difficulty ctx shooter-id)
      :advantage-sources (:sources combined)
      :advantage (:net-level combined)}))
 
 (defn setup-pass-test
   "Creates a skill test configuration for a Pass action.
 
-  Returns a map with :difficulty, :advantage-sources, and :advantage."
-  [game-state passer-id target-id]
-  (let [sources  (pass-advantage-sources game-state passer-id target-id)
+  Returns a map with :difficulty, :advantage-sources, and :advantage.
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state] :as ctx} passer-id target-id]
+  {:pre [(some? state) (some? (:registry ctx))]}
+  (let [sources  (pass-advantage-sources state passer-id target-id)
         combined (skill/combine-advantage-sources sources)]
-    {:difficulty (pass-difficulty game-state passer-id)
+    {:difficulty (pass-difficulty ctx passer-id)
      :advantage-sources (:sources combined)
      :advantage (:net-level combined)}))
 
 (defn setup-steal-test
   "Creates a skill test configuration for a Steal action.
 
-  Returns a map with :difficulty, :advantage-sources, and :advantage."
-  [game-state stealer-id target-id]
-  (let [sources  (steal-advantage-sources game-state stealer-id target-id)
+  Returns a map with :difficulty, :advantage-sources, and :advantage.
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state] :as ctx} stealer-id target-id]
+  {:pre [(some? state) (some? (:registry ctx))]}
+  (let [sources  (steal-advantage-sources state stealer-id target-id)
         combined (skill/combine-advantage-sources sources)]
-    {:difficulty (steal-difficulty game-state stealer-id)
+    {:difficulty (steal-difficulty ctx stealer-id)
      :advantage-sources (:sources combined)
      :advantage (:net-level combined)}))
 
 (defn setup-screen-test
   "Creates a skill test configuration for a Screen action.
 
-  Returns a map with :difficulty, :advantage-sources, and :advantage."
-  [game-state screener-id target-id]
-  (let [sources  (screen-advantage-sources game-state screener-id target-id)
+  Returns a map with :difficulty, :advantage-sources, and :advantage.
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state] :as ctx} screener-id target-id]
+  {:pre [(some? state) (some? (:registry ctx))]}
+  (let [sources  (screen-advantage-sources state screener-id target-id)
         combined (skill/combine-advantage-sources sources)]
-    {:difficulty (screen-difficulty game-state screener-id)
+    {:difficulty (screen-difficulty ctx screener-id)
      :advantage-sources (:sources combined)
      :advantage (:net-level combined)}))
 
 (defn setup-check-test
   "Creates a skill test configuration for a Check action.
 
-  Returns a map with :difficulty, :advantage-sources, and :advantage."
-  [game-state checker-id target-id]
-  (let [sources  (check-advantage-sources game-state checker-id target-id)
+  Returns a map with :difficulty, :advantage-sources, and :advantage.
+  Requires context with `:state` and `:registry` for event-based modifiers."
+  [{:keys [state] :as ctx} checker-id target-id]
+  {:pre [(some? state) (some? (:registry ctx))]}
+  (let [sources  (check-advantage-sources state checker-id target-id)
         combined (skill/combine-advantage-sources sources)]
-    {:difficulty (check-difficulty game-state checker-id)
+    {:difficulty (check-difficulty ctx checker-id)
      :advantage-sources (:sources combined)
      :advantage (:net-level combined)}))

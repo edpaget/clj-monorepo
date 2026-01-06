@@ -48,32 +48,34 @@
   - Vectors starting with :state: resolved from state path
   - Vectors starting with :bashketball-fn/...: calls registered function
   - Other values: returned as-is"
-  [param ctx state]
-  (cond
-    (and (keyword? param)
-         (contains? (:bindings ctx) param))
-    (get-in ctx [:bindings param])
+  ([param ctx state]
+   (resolve-param param ctx state nil))
+  ([param ctx state opts]
+   (cond
+     (and (keyword? param)
+          (contains? (:bindings ctx) param))
+     (get-in ctx [:bindings param])
 
-    (and (vector? param)
-         (= :ctx (first param)))
-    (get-in ctx (rest param))
+     (and (vector? param)
+          (= :ctx (first param)))
+     (get-in ctx (rest param))
 
-    (and (vector? param)
-         (= :state (first param)))
-    (get-in state (rest param))
+     (and (vector? param)
+          (= :state (first param)))
+     (get-in state (rest param))
 
-    (and (vector? param)
-         (keyword? (first param))
-         (= "bashketball-fn" (namespace (first param))))
-    (let [[fn-key & args] param
-          resolved-args   (mapv #(resolve-param % ctx state) args)
-          f               (functions/get-fn fn-key)]
-      (if f
-        (apply f state ctx resolved-args)
-        (throw (ex-info "Unknown function" {:fn-key fn-key}))))
+     (and (vector? param)
+          (keyword? (first param))
+          (= "bashketball-fn" (namespace (first param))))
+     (let [[fn-key & args] param
+           resolved-args   (mapv #(resolve-param % ctx state opts) args)
+           f               (functions/get-fn fn-key)]
+       (if f
+         (apply f state ctx opts resolved-args)
+         (throw (ex-info "Unknown function" {:fn-key fn-key}))))
 
-    :else
-    param))
+     :else
+     param)))
 
 (defn- stat->stats-key
   "Converts a stat keyword to the corresponding stats map key.
@@ -238,10 +240,10 @@
                                 :registry         (:registry enter-result)})))))
 
   (fx/register-effect! :bashketball/do-move-step
-                       (fn [state {:keys [player-id to-position cost]} ctx _opts]
-                         (let [resolved-player-id (resolve-param player-id ctx state)
-                               resolved-position  (resolve-param to-position ctx state)
-                               resolved-cost      (resolve-param cost ctx state)
+                       (fn [state {:keys [player-id to-position cost]} ctx opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state opts)
+                               resolved-position  (resolve-param to-position ctx state opts)
+                               resolved-cost      (resolve-param cost ctx state opts)
                                player             (state/get-basketball-player state resolved-player-id)
                                old-position       (:position player)
                                movement           (state/get-pending-movement state)
@@ -1188,16 +1190,18 @@
 
   (fx/register-effect! :bashketball/execute-skill-test-flow
                        (fn [state {:keys [action-type attacker-id defender-id result-continuation]} ctx opts]
-                         (let [resolved-attacker    (resolve-param attacker-id ctx state)
-                               resolved-defender    (resolve-param defender-id ctx state)
+                         (let [resolved-attacker    (resolve-param attacker-id ctx state opts)
+                               resolved-defender    (resolve-param defender-id ctx state opts)
+                               ;; Build context for setup functions (need registry for stat calculation)
+                               setup-ctx            {:state state :registry (:registry opts)}
                                ;; Get the appropriate skill test setup based on action type
                                test-config          (case action-type
-                                                      :shoot (sap/setup-shoot-test state resolved-attacker)
-                                                      :pass  (sap/setup-pass-test state resolved-attacker resolved-defender)
-                                                      :steal (sap/setup-steal-test state resolved-attacker resolved-defender)
-                                                      :screen (sap/setup-screen-test state resolved-attacker resolved-defender)
-                                                      :check (sap/setup-check-test state resolved-attacker resolved-defender)
-                                                      :block (sap/setup-shoot-test state resolved-defender))
+                                                      :shoot (sap/setup-shoot-test setup-ctx resolved-attacker)
+                                                      :pass  (sap/setup-pass-test setup-ctx resolved-attacker resolved-defender)
+                                                      :steal (sap/setup-steal-test setup-ctx resolved-attacker resolved-defender)
+                                                      :screen (sap/setup-screen-test setup-ctx resolved-attacker resolved-defender)
+                                                      :check (sap/setup-check-test setup-ctx resolved-attacker resolved-defender)
+                                                      :block (sap/setup-shoot-test setup-ctx resolved-defender))
                                {:keys [difficulty]} test-config
                                attacker-pos         (:position (state/get-basketball-player state resolved-attacker))
                                ;; Build proper SkillTestContext
@@ -1692,4 +1696,18 @@
                                                            {:team resolved-team
                                                             :player-count (count player-ids)})]
                            (fx/success new-state' [{:team resolved-team
-                                                     :refreshed-count (count player-ids)}])))))
+                                                     :refreshed-count (count player-ids)}]))))
+
+  ;; Calculation Event Effects
+
+  (fx/register-effect! :bashketball/inject-modifier
+                       (fn [state {:keys [stat amount multiplier]} _ctx _opts]
+                         ;; This effect doesn't modify state - it returns modifier data
+                         ;; that the calculation system collects from trigger results
+                         {:state state
+                          :applied [{:type :bashketball/inject-modifier}]
+                          :failed []
+                          :pending nil
+                          :modifiers [{:stat stat
+                                       :amount amount
+                                       :multiplier multiplier}]})))

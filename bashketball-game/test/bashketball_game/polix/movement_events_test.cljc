@@ -20,6 +20,12 @@
   [game-state effect]
   (:state (fx/apply-effect game-state effect {} {})))
 
+(defn- test-ctx
+  "Creates a test context with state and empty registry."
+  [game-state]
+  {:state game-state
+   :registry (triggers/create-registry)})
+
 ;;; ---------------------------------------------------------------------------
 ;;; Movement Context Tests
 ;;; ---------------------------------------------------------------------------
@@ -91,7 +97,8 @@
 (deftest compute-step-cost-no-zoc-test
   (let [game (-> (fixtures/base-game-state)
                  (fixtures/with-player-at fixtures/home-player-1 [2 3]))
-        cost (movement/compute-step-cost game fixtures/home-player-1 [2 4])]
+        ctx  (test-ctx game)
+        cost (movement/compute-step-cost ctx fixtures/home-player-1 [2 4])]
     (testing "base cost is 1 with no defenders"
       (is (= 1 (:base-cost cost)))
       (is (= 0 (:zoc-cost cost)))
@@ -102,7 +109,8 @@
   (let [game (-> (fixtures/base-game-state)
                  (fixtures/with-player-at fixtures/home-player-2 [2 3])    ; SM mover
                  (fixtures/with-player-at fixtures/away-player-1 [2 4]))   ; LG defender
-        cost (movement/compute-step-cost game fixtures/home-player-2 [2 4])]
+        ctx  (test-ctx game)
+        cost (movement/compute-step-cost ctx fixtures/home-player-2 [2 4])]
     (testing "larger defender adds +2 ZoC cost"
       (is (= 1 (:base-cost cost)))
       (is (= 2 (:zoc-cost cost)))
@@ -113,7 +121,8 @@
   (let [game (-> (fixtures/base-game-state)
                  (fixtures/with-player-at fixtures/home-player-3 [2 3])    ; MD mover
                  (fixtures/with-player-at fixtures/away-player-3 [2 4]))   ; MD defender
-        cost (movement/compute-step-cost game fixtures/home-player-3 [2 4])]
+        ctx  (test-ctx game)
+        cost (movement/compute-step-cost ctx fixtures/home-player-3 [2 4])]
     (testing "same size defender adds +1 ZoC cost"
       (is (= 1 (:base-cost cost)))
       (is (= 1 (:zoc-cost cost)))
@@ -123,7 +132,8 @@
   (let [game (-> (fixtures/base-game-state)
                  (fixtures/with-player-at fixtures/home-player-1 [2 3])    ; LG mover
                  (fixtures/with-player-at fixtures/away-player-2 [2 4]))   ; SM defender
-        cost (movement/compute-step-cost game fixtures/home-player-1 [2 4])]
+        ctx  (test-ctx game)
+        cost (movement/compute-step-cost ctx fixtures/home-player-1 [2 4])]
     (testing "smaller defender adds +0 ZoC cost"
       (is (= 1 (:base-cost cost)))
       (is (= 0 (:zoc-cost cost)))
@@ -134,7 +144,8 @@
                  (fixtures/with-player-at fixtures/home-player-2 [2 3])
                  (fixtures/with-player-at fixtures/away-player-1 [2 4])
                  (fixtures/with-exhausted fixtures/away-player-1))
-        cost (movement/compute-step-cost game fixtures/home-player-2 [2 4])]
+        ctx  (test-ctx game)
+        cost (movement/compute-step-cost ctx fixtures/home-player-2 [2 4])]
     (testing "exhausted defender exerts no ZoC"
       (is (= 0 (:zoc-cost cost)))
       (is (= 1 (:total-cost cost))))))
