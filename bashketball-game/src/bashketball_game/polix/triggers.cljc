@@ -210,7 +210,11 @@
   [trigger event]
   (if-let [condition (:condition trigger)]
     (let [document (build-trigger-document trigger event)
-          result   (unify/unify condition document {:event event})]
+          ;; Build context with :event and :self bindings for accessor resolution
+          ctx      {:event event
+                    :self  {:id   (:self trigger)
+                            :team (:owner trigger)}}
+          result   (unify/unify condition document ctx)]
       (cond
         (res/satisfied? result) :satisfied
         (res/has-conflicts? result) :conflict

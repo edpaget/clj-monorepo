@@ -696,3 +696,87 @@
       ;; Verify unregistration works
       (let [unregistered (card-effects/unregister-attached-abilities registry instance-id)]
         (is (= 0 (count-triggers unregistered)))))))
+
+;; =============================================================================
+;; Integration Test: Complete Card Play → Trigger Firing Lifecycle
+;; =============================================================================
+
+(deftest played-card-trigger-fires-on-matching-event-test
+  (testing "complete lifecycle: play asset → trigger registered → event fires → effect applied"
+    (let [;; Track if trigger fired
+          fired? (atom false)
+          _      (fx/register-effect! :test/mark-fired
+                                      (fn [state _params _ctx _opts]
+                                        (reset! fired? true)
+                                        (fx/success state [])))
+
+          ;; Asset that uses simple test effect
+          test-asset {:slug "test-asset"
+                      :name "Test Asset"
+                      :card-type :card-type/TEAM_ASSET_CARD
+                      :asset-power
+                      {:asset/id "test-asset"
+                       :asset/triggers
+                       [{:trigger {:trigger/event :bashketball/add-score.request
+                                   :trigger/condition [:= :doc/team :doc/owner]}
+                         :effect {:type :test/mark-fired}}]}}
+
+          test-catalog (catalog/create-catalog
+                        (assoc (:cards test-catalog) "test-asset" test-asset))
+
+          ;; Setup: game state with asset card in hand
+          game-state     (-> (fixtures/base-game-state)
+                             (fixtures/with-drawn-cards :team/HOME 3)
+                             (update-in [:players :team/HOME :deck :cards]
+                                        conj test-asset)
+                             (update-in [:players :team/HOME :deck :hand]
+                                        conj {:instance-id "test-asset-1"
+                                              :card-slug "test-asset"}))
+
+          ;; Step 1: Stage the card
+          staged-result  (fx/apply-effect game-state
+                                          {:type :bashketball/do-stage-card
+                                           :player :team/HOME
+                                           :instance-id "test-asset-1"}
+                                          {} {})
+
+          ;; Step 2: Resolve the card (registers triggers)
+          registry       (triggers/create-registry)
+          resolve-result (fx/apply-effect (:state staged-result)
+                                          {:type :bashketball/do-resolve-card
+                                           :instance-id "test-asset-1"}
+                                          {}
+                                          {:registry registry
+                                           :effect-catalog test-catalog})
+
+          updated-registry (:registry resolve-result)]
+
+      ;; Verify trigger was registered
+      (is (= 1 (count-triggers updated-registry))
+          "Asset trigger should be registered")
+      (is (has-trigger-for-source? updated-registry "test-asset-1")
+          "Trigger should be registered for the asset instance")
+
+      ;; Reset and fire matching event
+      (reset! fired? false)
+      (triggers/fire-request-event
+       {:state (:state resolve-result)
+        :registry updated-registry}
+       {:event-type :bashketball/add-score.request
+        :team :team/HOME
+        :points 2})
+
+      (testing "trigger fired for matching team"
+        (is @fired? "Trigger should have fired"))
+
+      ;; Reset and fire non-matching event
+      (reset! fired? false)
+      (triggers/fire-request-event
+       {:state (:state resolve-result)
+        :registry updated-registry}
+       {:event-type :bashketball/add-score.request
+        :team :team/AWAY
+        :points 3})
+
+      (testing "trigger did not fire for non-matching team"
+        (is (not @fired?) "Trigger should not fire for AWAY team")))))
