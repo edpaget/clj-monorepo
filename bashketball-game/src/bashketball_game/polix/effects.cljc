@@ -410,7 +410,11 @@
                                remaining       (vec (drop resolved-count draw-pile))
                                new-state       (-> state
                                                    (assoc-in (conj deck-path :draw-pile) remaining)
-                                                   (update-in (conj deck-path :hand) into drawn))]
+                                                   (update-in (conj deck-path :hand) into drawn)
+                                                   (tu/log-event :bashketball/draw-cards
+                                                                 {:player resolved-player
+                                                                  :count (clojure.core/count drawn)
+                                                                  :cards drawn}))]
                            (fx/success new-state [{:drew drawn
                                                    :count (clojure.core/count drawn)}]))))
 

@@ -1,9 +1,12 @@
 (ns bashketball-game.event-log
   "Event log utilities for querying and replaying game events.
 
-  The event log is an append-only vector stored in the game state under :events.
-  Each event is the action map with a :timestamp added."
-  (:require [bashketball-game.actions :as actions]))
+  The event log is an append-only vector stored in the game state under `:events`.
+  Each event contains a `:type`, `:timestamp`, and event-specific data.
+
+  For replay, use [[replay-events]] which maps events to terminal effects.
+  The legacy [[replay-actions]] is deprecated."
+  (:require [bashketball-game.polix.event-replay :as event-replay]))
 
 (defn get-events
   "Returns all events from the game state, optionally filtered by type.
@@ -49,15 +52,25 @@
   [state]
   (peek (:events state)))
 
+(defn replay-events
+  "Replays a sequence of events to rebuild game state.
+
+  Takes an initial game state and a sequence of events, applies each
+  event's corresponding effect in order, and returns the final state.
+
+  Skips triggers and validation for performance. Events should include
+  timestamps (as logged) - they are used as-is for replay."
+  [initial-state events]
+  (event-replay/replay-events initial-state events))
+
 (defn replay-actions
-  "Replays a sequence of actions to rebuild game state.
+  "DEPRECATED: Use [[replay-events]] instead.
 
-  Takes an initial game state and a sequence of actions (without timestamps),
-  applies each action in order, and returns the final state.
-
-  Uses [[actions/do-action]] since triggers should not fire during replay."
+  Replays a sequence of actions to rebuild game state.
+  This function now delegates to [[replay-events]]."
+  {:deprecated "Use replay-events instead"}
   [initial-state actions]
-  (reduce actions/do-action initial-state actions))
+  (replay-events initial-state actions))
 
 (defn actions-from-events
   "Extracts the action data from events (removes :timestamp).

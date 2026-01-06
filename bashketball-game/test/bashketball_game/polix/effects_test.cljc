@@ -93,6 +93,24 @@
     (testing "reduces draw pile"
       (is (= 2 (count (state/get-draw-pile (:state result) :team/HOME)))))))
 
+(deftest draw-cards-logs-event-test
+  (let [state       (fixtures/base-game-state)
+        draw-pile   (state/get-draw-pile state :team/HOME)
+        result      (fx/apply-effect state
+                                     {:type :bashketball/draw-cards
+                                      :player :team/HOME
+                                      :count 2}
+                                     {} (opts-with-registry))
+        event       (last (:events (:state result)))]
+    (testing "logs draw-cards event"
+      (is (= :bashketball/draw-cards (:type event))))
+    (testing "event contains player"
+      (is (= :team/HOME (:player event))))
+    (testing "event contains count"
+      (is (= 2 (:count event))))
+    (testing "event contains drawn cards"
+      (is (= (take 2 draw-pile) (:cards event))))))
+
 (deftest add-score-effect-test
   (let [state  (fixtures/base-game-state)
         result (fx/apply-effect state
