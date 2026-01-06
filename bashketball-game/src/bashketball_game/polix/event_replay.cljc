@@ -8,7 +8,6 @@
   Replay skips triggers and validation for performance - events are
   assumed to be valid since they were produced by valid game operations."
   (:require
-   [bashketball-game.polix.core :as polix]
    [polix.effects.core :as fx]))
 
 (defn event->effect
@@ -111,19 +110,33 @@
     :bashketball/detach-ability
     {:type :bashketball/detach-ability
      :player (:player event)
-     :target-player-id (:target-player-id event)
-     :instance-id (:instance-id event)}
+     :instance-id (:instance-id event)
+     :target-player-id (:target-player-id event)}
 
     ;; Skill test effects
     :bashketball/initiate-skill-test
     {:type :bashketball/initiate-skill-test
-     :skill-test (:skill-test event)}
+     :actor-id (:actor-id event)
+     :stat (:stat event)
+     :target-value (:target-value event)
+     :context (:context event)}
 
     :bashketball/modify-skill-test
     {:type :bashketball/modify-skill-test
-     :stat (:stat event)
+     :source (:source event)
      :amount (:amount event)
-     :source (:source event)}
+     :advantage (:advantage event)
+     :reason (:reason event)}
+
+    :bashketball/set-skill-test-fate
+    {:type :bashketball/do-set-skill-test-fate
+     :fate (:fate event)}
+
+    :bashketball/resolve-skill-test
+    {:type :bashketball/do-resolve-skill-test}
+
+    :bashketball/clear-skill-test
+    {:type :bashketball/do-clear-skill-test}
 
     ;; Choice effects
     :bashketball/offer-choice
@@ -140,9 +153,121 @@
 
     :bashketball/check-hand-limit
     {:type :bashketball/check-hand-limit
+     :team (:team event)}
+
+    :bashketball/submit-choice
+    {:type :bashketball/do-submit-choice
+     :choice-id (:choice-id event)
+     :selected (:selected event)}
+
+    :bashketball/clear-choice
+    {:type :bashketball/do-clear-choice}
+
+    ;; Turn/phase management effects
+    :bashketball/set-active-player
+    {:type :bashketball/do-set-active-player
      :player (:player event)}
 
+    :bashketball/start-from-tipoff
+    {:type :bashketball/start-from-tipoff
+     :player (:player event)}
+
+    ;; Player resource effects
+    :bashketball/set-actions
+    {:type :bashketball/do-set-actions
+     :player (:player event)
+     :amount (:amount event)}
+
+    :bashketball/remove-cards
+    {:type :bashketball/do-remove-cards
+     :player (:player event)
+     :instance-ids (:instance-ids event)}
+
+    :bashketball/refresh-all
+    {:type :bashketball/refresh-all
+     :team (:team event)}
+
+    :bashketball/reveal-fate
+    {:type :bashketball/do-reveal-fate
+     :player (:player event)}
+
+    ;; Deck management effects
+    :bashketball/shuffle-deck
+    {:type :bashketball/do-shuffle-deck
+     :player (:player event)}
+
+    :bashketball/return-discard
+    {:type :bashketball/do-return-discard
+     :player (:player event)}
+
+    ;; Stack effects
+    :bashketball/push-stack
+    {:type :bashketball/do-push-stack
+     :effect (:effect event)}
+
+    :bashketball/pop-stack
+    {:type :bashketball/do-pop-stack}
+
+    :bashketball/clear-stack
+    {:type :bashketball/do-clear-stack}
+
+    ;; Ball state effects
+    :bashketball/set-ball-in-air
+    {:type :bashketball/do-set-ball-in-air
+     :origin (:origin event)
+     :target (:target event)
+     :action-type (:action-type event)}
+
+    ;; Card lifecycle effects
+    :bashketball/stage-card
+    {:type :bashketball/do-stage-card
+     :player (:player event)
+     :instance-id (get-in event [:staged-card :instance-id])}
+
+    :bashketball/stage-virtual-standard-action
+    {:type :bashketball/do-stage-virtual-standard-action
+     :player (get-in event [:virtual-card :played-by])
+     :discard-instance-ids (mapv :instance-id (:discarded-cards event))
+     :card-slug (get-in event [:virtual-card :card-slug])}
+
+    :bashketball/resolve-card
+    {:type :bashketball/do-resolve-card
+     :instance-id (get-in event [:resolved-card :instance-id])
+     :target-player-id (:target-player-id event)}
+
+    :bashketball/move-asset
+    {:type :bashketball/do-move-asset
+     :player (:player event)
+     :instance-id (:instance-id event)
+     :destination (:destination event)}
+
+    :bashketball/create-token
+    {:type :bashketball/do-create-token
+     :player (:player event)
+     :card (get-in event [:created-token :card])
+     :placement (:placement event)
+     :target-player-id (:target-player-id event)}
+
+    :bashketball/substitute
+    {:type :bashketball/do-substitute
+     :on-court-id (:on-court-id event)
+     :off-court-id (:off-court-id event)}
+
+    ;; Examine cards effects
+    :bashketball/examine-cards
+    {:type :bashketball/do-examine-cards
+     :player (:player event)
+     :count (:count event)}
+
+    :bashketball/resolve-examined-cards
+    {:type :bashketball/do-resolve-examined-cards
+     :player (:player event)
+     :placements (:placements event)}
+
     ;; Informational events - no replay needed
+    :bashketball/record-skill-test nil
+
+    ;; Default - unknown events return nil
     nil))
 
 (def ^:private replay-opts

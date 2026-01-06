@@ -771,7 +771,9 @@
                                                      (state/update-basketball-player resolved-target
                                                                                      update :attachments conj attachment)
                                                      (tu/log-event :bashketball/attach-ability
-                                                                   {:attached-card card
+                                                                   {:player           resolved-player
+                                                                    :instance-id      resolved-instance
+                                                                    :attached-card    card
                                                                     :target-player-id resolved-target}))
                                team              (state/get-basketball-player-team new-state resolved-target)
                                new-registry      (when (and (:registry opts) (:effect-catalog opts))
@@ -802,7 +804,9 @@
                                                        (not is-token?)
                                                         (update-in [:players resolved-player :deck dest-key] conj card-instance))
                                                       (tu/log-event :bashketball/detach-ability
-                                                                    {:detached-card    attachment
+                                                                    {:player           resolved-player
+                                                                     :instance-id      resolved-instance
+                                                                     :detached-card    attachment
                                                                      :target-player-id resolved-target
                                                                      :destination      (if is-token? :deleted destination)
                                                                      :token-deleted?   is-token?}))
@@ -1419,7 +1423,9 @@
                                                          (not is-token?)
                                                           (update-in [:players resolved-player :deck dest-key] conj moved-card))
                                                         (tu/log-event :bashketball/move-asset
-                                                                      {:moved-asset    moved-card
+                                                                      {:player         resolved-player
+                                                                       :instance-id    resolved-instance-id
+                                                                       :moved-asset    moved-card
                                                                        :destination    (if is-token? :deleted resolved-destination)
                                                                        :token-deleted? is-token?}))
                                new-registry         (when (:registry opts)
@@ -1467,7 +1473,8 @@
                                                           :detach-destination (get resolved-card :detach-destination :detach/DISCARD)
                                                           :attached-at        (tu/now)}))
                                                       (tu/log-event :bashketball/create-token
-                                                                    {:created-token    token-instance
+                                                                    {:player           resolved-player
+                                                                     :created-token    token-instance
                                                                      :placement        resolved-placement
                                                                      :target-player-id resolved-target}))
                                new-registry       (when (and (:registry opts) (:effect-catalog opts))
@@ -1615,7 +1622,8 @@
                                                    (assoc-in (conj deck-path :draw-pile) remaining)
                                                    (assoc-in (conj deck-path :examined) examined)
                                                    (tu/log-event :bashketball/examine-cards
-                                                                 {:examined-cards  examined
+                                                                 {:player          resolved-player
+                                                                  :examined-cards  examined
                                                                   :requested-count resolved-count
                                                                   :actual-count    actual-count}))]
                            (fx/success new-state [{:examined examined
@@ -1649,7 +1657,8 @@
                                                        (update-in (conj deck-path :draw-pile) into bottom-cards)
                                                        (update-in (conj deck-path :discard) into discard-cards)
                                                        (tu/log-event :bashketball/resolve-examined-cards
-                                                                     {:resolved-placements resolved-placements
+                                                                     {:player              resolved-player
+                                                                      :placements          resolved-placements
                                                                       :top-count           (clojure.core/count top-cards)
                                                                       :bottom-count        (clojure.core/count bottom-cards)
                                                                       :discard-count       (clojure.core/count discard-cards)}))]
