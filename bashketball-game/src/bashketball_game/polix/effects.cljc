@@ -15,7 +15,6 @@
   **Terminal Effects** (e.g., `:bashketball/do-draw-cards`):
   Directly modify state. Only called by catchall game rules or internally."
   (:require
-   [bashketball-game.actions :as actions] ;; TODO: Remove after full migration
    [bashketball-game.board :as board]
    [bashketball-game.polix.card-effects :as card-effects]
    [bashketball-game.polix.functions :as functions]
