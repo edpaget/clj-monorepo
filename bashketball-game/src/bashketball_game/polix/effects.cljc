@@ -542,13 +542,13 @@
                        (fn [state _params _ctx _opts]
                          (if-let [pending (:pending-skill-test state)]
                            (let [{:keys [base-value modifiers fate]} pending
-                                 modifier-total (reduce + 0 (map :amount modifiers))
-                                 total          (+ base-value modifier-total (or fate 0))
-                                 resolved-test  (assoc pending :total total)
-                                 new-state      (-> state
-                                                    (assoc-in [:pending-skill-test :total] total)
-                                                    (tu/log-event :bashketball/resolve-skill-test
-                                                                  {:skill-test resolved-test}))]
+                                 modifier-total                      (reduce + 0 (map :amount modifiers))
+                                 total                               (+ base-value modifier-total (or fate 0))
+                                 resolved-test                       (assoc pending :total total)
+                                 new-state                           (-> state
+                                                                         (assoc-in [:pending-skill-test :total] total)
+                                                                         (tu/log-event :bashketball/resolve-skill-test
+                                                                                       {:skill-test resolved-test}))]
                              (fx/success new-state [{:skill-test resolved-test}]))
                            (fx/success state []))))
 
@@ -565,17 +565,17 @@
 
   (fx/register-effect! :bashketball/offer-choice
                        (fn [state {:keys [choice-type options waiting-for context continuation]} ctx _opts]
-                         (let [resolved-team (resolve-param waiting-for ctx state)
-                               choice-id     (tu/generate-id)
+                         (let [resolved-team  (resolve-param waiting-for ctx state)
+                               choice-id      (tu/generate-id)
                                pending-choice (cond-> {:id          choice-id
                                                        :type        choice-type
                                                        :options     options
                                                        :waiting-for resolved-team}
                                                 context      (assoc :context context)
                                                 continuation (assoc :continuation continuation))
-                               new-state     (-> state
-                                                 (assoc :pending-choice pending-choice)
-                                                 (tu/log-event :bashketball/offer-choice pending-choice))]
+                               new-state      (-> state
+                                                  (assoc :pending-choice pending-choice)
+                                                  (tu/log-event :bashketball/offer-choice pending-choice))]
                            ;; Return with pending flag so caller knows execution should pause
                            (assoc (fx/success new-state [pending-choice])
                                   :pending {:type :choice
@@ -788,33 +788,33 @@
 
   (fx/register-effect! :bashketball/detach-ability
                        (fn [state {:keys [player target-player-id instance-id]} ctx opts]
-                         (let [resolved-player    (resolve-param player ctx state)
-                               resolved-target    (resolve-param target-player-id ctx state)
-                               resolved-instance  (resolve-param instance-id ctx state)
-                               attachment         (state/find-attachment state resolved-target resolved-instance)
-                               is-token?          (state/token? attachment)
-                               destination        (:detach-destination attachment)
-                               card-instance      {:instance-id (:instance-id attachment)
-                                                   :card-slug   (:card-slug attachment)}
-                               dest-key           (if (= destination :detach/REMOVED) :removed :discard)
-                               new-state          (-> state
-                                                      (state/update-basketball-player
-                                                       resolved-target
-                                                       update :attachments
-                                                       (fn [atts] (filterv #(not= (:instance-id %) resolved-instance) atts)))
-                                                      (cond->
-                                                       (not is-token?)
-                                                        (update-in [:players resolved-player :deck dest-key] conj card-instance))
-                                                      (tu/log-event :bashketball/detach-ability
-                                                                    {:player           resolved-player
-                                                                     :instance-id      resolved-instance
-                                                                     :detached-card    attachment
-                                                                     :target-player-id resolved-target
-                                                                     :destination      (if is-token? :deleted destination)
-                                                                     :token-deleted?   is-token?}))
-                               new-registry       (when (:registry opts)
-                                                    (card-effects/unregister-attached-abilities
-                                                     (:registry opts) resolved-instance))]
+                         (let [resolved-player   (resolve-param player ctx state)
+                               resolved-target   (resolve-param target-player-id ctx state)
+                               resolved-instance (resolve-param instance-id ctx state)
+                               attachment        (state/find-attachment state resolved-target resolved-instance)
+                               is-token?         (state/token? attachment)
+                               destination       (:detach-destination attachment)
+                               card-instance     {:instance-id (:instance-id attachment)
+                                                  :card-slug   (:card-slug attachment)}
+                               dest-key          (if (= destination :detach/REMOVED) :removed :discard)
+                               new-state         (-> state
+                                                     (state/update-basketball-player
+                                                      resolved-target
+                                                      update :attachments
+                                                      (fn [atts] (filterv #(not= (:instance-id %) resolved-instance) atts)))
+                                                     (cond->
+                                                      (not is-token?)
+                                                       (update-in [:players resolved-player :deck dest-key] conj card-instance))
+                                                     (tu/log-event :bashketball/detach-ability
+                                                                   {:player           resolved-player
+                                                                    :instance-id      resolved-instance
+                                                                    :detached-card    attachment
+                                                                    :target-player-id resolved-target
+                                                                    :destination      (if is-token? :deleted destination)
+                                                                    :token-deleted?   is-token?}))
+                               new-registry      (when (:registry opts)
+                                                   (card-effects/unregister-attached-abilities
+                                                    (:registry opts) resolved-instance))]
                            (cond-> (fx/success new-state [{:instance-id resolved-instance}])
                              new-registry (assoc :registry new-registry)))))
 
@@ -1107,20 +1107,20 @@
                                excess        (max 0 (- hand-size hand-limit))]
                            (if (pos? excess)
                              ;; Over limit: directly create pending-choice
-                             (let [choice-id     (tu/generate-id)
-                                   options       (mapv (fn [card]
-                                                         {:id (keyword (:instance-id card))
-                                                          :label (:card-slug card)})
-                                                       hand)
+                             (let [choice-id      (tu/generate-id)
+                                   options        (mapv (fn [card]
+                                                          {:id (keyword (:instance-id card))
+                                                           :label (:card-slug card)})
+                                                        hand)
                                    pending-choice {:id          choice-id
                                                    :type        :discard-to-hand-limit
                                                    :options     options
                                                    :waiting-for resolved-team
                                                    :context     {:discard-count excess
                                                                  :hand-limit hand-limit}}
-                                   new-state     (-> game-state
-                                                     (assoc :pending-choice pending-choice)
-                                                     (tu/log-event :bashketball/check-hand-limit pending-choice))]
+                                   new-state      (-> game-state
+                                                      (assoc :pending-choice pending-choice)
+                                                      (tu/log-event :bashketball/check-hand-limit pending-choice))]
                                (assoc (fx/success new-state [pending-choice])
                                       :pending {:type :choice
                                                 :choice-id choice-id}))
@@ -1294,26 +1294,26 @@
                                           effect-context effect-catalog]} ctx opts]
                          (if (:registry opts)
                            ;; Event-driven path
-                           (let [team           (:self/team effect-context)
-                                 defending-team (if (= team :team/HOME) :team/AWAY :team/HOME)
+                           (let [team              (:self/team effect-context)
+                                 defending-team    (if (= team :team/HOME) :team/AWAY :team/HOME)
 
                                  ;; Step 1: Process fuel cards (fire signal events)
-                                 fuel-ctx (reduce
-                                           (fn [acc fuel-card]
-                                             (if-let [signal-effect (:signal-effect fuel-card)]
-                                               (let [event {:event-type     :bashketball/card-discarded-as-fuel.request
-                                                            :team           team
-                                                            :fuel-card      fuel-card
-                                                            :signal-effect  signal-effect
-                                                            :signal-context (:signal-context fuel-card)
-                                                            :main-card      main-card
-                                                            :main-targets   targets}]
-                                                 (triggers/fire-request-event acc event))
-                                               acc))
-                                           {:state            state
-                                            :registry         (:registry opts)
-                                            :event-counters   (:event-counters opts)}
-                                           fuel-cards)
+                                 fuel-ctx          (reduce
+                                                    (fn [acc fuel-card]
+                                                      (if-let [signal-effect (:signal-effect fuel-card)]
+                                                        (let [event {:event-type     :bashketball/card-discarded-as-fuel.request
+                                                                     :team           team
+                                                                     :fuel-card      fuel-card
+                                                                     :signal-effect  signal-effect
+                                                                     :signal-context (:signal-context fuel-card)
+                                                                     :main-card      main-card
+                                                                     :main-targets   targets}]
+                                                          (triggers/fire-request-event acc event))
+                                                        acc))
+                                                    {:state            state
+                                                     :registry         (:registry opts)
+                                                     :event-counters   (:event-counters opts)}
+                                                    fuel-cards)
 
                                  ;; Step 2: Build play execution continuation
                                  play-continuation {:type           :bashketball/do-play-card
@@ -1321,14 +1321,14 @@
                                                     :effect-context effect-context}
 
                                  ;; Step 3: Check for matching Response assets
-                                 before-event {:type        :bashketball/play-card.before
-                                               :team        team
-                                               :card-slug   (:card-slug main-card)
-                                               :instance-id (:instance-id main-card)
-                                               :targets     targets}
-                                 responses    (sar/find-matching-responses
-                                               (:state fuel-ctx) effect-catalog (:registry fuel-ctx)
-                                               before-event defending-team)
+                                 before-event      {:type        :bashketball/play-card.before
+                                                    :team        team
+                                                    :card-slug   (:card-slug main-card)
+                                                    :instance-id (:instance-id main-card)
+                                                    :targets     targets}
+                                 responses         (sar/find-matching-responses
+                                                    (:state fuel-ctx) effect-catalog (:registry fuel-ctx)
+                                                    before-event defending-team)
 
                                  ;; Step 4: Build response chain (if any) + play continuation
                                  full-continuation (if (seq responses)
@@ -1585,7 +1585,7 @@
                                                                     {:staged-card card
                                                                      :player resolved-player}))]
                                (fx/success new-state [{:instance-id resolved-instance-id
-                                                        :card card}]))))))
+                                                       :card card}]))))))
 
   (fx/register-effect! :bashketball/do-stage-virtual-standard-action
                        (fn [state {:keys [player discard-instance-ids card-slug]} ctx _opts]
@@ -1610,8 +1610,8 @@
                                                                       {:discarded-cards discarded
                                                                        :virtual-card    play-area-card}))]
                            (fx/success new-state [{:instance-id instance-id
-                                                    :discarded discarded
-                                                    :virtual-card play-area-card}]))))
+                                                   :discarded discarded
+                                                   :virtual-card play-area-card}]))))
 
   (fx/register-effect! :bashketball/do-examine-cards
                        (fn [state {:keys [player count]} ctx _opts]
@@ -1631,7 +1631,7 @@
                                                                   :requested-count resolved-count
                                                                   :actual-count    actual-count}))]
                            (fx/success new-state [{:examined examined
-                                                    :actual-count actual-count}]))))
+                                                   :actual-count actual-count}]))))
 
   (fx/register-effect! :bashketball/do-resolve-examined-cards
                        (fn [state {:keys [player placements]} ctx _opts]
@@ -1667,8 +1667,8 @@
                                                                       :bottom-count        (clojure.core/count bottom-cards)
                                                                       :discard-count       (clojure.core/count discard-cards)}))]
                            (fx/success new-state [{:top-count (clojure.core/count top-cards)
-                                                    :bottom-count (clojure.core/count bottom-cards)
-                                                    :discard-count (clojure.core/count discard-cards)}]))))
+                                                   :bottom-count (clojure.core/count bottom-cards)
+                                                   :discard-count (clojure.core/count discard-cards)}]))))
 
   ;; =========================================================================
   ;; Orchestration Effects
@@ -1696,7 +1696,7 @@
                                                            {:team resolved-team
                                                             :player-count (count player-ids)})]
                            (fx/success new-state' [{:team resolved-team
-                                                     :refreshed-count (count player-ids)}]))))
+                                                    :refreshed-count (count player-ids)}]))))
 
   ;; Calculation Event Effects
 

@@ -361,8 +361,8 @@
     :bashketball/resolve-card
     (let [{:keys [instance-id target-player-id]} action
           ;; Get the original card info from the play-area in old-state
-          play-area-card (state/find-card-in-play-area old-state instance-id)
-          owner          (:played-by play-area-card)]
+          play-area-card                         (state/find-card-in-play-area old-state instance-id)
+          owner                                  (:played-by play-area-card)]
       (cond
         ;; Check if it became an attachment
         (and target-player-id

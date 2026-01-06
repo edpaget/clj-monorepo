@@ -73,12 +73,12 @@
 ;; =============================================================================
 
 (deftest replay-event-exhaust-player-test
-  (let [state   (fixtures/base-game-state)
-        event   {:type :bashketball/exhaust-player
-                 :player-id fixtures/home-player-1
-                 :timestamp "2024-01-01T00:00:00Z"}
-        result  (event-replay/replay-event state event)
-        player  (state/get-basketball-player result fixtures/home-player-1)]
+  (let [state  (fixtures/base-game-state)
+        event  {:type :bashketball/exhaust-player
+                :player-id fixtures/home-player-1
+                :timestamp "2024-01-01T00:00:00Z"}
+        result (event-replay/replay-event state event)
+        player (state/get-basketball-player result fixtures/home-player-1)]
     (is (true? (:exhausted player)))))
 
 (deftest replay-event-unknown-preserves-state-test
@@ -111,35 +111,35 @@
 ;; =============================================================================
 
 (deftest round-trip-exhaust-and-refresh-test
-  (let [initial (fixtures/base-game-state)
+  (let [initial  (fixtures/base-game-state)
         ;; Apply effects to produce events
-        result1 (fx/apply-effect initial
-                                 {:type :bashketball/exhaust-player
-                                  :player-id fixtures/home-player-1}
-                                 {} (opts-with-registry))
-        result2 (fx/apply-effect (:state result1)
-                                 {:type :bashketball/refresh-player
-                                  :player-id fixtures/home-player-1}
-                                 {} (opts-with-registry))
-        final   (:state result2)
+        result1  (fx/apply-effect initial
+                                  {:type :bashketball/exhaust-player
+                                   :player-id fixtures/home-player-1}
+                                  {} (opts-with-registry))
+        result2  (fx/apply-effect (:state result1)
+                                  {:type :bashketball/refresh-player
+                                   :player-id fixtures/home-player-1}
+                                  {} (opts-with-registry))
+        final    (:state result2)
         ;; Extract events and replay
-        events  (event-log/get-events final)
+        events   (event-log/get-events final)
         replayed (event-replay/replay-events initial events)]
     (testing "replayed state matches final state (excluding events)"
       (is (= (dissoc final :events)
              (dissoc replayed :events))))))
 
 (deftest round-trip-draw-cards-test
-  (let [initial     (fixtures/base-game-state)
-        draw-pile   (state/get-draw-pile initial :team/HOME)
-        result      (fx/apply-effect initial
-                                     {:type :bashketball/draw-cards
-                                      :player :team/HOME
-                                      :count 2}
-                                     {} (opts-with-registry))
-        final       (:state result)
-        events      (event-log/get-events final)
-        replayed    (event-replay/replay-events initial events)]
+  (let [initial   (fixtures/base-game-state)
+        _         (state/get-draw-pile initial :team/HOME)
+        result    (fx/apply-effect initial
+                                   {:type :bashketball/draw-cards
+                                    :player :team/HOME
+                                    :count 2}
+                                   {} (opts-with-registry))
+        final     (:state result)
+        events    (event-log/get-events final)
+        replayed  (event-replay/replay-events initial events)]
     (testing "replayed hand matches final hand"
       (is (= (state/get-hand final :team/HOME)
              (state/get-hand replayed :team/HOME))))

@@ -3,7 +3,6 @@
    [bashketball-game.effect-catalog :as catalog]
    [bashketball-game.polix.card-effects :as card-effects]
    [bashketball-game.polix.core :as polix]
-   [bashketball-game.polix.effects :as effects]
    [bashketball-game.polix.fixtures :as fixtures]
    [bashketball-game.polix.game-rules :as game-rules]
    [bashketball-game.polix.triggers :as triggers]
@@ -94,14 +93,14 @@
       (is (= 2 (count (state/get-draw-pile (:state result) :team/HOME)))))))
 
 (deftest draw-cards-logs-event-test
-  (let [state       (fixtures/base-game-state)
-        draw-pile   (state/get-draw-pile state :team/HOME)
-        result      (fx/apply-effect state
-                                     {:type :bashketball/draw-cards
-                                      :player :team/HOME
-                                      :count 2}
-                                     {} (opts-with-registry))
-        event       (last (:events (:state result)))]
+  (let [state     (fixtures/base-game-state)
+        draw-pile (state/get-draw-pile state :team/HOME)
+        result    (fx/apply-effect state
+                                   {:type :bashketball/draw-cards
+                                    :player :team/HOME
+                                    :count 2}
+                                   {} (opts-with-registry))
+        event     (last (:events (:state result)))]
     (testing "logs draw-cards event"
       (is (= :bashketball/draw-cards (:type event))))
     (testing "event contains player"
@@ -363,31 +362,31 @@
       (is (= :detach/DISCARD (:destination event))))))
 
 (deftest detach-ability-effect-with-registry-test
-  (let [attachment   {:instance-id "ability-1"
-                      :card-slug "quick-release"
-                      :removable true
-                      :detach-destination :detach/DISCARD
-                      :attached-at "2024-01-01T00:00:00Z"}
-        state        (-> (fixtures/base-game-state)
-                         (state/update-basketball-player fixtures/home-player-1
-                                                         assoc :attachments [attachment]))
+  (let [attachment  {:instance-id "ability-1"
+                     :card-slug "quick-release"
+                     :removable true
+                     :detach-destination :detach/DISCARD
+                     :attached-at "2024-01-01T00:00:00Z"}
+        state       (-> (fixtures/base-game-state)
+                        (state/update-basketball-player fixtures/home-player-1
+                                                        assoc :attachments [attachment]))
         ;; Pre-register the ability trigger
-        initial-reg  (card-effects/register-attached-abilities
-                      (-> (triggers/create-registry)
-                          (game-rules/register-game-rules!))
-                      test-effect-catalog
-                      attachment
-                      fixtures/home-player-1
-                      :team/HOME)
-        opts         {:validate? false
-                      :registry initial-reg
-                      :effect-catalog test-effect-catalog}
-        result       (fx/apply-effect state
-                                      {:type :bashketball/detach-ability
-                                       :player :team/HOME
-                                       :target-player-id fixtures/home-player-1
-                                       :instance-id "ability-1"}
-                                      {} opts)]
+        initial-reg (card-effects/register-attached-abilities
+                     (-> (triggers/create-registry)
+                         (game-rules/register-game-rules!))
+                     test-effect-catalog
+                     attachment
+                     fixtures/home-player-1
+                     :team/HOME)
+        opts        {:validate? false
+                     :registry initial-reg
+                     :effect-catalog test-effect-catalog}
+        result      (fx/apply-effect state
+                                     {:type :bashketball/detach-ability
+                                      :player :team/HOME
+                                      :target-player-id fixtures/home-player-1
+                                      :instance-id "ability-1"}
+                                     {} opts)]
     (testing "returns updated registry"
       (is (some? (:registry result))))
     (testing "registry has trigger removed"
@@ -509,18 +508,18 @@
              (get-in (:state result) [:board :occupants [2 3]]))))))
 
 (deftest move-player-consecutive-moves-test
-  (let [state  (-> (fixtures/base-game-state)
-                   (fixtures/with-player-at fixtures/home-player-1 [2 3]))
-        move1  (fx/apply-effect state
-                                {:type :bashketball/move-player
-                                 :player-id fixtures/home-player-1
-                                 :position [2 5]}
-                                {} (opts-with-registry))
-        move2  (fx/apply-effect (:state move1)
-                                {:type :bashketball/move-player
-                                 :player-id fixtures/home-player-1
-                                 :position [3 6]}
-                                {} (opts-with-registry))]
+  (let [state (-> (fixtures/base-game-state)
+                  (fixtures/with-player-at fixtures/home-player-1 [2 3]))
+        move1 (fx/apply-effect state
+                               {:type :bashketball/move-player
+                                :player-id fixtures/home-player-1
+                                :position [2 5]}
+                               {} (opts-with-registry))
+        move2 (fx/apply-effect (:state move1)
+                               {:type :bashketball/move-player
+                                :player-id fixtures/home-player-1
+                                :position [3 6]}
+                               {} (opts-with-registry))]
     (testing "player at final position"
       (is (= [3 6] (:position (state/get-basketball-player (:state move2) fixtures/home-player-1)))))
     (testing "old position cleared"
@@ -530,17 +529,17 @@
              (get-in (:state move2) [:board :occupants [3 6]]))))))
 
 (deftest move-multiple-players-test
-  (let [state  (fixtures/base-game-state)
-        move1  (fx/apply-effect state
-                                {:type :bashketball/move-player
-                                 :player-id fixtures/home-player-1
-                                 :position [2 3]}
-                                {} (opts-with-registry))
-        move2  (fx/apply-effect (:state move1)
-                                {:type :bashketball/move-player
-                                 :player-id fixtures/home-player-2
-                                 :position [3 4]}
-                                {} (opts-with-registry))]
+  (let [state (fixtures/base-game-state)
+        move1 (fx/apply-effect state
+                               {:type :bashketball/move-player
+                                :player-id fixtures/home-player-1
+                                :position [2 3]}
+                               {} (opts-with-registry))
+        move2 (fx/apply-effect (:state move1)
+                               {:type :bashketball/move-player
+                                :player-id fixtures/home-player-2
+                                :position [3 4]}
+                               {} (opts-with-registry))]
     (testing "both players at correct positions"
       (is (= [2 3] (:position (state/get-basketball-player (:state move2) fixtures/home-player-1))))
       (is (= [3 4] (:position (state/get-basketball-player (:state move2) fixtures/home-player-2)))))

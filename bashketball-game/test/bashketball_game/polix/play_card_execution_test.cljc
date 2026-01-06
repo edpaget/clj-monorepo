@@ -62,31 +62,31 @@
 ;; =============================================================================
 
 (deftest execute-play-card-applies-effect-test
-  (let [cat      (test-catalog sample-play-card)
-        game     (-> (f/base-game-state)
-                     (f/with-player-at f/home-player-1 [2 5])
-                     (f/with-exhausted f/home-player-1))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!))
+  (let [cat       (test-catalog sample-play-card)
+        game      (-> (f/base-game-state)
+                      (f/with-player-at f/home-player-1 [2 5])
+                      (f/with-exhausted f/home-player-1))
+        registry  (-> (triggers/create-registry)
+                      (game-rules/register-game-rules!))
         main-card {:instance-id "card-1" :card-slug "fast-break"}
-        result   (exec/execute-play-card cat game registry main-card []
-                                         {:target/player-id f/home-player-1}
-                                         :team/HOME)]
+        result    (exec/execute-play-card cat game registry main-card []
+                                          {:target/player-id f/home-player-1}
+                                          :team/HOME)]
     (testing "play effect is applied to game state"
       (let [player (state/get-basketball-player (:state result) f/home-player-1)]
         (is (not (:exhausted player)))))))
 
 (deftest execute-play-card-without-fuel-test
-  (let [cat      (test-catalog sample-play-card)
-        game     (-> (f/base-game-state)
-                     (f/with-player-at f/home-player-1 [2 5])
-                     (f/with-exhausted f/home-player-1))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!))
+  (let [cat       (test-catalog sample-play-card)
+        game      (-> (f/base-game-state)
+                      (f/with-player-at f/home-player-1 [2 5])
+                      (f/with-exhausted f/home-player-1))
+        registry  (-> (triggers/create-registry)
+                      (game-rules/register-game-rules!))
         main-card {:instance-id "card-1" :card-slug "fast-break"}
-        result   (exec/execute-play-card cat game registry main-card []
-                                         {:target/player-id f/home-player-1}
-                                         :team/HOME)]
+        result    (exec/execute-play-card cat game registry main-card []
+                                          {:target/player-id f/home-player-1}
+                                          :team/HOME)]
     (testing "returns valid result structure"
       (is (map? (:state result)))
       (is (nil? (:pending result))))))
@@ -96,37 +96,37 @@
 ;; =============================================================================
 
 (deftest execute-play-card-with-signal-fuel-test
-  (let [cat      (test-catalog sample-play-card sample-coaching-card-with-signal)
-        game     (-> (f/base-game-state)
-                     (f/with-player-at f/home-player-1 [2 5])
-                     (f/with-exhausted f/home-player-1)
-                     (f/with-drawn-cards :team/HOME 3))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!))
-        main-card {:instance-id "card-1" :card-slug "fast-break"}
-        fuel-card {:instance-id "fuel-1" :card-slug "quick-release"}
+  (let [cat               (test-catalog sample-play-card sample-coaching-card-with-signal)
+        game              (-> (f/base-game-state)
+                              (f/with-player-at f/home-player-1 [2 5])
+                              (f/with-exhausted f/home-player-1)
+                              (f/with-drawn-cards :team/HOME 3))
+        registry          (-> (triggers/create-registry)
+                              (game-rules/register-game-rules!))
+        main-card         {:instance-id "card-1" :card-slug "fast-break"}
+        fuel-card         {:instance-id "fuel-1" :card-slug "quick-release"}
         initial-hand-size (count (get-in game [:players :team/HOME :deck :hand]))
-        result   (exec/execute-play-card cat game registry main-card [fuel-card]
-                                         {:target/player-id f/home-player-1}
-                                         :team/HOME)]
+        result            (exec/execute-play-card cat game registry main-card [fuel-card]
+                                                  {:target/player-id f/home-player-1}
+                                                  :team/HOME)]
     (testing "signal effect is applied (draws card)"
       (let [final-hand-size (count (get-in (:state result) [:players :team/HOME :deck :hand]))]
         (is (= (inc initial-hand-size) final-hand-size))))))
 
 (deftest execute-play-card-fuel-without-signal-test
-  (let [cat      (test-catalog sample-play-card sample-coaching-card-no-signal)
-        game     (-> (f/base-game-state)
-                     (f/with-player-at f/home-player-1 [2 5])
-                     (f/with-exhausted f/home-player-1)
-                     (f/with-drawn-cards :team/HOME 3))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!))
-        main-card {:instance-id "card-1" :card-slug "fast-break"}
-        fuel-card {:instance-id "fuel-1" :card-slug "timeout"}
+  (let [cat               (test-catalog sample-play-card sample-coaching-card-no-signal)
+        game              (-> (f/base-game-state)
+                              (f/with-player-at f/home-player-1 [2 5])
+                              (f/with-exhausted f/home-player-1)
+                              (f/with-drawn-cards :team/HOME 3))
+        registry          (-> (triggers/create-registry)
+                              (game-rules/register-game-rules!))
+        main-card         {:instance-id "card-1" :card-slug "fast-break"}
+        fuel-card         {:instance-id "fuel-1" :card-slug "timeout"}
         initial-hand-size (count (get-in game [:players :team/HOME :deck :hand]))
-        result   (exec/execute-play-card cat game registry main-card [fuel-card]
-                                         {:target/player-id f/home-player-1}
-                                         :team/HOME)]
+        result            (exec/execute-play-card cat game registry main-card [fuel-card]
+                                                  {:target/player-id f/home-player-1}
+                                                  :team/HOME)]
     (testing "no signal means no extra draw"
       (let [final-hand-size (count (get-in (:state result) [:players :team/HOME :deck :hand]))]
         (is (= initial-hand-size final-hand-size))))))
@@ -157,19 +157,19 @@
       (is (= 2 (count (get-in result [:state :pending-choice :options])))))))
 
 (deftest execute-play-card-single-signal-no-ordering-test
-  (let [cat      (test-catalog sample-play-card sample-coaching-card-with-signal)
-        game     (-> (f/base-game-state)
-                     (f/with-player-at f/home-player-1 [2 5])
-                     (f/with-exhausted f/home-player-1)
-                     (f/with-drawn-cards :team/HOME 3))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!))
+  (let [cat       (test-catalog sample-play-card sample-coaching-card-with-signal)
+        game      (-> (f/base-game-state)
+                      (f/with-player-at f/home-player-1 [2 5])
+                      (f/with-exhausted f/home-player-1)
+                      (f/with-drawn-cards :team/HOME 3))
+        registry  (-> (triggers/create-registry)
+                      (game-rules/register-game-rules!))
         main-card {:instance-id "card-1" :card-slug "fast-break"}
         fuel-card {:instance-id "fuel-1" :card-slug "quick-release"}
-        result   (exec/execute-play-card-with-ordering
-                  cat game registry main-card [fuel-card]
-                  {:target/player-id f/home-player-1}
-                  :team/HOME)]
+        result    (exec/execute-play-card-with-ordering
+                   cat game registry main-card [fuel-card]
+                   {:target/player-id f/home-player-1}
+                   :team/HOME)]
     (testing "single signal does not require ordering"
       (is (nil? (:pending result))))
     (testing "play effect is applied"
@@ -181,26 +181,26 @@
 ;; =============================================================================
 
 (deftest play-card-direct-effect-test
-  (let [cat      (test-catalog sample-play-card)
-        game     (-> (f/base-game-state)
-                     (f/with-player-at f/home-player-1 [2 5])
-                     (f/with-exhausted f/home-player-1))
-        registry (-> (triggers/create-registry)
-                     (game-rules/register-game-rules!))
+  (let [cat       (test-catalog sample-play-card)
+        game      (-> (f/base-game-state)
+                      (f/with-player-at f/home-player-1 [2 5])
+                      (f/with-exhausted f/home-player-1))
+        registry  (-> (triggers/create-registry)
+                      (game-rules/register-game-rules!))
         main-card {:instance-id "card-1" :card-slug "fast-break"}
         play-def  (catalog/get-play cat "fast-break")
         context   {:self/team :team/HOME
                    :target/player-id f/home-player-1}
-        result   (fx/apply-effect game
-                                  {:type :bashketball/play-card
-                                   :main-card main-card
-                                   :fuel-cards []
-                                   :targets {:target/player-id f/home-player-1}
-                                   :play-effect (:play/effect play-def)
-                                   :effect-context context}
-                                  {}
-                                  {:validate? false
-                                   :registry registry})]
+        result    (fx/apply-effect game
+                                   {:type :bashketball/play-card
+                                    :main-card main-card
+                                    :fuel-cards []
+                                    :targets {:target/player-id f/home-player-1}
+                                    :play-effect (:play/effect play-def)
+                                    :effect-context context}
+                                   {}
+                                   {:validate? false
+                                    :registry registry})]
     (testing "play effect is applied with registry"
       (let [player (state/get-basketball-player (:state result) f/home-player-1)]
         (is (not (:exhausted player)))))))

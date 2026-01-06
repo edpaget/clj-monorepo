@@ -7,9 +7,6 @@
             [bashketball-game.polix.card-effects :as card-effects]
             [bashketball-game.polix.triggers :as triggers]
             [bashketball-game.schema :as schema]
-            [bashketball-game.state :as state]
-            [clojure.set :as set]
-            [clojure.string :as str]
             [malli.core :as m]))
 
 (defn- now
@@ -17,12 +14,6 @@
   []
   #?(:clj (.toString (java.time.Instant/now))
      :cljs (.toISOString (js/Date.))))
-
-(defn- generate-id
-  "Generates a random UUID string."
-  []
-  #?(:clj (str (java.util.UUID/randomUUID))
-     :cljs (str (random-uuid))))
 
 (defmulti -apply-action
   "Multimethod dispatching on :type. Implementations receive [game-state action]

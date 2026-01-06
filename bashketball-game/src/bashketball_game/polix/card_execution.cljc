@@ -547,9 +547,9 @@
    Returns an effect result map with `:state`, `:registry`, `:event-counters`,
    and possibly `:pending` if waiting for a choice."
   [effect-catalog state registry main-card fuel-cards targets team]
-  (let [play-def       (catalog/get-play effect-catalog (:card-slug main-card))
-        play-effect    (normalize-effect (:play/effect play-def))
-        effect-context (build-effect-context state main-card team targets)
+  (let [play-def          (catalog/get-play effect-catalog (:card-slug main-card))
+        play-effect       (normalize-effect (:play/effect play-def))
+        effect-context    (build-effect-context state main-card team targets)
         ;; Collect signal info for fuel cards - normalize signal effects too
         fuel-with-signals (mapv (fn [fuel-card]
                                   (let [signal (get-signal effect-catalog (:card-slug fuel-card))]

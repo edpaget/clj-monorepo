@@ -32,7 +32,7 @@
   {:pre [(some? state) (some? (:registry ctx))]}
   (when-let [current-pos (board/find-occupant (:board state) player-id)]
     (let [{:keys [value]} (get-player-speed ctx player-id)
-          occupied (set (keys (get-in state [:board :occupants])))]
+          occupied        (set (keys (get-in state [:board :occupants])))]
       (board/reachable-positions current-pos value occupied))))
 
 (defn can-move-to?
