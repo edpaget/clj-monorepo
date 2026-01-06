@@ -1,5 +1,7 @@
 (ns bashketball-game.polix.effects-test
   (:require
+   [bashketball-game.effect-catalog :as catalog]
+   [bashketball-game.polix.card-effects :as card-effects]
    [bashketball-game.polix.core :as polix]
    [bashketball-game.polix.effects :as effects]
    [bashketball-game.polix.fixtures :as fixtures]
@@ -143,3 +145,258 @@
     (testing "both effects applied"
       (is (= 2 (count (state/get-hand (:state result) :team/HOME))))
       (is (= 2 (get-in (state/get-score (:state result)) [:team/HOME]))))))
+
+;; =============================================================================
+;; Test Data for Ability Effects
+;; =============================================================================
+
+(def ability-card
+  "Ability card that can be attached to a player."
+  {:slug "quick-release"
+   :name "Quick Release"
+   :card-type :card-type/ABILITY_CARD
+   :abilities
+   [{:ability/id "quick-release"
+     :ability/name "Quick Release"
+     :ability/trigger {:trigger/event :bashketball/shoot.after
+                       :trigger/condition [:= :event/actor-id :self/id]
+                       :trigger/timing :after}
+     :ability/effect {:effect/type :bashketball/draw-cards
+                      :player :self/team
+                      :count 1}}]})
+
+(def ability-card-removed-destination
+  "Ability card with detach destination of REMOVED."
+  {:slug "power-shot"
+   :name "Power Shot"
+   :card-type :card-type/ABILITY_CARD
+   :removable false
+   :detach-destination :detach/REMOVED
+   :abilities []})
+
+(def test-effect-catalog
+  "Catalog with test ability cards."
+  (catalog/create-catalog
+   {"quick-release" ability-card
+    "power-shot" ability-card-removed-destination}))
+
+(defn- count-triggers [registry]
+  (count (triggers/get-triggers registry)))
+
+(defn- has-trigger-for-source? [registry source-id]
+  (some #(= (:source %) source-id)
+        (triggers/get-triggers registry)))
+
+(defn opts-with-registry-and-catalog
+  "Returns opts map with registry and effect catalog for lifecycle effects."
+  []
+  {:validate? false
+   :registry (-> (triggers/create-registry)
+                 (game-rules/register-game-rules!))
+   :effect-catalog test-effect-catalog})
+
+;; =============================================================================
+;; Attach Ability Effect Tests
+;; =============================================================================
+
+(deftest attach-ability-effect-removes-from-hand-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "quick-release"}
+        state         (-> (fixtures/base-game-state)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        result        (fx/apply-effect state
+                                       {:type :bashketball/attach-ability
+                                        :player :team/HOME
+                                        :instance-id "ability-1"
+                                        :target-player-id fixtures/home-player-1}
+                                       {} (opts-with-registry))]
+    (testing "card removed from hand"
+      (is (empty? (state/get-hand (:state result) :team/HOME))))))
+
+(deftest attach-ability-effect-adds-to-player-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "quick-release"}
+        state         (-> (fixtures/base-game-state)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        result        (fx/apply-effect state
+                                       {:type :bashketball/attach-ability
+                                        :player :team/HOME
+                                        :instance-id "ability-1"
+                                        :target-player-id fixtures/home-player-1}
+                                       {} (opts-with-registry))]
+    (testing "attachment added to player"
+      (let [attachments (state/get-attachments (:state result) fixtures/home-player-1)]
+        (is (= 1 (count attachments)))
+        (is (= "ability-1" (:instance-id (first attachments))))
+        (is (= "quick-release" (:card-slug (first attachments))))))))
+
+(deftest attach-ability-effect-logs-event-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "quick-release"}
+        state         (-> (fixtures/base-game-state)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        result        (fx/apply-effect state
+                                       {:type :bashketball/attach-ability
+                                        :player :team/HOME
+                                        :instance-id "ability-1"
+                                        :target-player-id fixtures/home-player-1}
+                                       {} (opts-with-registry))
+        event         (last (:events (:state result)))]
+    (testing "logs attach event"
+      (is (= :bashketball/attach-ability (:type event)))
+      (is (= fixtures/home-player-1 (:target-player-id event))))))
+
+(deftest attach-ability-effect-with-registry-test
+  (let [card-instance {:instance-id "ability-1" :card-slug "quick-release"}
+        state         (-> (fixtures/base-game-state)
+                          (assoc-in [:players :team/HOME :deck :hand] [card-instance]))
+        opts          (opts-with-registry-and-catalog)
+        initial-count (count-triggers (:registry opts))
+        result        (fx/apply-effect state
+                                       {:type :bashketball/attach-ability
+                                        :player :team/HOME
+                                        :instance-id "ability-1"
+                                        :target-player-id fixtures/home-player-1}
+                                       {} opts)]
+    (testing "returns updated registry"
+      (is (some? (:registry result))))
+    (testing "registry contains trigger for ability"
+      (is (= (inc initial-count) (count-triggers (:registry result))))
+      (is (has-trigger-for-source? (:registry result) "ability-1")))))
+
+;; =============================================================================
+;; Detach Ability Effect Tests
+;; =============================================================================
+
+(deftest detach-ability-effect-removes-from-player-test
+  (let [attachment {:instance-id "ability-1"
+                    :card-slug "quick-release"
+                    :removable true
+                    :detach-destination :detach/DISCARD
+                    :attached-at "2024-01-01T00:00:00Z"}
+        state      (-> (fixtures/base-game-state)
+                       (state/update-basketball-player fixtures/home-player-1
+                                                       assoc :attachments [attachment]))
+        result     (fx/apply-effect state
+                                    {:type :bashketball/detach-ability
+                                     :player :team/HOME
+                                     :target-player-id fixtures/home-player-1
+                                     :instance-id "ability-1"}
+                                    {} (opts-with-registry))]
+    (testing "attachment removed from player"
+      (is (empty? (state/get-attachments (:state result) fixtures/home-player-1))))))
+
+(deftest detach-ability-effect-goes-to-discard-test
+  (let [attachment {:instance-id "ability-1"
+                    :card-slug "quick-release"
+                    :removable true
+                    :detach-destination :detach/DISCARD
+                    :attached-at "2024-01-01T00:00:00Z"}
+        state      (-> (fixtures/base-game-state)
+                       (state/update-basketball-player fixtures/home-player-1
+                                                       assoc :attachments [attachment]))
+        result     (fx/apply-effect state
+                                    {:type :bashketball/detach-ability
+                                     :player :team/HOME
+                                     :target-player-id fixtures/home-player-1
+                                     :instance-id "ability-1"}
+                                    {} (opts-with-registry))]
+    (testing "card goes to discard"
+      (let [discard (state/get-discard (:state result) :team/HOME)]
+        (is (= 1 (count discard)))
+        (is (= "ability-1" (:instance-id (first discard))))))))
+
+(deftest detach-ability-effect-goes-to-removed-test
+  (let [attachment {:instance-id "ability-1"
+                    :card-slug "power-shot"
+                    :removable false
+                    :detach-destination :detach/REMOVED
+                    :attached-at "2024-01-01T00:00:00Z"}
+        state      (-> (fixtures/base-game-state)
+                       (state/update-basketball-player fixtures/home-player-1
+                                                       assoc :attachments [attachment]))
+        result     (fx/apply-effect state
+                                    {:type :bashketball/detach-ability
+                                     :player :team/HOME
+                                     :target-player-id fixtures/home-player-1
+                                     :instance-id "ability-1"}
+                                    {} (opts-with-registry))]
+    (testing "card goes to removed pile"
+      (let [removed (get-in (:state result) [:players :team/HOME :deck :removed])]
+        (is (= 1 (count removed)))
+        (is (= "ability-1" (:instance-id (first removed))))))))
+
+(deftest detach-ability-effect-logs-event-test
+  (let [attachment {:instance-id "ability-1"
+                    :card-slug "quick-release"
+                    :removable true
+                    :detach-destination :detach/DISCARD
+                    :attached-at "2024-01-01T00:00:00Z"}
+        state      (-> (fixtures/base-game-state)
+                       (state/update-basketball-player fixtures/home-player-1
+                                                       assoc :attachments [attachment]))
+        result     (fx/apply-effect state
+                                    {:type :bashketball/detach-ability
+                                     :player :team/HOME
+                                     :target-player-id fixtures/home-player-1
+                                     :instance-id "ability-1"}
+                                    {} (opts-with-registry))
+        event      (last (:events (:state result)))]
+    (testing "logs detach event"
+      (is (= :bashketball/detach-ability (:type event)))
+      (is (= fixtures/home-player-1 (:target-player-id event)))
+      (is (= :detach/DISCARD (:destination event))))))
+
+(deftest detach-ability-effect-with-registry-test
+  (let [attachment   {:instance-id "ability-1"
+                      :card-slug "quick-release"
+                      :removable true
+                      :detach-destination :detach/DISCARD
+                      :attached-at "2024-01-01T00:00:00Z"}
+        state        (-> (fixtures/base-game-state)
+                         (state/update-basketball-player fixtures/home-player-1
+                                                         assoc :attachments [attachment]))
+        ;; Pre-register the ability trigger
+        initial-reg  (card-effects/register-attached-abilities
+                      (-> (triggers/create-registry)
+                          (game-rules/register-game-rules!))
+                      test-effect-catalog
+                      attachment
+                      fixtures/home-player-1
+                      :team/HOME)
+        opts         {:validate? false
+                      :registry initial-reg
+                      :effect-catalog test-effect-catalog}
+        result       (fx/apply-effect state
+                                      {:type :bashketball/detach-ability
+                                       :player :team/HOME
+                                       :target-player-id fixtures/home-player-1
+                                       :instance-id "ability-1"}
+                                      {} opts)]
+    (testing "returns updated registry"
+      (is (some? (:registry result))))
+    (testing "registry has trigger removed"
+      (is (not (has-trigger-for-source? (:registry result) "ability-1"))))))
+
+(deftest detach-token-effect-does-not-add-to-discard-test
+  (let [token-attachment {:instance-id "token-1"
+                          :card-slug "speed-boost"
+                          :token true
+                          :card {:slug "speed-boost" :card-type :card-type/ABILITY_CARD}
+                          :removable true
+                          :detach-destination :detach/DISCARD
+                          :attached-at "2024-01-01T00:00:00Z"}
+        state            (-> (fixtures/base-game-state)
+                             (state/update-basketball-player fixtures/home-player-1
+                                                             assoc :attachments [token-attachment]))
+        result           (fx/apply-effect state
+                                          {:type :bashketball/detach-ability
+                                           :player :team/HOME
+                                           :target-player-id fixtures/home-player-1
+                                           :instance-id "token-1"}
+                                          {} (opts-with-registry))]
+    (testing "token removed from player"
+      (is (empty? (state/get-attachments (:state result) fixtures/home-player-1))))
+    (testing "token NOT added to discard"
+      (is (empty? (state/get-discard (:state result) :team/HOME))))
+    (testing "event shows deleted destination"
+      (let [event (last (:events (:state result)))]
+        (is (= :deleted (:destination event)))
+        (is (true? (:token-deleted? event)))))))
