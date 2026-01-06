@@ -251,6 +251,21 @@
   [token-instance]
   (:card token-instance))
 
+(defn get-ability-card-properties
+  "Looks up `:removable` and `:detach-destination` for an ability card.
+
+  Searches the player's card definitions for a card matching `card-slug`
+  and extracts attachment properties. Returns a map with defaults applied
+  if the card or properties are not found:
+
+  - `:removable` defaults to `true`
+  - `:detach-destination` defaults to `:detach/DISCARD`"
+  [state player card-slug]
+  (let [cards (get-in state [:players player :deck :cards])
+        card  (some #(when (= (:slug %) card-slug) %) cards)]
+    {:removable          (get card :removable true)
+     :detach-destination (get card :detach-destination :detach/DISCARD)}))
+
 ;;; ---------------------------------------------------------------------------
 ;;; Pending Movement Accessors
 ;;; ---------------------------------------------------------------------------

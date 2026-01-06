@@ -17,6 +17,7 @@
   (:require
    [bashketball-game.actions :as actions] ;; TODO: Remove after full migration
    [bashketball-game.board :as board]
+   [bashketball-game.polix.card-effects :as card-effects]
    [bashketball-game.polix.functions :as functions]
    [bashketball-game.polix.standard-action-policies :as sap]
    [bashketball-game.polix.standard-action-resolution :as sar]
@@ -687,26 +688,65 @@
   ;; Ability Effects
 
   (fx/register-effect! :bashketball/attach-ability
-                       (fn [state {:keys [player instance-id target-id]} ctx _opts]
+                       (fn [state {:keys [player instance-id target-player-id]} ctx opts]
                          (let [resolved-player   (resolve-param player ctx state)
                                resolved-instance (resolve-param instance-id ctx state)
-                               resolved-target   (resolve-param target-id ctx state)
-                               action            {:type :bashketball/attach-ability
-                                                  :player resolved-player
-                                                  :instance-id resolved-instance
-                                                  :target-id resolved-target}
-                               new-state         (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               resolved-target   (resolve-param target-player-id ctx state)
+                               deck-path         [:players resolved-player :deck]
+                               hand              (get-in state (conj deck-path :hand))
+                               card              (first (filter #(= (:instance-id %) resolved-instance) hand))
+                               new-hand          (filterv #(not= (:instance-id %) resolved-instance) hand)
+                               props             (state/get-ability-card-properties state resolved-player (:card-slug card))
+                               attachment        {:instance-id        (:instance-id card)
+                                                  :card-slug          (:card-slug card)
+                                                  :removable          (:removable props)
+                                                  :detach-destination (:detach-destination props)
+                                                  :attached-at        (tu/now)}
+                               new-state         (-> state
+                                                     (assoc-in (conj deck-path :hand) new-hand)
+                                                     (state/update-basketball-player resolved-target
+                                                                                     update :attachments conj attachment)
+                                                     (tu/log-event :bashketball/attach-ability
+                                                                   {:attached-card card
+                                                                    :target-player-id resolved-target}))
+                               team              (state/get-basketball-player-team new-state resolved-target)
+                               new-registry      (when (and (:registry opts) (:effect-catalog opts))
+                                                   (card-effects/register-attached-abilities
+                                                    (:registry opts) (:effect-catalog opts)
+                                                    attachment resolved-target team))]
+                           (cond-> (fx/success new-state [{:instance-id resolved-instance
+                                                           :target-player-id resolved-target}])
+                             new-registry (assoc :registry new-registry)))))
 
   (fx/register-effect! :bashketball/detach-ability
-                       (fn [state {:keys [player-id instance-id]} ctx _opts]
-                         (let [resolved-player-id (resolve-param player-id ctx state)
+                       (fn [state {:keys [player target-player-id instance-id]} ctx opts]
+                         (let [resolved-player    (resolve-param player ctx state)
+                               resolved-target    (resolve-param target-player-id ctx state)
                                resolved-instance  (resolve-param instance-id ctx state)
-                               action             {:type :bashketball/detach-ability
-                                                   :player-id resolved-player-id
-                                                   :instance-id resolved-instance}
-                               new-state          (actions/do-action state action)]
-                           (fx/success new-state [action]))))
+                               attachment         (state/find-attachment state resolved-target resolved-instance)
+                               is-token?          (state/token? attachment)
+                               destination        (:detach-destination attachment)
+                               card-instance      {:instance-id (:instance-id attachment)
+                                                   :card-slug   (:card-slug attachment)}
+                               dest-key           (if (= destination :detach/REMOVED) :removed :discard)
+                               new-state          (-> state
+                                                      (state/update-basketball-player
+                                                       resolved-target
+                                                       update :attachments
+                                                       (fn [atts] (filterv #(not= (:instance-id %) resolved-instance) atts)))
+                                                      (cond->
+                                                       (not is-token?)
+                                                        (update-in [:players resolved-player :deck dest-key] conj card-instance))
+                                                      (tu/log-event :bashketball/detach-ability
+                                                                    {:detached-card    attachment
+                                                                     :target-player-id resolved-target
+                                                                     :destination      (if is-token? :deleted destination)
+                                                                     :token-deleted?   is-token?}))
+                               new-registry       (when (:registry opts)
+                                                    (card-effects/unregister-attached-abilities
+                                                     (:registry opts) resolved-instance))]
+                           (cond-> (fx/success new-state [{:instance-id resolved-instance}])
+                             new-registry (assoc :registry new-registry)))))
 
   ;; Phase Effects
 

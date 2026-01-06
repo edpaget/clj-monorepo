@@ -358,5 +358,26 @@
         ;; Unknown placement, no registration
         registry))
 
+    :bashketball/resolve-card
+    (let [{:keys [instance-id target-player-id]} action
+          ;; Get the original card info from the play-area in old-state
+          play-area-card (state/find-card-in-play-area old-state instance-id)
+          owner          (:played-by play-area-card)]
+      (cond
+        ;; Check if it became an attachment
+        (and target-player-id
+             (state/find-attachment new-state target-player-id instance-id))
+        (let [attachment (state/find-attachment new-state target-player-id instance-id)
+              team       (state/get-basketball-player-team new-state target-player-id)]
+          (register-attached-abilities registry effect-catalog attachment target-player-id team))
+
+        ;; Check if it became an asset
+        (find-asset new-state owner instance-id)
+        (let [asset (find-asset new-state owner instance-id)]
+          (register-asset-triggers registry effect-catalog asset owner))
+
+        ;; Otherwise went to discard, no registry update needed
+        :else registry))
+
     ;; No registry changes for other actions
     registry))

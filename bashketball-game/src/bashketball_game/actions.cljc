@@ -59,7 +59,8 @@
     :bashketball/detach-ability
     :bashketball/play-card
     :bashketball/move-asset
-    :bashketball/create-token})
+    :bashketball/create-token
+    :bashketball/resolve-card})
 
 (defn apply-action
   "Applies a validated action to game state with trigger processing.
@@ -494,15 +495,6 @@
         card  (some #(when (= (:slug %) card-slug) %) cards)]
     (= (:card-type card) :card-type/ABILITY_CARD)))
 
-(defn- get-ability-card-properties
-  "Looks up the :removable and :detach-destination for an ability card.
-  Returns a map with defaults applied if the card or properties are not found."
-  [state player card-slug]
-  (let [cards (get-in state [:players player :deck :cards])
-        card  (some #(when (= (:slug %) card-slug) %) cards)]
-    {:removable          (get card :removable true)
-     :detach-destination (get card :detach-destination :detach/DISCARD)}))
-
 (defmethod -apply-action :bashketball/resolve-card
   [state {:keys [instance-id target-player-id]}]
   (let [play-area-card (state/find-card-in-play-area state instance-id)
@@ -519,7 +511,7 @@
         (cond->
          is-attach
           (as-> s
-                (let [props      (get-ability-card-properties s owner card-slug)
+                (let [props      (state/get-ability-card-properties s owner card-slug)
                       attachment {:instance-id        instance-id
                                   :card-slug          card-slug
                                   :removable          (:removable props)
@@ -562,7 +554,7 @@
         hand       (get-in state (conj deck-path :hand))
         card       (first (filter #(= (:instance-id %) instance-id) hand))
         new-hand   (filterv #(not= (:instance-id %) instance-id) hand)
-        props      (get-ability-card-properties state player (:card-slug card))
+        props      (state/get-ability-card-properties state player (:card-slug card))
         attachment {:instance-id       (:instance-id card)
                     :card-slug         (:card-slug card)
                     :removable        (:removable props)
