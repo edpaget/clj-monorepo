@@ -335,26 +335,26 @@
   - `:response-triggers` - matching response triggers for caller to handle"
   [{:as initial-ctx} event]
   (let [;; Increment depth for recursion protection
-        ctx'                       (event-ctx/increment-depth initial-ctx)
+        ctx'                    (event-ctx/increment-depth initial-ctx)
         ;; Increment counter before processing
-        [ctx'' occurrence]         (event-ctx/increment-counter ctx' event)
+        [ctx'' occurrence]      (event-ctx/increment-counter ctx' event)
         ;; Add occurrence and ensure event-type is set
-        event'                     (-> event
-                                       (assoc :occurrence-this-turn occurrence)
-                                       (cond-> (not (:event-type event))
-                                         (assoc :event-type (:type event))))
+        event'                  (-> event
+                                    (assoc :occurrence-this-turn occurrence)
+                                    (cond-> (not (:event-type event))
+                                      (assoc :event-type (:type event))))
         ;; Get all triggers for this event type
-        all-triggers               (registry/get-triggers-for-event
-                                    (:registry ctx'')
-                                    (:event-type event'))
+        all-triggers            (registry/get-triggers-for-event
+                                 (:registry ctx'')
+                                 (:event-type event'))
         ;; Partition into auto and response triggers
-        {:keys [auto response]}    (partition-triggers ctx'' event' all-triggers)
+        {:keys [auto response]} (partition-triggers ctx'' event' all-triggers)
         ;; Process only auto-triggers
-        {:keys [ctx results]}      (process-triggers-with-causation ctx'' event' auto)
+        {:keys [ctx results]}   (process-triggers-with-causation ctx'' event' auto)
         ;; Check if any trigger prevented the action
-        prevented?                 (some #(get-in % [:effect-result :prevented?]) results)
+        prevented?              (some #(get-in % [:effect-result :prevented?]) results)
         ;; Decrement depth on the final context
-        ctx-final                  (event-ctx/decrement-depth ctx)]
+        ctx-final               (event-ctx/decrement-depth ctx)]
     {:state (:state ctx-final)
      :registry (:registry ctx-final)
      :event-counters (:event-counters ctx-final)

@@ -40,6 +40,7 @@
                             (dissoc :decoder)
                             encode/encode-options)
          result         (useQuery query apollo-options)]
+     (prn result)
      {:data    (some-> result :data decoder)
       :loading (:loading result)
       :error   (:error result)

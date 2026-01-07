@@ -130,16 +130,16 @@
              (dissoc replayed :events))))))
 
 (deftest round-trip-draw-cards-test
-  (let [initial   (fixtures/base-game-state)
-        _         (state/get-draw-pile initial :team/HOME)
-        result    (fx/apply-effect initial
-                                   {:type :bashketball/draw-cards
-                                    :player :team/HOME
-                                    :count 2}
-                                   {} (opts-with-registry))
-        final     (:state result)
-        events    (event-log/get-events final)
-        replayed  (event-replay/replay-events initial events)]
+  (let [initial  (fixtures/base-game-state)
+        _        (state/get-draw-pile initial :team/HOME)
+        result   (fx/apply-effect initial
+                                  {:type :bashketball/draw-cards
+                                   :player :team/HOME
+                                   :count 2}
+                                  {} (opts-with-registry))
+        final    (:state result)
+        events   (event-log/get-events final)
+        replayed (event-replay/replay-events initial events)]
     (testing "replayed hand matches final hand"
       (is (= (state/get-hand final :team/HOME)
              (state/get-hand replayed :team/HOME))))
