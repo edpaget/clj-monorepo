@@ -447,20 +447,41 @@
    [:type [:= :bashketball/return-discard]]
    [:player enums/Team]])
 
+(def MoveConstraintType
+  "Simple constraint keywords for movement filtering."
+  [:enum :toward-basket :away-from-basket :toward-ball :adjacent-to-ball
+   :into-zoc :out-of-zoc])
+
+(def MoveConstraint
+  "Movement constraint - either a simple keyword or map with target player."
+  [:or
+   MoveConstraintType
+   [:map
+    [:type [:= :toward-player]]
+    [:target-player-id :string]]])
+
 (def MovePlayerAction
   [:map
    [:type [:= :bashketball/move-player]]
    [:player-id :string]
-   [:position HexPosition]])
+   [:position {:optional true} HexPosition]
+   [:move/constraint {:optional true} MoveConstraint]
+   [:move/no-exhaust {:optional true} :boolean]
+   [:move/ignore-exhaustion {:optional true} :boolean]])
 
 (def BeginMovementAction
   "Action to begin step-by-step movement for a player.
 
-  Creates a movement context tracking the player's speed budget and path."
+  Creates a movement context tracking the player's speed budget and path.
+  Optionally includes a constraint to filter valid step positions and
+  flags to control exhaustion behavior."
   [:map
    [:type [:= :bashketball/begin-movement]]
    [:player-id :string]
-   [:speed :int]])
+   [:speed :int]
+   [:move/constraint {:optional true} MoveConstraint]
+   [:move/no-exhaust {:optional true} :boolean]
+   [:move/ignore-exhaustion {:optional true} :boolean]])
 
 (def DoMoveStepAction
   "Action to move a player one hex and deduct movement cost.
@@ -631,6 +652,18 @@
    [:options [:vector ChoiceOption]]
    [:waiting-for Team]
    [:context {:optional true} :map]
+   [:continuation {:optional true} [:or :map [:vector :map]]]])
+
+(def OfferConstrainedMoveAction
+  "Action to present constrained movement positions as a choice.
+
+  Calculates valid positions using the constraint, presents them as options,
+  and executes the continuation (defaulting to move-player) with the selected
+  position."
+  [:map
+   [:type [:= :bashketball/offer-constrained-move]]
+   [:player-id :string]
+   [:move/constraint {:optional true} MoveConstraint]
    [:continuation {:optional true} [:or :map [:vector :map]]]])
 
 (def SubmitChoiceAction

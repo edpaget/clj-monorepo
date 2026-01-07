@@ -16,6 +16,7 @@
   Directly modify state. Only called by catchall game rules or internally."
   (:require
    [bashketball-game.board :as board]
+   [bashketball-game.movement :as movement]
    [bashketball-game.polix.card-effects :as card-effects]
    [bashketball-game.polix.functions :as functions]
    [bashketball-game.polix.standard-action-policies :as sap]
@@ -160,7 +161,7 @@
   ;; Step-by-step Movement Effects
 
   (fx/register-effect! :bashketball/begin-movement
-                       (fn [state {:keys [player-id speed]} ctx _opts]
+                       (fn [state {:keys [player-id speed move/constraint move/no-exhaust move/ignore-exhaustion]} ctx _opts]
                          (let [resolved-player-id (resolve-param player-id ctx state)
                                resolved-speed     (resolve-param speed ctx state)
                                player             (state/get-basketball-player state resolved-player-id)
@@ -169,19 +170,23 @@
                                movement-id        (tu/generate-id)
                                new-state          (-> state
                                                       (state/set-pending-movement
-                                                       {:id               movement-id
-                                                        :player-id        resolved-player-id
-                                                        :team             team
-                                                        :starting-position position
-                                                        :current-position position
-                                                        :initial-speed    resolved-speed
-                                                        :remaining-speed  resolved-speed
-                                                        :path-taken       [position]
-                                                        :step-number      0})
+                                                       {:id                 movement-id
+                                                        :player-id          resolved-player-id
+                                                        :team               team
+                                                        :starting-position  position
+                                                        :current-position   position
+                                                        :initial-speed      resolved-speed
+                                                        :remaining-speed    resolved-speed
+                                                        :path-taken         [position]
+                                                        :step-number        0
+                                                        :constraint         constraint
+                                                        :no-exhaust         no-exhaust
+                                                        :ignore-exhaustion  ignore-exhaustion})
                                                       (tu/log-event :bashketball/begin-movement
                                                                     {:player-id resolved-player-id
                                                                      :position position
-                                                                     :speed resolved-speed}))]
+                                                                     :speed resolved-speed
+                                                                     :constraint constraint}))]
                            (fx/success new-state [{:player-id resolved-player-id
                                                    :speed resolved-speed}]))))
 
@@ -607,6 +612,41 @@
                                   :pending {:type :forced-choice
                                             :choice-id choice-id
                                             :target resolved-target}))))
+
+  (fx/register-effect! :bashketball/offer-constrained-move
+                       (fn [state {:keys [player-id move/constraint continuation]} ctx opts]
+                         (let [resolved-player-id (resolve-param player-id ctx state)
+                               positions          (movement/constrained-move-positions
+                                                   {:state state :registry (:registry opts)}
+                                                   resolved-player-id
+                                                   constraint)
+                               team               (state/get-basketball-player-team state resolved-player-id)
+                               options            (mapv (fn [[q r]]
+                                                          {:id       (keyword (str q "-" r))
+                                                           :label    (str "[" q " " r "]")
+                                                           :position [q r]})
+                                                        positions)]
+                           (if (empty? options)
+                             ;; No valid positions - skip the choice
+                             (fx/success state [])
+                             ;; Offer choice with positions
+                             (let [choice-id      (tu/generate-id)
+                                   pending-choice {:id          choice-id
+                                                   :type        :constrained-move
+                                                   :options     options
+                                                   :waiting-for team
+                                                   :context     {:player-id  resolved-player-id
+                                                                 :constraint constraint}
+                                                   :continuation (or continuation
+                                                                     {:type      :bashketball/move-player
+                                                                      :player-id resolved-player-id
+                                                                      :position  :choice/selected-position})}
+                                   new-state      (-> state
+                                                      (assoc :pending-choice pending-choice)
+                                                      (tu/log-event :bashketball/offer-constrained-move pending-choice))]
+                               (assoc (fx/success new-state [pending-choice])
+                                      :pending {:type      :choice
+                                                :choice-id choice-id}))))))
 
   (fx/register-effect! :bashketball/execute-choice-continuation
                        (fn [state _params ctx opts]
@@ -1175,8 +1215,8 @@
                        (fn [state {:keys [asset-instance-id response-effect]} ctx opts]
                          ;; This effect is stored in response triggers but not fired automatically.
                          ;; When used directly, it reveals the asset and applies the response effect.
-                         (let [team  (or (:owner ctx) (:team ctx))
-                               asset {:instance-id asset-instance-id :owner team}
+                         (let [team   (or (:owner ctx) (:team ctx))
+                               asset  {:instance-id asset-instance-id :owner team}
                                state' (if team
                                         (sar/reveal-response-asset state team asset)
                                         state)]
@@ -1259,44 +1299,44 @@
   (fx/register-effect! :bashketball/resolve-standard-action
                        (fn [game-state params ctx opts]
                          (let [{:keys [action-type attacker-id defender-id
-                                       success-effect failure-effect]} params
-                               resolved-attacker                       (resolve-param attacker-id ctx game-state)
-                               resolved-defender                       (resolve-param defender-id ctx game-state)
-                               attacker-team                           (state/get-basketball-player-team game-state resolved-attacker)
+                                       success-effect failure-effect]}     params
+                               resolved-attacker                           (resolve-param attacker-id ctx game-state)
+                               resolved-defender                           (resolve-param defender-id ctx game-state)
+                               attacker-team                               (state/get-basketball-player-team game-state resolved-attacker)
                                ;; Build the offense continuation (skill test → result)
-                               offense-cont                            (sar/build-offense-continuation
-                                                                        {:action-type    action-type
-                                                                         :attacker-id    resolved-attacker
-                                                                         :defender-id    resolved-defender
-                                                                         :success-effect success-effect
-                                                                         :failure-effect failure-effect})
+                               offense-cont                                (sar/build-offense-continuation
+                                                                            {:action-type    action-type
+                                                                             :attacker-id    resolved-attacker
+                                                                             :defender-id    resolved-defender
+                                                                             :success-effect success-effect
+                                                                             :failure-effect failure-effect})
                                ;; Fire the before event to get response triggers
-                               before-event                            {:type        :bashketball/standard-action.before
-                                                                        :event-type  :bashketball/standard-action.before
-                                                                        :action-type action-type
-                                                                        :attacker-id resolved-attacker
-                                                                        :defender-id resolved-defender
-                                                                        :acting-team attacker-team
-                                                                        :turn-number (:turn-number game-state)
-                                                                        :active-player (:active-player game-state)
-                                                                        :phase       (:phase game-state)
-                                                                        :causation   (:causation opts)}
-                               event-result                            (triggers/fire-request-event
-                                                                        {:state              game-state
-                                                                         :registry           (:registry opts)
-                                                                         :event-counters     (:event-counters opts)
-                                                                         :executing-triggers (:executing-triggers opts)}
-                                                                        before-event)
+                               before-event                                {:type        :bashketball/standard-action.before
+                                                                            :event-type  :bashketball/standard-action.before
+                                                                            :action-type action-type
+                                                                            :attacker-id resolved-attacker
+                                                                            :defender-id resolved-defender
+                                                                            :acting-team attacker-team
+                                                                            :turn-number (:turn-number game-state)
+                                                                            :active-player (:active-player game-state)
+                                                                            :phase       (:phase game-state)
+                                                                            :causation   (:causation opts)}
+                               event-result                                (triggers/fire-request-event
+                                                                            {:state              game-state
+                                                                             :registry           (:registry opts)
+                                                                             :event-counters     (:event-counters opts)
+                                                                             :executing-triggers (:executing-triggers opts)}
+                                                                            before-event)
                                ;; Build full continuation from response triggers
-                               response-triggers                       (:response-triggers event-result)
-                               full-continuation                       (if (seq response-triggers)
-                                                                         (sar/build-response-chain-from-triggers
-                                                                          response-triggers offense-cont)
-                                                                         offense-cont)
+                               response-triggers                           (:response-triggers event-result)
+                               full-continuation                           (if (seq response-triggers)
+                                                                             (sar/build-response-chain-from-triggers
+                                                                              response-triggers offense-cont)
+                                                                             offense-cont)
                                ;; Update opts with new registry/counters from event
-                               updated-opts                            (assoc opts
-                                                                               :registry (:registry event-result)
-                                                                               :event-counters (:event-counters event-result))]
+                               updated-opts                                (assoc opts
+                                                                                  :registry (:registry event-result)
+                                                                                  :event-counters (:event-counters event-result))]
                            ;; Execute the continuation with updated state
                            (fx/apply-effect (:state event-result)
                                             full-continuation
@@ -1312,7 +1352,7 @@
                                           effect-context]} ctx opts]
                          (if (:registry opts)
                            ;; Event-driven path
-                           (let [team (:self/team effect-context)
+                           (let [team              (:self/team effect-context)
 
                                  ;; Step 1: Process fuel cards (fire signal events)
                                  fuel-ctx          (reduce
