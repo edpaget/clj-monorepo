@@ -287,6 +287,26 @@
    {:ctx ctx :results []}
    (sort-by :priority triggers)))
 
+(defn- partition-triggers
+  "Partitions triggers into auto and response groups.
+
+  Only includes triggers that can fire (not blocked by causation) and whose
+  conditions are satisfied. Response triggers (`:response? true`) are
+  collected separately so callers can present them as player choices."
+  [ctx event triggers]
+  (reduce
+   (fn [{:keys [auto response]} trigger]
+     (if (event-ctx/can-trigger-fire? ctx trigger event)
+       (let [condition-result (evaluate-condition trigger event)]
+         (if (= :satisfied condition-result)
+           (if (:response? trigger)
+             {:auto auto :response (conj response trigger)}
+             {:auto (conj auto trigger) :response response})
+           {:auto auto :response response}))
+       {:auto auto :response response}))
+   {:auto [] :response []}
+   (sort-by :priority triggers)))
+
 (defn fire-request-event
   "Fires a request event with counter tracking and causation support.
 
@@ -295,9 +315,10 @@
 
   1. Increments the event counter before processing
   2. Adds `:occurrence-this-turn` to the event
-  3. Filters triggers by causation chain
-  4. Processes triggers with causation propagation
-  5. Tracks event depth for recursion protection
+  3. Partitions triggers into auto vs response
+  4. Processes auto-triggers with causation propagation
+  5. Returns response triggers for caller to present as player choices
+  6. Tracks event depth for recursion protection
 
   Takes a context map with:
   - `:state` - current game state
@@ -309,32 +330,36 @@
   - `:state` - updated game state
   - `:registry` - updated registry
   - `:event-counters` - updated counters
-  - `:results` - trigger processing results
-  - `:prevented?` - whether action was prevented"
+  - `:results` - trigger processing results (auto-triggers only)
+  - `:prevented?` - whether action was prevented
+  - `:response-triggers` - matching response triggers for caller to handle"
   [{:as initial-ctx} event]
   (let [;; Increment depth for recursion protection
-        ctx'                  (event-ctx/increment-depth initial-ctx)
+        ctx'                       (event-ctx/increment-depth initial-ctx)
         ;; Increment counter before processing
-        [ctx'' occurrence]    (event-ctx/increment-counter ctx' event)
+        [ctx'' occurrence]         (event-ctx/increment-counter ctx' event)
         ;; Add occurrence and ensure event-type is set
-        event'                (-> event
-                                  (assoc :occurrence-this-turn occurrence)
-                                  (cond-> (not (:event-type event))
-                                    (assoc :event-type (:type event))))
+        event'                     (-> event
+                                       (assoc :occurrence-this-turn occurrence)
+                                       (cond-> (not (:event-type event))
+                                         (assoc :event-type (:type event))))
         ;; Get all triggers for this event type
-        all-triggers          (registry/get-triggers-for-event
-                               (:registry ctx'')
-                               (:event-type event'))
-        ;; Process triggers with causation filtering
-        {:keys [ctx results]} (process-triggers-with-causation ctx'' event' all-triggers)
+        all-triggers               (registry/get-triggers-for-event
+                                    (:registry ctx'')
+                                    (:event-type event'))
+        ;; Partition into auto and response triggers
+        {:keys [auto response]}    (partition-triggers ctx'' event' all-triggers)
+        ;; Process only auto-triggers
+        {:keys [ctx results]}      (process-triggers-with-causation ctx'' event' auto)
         ;; Check if any trigger prevented the action
-        prevented?            (some #(get-in % [:effect-result :prevented?]) results)
+        prevented?                 (some #(get-in % [:effect-result :prevented?]) results)
         ;; Decrement depth on the final context
-        ctx-final             (event-ctx/decrement-depth ctx)]
+        ctx-final                  (event-ctx/decrement-depth ctx)]
     {:state (:state ctx-final)
      :registry (:registry ctx-final)
      :event-counters (:event-counters ctx-final)
      :executing-triggers (:executing-triggers ctx-final)
      :event event'
      :results results
-     :prevented? (boolean prevented?)}))
+     :prevented? (boolean prevented?)
+     :response-triggers response}))

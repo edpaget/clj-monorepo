@@ -169,17 +169,6 @@
       (is (= 2 (get-in (:state result) [:score :team/HOME]))))))
 
 ;; =============================================================================
-;; Response Condition Evaluation Tests
-;; =============================================================================
-
-(deftest evaluate-response-condition-no-condition-test
-  (testing "returns true when no condition defined"
-    (let [game    (f/base-game-state)
-          trigger {:trigger/event :bashketball/standard-action.before}
-          event   {:type :bashketball/standard-action.before}]
-      (is (sar/evaluate-response-condition game trigger event nil)))))
-
-;; =============================================================================
 ;; Integration Tests
 ;; =============================================================================
 
@@ -204,3 +193,82 @@
                                   {:registry registry})]
     (testing "without responses proceeds directly to skill test flow"
       (is (some? (:state result))))))
+
+;; =============================================================================
+;; Response Trigger Tests (Decision 2 implementation)
+;; =============================================================================
+
+(deftest build-response-chain-from-triggers-empty-test
+  (testing "with no triggers returns continuation unchanged"
+    (let [next-cont {:type :bashketball/execute-skill-test-flow}
+          result    (sar/build-response-chain-from-triggers [] next-cont)]
+      (is (= next-cont result)))))
+
+(deftest build-response-chain-from-triggers-single-test
+  (testing "with single trigger builds offer-choice"
+    (let [next-cont {:type :bashketball/execute-skill-test-flow}
+          trigger   {:self   "asset-1"
+                     :owner  :team/AWAY
+                     :effect {:prompt          "Apply defense boost?"
+                              :response-effect {:type :bashketball/add-modifier
+                                                :stat :stat/DEFENSE
+                                                :amount 2}}}
+          result    (sar/build-response-chain-from-triggers [trigger] next-cont)]
+      (is (= :bashketball/offer-choice (:type result)))
+      (is (= :response-prompt (:choice-type result)))
+      (is (= :team/AWAY (:waiting-for result)))
+      (is (= [{:id :apply :label "Apply"} {:id :pass :label "Pass"}]
+             (:options result))))))
+
+(deftest build-response-chain-from-triggers-continuation-test
+  (testing "continuation contains next step and response data"
+    (let [next-cont {:type :bashketball/execute-skill-test-flow}
+          trigger   {:self   "asset-1"
+                     :owner  :team/AWAY
+                     :effect {:prompt          "Apply?"
+                              :response-effect {:type :bashketball/draw-cards :count 1}}}
+          result    (sar/build-response-chain-from-triggers [trigger] next-cont)
+          cont      (:continuation result)]
+      (is (= :bashketball/process-response-choice (:type cont)))
+      (is (= {:instance-id "asset-1" :owner :team/AWAY} (:response-asset cont)))
+      (is (= {:type :bashketball/draw-cards :count 1} (:response-effect cont)))
+      (is (= next-cont (:next-continuation cont))))))
+
+(deftest build-response-chain-from-triggers-multiple-test
+  (testing "with multiple triggers, first trigger is outermost"
+    (let [next-cont {:type :test-next}
+          trigger-1 {:self "asset-1" :owner :team/AWAY
+                     :effect {:prompt "First?" :response-effect {:type :effect-1}}}
+          trigger-2 {:self "asset-2" :owner :team/AWAY
+                     :effect {:prompt "Second?" :response-effect {:type :effect-2}}}
+          result    (sar/build-response-chain-from-triggers [trigger-1 trigger-2] next-cont)]
+      ;; First trigger should be outermost
+      (is (= "First?" (get-in result [:context :response-prompt])))
+      ;; Second trigger should be nested
+      (let [second-step (get-in result [:continuation :next-continuation])]
+        (is (= :bashketball/offer-choice (:type second-step)))
+        (is (= "Second?" (get-in second-step [:context :response-prompt])))))))
+
+(deftest fire-request-event-partitions-response-triggers-test
+  (testing "response triggers are returned, not fired"
+    (let [game     (f/base-game-state)
+          registry (-> (triggers/create-registry)
+                       (triggers/register-trigger
+                        {:event-types #{:bashketball/test-event}
+                         :timing      :before
+                         :response?   true
+                         :effect      {:type            :bashketball/apply-response
+                                       :prompt          "Apply response?"
+                                       :response-effect {:type :bashketball/draw-cards}}}
+                        "response-trigger" :team/AWAY "asset-1"))
+          event    {:type       :bashketball/test-event
+                    :event-type :bashketball/test-event}
+          result   (triggers/fire-request-event
+                    {:state game :registry registry}
+                    event)]
+      (is (= 1 (count (:response-triggers result)))
+          "Response trigger should be returned")
+      (is (= "asset-1" (:self (first (:response-triggers result))))
+          "Response trigger has correct self id")
+      (is (empty? (:results result))
+          "No auto triggers should have fired"))))

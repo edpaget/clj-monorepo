@@ -5,173 +5,29 @@
 
    1. **Offense declares** - Player plays standard action and selects offense mode
    2. **Before event fires** - `:bashketball/standard-action.before` triggers fire
-   3. **Response check** - Check defender's face-down Response assets for matches
+   3. **Response triggers returned** - Response triggers from registry are returned
    4. **Response prompt** - Offer Apply/Pass choice for each matching Response
    5. **Response execution** - Execute Response effects for applied responses
    6. **Offense execution** - Execute the offense mode effect
    7. **After event fires** - `:bashketball/standard-action.after` triggers fire
+
+   Response triggers are registered via [[card-effects/register-asset-triggers]]
+   with `:response? true`. When events fire through [[triggers/fire-request-event]],
+   response triggers are returned (not fired) for the caller to build choice prompts.
 
    Usage:
 
    ```clojure
    (require '[bashketball-game.polix.standard-action-resolution :as sar])
 
-   ;; Check for matching Response assets
-   (sar/find-matching-responses game-state registry event team)
+   ;; Build response chain from triggers returned by fire-request-event
+   (sar/build-response-chain-from-triggers response-triggers offense-cont)
 
-   ;; Create response prompts
-   (sar/create-response-prompts matching-responses)
-
-   ;; Apply a response
-   (sar/apply-response game-state registry response-asset)
+   ;; Reveal an asset when Apply is chosen
+   (sar/reveal-response-asset game-state team asset)
    ```"
   (:require
-   [bashketball-game.effect-catalog :as catalog]
-   [bashketball-game.polix.triggers :as triggers]
-   [polix.residual :as res]
-   [polix.unify :as unify]))
-
-;; =============================================================================
-;; Response Asset Discovery
-;; =============================================================================
-
-(defn get-face-down-response-assets
-  "Returns all face-down Response assets for a team.
-
-   Response assets are Team Asset cards with `:card-subtype/RESPONSE` that are
-   played face-down and can be revealed when their trigger condition matches.
-
-   Note: Team asset storage will be added when the full asset system is
-   implemented. For now, returns assets from `:team-assets` in player state."
-  [game-state team]
-  (let [assets (get-in game-state [:players team :team-assets] [])]
-    (filter
-     (fn [asset]
-       (and (:face-down asset)
-            (some #(= % :card-subtype/RESPONSE)
-                  (:card-subtypes asset))))
-     assets)))
-
-(defn get-response-trigger
-  "Returns the response trigger definition from an asset's power.
-
-   Extracts `:response/trigger` from the asset's `:asset-power` definition."
-  [effect-catalog asset]
-  (when-let [power (catalog/get-asset-power effect-catalog (:card-slug asset))]
-    (get-in power [:asset/response :response/trigger])))
-
-(defn get-response-prompt
-  "Returns the response prompt text from an asset's power."
-  [effect-catalog asset]
-  (when-let [power (catalog/get-asset-power effect-catalog (:card-slug asset))]
-    (get-in power [:asset/response :response/prompt])))
-
-(defn get-response-effect
-  "Returns the response effect definition from an asset's power."
-  [effect-catalog asset]
-  (when-let [power (catalog/get-asset-power effect-catalog (:card-slug asset))]
-    (get-in power [:asset/response :response/effect])))
-
-;; =============================================================================
-;; Response Matching
-;; =============================================================================
-
-(defn matches-event?
-  "Returns true if a trigger's event type matches the fired event."
-  [trigger event]
-  (let [trigger-event (:trigger/event trigger)
-        event-type    (:type event)]
-    (= trigger-event event-type)))
-
-(defn- build-response-document
-  "Builds a document for response condition evaluation.
-
-  The document contains event fields plus game state context for
-  evaluating conditions like 'action-type = :shoot' or 'attacker is adjacent'."
-  [game-state event _trigger]
-  (merge
-   {:state game-state
-    :event-type (:type event)
-    :action-type (:action-type event)
-    :attacker-id (:attacker-id event)
-    :defender-id (:defender-id event)
-    :acting-team (:acting-team event)}
-   (dissoc event :type)))
-
-(defn evaluate-response-condition
-  "Evaluates a response trigger's condition against the current context.
-
-  Returns true if:
-  - No condition defined (always matches)
-  - Condition evaluates to satisfied
-
-  Returns false if condition has conflicts or residuals.
-
-  Uses [[polix.unify/unify]] to evaluate the condition against a document
-  built from the event and game state."
-  [game-state trigger event _registry]
-  (let [condition (:trigger/condition trigger)]
-    (if (nil? condition)
-      true
-      (let [document (build-response-document game-state event trigger)
-            result   (unify/unify condition document {})]
-        (res/satisfied? result)))))
-
-(defn find-matching-responses
-  "Finds Response assets that match the current event.
-
-   Takes the game state, effect catalog, trigger registry, event, and
-   defending team. Returns a sequence of matching response assets with
-   their trigger and effect definitions attached:
-
-   ```clojure
-   [{:asset {...}
-     :trigger {...}
-     :prompt \"Reveal Defensive Timeout?\"
-     :effect {...}}]
-   ```"
-  [game-state effect-catalog registry event defending-team]
-  (let [face-down-responses (get-face-down-response-assets game-state defending-team)]
-    (reduce
-     (fn [matches asset]
-       (let [trigger (get-response-trigger effect-catalog asset)]
-         (if (and trigger
-                  (matches-event? trigger event)
-                  (evaluate-response-condition game-state trigger event registry))
-           (conj matches
-                 {:asset   asset
-                  :trigger trigger
-                  :prompt  (get-response-prompt effect-catalog asset)
-                  :effect  (get-response-effect effect-catalog asset)})
-           matches)))
-     []
-     face-down-responses)))
-
-;; =============================================================================
-;; Response Prompts
-;; =============================================================================
-
-(defn create-response-choice
-  "Creates a choice option for a single Response asset.
-
-   Returns a ChoiceOption map for the pending choice system."
-  [response-info]
-  {:id       (keyword (str "response-" (get-in response-info [:asset :instance-id])))
-   :label    (:prompt response-info)
-   :response response-info})
-
-(defn create-response-prompt
-  "Creates a prompt offering the defender to apply or pass on a Response.
-
-   Returns a pending choice action map that can be applied to game state."
-  [response-info defending-team]
-  {:type        :bashketball/offer-choice
-   :choice-type :response-apply
-   :options     [{:id :apply :label "Apply"}
-                 {:id :pass :label "Pass"}]
-   :waiting-for defending-team
-   :context     {:response-asset (:asset response-info)
-                 :response-effect (:effect response-info)}})
+   [bashketball-game.polix.triggers :as triggers]))
 
 ;; =============================================================================
 ;; Response Execution
@@ -248,6 +104,34 @@
    offense-continuation
    (reverse responses)))
 
+(defn build-response-chain-from-triggers
+  "Builds nested continuation chain from response triggers.
+
+  Takes response triggers returned by [[fire-request-event]] and builds
+  the same nested Apply/Pass choice continuations. Each trigger's `:self`
+  identifies the asset instance, `:owner` is the team, and `:effect` contains
+  `:prompt` and `:response-effect`."
+  [response-triggers next-continuation]
+  (reduce
+   (fn [next-cont trigger]
+     (let [asset-instance-id (:self trigger)
+           owner             (:owner trigger)
+           prompt            (get-in trigger [:effect :prompt] "Apply response?")
+           response-effect   (get-in trigger [:effect :response-effect])]
+       {:type :bashketball/offer-choice
+        :choice-type :response-prompt
+        :options [{:id :apply :label "Apply"}
+                  {:id :pass :label "Pass"}]
+        :waiting-for owner
+        :context {:response-asset-id asset-instance-id
+                  :response-prompt prompt}
+        :continuation {:type :bashketball/process-response-choice
+                       :response-asset {:instance-id asset-instance-id :owner owner}
+                       :response-effect response-effect
+                       :next-continuation next-cont}}))
+   next-continuation
+   (reverse response-triggers)))
+
 ;; =============================================================================
 ;; Standard Action Resolution Flow
 ;; =============================================================================
@@ -282,19 +166,6 @@
   (if (= mode :offense)
     (if (= acting-team :team/HOME) :team/AWAY :team/HOME)
     acting-team))
-
-(defn check-for-responses
-  "Checks if the defending team has any matching Response assets.
-
-   Returns a map with:
-   - `:has-responses?` - true if matching responses found
-   - `:responses` - sequence of matching response info maps
-   - `:defending-team` - the team that can respond"
-  [game-state effect-catalog registry event defending-team]
-  (let [responses (find-matching-responses game-state effect-catalog registry event defending-team)]
-    {:has-responses? (seq responses)
-     :responses      responses
-     :defending-team defending-team}))
 
 (defn resolution-step-before-event
   "Fires the before event for a standard action.

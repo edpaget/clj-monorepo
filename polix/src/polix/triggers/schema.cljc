@@ -26,7 +26,10 @@
 
   Event types are keywords defined by the consumer domain (e.g., `:entity/damaged`).
   The condition is a polix policy expression evaluated via [[polix.unify/unify]]
-  against the trigger document built from event and trigger context."
+  against the trigger document built from event and trigger context.
+
+  Response triggers (`:response? true`) are not fired automatically. Instead, they
+  are returned from [[fire-request-event]] for the caller to present as player choices."
   [:map
    [:event-types [:set :keyword]]
    [:timing Timing]
@@ -34,14 +37,18 @@
    [:effect :any]
    [:once? {:optional true} :boolean]
    [:priority {:optional true} :int]
-   [:replacement? {:optional true} :boolean]])
+   [:replacement? {:optional true} :boolean]
+   [:response? {:optional true} :boolean]])
 
 (def Trigger
   "Fully instantiated trigger with ID and binding context.
 
   Created by [[polix.triggers.registry/register-trigger]] from a [[TriggerDef]].
   The `:condition` is the raw polix policy expression evaluated lazily via
-  [[polix.unify/unify]] when the trigger is processed."
+  [[polix.unify/unify]] when the trigger is processed.
+
+  Response triggers (`:response? true`) are returned from [[fire-request-event]]
+  instead of being fired automatically, allowing callers to present player choices."
   [:map
    [:id :string]
    [:source :any]
@@ -53,7 +60,8 @@
    [:effect :any]
    [:once? {:optional true} :boolean]
    [:priority {:optional true} :int]
-   [:replacement? {:optional true} :boolean]])
+   [:replacement? {:optional true} :boolean]
+   [:response? {:optional true} :boolean]])
 
 (def Event
   "Minimal event structure requiring only a `:type` keyword.
@@ -94,10 +102,12 @@
   "Result of firing an event through the trigger system.
 
   Contains the updated state and registry, the original event, processing results
-  for each trigger, and whether the action was prevented by a before trigger."
+  for each trigger, whether the action was prevented, and any response triggers
+  that matched but were not automatically fired."
   [:map
    [:state :any]
    [:registry Registry]
    [:event Event]
    [:results [:vector TriggerResult]]
-   [:prevented? :boolean]])
+   [:prevented? :boolean]
+   [:response-triggers {:optional true} [:vector Trigger]]])

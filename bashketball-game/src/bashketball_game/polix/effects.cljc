@@ -1171,6 +1171,19 @@
 
   ;; Standard Action Resolution Effects
 
+  (fx/register-effect! :bashketball/apply-response
+                       (fn [state {:keys [asset-instance-id response-effect]} ctx opts]
+                         ;; This effect is stored in response triggers but not fired automatically.
+                         ;; When used directly, it reveals the asset and applies the response effect.
+                         (let [team  (or (:owner ctx) (:team ctx))
+                               asset {:instance-id asset-instance-id :owner team}
+                               state' (if team
+                                        (sar/reveal-response-asset state team asset)
+                                        state)]
+                           (if response-effect
+                             (fx/apply-effect state' response-effect ctx opts)
+                             (fx/success state' [])))))
+
   (fx/register-effect! :bashketball/process-response-choice
                        (fn [state {:keys [response-asset response-effect next-continuation]} ctx opts]
                          (let [selected (get-in ctx [:bindings :choice/selected])]
@@ -1246,44 +1259,49 @@
   (fx/register-effect! :bashketball/resolve-standard-action
                        (fn [game-state params ctx opts]
                          (let [{:keys [action-type attacker-id defender-id
-                                       success-effect failure-effect effect-catalog]} params
-                               resolved-attacker                                      (resolve-param attacker-id ctx game-state)
-                               resolved-defender                                      (resolve-param defender-id ctx game-state)
-                               attacker-team                                          (state/get-basketball-player-team game-state resolved-attacker)
-                               defending-team                                         (sap/opposing-team attacker-team)
+                                       success-effect failure-effect]} params
+                               resolved-attacker                       (resolve-param attacker-id ctx game-state)
+                               resolved-defender                       (resolve-param defender-id ctx game-state)
+                               attacker-team                           (state/get-basketball-player-team game-state resolved-attacker)
                                ;; Build the offense continuation (skill test → result)
-                               offense-cont                                           (sar/build-offense-continuation
-                                                                                       {:action-type    action-type
-                                                                                        :attacker-id    resolved-attacker
-                                                                                        :defender-id    resolved-defender
-                                                                                        :success-effect success-effect
-                                                                                        :failure-effect failure-effect})
-                               ;; Find matching responses for defending team
-                               before-event                                           {:type        :bashketball/standard-action.before
-                                                                                       :action-type action-type
-                                                                                       :attacker-id resolved-attacker
-                                                                                       :defender-id resolved-defender
-                                                                                       :acting-team attacker-team}
-                               responses                                              (when effect-catalog
-                                                                                        (sar/find-matching-responses
-                                                                                         game-state effect-catalog (:registry opts)
-                                                                                         before-event defending-team))
-                               ;; Build full continuation chain with response prompts
-                               full-continuation                                      (if (seq responses)
-                                                                                        (sar/build-response-chain responses offense-cont)
-                                                                                        offense-cont)
-                               ;; Build the effect sequence: before event → continuation chain
-                               effects                                                [{:type       :bashketball/fire-event
-                                                                                        :event-type :bashketball/standard-action.before
-                                                                                        :params     {:action-type action-type
-                                                                                                     :attacker-id resolved-attacker
-                                                                                                     :defender-id resolved-defender
-                                                                                                     :acting-team attacker-team}}
-                                                                                       full-continuation]]
-                           (fx/apply-effect game-state
-                                            {:type :polix.effects/sequence :effects effects}
+                               offense-cont                            (sar/build-offense-continuation
+                                                                        {:action-type    action-type
+                                                                         :attacker-id    resolved-attacker
+                                                                         :defender-id    resolved-defender
+                                                                         :success-effect success-effect
+                                                                         :failure-effect failure-effect})
+                               ;; Fire the before event to get response triggers
+                               before-event                            {:type        :bashketball/standard-action.before
+                                                                        :event-type  :bashketball/standard-action.before
+                                                                        :action-type action-type
+                                                                        :attacker-id resolved-attacker
+                                                                        :defender-id resolved-defender
+                                                                        :acting-team attacker-team
+                                                                        :turn-number (:turn-number game-state)
+                                                                        :active-player (:active-player game-state)
+                                                                        :phase       (:phase game-state)
+                                                                        :causation   (:causation opts)}
+                               event-result                            (triggers/fire-request-event
+                                                                        {:state              game-state
+                                                                         :registry           (:registry opts)
+                                                                         :event-counters     (:event-counters opts)
+                                                                         :executing-triggers (:executing-triggers opts)}
+                                                                        before-event)
+                               ;; Build full continuation from response triggers
+                               response-triggers                       (:response-triggers event-result)
+                               full-continuation                       (if (seq response-triggers)
+                                                                         (sar/build-response-chain-from-triggers
+                                                                          response-triggers offense-cont)
+                                                                         offense-cont)
+                               ;; Update opts with new registry/counters from event
+                               updated-opts                            (assoc opts
+                                                                               :registry (:registry event-result)
+                                                                               :event-counters (:event-counters event-result))]
+                           ;; Execute the continuation with updated state
+                           (fx/apply-effect (:state event-result)
+                                            full-continuation
                                             ctx
-                                            opts))))
+                                            updated-opts))))
 
   ;; =========================================================================
   ;; Play Card Resolution Effects
@@ -1291,11 +1309,10 @@
 
   (fx/register-effect! :bashketball/play-card
                        (fn [state {:keys [main-card fuel-cards targets play-effect
-                                          effect-context effect-catalog]} ctx opts]
+                                          effect-context]} ctx opts]
                          (if (:registry opts)
                            ;; Event-driven path
-                           (let [team              (:self/team effect-context)
-                                 defending-team    (if (= team :team/HOME) :team/AWAY :team/HOME)
+                           (let [team (:self/team effect-context)
 
                                  ;; Step 1: Process fuel cards (fire signal events)
                                  fuel-ctx          (reduce
@@ -1320,26 +1337,36 @@
                                                     :play-effect    play-effect
                                                     :effect-context effect-context}
 
-                                 ;; Step 3: Check for matching Response assets
-                                 before-event      {:type        :bashketball/play-card.before
-                                                    :team        team
-                                                    :card-slug   (:card-slug main-card)
-                                                    :instance-id (:instance-id main-card)
-                                                    :targets     targets}
-                                 responses         (sar/find-matching-responses
-                                                    (:state fuel-ctx) effect-catalog (:registry fuel-ctx)
-                                                    before-event defending-team)
+                                 ;; Step 3: Fire before event to get response triggers
+                                 before-event      {:type          :bashketball/play-card.before
+                                                    :event-type    :bashketball/play-card.before
+                                                    :team          team
+                                                    :card-slug     (:card-slug main-card)
+                                                    :instance-id   (:instance-id main-card)
+                                                    :targets       targets
+                                                    :turn-number   (:turn-number (:state fuel-ctx))
+                                                    :active-player (:active-player (:state fuel-ctx))
+                                                    :phase         (:phase (:state fuel-ctx))
+                                                    :causation     (:causation opts)}
+                                 event-result      (triggers/fire-request-event
+                                                    {:state              (:state fuel-ctx)
+                                                     :registry           (:registry fuel-ctx)
+                                                     :event-counters     (:event-counters fuel-ctx)
+                                                     :executing-triggers (:executing-triggers opts)}
+                                                    before-event)
 
-                                 ;; Step 4: Build response chain (if any) + play continuation
-                                 full-continuation (if (seq responses)
-                                                     (sar/build-response-chain responses play-continuation)
+                                 ;; Step 4: Build response chain from triggers (if any)
+                                 response-triggers (:response-triggers event-result)
+                                 full-continuation (if (seq response-triggers)
+                                                     (sar/build-response-chain-from-triggers
+                                                      response-triggers play-continuation)
                                                      play-continuation)]
 
-                             ;; Step 5: Apply the full continuation
-                             (fx/apply-effect (:state fuel-ctx) full-continuation ctx
+                             ;; Step 5: Apply the full continuation with updated state/registry
+                             (fx/apply-effect (:state event-result) full-continuation ctx
                                               (assoc opts
-                                                     :registry       (:registry fuel-ctx)
-                                                     :event-counters (:event-counters fuel-ctx))))
+                                                     :registry       (:registry event-result)
+                                                     :event-counters (:event-counters event-result))))
 
                            ;; Legacy path - normalize and apply effect directly with bindings
                            (fx/apply-effect state (normalize-effect play-effect) {:bindings effect-context} opts))))

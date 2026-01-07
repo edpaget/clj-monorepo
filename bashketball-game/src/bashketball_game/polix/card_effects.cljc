@@ -150,22 +150,24 @@
    :once? (:trigger/once? trigger)})
 
 (defn- response->trigger-def
-  "Converts a response definition to a trigger that prompts Apply/Pass.
+  "Converts a response definition to a trigger marked as a response.
 
-   The registered trigger will fire a prompt effect when conditions are met.
-   The prompt effect asks the asset owner whether to reveal and apply the
-   response or pass (keeping it hidden for later)."
+   Response triggers are marked with `:response? true` so that
+   [[fire-request-event]] returns them for the caller to create choice prompts
+   rather than firing automatically. The effect contains the response metadata
+   needed to reveal the asset and apply the response effect."
   [response asset-instance-id]
   (let [trigger (:response/trigger response)]
     {:event-types #{(:trigger/event trigger)}
      :timing (or (:trigger/timing trigger) :before)
      :priority (or (:trigger/priority trigger) 0)
      :condition (:trigger/condition trigger)
-     :effect {:effect/type :bashketball/prompt-response
+     :effect {:effect/type :bashketball/apply-response
               :asset-instance-id asset-instance-id
               :prompt (:response/prompt response)
               :response-effect (:response/effect response)}
-     :once? false}))
+     :once? false
+     :response? true}))
 
 (defn register-asset-triggers
   "Registers triggers for a team asset in play.
