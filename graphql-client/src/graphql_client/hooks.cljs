@@ -39,12 +39,11 @@
          apollo-options (-> options
                             (dissoc :decoder)
                             encode/encode-options)
-         result         (useQuery query apollo-options)]
-     (prn result)
-     {:data    (some-> result :data decoder)
-      :loading (:loading result)
-      :error   (:error result)
-      :refetch (:refetch result)})))
+         ^js result     (useQuery query apollo-options)]
+     {:data    (some-> (.-data result) decoder)
+      :loading (.-loading result)
+      :error   (.-error result)
+      :refetch (.-refetch result)})))
 
 (defn use-lazy-query
   "Returns a query function and result for on-demand execution.
@@ -61,28 +60,30 @@
 
   Example:
     (let [[fetch-game {:keys [data loading]}] (use-lazy-query GAME_QUERY
-                                                {:decoder my-decode-fn})]
+                                               {:decoder my-decode-fn})]
       ($ :button {:on-click #(fetch-game {:variables {:id \"abc\"}})}
          \"Load Game\"))"
   ([query]
    (use-lazy-query query nil))
   ([query options]
-   (let [decoder             (or (:decoder options) identity)
-         apollo-options      (-> options
-                                 (dissoc :decoder)
-                                 encode/encode-options
-                                 (doto (aset "skip" true)))
-         [execute-fn result] (useQuery query apollo-options)
-         decode-fn           (uix/use-callback (fn [data] (decoder data)) [decoder])]
+   (let [decoder                 (or (:decoder options) identity)
+         apollo-options          (-> options
+                                     (dissoc :decoder)
+                                     encode/encode-options
+                                     (doto (aset "skip" true)))
+         [execute-fn ^js result] (useQuery query apollo-options)
+         decode-fn               (uix/use-callback (fn [data] (decoder data)) [decoder])]
      [(uix/use-callback
        (fn [exec-options]
          (-> (execute-fn (encode/encode-options exec-options))
-             (.then (fn [res] (update res :data decode-fn)))))
+             (.then (fn [^js res]
+                      {:data  (some-> (.-data res) decode-fn)
+                       :error (.-error res)}))))
        [execute-fn decode-fn])
-      {:data    (some-> result :data decode-fn)
-       :loading (:loading result)
-       :error   (:error result)
-       :called  (:called result)}])))
+      {:data    (some-> (.-data result) decode-fn)
+       :loading (.-loading result)
+       :error   (.-error result)
+       :called  (.-called result)}])))
 
 (defn use-mutation
   "Returns [mutate-fn result] with optional automatic response decoding.
@@ -106,23 +107,23 @@
   ([mutation]
    (use-mutation mutation nil))
   ([mutation options]
-   (let [decoder            (or (:decoder options) identity)
-         apollo-options     (-> options
-                                (dissoc :decoder)
-                                encode/encode-options)
-         [mutate-fn result] (useMutation mutation apollo-options)
-         decode-fn          (uix/use-callback (fn [data] (decoder data)) [decoder])]
+   (let [decoder                (or (:decoder options) identity)
+         apollo-options         (-> options
+                                    (dissoc :decoder)
+                                    encode/encode-options)
+         [mutate-fn ^js result] (useMutation mutation apollo-options)
+         decode-fn              (uix/use-callback (fn [data] (decoder data)) [decoder])]
      [(uix/use-callback
        (fn
          ([] (mutate-fn))
          ([exec-options]
           (-> (mutate-fn (encode/encode-options exec-options))
-              (.then (fn [response]
-                       {:data (some-> response .-data decode-fn)})))))
+              (.then (fn [^js response]
+                       {:data (some-> (.-data response) decode-fn)})))))
        [mutate-fn decode-fn])
-      {:data    (some-> result :data decode-fn)
-       :loading (:loading result)
-       :error   (:error result)}])))
+      {:data    (some-> (.-data result) decode-fn)
+       :loading (.-loading result)
+       :error   (.-error result)}])))
 
 (defn use-subscription
   "Subscribes to a GraphQL subscription with optional automatic response decoding.
@@ -148,7 +149,7 @@
          apollo-options (-> options
                             (dissoc :decoder)
                             encode/encode-options)
-         result         (useSubscription subscription apollo-options)]
-     {:data    (some-> result :data decoder)
-      :loading (:loading result)
-      :error   (:error result)})))
+         ^js result     (useSubscription subscription apollo-options)]
+     {:data    (some-> (.-data result) decoder)
+      :loading (.-loading result)
+      :error   (.-error result)})))
