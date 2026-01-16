@@ -31,6 +31,9 @@
   :oidc-google
   {:extra-deps {local/oidc-google {:local/root "oidc-google"}}}
 
+  :oidc-apple
+  {:extra-deps {local/oidc-apple {:local/root "oidc-apple"}}}
+
   :bashketball-editor-api
   {:extra-deps {local/bashketball-editor-api {:local/root "bashketball-editor-api"}}}
 
@@ -129,6 +132,14 @@
    :exec-fn     cognitect.test-runner.api/test
    :exec-args   {:dirs ["oidc-google/test"]}
    :extra-deps  {local/oidc-google {:local/root "oidc-google"}
+                 io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+
+  :oidc-apple-test
+  {:extra-paths ["oidc-apple/test"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :exec-fn     cognitect.test-runner.api/test
+   :exec-args   {:dirs ["oidc-apple/test"]}
+   :extra-deps  {local/oidc-apple {:local/root "oidc-apple"}
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
   :bashketball-editor-api-test
