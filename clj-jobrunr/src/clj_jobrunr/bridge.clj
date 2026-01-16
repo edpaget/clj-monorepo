@@ -8,17 +8,9 @@
   - Clojure job type keywords (e.g., `::send-email`)
   - Java class names that JobRunr can serialize (e.g., `clj_jobrunr.jobs.SendEmail`)
   - EDN payloads stored in the database"
-  (:require [clj-jobrunr.job :refer [handle-job]]
-            [clj-jobrunr.serialization :as ser]
-            [clojure.string :as str]))
-
-(defn- kebab->pascal
-  "Converts kebab-case string to PascalCase.
-  Example: \"send-email\" -> \"SendEmail\""
-  [s]
-  (->> (str/split s #"-")
-       (map str/capitalize)
-       (str/join)))
+  (:require [camel-snake-kebab.core :as csk]
+            [clj-jobrunr.job :refer [handle-job]]
+            [clj-jobrunr.serialization :as ser]))
 
 (defn job-class-name
   "Converts a job type keyword to a Java class name.
@@ -31,7 +23,7 @@
     :my.ns/process-user-order -> \"clj_jobrunr.jobs.ProcessUserOrder\""
   [job-kw]
   (let [job-name   (name job-kw)
-        class-name (kebab->pascal job-name)]
+        class-name (csk/->PascalCase job-name)]
     (str "clj_jobrunr.jobs." class-name)))
 
 (defn job-edn
