@@ -23,10 +23,11 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 
 **Implemented**:
 - `make-serializer` - creates serializer with custom readers/writers
-- `default-serializer` - returns default serializer
+- `default-serializer` - returns default serializer with java.time support
 - `serialize` / `deserialize` - EDN round-trip
-- `install-time-print-methods!` - java.time tagged literal support
+- `default-readers` / `default-writers` - built-in support for java.time types
 - `*serializer*` - dynamic var for runtime access
+- `:exclude-readers` / `:exclude-writers` options for customization
 
 ### 1.2 Multimethod and Handler Generation ✅
 

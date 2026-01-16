@@ -65,11 +65,9 @@
       (is (= :my.ns/process-order (:job-type parsed)))
       (is (= payload (:payload parsed))))))
 
-(deftest job-edn-with-custom-serializer-test
-  (testing "uses provided serializer for writing"
-    (ser/install-time-print-methods!)
-    (let [readers    {'time/instant #(java.time.Instant/parse %)}
-          serializer (ser/make-serializer {:readers readers})
+(deftest job-edn-with-time-types-test
+  (testing "serializes java.time types as tagged literals by default"
+    (let [serializer (ser/default-serializer)
           instant    (java.time.Instant/parse "2024-01-15T10:30:00Z")
           edn-str    (bridge/job-edn serializer :my.ns/schedule-task {:run-at instant})
           parsed     (ser/deserialize serializer edn-str)]

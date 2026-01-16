@@ -128,19 +128,23 @@ Use `:job/derives` to create job type hierarchies:
 
 ### Custom Serialization
 
-For java.time types:
+The default serializer handles `java.time.Instant`, `Duration`, and `LocalDate` automatically:
 
 ```clojure
 (require '[clj-jobrunr.serialization :as ser])
 
-;; Install print-methods for java.time types
-(ser/install-time-print-methods!)
+;; Default serializer handles java.time types
+(def serializer (ser/default-serializer))
 
-;; Configure readers
-(def serializer
-  (ser/make-serializer
-    {:readers {'time/instant #(java.time.Instant/parse %)
-               'time/duration #(java.time.Duration/parse %)}}))
+;; java.time types serialize as tagged literals
+(ser/serialize serializer {:at (java.time.Instant/now)})
+;; => "{:at #time/instant \"2024-01-15T10:30:00Z\"}"
+
+;; Add custom types or exclude defaults
+(ser/make-serializer
+  {:writers {MyType (fn [v] (tagged-literal 'my/type (.toString v)))}
+   :readers {'my/type #(MyType/parse %)}
+   :exclude-writers [java.time.Duration]})  ; exclude Duration writer
 ```
 
 ### Testing Jobs

@@ -39,22 +39,21 @@
       (is (= id (:id result))))))
 
 (deftest serialize-with-custom-readers-test
-  (testing "custom reader for #time/instant works"
-    (let [readers {'time/instant #(Instant/parse %)}
-          s       (ser/make-serializer {:readers readers})
+  (testing "default readers include time/instant"
+    (let [s       (ser/default-serializer)
           instant (Instant/parse "2024-01-15T10:30:00Z")
           edn-str "{:scheduled-at #time/instant \"2024-01-15T10:30:00Z\"}"
           result  (ser/deserialize s edn-str)]
       (is (= instant (:scheduled-at result)))))
 
-  (testing "custom readers merge with standard readers"
-    (let [readers {'time/instant #(Instant/parse %)}
+  (testing "custom readers merge with default readers"
+    (let [readers {'custom/tag (fn [v] {:custom v})}
           s       (ser/make-serializer {:readers readers})
           id      (UUID/randomUUID)
-          edn-str (str "{:id #uuid \"" id "\" :at #time/instant \"2024-01-15T10:30:00Z\"}")
+          edn-str (str "{:id #uuid \"" id "\" :custom #custom/tag \"value\"}")
           result  (ser/deserialize s edn-str)]
       (is (= id (:id result)))
-      (is (instance? Instant (:at result))))))
+      (is (= {:custom "value"} (:custom result))))))
 
 (deftest serialize-with-custom-write-fn-test
   (testing "custom write function is used"
@@ -90,32 +89,28 @@
                                             :read-fn custom-read})]
       (is (= :custom-read-called (ser/deserialize s "anything"))))))
 
-(deftest install-time-print-methods-test
-  (testing "Instant serializes as tagged literal after installing print methods"
-    (ser/install-time-print-methods!)
-    (let [instant    (Instant/parse "2024-01-15T10:30:00Z")
-          serialized (pr-str instant)]
-      (is (str/starts-with? serialized "#time/instant"))))
+(deftest default-time-serialization-test
+  (testing "Instant serializes as tagged literal by default"
+    (let [s          (ser/default-serializer)
+          instant    (Instant/parse "2024-01-15T10:30:00Z")
+          serialized (ser/serialize s {:at instant})]
+      (is (str/includes? serialized "#time/instant"))))
 
-  (testing "Duration serializes as tagged literal"
-    (ser/install-time-print-methods!)
-    (let [duration   (Duration/ofHours 2)
-          serialized (pr-str duration)]
-      (is (str/starts-with? serialized "#time/duration"))))
+  (testing "Duration serializes as tagged literal by default"
+    (let [s          (ser/default-serializer)
+          duration   (Duration/ofHours 2)
+          serialized (ser/serialize s {:duration duration})]
+      (is (str/includes? serialized "#time/duration"))))
 
-  (testing "LocalDate serializes as tagged literal"
-    (ser/install-time-print-methods!)
-    (let [date       (LocalDate/of 2024 1 15)
-          serialized (pr-str date)]
-      (is (str/starts-with? serialized "#time/local-date")))))
+  (testing "LocalDate serializes as tagged literal by default"
+    (let [s          (ser/default-serializer)
+          date       (LocalDate/of 2024 1 15)
+          serialized (ser/serialize s {:date date})]
+      (is (str/includes? serialized "#time/local-date")))))
 
 (deftest time-round-trip-test
-  (testing "java.time types round-trip with print methods and readers"
-    (ser/install-time-print-methods!)
-    (let [readers    {'time/instant #(Instant/parse %)
-                      'time/duration #(Duration/parse %)
-                      'time/local-date #(LocalDate/parse %)}
-          s          (ser/make-serializer {:readers readers})
+  (testing "java.time types round-trip with default serializer"
+    (let [s          (ser/default-serializer)
           instant    (Instant/parse "2024-01-15T10:30:00Z")
           duration   (Duration/ofHours 2)
           local-date (LocalDate/of 2024 1 15)
@@ -124,3 +119,15 @@
       (is (= instant (:instant result)))
       (is (= duration (:duration result)))
       (is (= local-date (:date result))))))
+
+(deftest exclude-defaults-test
+  (testing "exclude-readers removes default readers"
+    (let [s (ser/make-serializer {:exclude-readers ['time/instant]})]
+      (is (thrown? Exception
+                   (ser/deserialize s "#time/instant \"2024-01-15T10:30:00Z\"")))))
+
+  (testing "exclude-writers removes default writers"
+    (let [s          (ser/make-serializer {:exclude-writers [Instant]})
+          instant    (Instant/parse "2024-01-15T10:30:00Z")
+          serialized (ser/serialize s {:at instant})]
+      (is (not (str/includes? serialized "#time/instant"))))))

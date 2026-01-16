@@ -26,11 +26,9 @@
         (finally
           (ig/halt! system))))))
 
-(deftest serialization-component-custom-readers-test
-  (testing "merges custom readers when provided"
-    (ser/install-time-print-methods!)
-    (let [readers    {'time/instant #(Instant/parse %)}
-          system     (ig/init {::ig-jobrunr/serialization {:readers readers}})
+(deftest serialization-component-time-types-test
+  (testing "default serializer handles java.time types"
+    (let [system     (ig/init {::ig-jobrunr/serialization {}})
           serializer (::ig-jobrunr/serialization system)]
       (try
         (let [instant      (Instant/parse "2024-01-15T10:30:00Z")

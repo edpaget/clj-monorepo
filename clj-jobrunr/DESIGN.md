@@ -115,17 +115,32 @@ Users can provide custom serialization functions to support tagged literals like
   ...}}
 ```
 
-By default, the library uses `clojure.edn/read-string` with standard readers and `pr-str` for writing. The library provides a helper for common java.time types:
+By default, the serializer handles `java.time.Instant`, `java.time.Duration`, and `java.time.LocalDate` as tagged literals without requiring global state modifications:
 
 ```clojure
 (require '[clj-jobrunr.serialization :as ser])
 
-;; Install print-methods for java.time types
-(ser/install-time-print-methods!)
+(def s (ser/default-serializer))
 
-;; Now java.time objects serialize as tagged literals
-(pr-str {:scheduled-at (Instant/now)})
+;; java.time objects serialize as tagged literals automatically
+(ser/serialize s {:scheduled-at (java.time.Instant/now)})
 ;; => "{:scheduled-at #time/instant \"2024-01-15T10:30:00Z\"}"
+
+;; And deserialize back
+(ser/deserialize s "{:at #time/instant \"2024-01-15T10:30:00Z\"}")
+;; => {:at #inst "2024-01-15T10:30:00Z"} (as java.time.Instant)
+```
+
+Custom readers/writers can be added or defaults can be excluded:
+
+```clojure
+;; Add custom writer for a type
+(ser/make-serializer
+  {:writers {MyType (fn [v] (tagged-literal 'my/type (.toString v)))}
+   :readers {'my/type #(MyType/parse %)}})
+
+;; Exclude default time writers
+(ser/make-serializer {:exclude-writers [java.time.Instant]})
 ```
 
 ### Single Bridge Class (Current Implementation)

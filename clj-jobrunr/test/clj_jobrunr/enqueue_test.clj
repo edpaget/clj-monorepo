@@ -105,15 +105,11 @@
 ;; Custom serializer tests
 ;; ---------------------------------------------------------------------------
 
-(deftest enqueue-with-custom-serializer-test
-  (testing "enqueue uses custom serializer for EDN"
-    (ser/install-time-print-methods!)
-    (let [readers    {'time/instant #(Instant/parse %)}
-          serializer (ser/make-serializer {:readers readers})
+(deftest enqueue-with-time-types-test
+  (testing "default serializer handles java.time types"
+    (let [serializer (ser/default-serializer)
           instant    (Instant/parse "2024-01-15T10:30:00Z")
           request    (enqueue/make-job-request serializer ::timed-job {:run-at instant})]
-      ;; Verify the instant is in the EDN
       (is (str/includes? (:edn request) "#time/instant"))
-      ;; Verify it deserializes correctly
       (let [parsed (ser/deserialize serializer (:edn request))]
         (is (= instant (get-in parsed [:payload :run-at])))))))
