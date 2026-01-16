@@ -8,6 +8,11 @@
             [clojure.instant])
   (:import [java.time Instant Duration LocalDate]))
 
+(def ^:dynamic *serializer*
+  "Dynamic var holding the active serializer for job execution.
+  Set by the Integrant server component at startup."
+  nil)
+
 (def ^:private default-readers
   "Default EDN readers for standard tagged literals."
   {'inst #(java.util.Date. (inst-ms (clojure.instant/read-instant-date %)))
