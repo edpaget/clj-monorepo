@@ -146,15 +146,15 @@
                   {:class    "text-slate-400 hover:text-slate-600 text-xs"
                    :on-click on-expand-toggle}
                   (if expanded "Collapse" "Expand"))))
-        ($ player-hand {:hand            hand
-                        :catalog         catalog
-                        :display-mode    (if expanded :preview :compact)
-                        :selected-card   selected-card
-                        :discard-mode    discard-mode
-                        :discard-cards   discard-cards
-                        :on-card-click   on-card-click
-                        :on-detail-click on-detail-click
-                        :disabled        disabled})))
+          ($ player-hand {:hand            hand
+                          :catalog         catalog
+                          :display-mode    (if expanded :preview :compact)
+                          :selected-card   selected-card
+                          :discard-mode    discard-mode
+                          :discard-cards   discard-cards
+                          :on-card-click   on-card-click
+                          :on-detail-click on-detail-click
+                          :disabled        disabled})))
 
      ;; Actions section
      ($ :div {:class "px-3 py-2"}

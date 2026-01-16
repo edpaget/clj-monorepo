@@ -4,10 +4,10 @@
   Centralizes all memoized game state computations in one place,
   making them available to any component via [[use-game-derived]]."
   (:require
-   [bashketball-game.polix.targeting :as targeting]
    [bashketball-game-ui.game.actions :as actions]
    [bashketball-game-ui.game.selectors :as sel]
    [bashketball-game-ui.hooks.selectors :as s]
+   [bashketball-game.polix.targeting :as targeting]
    [uix.core :refer [use-memo]]))
 
 (defn use-game-derived
@@ -49,41 +49,41 @@
   - `:standard-action-step` - Keyword, :select-cards or :select-action
   - `:standard-action-cards` - Set of cards selected for standard action discard"
   []
-  (let [game-state                                                        (s/use-game-state)
-        my-team                                                           (s/use-my-team)
-        is-my-turn                                                        (s/use-is-my-turn)
-        {:keys [mode data]}                                               (s/use-selection)
-        {:keys [machine]}                                                 (s/use-discard-machine)
+  (let [game-state                                                                          (s/use-game-state)
+        my-team                                                                             (s/use-my-team)
+        is-my-turn                                                                          (s/use-is-my-turn)
+        {:keys [mode data]}                                                                 (s/use-selection)
+        {:keys [machine]}                                                                   (s/use-discard-machine)
 
-        selection-mode                                                    mode
-        selection-data                                                    data
-        discard-machine                                                   machine
+        selection-mode                                                                      mode
+        selection-data                                                                      data
+        discard-machine                                                                     machine
 
         ;; Derive values from selection machine state
-        selected-player-id                                                (:player-id selection-data)
-        pass-active                                                       (= selection-mode :targeting-pass)
-        ball-active                                                       (= selection-mode :ball-selected)
-        discard-active                                                    (= (:state discard-machine) :selecting)
-        discard-cards                                                     (or (get-in discard-machine [:data :cards]) #{})
-        selected-card                                                     (:selected-card selection-data)
-        standard-action-active                                            (#{:standard-action-selecting
-                                                                             :standard-action-confirming}
-                                                                           selection-mode)
-        standard-action-step                                              (case selection-mode
-                                                                            :standard-action-selecting :select-cards
-                                                                            :standard-action-confirming :select-action
-                                                                            nil)
-        standard-action-cards                                             (or (:cards selection-data) #{})
+        selected-player-id                                                                  (:player-id selection-data)
+        pass-active                                                                         (= selection-mode :targeting-pass)
+        ball-active                                                                         (= selection-mode :ball-selected)
+        discard-active                                                                      (= (:state discard-machine) :selecting)
+        discard-cards                                                                       (or (get-in discard-machine [:data :cards]) #{})
+        selected-card                                                                       (:selected-card selection-data)
+        standard-action-active                                                              (#{:standard-action-selecting
+                                                                                               :standard-action-confirming}
+                                                                                             selection-mode)
+        standard-action-step                                                                (case selection-mode
+                                                                                              :standard-action-selecting :select-cards
+                                                                                              :standard-action-confirming :select-action
+                                                                                              nil)
+        standard-action-cards                                                               (or (:cards selection-data) #{})
 
         ;; Basic derived values (no memoization needed)
-        opponent-team                                                     (sel/opponent-team my-team)
-        phase                                                             (:phase game-state)
-        setup-mode                                                        (sel/setup-mode? phase)
-        ball-holder-id                                                    (get-in game-state [:ball :holder-id])
-        score                                                             (:score game-state)
-        active-player                                                     (:active-player game-state)
-        events                                                            (:events game-state)
-        play-area                                                         (or (:play-area game-state) [])
+        opponent-team                                                                       (sel/opponent-team my-team)
+        phase                                                                               (:phase game-state)
+        setup-mode                                                                          (sel/setup-mode? phase)
+        ball-holder-id                                                                      (get-in game-state [:ball :holder-id])
+        score                                                                               (:score game-state)
+        active-player                                                                       (:active-player game-state)
+        events                                                                              (:events game-state)
+        play-area                                                                           (or (:play-area game-state) [])
 
         ;; Memoized player data
         {:keys [my-player my-players my-hand]}

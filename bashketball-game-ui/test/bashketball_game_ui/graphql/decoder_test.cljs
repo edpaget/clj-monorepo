@@ -418,9 +418,9 @@
     ;; namespaced keys (:trigger/timing) but GraphQL returns simple keys (timing).
     ;; Fields are decoded to kebab-case keywords but enum values remain strings.
     (let [js-trigger (clj->js {"__typename" "TriggerDef"
-                                "event" "bashketball/shoot.after"
-                                "timing" "AFTER"
-                                "priority" 10})
+                               "event" "bashketball/shoot.after"
+                               "timing" "AFTER"
+                               "priority" 10})
           result     (decoder/decode-js-response js-trigger)]
       (t/is (= "TriggerDef" (:__typename result)))
       (t/is (= "bashketball/shoot.after" (:event result)))
@@ -430,13 +430,13 @@
 (t/deftest ability-def-decodes-basic-fields
   (t/testing "AbilityDef decodes with basic fields and nested types"
     (let [js-ability (clj->js {"__typename" "AbilityDef"
-                                "id" "clutch-performer"
-                                "name" "Clutch Performer"
-                                "description" "Performs better under pressure"
-                                "trigger" {"__typename" "TriggerDef"
-                                           "event" "bashketball/skill-test.before"}
-                                "effect" {"__typename" "EffectDef"
-                                          "type" "bashketball/add-modifier"}})
+                               "id" "clutch-performer"
+                               "name" "Clutch Performer"
+                               "description" "Performs better under pressure"
+                               "trigger" {"__typename" "TriggerDef"
+                                          "event" "bashketball/skill-test.before"}
+                               "effect" {"__typename" "EffectDef"
+                                         "type" "bashketball/add-modifier"}})
           result     (decoder/decode-js-response js-ability)]
       (t/is (= "AbilityDef" (:__typename result)))
       (t/is (= "clutch-performer" (:id result)))
@@ -446,10 +446,10 @@
 (t/deftest action-mode-def-decodes-basic-fields
   (t/testing "ActionModeDef decodes with basic fields"
     (let [js-action (clj->js {"__typename" "ActionModeDef"
-                               "id" "power-shot"
-                               "name" "Power Shot"
-                               "effect" {"__typename" "EffectDef"
-                                         "type" "bashketball/shoot"}})
+                              "id" "power-shot"
+                              "name" "Power Shot"
+                              "effect" {"__typename" "EffectDef"
+                                        "type" "bashketball/shoot"}})
           result    (decoder/decode-js-response js-action)]
       (t/is (= "ActionModeDef" (:__typename result)))
       (t/is (= "power-shot" (:id result)))
@@ -458,22 +458,22 @@
 (t/deftest player-card-with-abilities-decodes
   (t/testing "PlayerCard with structured abilities decodes correctly"
     (let [js-card (clj->js {"__typename" "PlayerCard"
-                             "slug" "star-player"
-                             "name" "Star Player"
-                             "setSlug" "core-set"
-                             "cardType" "PLAYER_CARD"
-                             "sht" 8
-                             "pss" 7
-                             "def" 6
-                             "speed" 9
-                             "size" "MD"
-                             "playerSubtypes" ["HUMAN"]
-                             "abilities" [{"__typename" "AbilityDef"
-                                           "id" "clutch"}
-                                          {"__typename" "AbilityDef"
-                                           "id" "fadeaway"
-                                           "trigger" {"__typename" "TriggerDef"
-                                                      "event" "bashketball/shoot.before"}}]})
+                            "slug" "star-player"
+                            "name" "Star Player"
+                            "setSlug" "core-set"
+                            "cardType" "PLAYER_CARD"
+                            "sht" 8
+                            "pss" 7
+                            "def" 6
+                            "speed" 9
+                            "size" "MD"
+                            "playerSubtypes" ["HUMAN"]
+                            "abilities" [{"__typename" "AbilityDef"
+                                          "id" "clutch"}
+                                         {"__typename" "AbilityDef"
+                                          "id" "fadeaway"
+                                          "trigger" {"__typename" "TriggerDef"
+                                                     "event" "bashketball/shoot.before"}}]})
           result  (decoder/decode-js-response js-card)]
       (t/is (= "PlayerCard" (:__typename result)))
       (t/is (= "star-player" (:slug result)))
@@ -486,19 +486,19 @@
 (t/deftest standard-action-card-with-modes-decodes
   (t/testing "StandardActionCard with offense/defense modes decodes correctly"
     (let [js-card (clj->js {"__typename" "StandardActionCard"
-                             "slug" "power-move"
-                             "name" "Power Move"
-                             "setSlug" "core-set"
-                             "cardType" "STANDARD_ACTION_CARD"
-                             "fate" 4
-                             "offense" {"__typename" "ActionModeDef"
-                                        "id" "power-move-offense"
-                                        "effect" {"__typename" "EffectDef"
-                                                  "type" "bashketball/move"}}
-                             "defense" {"__typename" "ActionModeDef"
-                                        "id" "power-move-defense"
-                                        "effect" {"__typename" "EffectDef"
-                                                  "type" "bashketball/defend"}}})
+                            "slug" "power-move"
+                            "name" "Power Move"
+                            "setSlug" "core-set"
+                            "cardType" "STANDARD_ACTION_CARD"
+                            "fate" 4
+                            "offense" {"__typename" "ActionModeDef"
+                                       "id" "power-move-offense"
+                                       "effect" {"__typename" "EffectDef"
+                                                 "type" "bashketball/move"}}
+                            "defense" {"__typename" "ActionModeDef"
+                                       "id" "power-move-defense"
+                                       "effect" {"__typename" "EffectDef"
+                                                 "type" "bashketball/defend"}}})
           result  (decoder/decode-js-response js-card)]
       (t/is (= "StandardActionCard" (:__typename result)))
       (t/is (= :card-type/STANDARD_ACTION_CARD (:card-type result)))

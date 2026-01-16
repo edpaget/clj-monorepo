@@ -4,8 +4,8 @@
   Tests the app-specific Malli transformers for decoding GraphQL responses,
   including HexPosition tuples, PolicyExpr scalars, and SkillTestTarget scalars."
   (:require
-   [bashketball-game.schema :as game-schema]
    [bashketball-game-ui.graphql.transformer :as transformer]
+   [bashketball-game.schema :as game-schema]
    [bashketball-schemas.effect :as effect]
    [cljs.test :as t :include-macros true]
    [clojure.edn :as edn]

@@ -4,8 +4,8 @@
   Provides residual-based action availability and targeting info for
   the UI to show valid/invalid targets and action explanations."
   (:require
-   [bashketball-game.polix.targeting :as targeting]
    [bashketball-game-ui.hooks.selectors :as s]
+   [bashketball-game.polix.targeting :as targeting]
    [uix.core :refer [use-memo]]))
 
 (defn use-action-residuals
@@ -20,13 +20,13 @@
 
   All computations are memoized based on their dependencies."
   []
-  (let [game-state (s/use-game-state)
-        my-team    (s/use-my-team)
-        {:keys [mode data]} (s/use-selection)
+  (let [game-state                                                                 (s/use-game-state)
+        my-team                                                                    (s/use-my-team)
+        {:keys [mode data]}                                                        (s/use-selection)
 
-        selected-player-id (:player-id data)
-        ball-holder-id     (get-in game-state [:ball :holder-id])
-        pass-active        (= mode :targeting-pass)
+        selected-player-id                                                         (:player-id data)
+        ball-holder-id                                                             (get-in game-state [:ball :holder-id])
+        pass-active                                                                (= mode :targeting-pass)
 
         ;; Memoized action statuses for all action types
         action-statuses

@@ -543,7 +543,7 @@
   Returns :satisfied, :conflict, or :unknown."
   [ctx constraint-tuple actual]
   (let [[op expected] constraint-tuple
-        result (op/eval-in-context ctx {:op op :value expected} actual)]
+        result        (op/eval-in-context ctx {:op op :value expected} actual)]
     (cond
       (true? result) :satisfied
       (false? result) :conflict
@@ -556,12 +556,12 @@
   If no value, composes constraints into a residual."
   [path resolved policy-constraint ctx]
   (let [{:keys [found value constraint]} resolved
-        doc-constraints (or constraint [])]
+        doc-constraints                  (or constraint [])]
     (cond
       ;; Has value: evaluate all constraints against it
       found
       (let [all-constraints (conj (vec doc-constraints) policy-constraint)
-            results (map #(evaluate-constraint-against-value ctx % value) all-constraints)]
+            results         (map #(evaluate-constraint-against-value ctx % value) all-constraints)]
         (cond
           ;; All satisfied
           (every? #(= :satisfied %) results)
@@ -569,7 +569,7 @@
 
           ;; At least one conflict - find first failing constraint
           (some #(= :conflict %) results)
-          (let [failed-idx (.indexOf (vec results) :conflict)
+          (let [failed-idx        (.indexOf (vec results) :conflict)
                 failed-constraint (nth all-constraints failed-idx)]
             [true (res/conflict-residual path failed-constraint value)])
 
@@ -602,24 +602,24 @@
         ;; [:= :doc/key value]
         (and (= ::ast/doc-accessor left-type)
              (= ::ast/literal right-type))
-        (let [path             (:value left)
-              expected         (:value right)
-              resolved         (resolve-accessor-value left document ctx)
+        (let [path              (:value left)
+              expected          (:value right)
+              resolved          (resolve-accessor-value left document ctx)
               policy-constraint [op-key expected]]
           (compose-or-evaluate path resolved policy-constraint ctx))
 
         ;; [:= value :doc/key] - flipped
         (and (= ::ast/literal left-type)
              (= ::ast/doc-accessor right-type))
-        (let [path       (:value right)
-              expected   (:value left)
-              flipped-op (case op-key
-                           :< :>
-                           :> :<
-                           :<= :>=
-                           :>= :<=
-                           op-key)
-              resolved         (resolve-accessor-value right document ctx)
+        (let [path              (:value right)
+              expected          (:value left)
+              flipped-op        (case op-key
+                                  :< :>
+                                  :> :<
+                                  :<= :>=
+                                  :>= :<=
+                                  op-key)
+              resolved          (resolve-accessor-value right document ctx)
               policy-constraint [flipped-op expected]]
           (compose-or-evaluate path resolved policy-constraint ctx))
 

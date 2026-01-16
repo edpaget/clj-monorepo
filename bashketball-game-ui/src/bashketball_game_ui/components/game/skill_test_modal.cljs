@@ -57,12 +57,12 @@
   [{:keys [open? skill-test on-reveal-fate on-close]}]
   (when open?
     (let [{:keys [stat base-value modifiers fate total target-value]} skill-test
-          modifier-total (reduce + 0 (map :amount modifiers))
-          has-fate? (some? fate)
-          computed-total (when has-fate?
-                           (+ base-value modifier-total fate))
-          success? (when (and computed-total target-value)
-                     (>= computed-total target-value))]
+          modifier-total                                              (reduce + 0 (map :amount modifiers))
+          has-fate?                                                   (some? fate)
+          computed-total                                              (when has-fate?
+                                                                        (+ base-value modifier-total fate))
+          success?                                                    (when (and computed-total target-value)
+                                                                        (>= computed-total target-value))]
       ($ :div {:class "fixed inset-0 z-50 flex items-center justify-center"}
          ;; Backdrop
          ($ :div {:class "fixed inset-0 bg-black/50"})

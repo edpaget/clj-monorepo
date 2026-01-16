@@ -36,12 +36,12 @@
   - class: additional CSS classes"
   [{:keys [label on-click disabled explanation variant class]}]
   (let [has-explanation (and disabled (seq explanation))
-        btn ($ button {:variant  (or variant :outline)
-                       :size     :lg
-                       :on-click on-click
-                       :disabled disabled
-                       :class    (cn "min-h-[44px]" class)}
-                label)]
+        btn             ($ button {:variant  (or variant :outline)
+                                   :size     :lg
+                                   :on-click on-click
+                                   :disabled disabled
+                                   :class    (cn "min-h-[44px]" class)}
+                           label)]
     (if has-explanation
       ;; Wrap in span for tooltip trigger since disabled buttons don't fire mouse events
       ($ tooltip/tooltip-wrapper
