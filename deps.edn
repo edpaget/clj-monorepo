@@ -52,6 +52,9 @@
   :bashketball-game-ui
   {:extra-deps {local/bashketball-game-ui {:local/root "bashketball-game-ui"}}}
 
+  :clj-jobrunr
+  {:extra-deps {local/clj-jobrunr {:local/root "clj-jobrunr"}}}
+
   ;; === Test Aliases ===
   ;; Test dependencies and paths for each project
   :exclusive-initializer-test
@@ -153,6 +156,14 @@
                  io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}
                  hato/hato {:mvn/version "1.0.0"}}
    :mvn/repos   {"github" {:url "https://maven.pkg.github.com/bashketball/cards"}}}
+
+  :clj-jobrunr-test
+  {:extra-paths ["clj-jobrunr/test" "clj-jobrunr/target/classes"]
+   :jvm-opts    ["-Duser.timezone=UTC"]
+   :exec-fn     cognitect.test-runner.api/test
+   :exec-args   {:dirs ["clj-jobrunr/test"]}
+   :extra-deps  {local/clj-jobrunr {:local/root "clj-jobrunr"}
+                 io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
 
   ;; === Coverage Aliases ===
   :bashketball-game-coverage

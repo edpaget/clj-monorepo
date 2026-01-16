@@ -42,7 +42,7 @@ jobs:
         run: clojure -X:format check '{:paths ["."]}'
 
       - name: Run clj-kondo
-        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-apple oidc-provider oidc-github oidc-google graphql-server bashketball-editor-api bashketball-game-api cljs-tlr bashketball-editor-ui bashketball-game bashketball-game-ui bashketball-ui build scripts
+        run: clojure -M:lint --lint exclusive-initializer db authn oidc oidc-apple oidc-provider oidc-github oidc-google graphql-server bashketball-editor-api bashketball-game-api cljs-tlr bashketball-editor-ui bashketball-game bashketball-game-ui bashketball-ui clj-jobrunr build scripts
 
   test-no-db:
     name: Test ${{ matrix.project }}
@@ -226,3 +226,40 @@ jobs:
       - name: Test ${{ matrix.project }}
         working-directory: ${{ matrix.project }}
         run: npm test
+
+  test-clj-jobrunr:
+    name: Test clj-jobrunr
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          cli: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: ${{ runner.os }}-clojure-${{ hashFiles('**/deps.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-clojure-
+
+      - name: Build AOT bridge class
+        working-directory: clj-jobrunr
+        run: clojure -T:build compile-bridge
+
+      - name: Test clj-jobrunr
+        run: clojure -X:clj-jobrunr-test
