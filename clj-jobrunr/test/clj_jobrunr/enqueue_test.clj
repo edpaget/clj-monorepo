@@ -16,7 +16,7 @@
       (is (= ::send-email (:job-type request)))
       (is (= {:to "user@example.com"} (:payload request)))
       (is (string? (:edn request)))
-      (is (= "clj_jobrunr.jobs.SendEmail" (:class-name request))))))
+      (is (= "clj_jobrunr.enqueue_test.SendEmail" (:class-name request))))))
 
 (deftest enqueue-with-complex-payload-test
   (testing "enqueue! handles complex nested payloads"

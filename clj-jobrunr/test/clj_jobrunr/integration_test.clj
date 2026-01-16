@@ -135,7 +135,7 @@
         (is (= ::test-simple-job (:job-type request)))
         (is (= {:x 1} (:payload request)))
         (is (string? (:edn request)))
-        (is (= "clj_jobrunr.jobs.TestSimpleJob" (:class-name request)))))))
+        (is (= "clj_jobrunr.integration_test.TestSimpleJob" (:class-name request)))))))
 
 (deftest test-bridge-execute-test
   (testing "bridge execute! dispatches to handler"

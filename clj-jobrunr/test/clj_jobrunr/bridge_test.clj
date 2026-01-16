@@ -18,25 +18,29 @@
 ;; job-class-name tests
 ;; ---------------------------------------------------------------------------
 
-(deftest job-class-name-simple-test
-  (testing "converts simple job keyword to Java class name"
-    (is (= "clj_jobrunr.jobs.SendEmail"
+(deftest job-class-name-derives-package-from-namespace-test
+  (testing "derives Java package from keyword namespace"
+    (is (= "my.ns.SendEmail"
            (bridge/job-class-name :my.ns/send-email)))))
 
-(deftest job-class-name-hyphenated-test
-  (testing "converts hyphens to camel case"
-    (is (= "clj_jobrunr.jobs.ProcessUserOrder"
+(deftest job-class-name-hyphenated-name-test
+  (testing "converts hyphens in name to PascalCase"
+    (is (= "my.ns.ProcessUserOrder"
            (bridge/job-class-name :my.ns/process-user-order)))))
 
-(deftest job-class-name-single-word-test
-  (testing "handles single word job names"
-    (is (= "clj_jobrunr.jobs.Cleanup"
-           (bridge/job-class-name :my.ns/cleanup)))))
+(deftest job-class-name-hyphenated-namespace-test
+  (testing "converts hyphens in namespace to underscores"
+    (is (= "admin_tasks.core.Cleanup"
+           (bridge/job-class-name :admin-tasks.core/cleanup)))))
 
-(deftest job-class-name-preserves-case-test
-  (testing "capitalizes first letter of each segment"
-    (is (= "clj_jobrunr.jobs.SendSmsNotification"
-           (bridge/job-class-name :my.ns/send-sms-notification)))))
+(deftest job-class-name-prevents-conflicts-test
+  (testing "different namespaces produce different class names"
+    (is (not= (bridge/job-class-name :user.jobs/send-email)
+              (bridge/job-class-name :admin.jobs/send-email)))
+    (is (= "user.jobs.SendEmail"
+           (bridge/job-class-name :user.jobs/send-email)))
+    (is (= "admin.jobs.SendEmail"
+           (bridge/job-class-name :admin.jobs/send-email)))))
 
 ;; ---------------------------------------------------------------------------
 ;; job-edn tests

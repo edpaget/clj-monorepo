@@ -5,8 +5,8 @@
   and serializing/deserializing job data for JobRunr storage.
 
   The bridge module handles the translation between:
-  - Clojure job type keywords (e.g., `::send-email`)
-  - Java class names that JobRunr can serialize (e.g., `clj_jobrunr.jobs.SendEmail`)
+  - Clojure job type keywords (e.g., `:my.app.jobs/send-email`)
+  - Java class names derived from the namespace (e.g., `my.app.jobs.SendEmail`)
   - EDN payloads stored in the database"
   (:require [camel-snake-kebab.core :as csk]
             [clj-jobrunr.job :refer [handle-job]]
@@ -16,15 +16,20 @@
   "Converts a job type keyword to a Java class name.
 
   Takes a namespaced keyword and returns a fully qualified Java class name
-  in the `clj_jobrunr.jobs` package with PascalCase naming.
+  derived from the keyword's namespace and name. The namespace becomes the
+  Java package (with hyphens converted to underscores) and the name becomes
+  the PascalCase class name.
 
   Examples:
-    :my.ns/send-email -> \"clj_jobrunr.jobs.SendEmail\"
-    :my.ns/process-user-order -> \"clj_jobrunr.jobs.ProcessUserOrder\""
+    :my.ns/send-email -> \"my.ns.SendEmail\"
+    :user.jobs/process-order -> \"user.jobs.ProcessOrder\"
+    :admin-tasks.core/cleanup -> \"admin_tasks.core.Cleanup\""
   [job-kw]
-  (let [job-name   (name job-kw)
+  (let [ns-part    (namespace job-kw)
+        job-name   (name job-kw)
+        package    (csk/->snake_case ns-part)
         class-name (csk/->PascalCase job-name)]
-    (str "clj_jobrunr.jobs." class-name)))
+    (str package "." class-name)))
 
 (defn job-edn
   "Creates an EDN string containing job type and payload for storage.
