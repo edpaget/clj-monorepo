@@ -19,6 +19,7 @@ This monorepo contains the following projects:
 | **bashketball-schemas** | Shared Malli schemas for Bashketball ecosystem (cards, enums, user) |
 | **bashketball-game** | CLJC game state engine for Bashketball with data-driven actions and Malli validation |
 | **bashketball-ui** | Shared ClojureScript UI components for Bashketball apps (UIx, Tailwind, Radix) |
+| **clj-jobrunr** | Clojure wrapper for JobRunr background job processing with PostgreSQL and dashboard |
 
 ## Applications
 
@@ -102,6 +103,13 @@ Game state engine for Bashketball trading card game.
 Shared ClojureScript UI component library for Bashketball applications.
 - **Namespaces**: `bashketball-ui.core`, `bashketball-ui.utils`, `bashketball-ui.router`, `bashketball-ui.context.auth`, `bashketball-ui.hooks.form`, `bashketball-ui.components.*`, `bashketball-ui.cards.*`
 - **Features**: UIx components, Tailwind CSS styling, configurable auth context, Radix UI primitives, React Router wrappers
+
+### clj-jobrunr
+Clojure wrapper for JobRunr background job processing library.
+- **Namespaces**: `clj-jobrunr.job`, `clj-jobrunr.serialization`, `clj-jobrunr.bridge`, `clj-jobrunr.enqueue`, `clj-jobrunr.integrant`, `clj-jobrunr.java-bridge`
+- **Features**: `defjob` macro for defining jobs, multimethod dispatch with hierarchy support, EDN serialization with custom tagged literals, Integrant lifecycle components, AOT-compiled Java bridge for JobRunr
+- **Build**: Requires AOT compilation: `clojure -T:build compile-bridge`
+- **Key files**: See `clj-jobrunr/DESIGN.md` for architecture, `clj-jobrunr/PLAN.md` for implementation status
 
 ---
 

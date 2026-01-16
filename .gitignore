@@ -25,11 +25,11 @@ package-lock.json
 *.md
 !bashketball-game-ui/content/**/*.md
 !bashketball-game-ui/test/fixtures/**/*.md
-!polix/README.md
-!polix/SPECIFICATION.md
-!clj-jobrunr/README.md
-!clj-jobrunr/DESIGN.md
-!clj-jobrunr/PLAN.md
+# Allow standard documentation files
+!*/README.md
+!*/DESIGN.md
+!*/PLAN.md
+!*/SPECIFICATION.md
 
 # Benchmark results
 **/benchmark-results.json
