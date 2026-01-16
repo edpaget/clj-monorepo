@@ -17,10 +17,10 @@
      (-> (validate validator opts)
          (.then #(println \"Claims:\" (:claims %))))"
   (:require
-   [oidc.discovery :as discovery]
-   [oidc.discovery.protocol :as discovery-proto]
    #?@(:clj [[oidc.jwt.jvm :as jwt-impl]]
        :cljs [[oidc.jwt.cljs-impl :as jwt-impl]])
+   [oidc.discovery :as discovery]
+   [oidc.discovery.protocol :as discovery-proto]
    [oidc.jwt.protocol :as jwt-proto]))
 
 #?(:clj (set! *warn-on-reflection* true))
@@ -56,7 +56,7 @@
      (try
        ;; 1. Fetch discovery document (cached by discovery client)
        (let [discovery-doc (discovery-proto/fetch-discovery-document discovery-client issuer)
-             jwks-uri (:jwks_uri discovery-doc)]
+             jwks-uri      (:jwks_uri discovery-doc)]
 
          (when-not jwks-uri
            (throw (ex-info "No jwks_uri in discovery document" {:issuer issuer})))
