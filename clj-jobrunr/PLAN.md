@@ -12,7 +12,9 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 4: Edge Cases | ✅ Complete | 5 |
 | Phase 5: AOT/gen-class | ✅ Complete | 4 |
 | Phase 5.5: JobRunr 8.x Upgrade | ✅ Complete | - |
-| **Total** | | **62 tests, 124 assertions** |
+| Phase 6.1: ClassLoader Spike | ✅ Complete | 5 |
+| Phase 6.2-6.6: JobRequest Pattern | ⏳ Not Started | - |
+| **Total** | | **67 tests, 131 assertions** |
 
 ---
 
@@ -137,28 +139,136 @@ Upgraded from JobRunr 7.3.2 to 8.4.0.
 
 ## Remaining Work
 
-### Phase 6: JobRunr API Integration (Not Started)
+### Phase 6: Dynamic ClassLoader & JobRequest Pattern (Not Started)
 
-Add functions that actually call JobRunr APIs:
+This phase eliminates AOT compilation by using `deftype` with a custom classloader.
 
+#### 6.1 Custom ClassLoader Module ✅ SPIKE COMPLETE
+
+**Namespace**: `clj-jobrunr.classloader`
+
+**Spike validated**:
+- Composite classloader delegates to Clojure's `DynamicClassLoader`
+- Custom `ThreadFactory` sets context classloader on worker threads
+- `deftype` classes can be loaded via `Class.forName()` in worker threads
+
+**Implementation**:
+- `get-clojure-classloader` - returns appropriate `DynamicClassLoader`
+- `make-composite-classloader` - creates classloader that delegates to Clojure's DL
+- `make-clojure-aware-thread-factory` - creates threads with correct context classloader
+
+#### 6.2 JobRequest/JobRequestHandler Types
+
+**Namespace**: `clj-jobrunr.request`
+
+**To implement**:
 ```clojure
-;; In clj-jobrunr.core or new namespace
-(defn enqueue! [job-type payload]
-  ;; Calls BackgroundJob/enqueue with ClojureBridge lambda
-  )
+(deftype ClojureJobRequest [edn]
+  JobRequest
+  (getJobRequestHandler [_] ClojureJobRequestHandler))
 
-(defn schedule! [job-type payload time]
-  ;; Calls BackgroundJob/schedule
-  )
+(deftype ClojureJobRequestHandler []
+  JobRequestHandler
+  (run [_ request]
+    (let [edn (.edn request)]
+      (bridge/execute-raw! edn))))
+```
 
-(defn recurring! [job-id job-type cron payload]
-  ;; Calls BackgroundJob/scheduleRecurrently
-  )
+**Challenges**:
+- `JobRequestHandler<T>` is generic - need to handle type erasure
+- `getJobRequestHandler` must return a `Class<?>` - verify this works with deftype
+- Handler needs no-arg constructor for JobRunr's reflection-based instantiation
 
-(defn delete-recurring! [job-id]
-  ;; Calls BackgroundJob/delete
+#### 6.3 Custom WorkerPolicy
+
+**Namespace**: `clj-jobrunr.worker-policy`
+
+**To implement**:
+```clojure
+(defn make-clojure-worker-policy
+  "Creates a BackgroundJobServerWorkerPolicy that uses our custom classloader."
+  [worker-count classloader]
+  (let [executor-fn (fn [n]
+                      (make-clojure-executor n classloader))]
+    (DefaultBackgroundJobServerWorkerPolicy. worker-count executor-fn)))
+
+(defn make-clojure-executor
+  "Creates a JobRunrExecutor with threads using our composite classloader."
+  [worker-count classloader]
+  ;; Wrap PlatformThreadPoolJobRunrExecutor or create custom
   )
 ```
+
+#### 6.4 Core API
+
+**Namespace**: `clj-jobrunr.core`
+
+**To implement**:
+```clojure
+(defn enqueue!
+  "Enqueues a job for immediate execution. Returns job ID."
+  ([job-type payload] (enqueue! job-type payload {}))
+  ([job-type payload opts]
+   (let [edn (bridge/job-edn *serializer* job-type payload)
+         request (ClojureJobRequest. edn)
+         job-name (or (:name opts) (job-type->name job-type))
+         builder (-> (aJob)
+                     (.withName job-name)
+                     (.withJobRequest request))]
+     (when-let [labels (:labels opts)]
+       (.withLabels builder (into-array String labels)))
+     (.enqueue JobScheduler builder))))
+
+(defn schedule!
+  "Schedules a job for future execution. Time is Duration or Instant."
+  ([job-type payload time] (schedule! job-type payload time {}))
+  ([job-type payload time opts]
+   ;; Similar to enqueue! but with .scheduledAt
+   ))
+
+(defn recurring!
+  "Creates or updates a recurring job with cron schedule."
+  [recurring-id job-type payload cron & [opts]]
+  ;; Use RecurringJobBuilder
+  )
+
+(defn delete-recurring!
+  "Deletes a recurring job by ID."
+  [recurring-id]
+  (JobScheduler/deleteRecurringJob recurring-id))
+```
+
+#### 6.5 Integrant Updates
+
+**Namespace**: `clj-jobrunr.integrant`
+
+**Changes needed**:
+- Capture classloader from `ClojureJobRequest` at server start
+- Create composite classloader
+- Create custom `BackgroundJobServerWorkerPolicy`
+- Pass to JobRunr configuration
+
+```clojure
+(defmethod ig/init-key ::server
+  [_ {:keys [storage-provider serialization ...]}]
+  (let [;; Get classloader from our deftype
+        source-cl (.getClassLoader ClojureJobRequest)
+        composite-cl (cl/make-composite-classloader source-cl)
+        worker-policy (make-clojure-worker-policy worker-count composite-cl)
+        config (-> (JobRunr/configure)
+                   (.useStorageProvider storage-provider)
+                   (.useBackgroundJobServerWithWorkerPolicy worker-policy)
+                   ...)]
+    ...))
+```
+
+#### 6.6 Remove AOT Code
+
+**Files to remove/modify**:
+- Delete `src/clj_jobrunr/java_bridge.clj`
+- Delete `test/clj_jobrunr/java_bridge_test.clj`
+- Simplify `build.clj` (no more `compile-bridge` task)
+- Update `deps.edn` paths
 
 ### Phase 7: Integration Tests with PostgreSQL (Not Started)
 
@@ -171,12 +281,11 @@ Requires running PostgreSQL database:
 - `custom-serialization-roundtrip-test`
 - `job-survives-restart-test`
 
-### Phase 8: Per-Job Class Generation (Future Enhancement)
+### Phase 8: Documentation & Polish (Future)
 
-Generate a class per job type for better dashboard display:
-
-- Build-time code generation
-- Or runtime bytecode generation with ASM
+- README with getting started guide
+- Example application
+- Migration guide from AOT approach (for early adopters)
 
 ---
 
@@ -185,7 +294,6 @@ Generate a class per job type for better dashboard display:
 ```
 clj-jobrunr/
 ├── deps.edn
-├── build.clj                    # AOT compilation tasks
 ├── DESIGN.md
 ├── PLAN.md
 ├── README.md
@@ -194,9 +302,12 @@ clj-jobrunr/
 │       ├── serialization.clj    ✅
 │       ├── job.clj              ✅
 │       ├── bridge.clj           ✅
-│       ├── enqueue.clj          ✅
-│       ├── integrant.clj        ✅
-│       └── java_bridge.clj      ✅
+│       ├── enqueue.clj          ✅ (to be replaced by core.clj)
+│       ├── integrant.clj        ✅ (needs updates for Phase 6)
+│       ├── classloader.clj      ✅ (spike complete)
+│       ├── request.clj          ⏳ (Phase 6.2)
+│       ├── worker_policy.clj    ⏳ (Phase 6.3)
+│       └── core.clj             ⏳ (Phase 6.4)
 ├── test/
 │   └── clj_jobrunr/
 │       ├── serialization_test.clj  ✅
@@ -204,11 +315,10 @@ clj-jobrunr/
 │       ├── bridge_test.clj         ✅
 │       ├── enqueue_test.clj        ✅
 │       ├── integrant_test.clj      ✅
-│       ├── java_bridge_test.clj    ✅
+│       ├── classloader_test.clj    ✅
 │       ├── integration_test.clj    ✅ (scaffolding)
 │       └── test_utils.clj          ✅
-└── target/
-    └── classes/                 # AOT-compiled classes
+└── build.clj                    # Simplified (no AOT needed)
 ```
 
 ---

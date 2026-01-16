@@ -18,23 +18,43 @@ JobRunr fills this gap perfectly—it supports PostgreSQL (and other RDBMS), inc
 
 The core insight is that JobRunr serializes jobs by inspecting lambda bytecode to extract a static method reference and its arguments. Clojure functions, while implementing Java functional interfaces, don't produce bytecode that JobRunr can meaningfully serialize.
 
-Our solution uses a bridge class generated via `gen-class` that JobRunr can serialize. The `defjob` macro registers Clojure handlers on a multimethod, and the bridge class dispatches to these handlers at runtime.
+Our solution uses JobRunr's **JobRequest/JobRequestHandler pattern** combined with a **custom classloader** that enables Clojure's dynamically-generated classes to be found by JobRunr's worker threads. This eliminates the need for AOT compilation.
 
 ### How It Works
 
-1. **At compile time**:
-   - AOT compilation generates `clj_jobrunr.ClojureBridge` class with static `run(String)` method
+1. **At namespace load time**:
+   - `deftype` creates `ClojureJobRequest` (implements `JobRequest`)
+   - `deftype` creates `ClojureJobRequestHandler` (implements `JobRequestHandler`)
+   - These classes exist in Clojure's `DynamicClassLoader`
    - The `defjob` macro creates a function and registers a `defmethod` on `handle-job`
 
-2. **When enqueueing**, the library:
-   - Serializes the job type and payload as EDN
-   - Creates a job request referencing `ClojureBridge.run(edn)`
-   - JobRunr serializes this method reference
+2. **When the JobRunr server starts**:
+   - A composite classloader is created that delegates to Clojure's `DynamicClassLoader`
+   - A custom `BackgroundJobServerWorkerPolicy` configures worker threads to use this classloader
+   - Worker threads can now load Clojure-generated classes via `Class.forName()`
 
-3. **When executing**, JobRunr:
-   - Deserializes the job and invokes `ClojureBridge.run(edn)`
-   - The bridge deserializes EDN and calls `handle-job` multimethod
-   - The multimethod dispatches to the appropriate handler
+3. **When enqueueing**, the library:
+   - Serializes the job type and payload as EDN
+   - Creates a `ClojureJobRequest` instance with the EDN
+   - Uses `JobBuilder` to set a human-readable job name (e.g., "my.app/send-email")
+   - JobRunr serializes the request as JSON and stores it
+
+4. **When executing**, JobRunr:
+   - Deserializes the `ClojureJobRequest` from JSON
+   - Instantiates `ClojureJobRequestHandler` via reflection
+   - Calls `handler.run(request)` which dispatches to `handle-job` multimethod
+   - The multimethod dispatches to the appropriate Clojure handler
+
+### Why This Works Without AOT
+
+JobRunr uses `Class.forName(className, true, contextClassLoader)` to load classes. By default, worker threads use the system classloader which can't see Clojure's dynamically-generated classes.
+
+Our solution:
+1. **Composite ClassLoader**: Wraps Clojure's `DynamicClassLoader` and delegates to it for class lookups
+2. **Custom ThreadFactory**: Sets the composite classloader as the context classloader on worker threads
+3. **Custom WorkerPolicy**: Configures JobRunr to use our ThreadFactory when creating worker threads
+
+This allows `deftype` classes to be found without AOT compilation.
 
 ### Example
 
@@ -77,11 +97,11 @@ clj-jobrunr/
 ├── src/clj_jobrunr/
 │   ├── serialization.clj   # EDN serialization with custom readers
 │   ├── job.clj             # defjob macro, handle-job multimethod
-│   ├── bridge.clj          # Job class name generation, EDN creation
-│   ├── enqueue.clj         # Job request creation functions
-│   ├── integrant.clj       # Lifecycle components
-│   └── java_bridge.clj     # AOT gen-class for ClojureBridge
-├── build.clj               # Build tasks for AOT compilation
+│   ├── bridge.clj          # Job EDN creation and execution
+│   ├── request.clj         # ClojureJobRequest/Handler deftypes
+│   ├── classloader.clj     # Composite classloader, ThreadFactory
+│   ├── core.clj            # Public API: enqueue!, schedule!, etc.
+│   └── integrant.clj       # Lifecycle components
 └── deps.edn
 ```
 
@@ -89,10 +109,11 @@ clj-jobrunr/
 
 - **serialization**: Configurable EDN read/write with custom tagged literal support
 - **job**: The `defjob` macro and `handle-job` multimethod for dispatch
-- **bridge**: Utilities for converting job keywords to class names and creating EDN
-- **enqueue**: Functions to create job request maps for JobRunr
+- **bridge**: Utilities for creating job EDN and executing handlers
+- **request**: `deftype` implementations of `JobRequest` and `JobRequestHandler`
+- **classloader**: Composite classloader and ThreadFactory for dynamic class loading
+- **core**: Public API (`enqueue!`, `schedule!`, `recurring!`, `delete-recurring!`)
 - **integrant**: Integrant components for lifecycle management
-- **java_bridge**: AOT-compiled Java class that JobRunr can serialize
 
 ## Key Design Decisions
 
@@ -143,23 +164,37 @@ Custom readers/writers can be added or defaults can be excluded:
 (ser/make-serializer {:exclude-writers [java.time.Instant]})
 ```
 
-### Single Bridge Class (Current Implementation)
+### Single Bridge Class with Custom Job Names
 
-The current implementation uses a single `clj_jobrunr.ClojureBridge` class for all jobs. This simplifies AOT compilation—only one class needs to be generated. The tradeoff is that all jobs appear as `ClojureBridge` in the JobRunr dashboard rather than showing individual job names like `SendEmail`.
+The implementation uses a single pair of classes (`ClojureJobRequest` and `ClojureJobRequestHandler`) for all jobs, but leverages JobRunr's `JobBuilder` API to set custom job names that appear in the dashboard.
 
-**Future Enhancement**: Per-job class generation would show job names in the dashboard. This would require either:
-- Build-time code generation to create a namespace per job type
-- Runtime bytecode generation (adds complexity)
+```clojure
+;; When enqueueing:
+(enqueue! ::send-email {:to "user@example.com"})
 
-### AOT Compilation Requirement
-
-The bridge class requires AOT compilation since `gen-class` generates classes at compile time. Build with:
-
-```bash
-clojure -T:build compile-bridge
+;; Creates a job with:
+;; - Name: "my.app/send-email" (shown in dashboard)
+;; - Labels: ["clj-jobrunr"] (optional, for filtering)
+;; - Request: ClojureJobRequest with EDN payload
 ```
 
-This is an acceptable tradeoff for most applications where job types are known at build time.
+This gives the best of both worlds:
+- **Simple implementation**: One pair of classes, no per-job code generation
+- **Dashboard visibility**: Human-readable job names via `JobBuilder.withName()`
+- **Filtering support**: Optional labels via `JobBuilder.withLabels()`
+
+### No AOT Compilation Required
+
+Unlike traditional approaches using `gen-class`, this library uses `deftype` to create the bridge classes at namespace load time. Combined with a custom classloader that makes these classes visible to JobRunr's worker threads, **no AOT compilation is needed**.
+
+Simply require the namespace and start using:
+
+```clojure
+(require '[clj-jobrunr.core :as jobrunr])
+(jobrunr/enqueue! ::send-email {:to "user@example.com"})
+```
+
+The classloader magic happens automatically when the Integrant server component starts.
 
 ### Multimethod Dispatch
 
@@ -233,26 +268,45 @@ The library provides Integrant components for lifecycle management:
   body...)
 ```
 
-### Creating Job Requests
+### Enqueueing Jobs
 
-The `enqueue` module provides functions to create job request maps:
+The `core` module provides the public API for job operations:
 
 ```clojure
-(require '[clj-jobrunr.enqueue :as enqueue])
+(require '[clj-jobrunr.core :as jobrunr])
 
-;; Immediate execution
-(enqueue/make-job-request serializer ::send-email {:to "user@example.com"})
-;; => {:job-type ::send-email, :payload {...}, :edn "...", :class-name "..."}
+;; Immediate execution - returns job ID
+(jobrunr/enqueue! ::send-email {:to "user@example.com"})
+;; => #uuid "550e8400-e29b-41d4-a716-446655440000"
 
-;; Scheduled execution
-(enqueue/make-scheduled-request serializer ::send-email {:to "..."} (Duration/ofHours 1))
-(enqueue/make-scheduled-request serializer ::send-email {:to "..."} (Instant/parse "2024-01-15T10:00:00Z"))
+;; Scheduled execution - Duration or Instant
+(jobrunr/schedule! ::send-email {:to "..."} (Duration/ofHours 1))
+(jobrunr/schedule! ::send-email {:to "..."} (Instant/parse "2024-01-15T10:00:00Z"))
 
-;; Recurring (cron)
-(enqueue/make-recurring-request serializer "daily-digest" ::send-email "0 9 * * *" {:template :digest})
+;; Recurring (cron) - requires a unique job ID
+(jobrunr/recurring! "daily-digest" ::send-digest {:template :digest} "0 9 * * *")
 
-;; Delete recurring
-(enqueue/make-delete-recurring-request "daily-digest")
+;; Delete recurring job
+(jobrunr/delete-recurring! "daily-digest")
+```
+
+### Advanced Options
+
+For more control, use the options map:
+
+```clojure
+;; Custom job name (shown in dashboard)
+(jobrunr/enqueue! ::send-email {:to "user@example.com"}
+  {:name "Send welcome to user@example.com"})
+
+;; With labels (up to 3, for filtering in dashboard)
+(jobrunr/enqueue! ::send-email {:to "user@example.com"}
+  {:labels ["email" "onboarding"]})
+
+;; Both
+(jobrunr/enqueue! ::process-order {:order-id 123}
+  {:name "Process order #123"
+   :labels ["orders" "priority"]})
 ```
 
 ### Testing Handlers
@@ -272,9 +326,9 @@ Each `defjob` generates a regular function, making handlers easy to test:
 
 ## Tradeoffs
 
-### Requires AOT Compilation
+### Custom ClassLoader Complexity
 
-The bridge class must be AOT-compiled before deployment. This adds a build step but is standard practice for production Clojure applications.
+The library uses a custom classloader to enable dynamic class loading. While this eliminates AOT compilation, it adds complexity to the server initialization. The classloader is automatically configured by the Integrant component, so users don't need to manage it directly.
 
 ### JobRunr Version
 
@@ -284,15 +338,14 @@ This library uses JobRunr 8.x which dropped Redis and Elasticsearch support. If 
 
 EDN payloads are stored as strings in the database. Very large payloads should store references (IDs, S3 keys) rather than embedding data directly.
 
-### Dashboard Job Names
+### Thread Context ClassLoader
 
-With the single bridge class approach, all jobs appear as `ClojureBridge` in the dashboard. The EDN payload is still visible and readable.
+Worker threads must have their context classloader set correctly for job execution. This is handled automatically when using the Integrant components. If you're manually configuring JobRunr, you'll need to use the custom `BackgroundJobServerWorkerPolicy` from this library.
 
 ## Future Considerations
 
-- **Per-job classes**: Generate a class per job type for better dashboard display
-- **Actual enqueue functions**: Add `enqueue!`, `schedule!`, `recurring!` that call JobRunr APIs
 - **Batch jobs**: JobRunr Pro supports batch processing
 - **Job chaining**: Parent/child job relationships for workflows
 - **Custom retry policies**: Per-job retry configuration via metadata
 - **Metrics integration**: Hook into JobRunr's metrics for monitoring systems
+- **Per-job classes**: Generate a class per job type (currently unnecessary due to JobBuilder names)
