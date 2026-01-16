@@ -18,28 +18,30 @@ JobRunr fills this gap perfectly—it supports PostgreSQL (and other RDBMS), inc
 
 The core insight is that JobRunr serializes jobs by inspecting lambda bytecode to extract a static method reference and its arguments. Clojure functions, while implementing Java functional interfaces, don't produce bytecode that JobRunr can meaningfully serialize.
 
-Our solution uses a `defjob` macro that generates a Java class (via `gen-class`) for each job type. Each generated class has a static method that JobRunr can serialize. When JobRunr invokes the method, it dispatches to the registered Clojure handler function.
+Our solution uses a bridge class generated via `gen-class` that JobRunr can serialize. The `defjob` macro registers Clojure handlers on a multimethod, and the bridge class dispatches to these handlers at runtime.
 
 ### How It Works
 
-1. **At compile time**, the `defjob` macro:
-   - Generates a Java class with a static `run(String)` method
-   - Defines a `defmethod` on the `handle-job` multimethod
-   - Creates helper functions for enqueueing and scheduling
+1. **At compile time**:
+   - AOT compilation generates `clj_jobrunr.ClojureBridge` class with static `run(String)` method
+   - The `defjob` macro creates a function and registers a `defmethod` on `handle-job`
 
 2. **When enqueueing**, the library:
-   - Serializes the job payload as EDN
-   - Creates a lambda that calls the generated static method with the EDN string
-   - JobRunr serializes this as a method reference it understands
+   - Serializes the job type and payload as EDN
+   - Creates a job request referencing `ClojureBridge.run(edn)`
+   - JobRunr serializes this method reference
 
 3. **When executing**, JobRunr:
-   - Deserializes the job and invokes the static method
-   - The static method calls `handle-job` multimethod with job type and payload
+   - Deserializes the job and invokes `ClojureBridge.run(edn)`
+   - The bridge deserializes EDN and calls `handle-job` multimethod
    - The multimethod dispatches to the appropriate handler
 
 ### Example
 
 ```clojure
+(ns my.app.jobs
+  (:require [clj-jobrunr.job :refer [defjob]]))
+
 (defjob send-email
   "Sends a welcome email to a new user."
   [{:keys [user-id email template]}]
@@ -51,11 +53,7 @@ Our solution uses a `defjob` macro that generates a Java class (via `gen-class`)
 This generates:
 
 - A function `send-email` with the docstring, for direct invocation and testing
-- A `defmethod` on `handle-job` for `::send-email` (namespaced keyword) that delegates to the function
-- A class `clj_jobrunr.jobs.SendEmail` with static method `run(String)`
-- A function `send-email!` for immediate enqueueing
-- A function `schedule-send-email!` for delayed execution
-- A function `recurring-send-email!` for cron-based scheduling
+- A `defmethod` on `handle-job` for `::send-email` (namespaced keyword)
 
 The generated function enables standard Clojure tooling:
 
@@ -70,6 +68,32 @@ The generated function enables standard Clojure tooling:
 (handle-job ::send-email {:user-id 123 :email "test@example.com"})
 ```
 
+## Architecture
+
+### Module Structure
+
+```
+clj-jobrunr/
+├── src/clj_jobrunr/
+│   ├── serialization.clj   # EDN serialization with custom readers
+│   ├── job.clj             # defjob macro, handle-job multimethod
+│   ├── bridge.clj          # Job class name generation, EDN creation
+│   ├── enqueue.clj         # Job request creation functions
+│   ├── integrant.clj       # Lifecycle components
+│   └── java_bridge.clj     # AOT gen-class for ClojureBridge
+├── build.clj               # Build tasks for AOT compilation
+└── deps.edn
+```
+
+### Key Components
+
+- **serialization**: Configurable EDN read/write with custom tagged literal support
+- **job**: The `defjob` macro and `handle-job` multimethod for dispatch
+- **bridge**: Utilities for converting job keywords to class names and creating EDN
+- **enqueue**: Functions to create job request maps for JobRunr
+- **integrant**: Integrant components for lifecycle management
+- **java_bridge**: AOT-compiled Java class that JobRunr can serialize
+
 ## Key Design Decisions
 
 ### EDN for Payload Serialization
@@ -78,33 +102,20 @@ Job payloads are serialized as EDN strings rather than using Java serialization 
 
 ### Configurable EDN Reader/Writer
 
-Users can provide custom serialization functions to support tagged literals like `#inst`, `#uuid`, or application-specific types like `#time/instant` for java.time. The library stores configured reader/writer functions in an atom that the execution path consults during deserialization.
+Users can provide custom serialization functions to support tagged literals like `#inst`, `#uuid`, or application-specific types like `#time/instant` for java.time.
 
 ```clojure
 ;; Integrant config with custom EDN handling
-{:clj-jobrunr.core/serialization
- {:read-fn (fn [s] (edn/read-string {:readers my-readers} s))
-  :write-fn (fn [x] (pr-str x))}  ;; or use a custom print-method setup
+{:clj-jobrunr.integrant/serialization
+ {:readers {'time/instant #(java.time.Instant/parse %)
+            'time/duration #(java.time.Duration/parse %)}}
 
- :clj-jobrunr.core/server
- {:serialization #ig/ref :clj-jobrunr.core/serialization
+ :clj-jobrunr.integrant/server
+ {:serialization (ig/ref :clj-jobrunr.integrant/serialization)
   ...}}
 ```
 
-By default, the library uses `clojure.edn/read-string` with standard readers and `pr-str` for writing. The `:readers` option can be set to merge additional tagged literal handlers:
-
-```clojure
-;; Example: java.time support
-(def time-readers
-  {'time/instant #(java.time.Instant/parse %)
-   'time/duration #(java.time.Duration/parse %)
-   'time/local-date #(java.time.LocalDate/parse %)})
-
-{:clj-jobrunr.core/serialization
- {:readers time-readers}}
-```
-
-For writing, users can either configure `print-method` multimethods globally or provide a custom `:write-fn`. The library provides a helper for common java.time types:
+By default, the library uses `clojure.edn/read-string` with standard readers and `pr-str` for writing. The library provides a helper for common java.time types:
 
 ```clojure
 (require '[clj-jobrunr.serialization :as ser])
@@ -117,17 +128,27 @@ For writing, users can either configure `print-method` multimethods globally or 
 ;; => "{:scheduled-at #time/instant \"2024-01-15T10:30:00Z\"}"
 ```
 
-### One Class Per Job Type
+### Single Bridge Class (Current Implementation)
 
-Each `defjob` creates a dedicated Java class rather than using a single bridge class with job-type discriminator. This provides cleaner organization in the JobRunr dashboard—you see `SendEmail` rather than `Bridge.execute("send-email", ...)`. It also enables future per-job configuration like custom retry policies.
+The current implementation uses a single `clj_jobrunr.ClojureBridge` class for all jobs. This simplifies AOT compilation—only one class needs to be generated. The tradeoff is that all jobs appear as `ClojureBridge` in the JobRunr dashboard rather than showing individual job names like `SendEmail`.
+
+**Future Enhancement**: Per-job class generation would show job names in the dashboard. This would require either:
+- Build-time code generation to create a namespace per job type
+- Runtime bytecode generation (adds complexity)
 
 ### AOT Compilation Requirement
 
-The macro approach requires AOT compilation since `gen-class` generates classes at compile time. This is an acceptable tradeoff for most applications where job types are known at build time. The alternative—runtime bytecode generation—adds significant complexity.
+The bridge class requires AOT compilation since `gen-class` generates classes at compile time. Build with:
+
+```bash
+clojure -T:build compile-bridge
+```
+
+This is an acceptable tradeoff for most applications where job types are known at build time.
 
 ### Multimethod Dispatch
 
-Job handlers are implemented as methods on the `handle-job` multimethod, dispatching on namespaced job type keywords. This is idiomatic Clojure and provides several advantages over an atom-based registry:
+Job handlers are implemented as methods on the `handle-job` multimethod, dispatching on namespaced job type keywords:
 
 ```clojure
 (defmulti handle-job
@@ -145,22 +166,11 @@ Job handlers are implemented as methods on the `handle-job` multimethod, dispatc
   (send-email payload))
 ```
 
-**REPL and testing**: Handlers are directly callable as regular functions:
-
-```clojure
-;; Direct function call (preferred for unit tests)
-(send-email {:to "test@example.com" :subject "Test"})
-
-;; Via multimethod dispatch (note: namespaced keyword)
-(handle-job ::send-email {:to "test@example.com" :subject "Test"})
-```
-
 **Introspection**: List all registered handlers with `(keys (methods handle-job))`.
 
 **Hierarchy support**: Use the `:job/derives` attr-map to create job type hierarchies:
 
 ```clojure
-;; Define jobs with hierarchy via attr-map
 (defjob send-email
   "Sends an email notification."
   {:job/derives [::notification]}
@@ -177,11 +187,24 @@ Job handlers are implemented as methods on the `handle-job` multimethod, dispatc
   (log/info "Processing notification" job-type))
 ```
 
-Hierarchies enable patterns like fallback handlers, job categorization for monitoring, or shared pre/post processing logic for related job types. Jobs can derive from multiple parents by providing a vector: `{:job/derives [::notification ::async-job]}`.
-
 ### Integrant Integration
 
-The library provides Integrant components for the storage provider and background job server. This fits naturally into Integrant-based applications and handles lifecycle management cleanly.
+The library provides Integrant components for lifecycle management:
+
+```clojure
+{:clj-jobrunr.integrant/serialization
+ {:readers {'time/instant #(java.time.Instant/parse %)}}
+
+ :clj-jobrunr.integrant/storage-provider
+ {:datasource (ig/ref :datasource/postgres)}
+
+ :clj-jobrunr.integrant/server
+ {:storage-provider (ig/ref :clj-jobrunr.integrant/storage-provider)
+  :serialization (ig/ref :clj-jobrunr.integrant/serialization)
+  :dashboard? true
+  :dashboard-port 8080
+  :poll-interval 15}}
+```
 
 ## API Surface
 
@@ -195,6 +218,28 @@ The library provides Integrant components for the storage provider and backgroun
   body...)
 ```
 
+### Creating Job Requests
+
+The `enqueue` module provides functions to create job request maps:
+
+```clojure
+(require '[clj-jobrunr.enqueue :as enqueue])
+
+;; Immediate execution
+(enqueue/make-job-request serializer ::send-email {:to "user@example.com"})
+;; => {:job-type ::send-email, :payload {...}, :edn "...", :class-name "..."}
+
+;; Scheduled execution
+(enqueue/make-scheduled-request serializer ::send-email {:to "..."} (Duration/ofHours 1))
+(enqueue/make-scheduled-request serializer ::send-email {:to "..."} (Instant/parse "2024-01-15T10:00:00Z"))
+
+;; Recurring (cron)
+(enqueue/make-recurring-request serializer "daily-digest" ::send-email "0 9 * * *" {:template :digest})
+
+;; Delete recurring
+(enqueue/make-delete-recurring-request "daily-digest")
+```
+
 ### Testing Handlers
 
 Each `defjob` generates a regular function, making handlers easy to test:
@@ -203,69 +248,36 @@ Each `defjob` generates a regular function, making handlers easy to test:
 ;; Unit test - call the function directly
 (send-email {:to "test@example.com" :subject "Test"})
 
-;; Integration test - verify dispatch works (note: namespaced keyword)
+;; Integration test - verify dispatch works
 (handle-job ::send-email {:to "test@example.com" :subject "Test"})
 
 ;; Check if handler exists
 (contains? (methods handle-job) ::send-email)
-
-;; Documentation
-(doc send-email)
 ```
-
-### Enqueueing
-
-```clojure
-;; Immediate execution
-(send-email! {:user-id 123 :email "user@example.com"})
-
-;; Scheduled execution
-(schedule-send-email! {:user-id 123} (Duration/ofHours 1))
-(schedule-send-email! {:user-id 123} (Instant/parse "2024-01-15T10:00:00Z"))
-
-;; Recurring (cron)
-(recurring-send-email! "daily-digest" "0 9 * * *" {:template :digest})
-```
-
-### Configuration
-
-```clojure
-;; Integrant config
-{:clj-jobrunr.core/serialization
- {:readers {'time/instant #(java.time.Instant/parse %)
-            'time/duration #(java.time.Duration/parse %)}}
-
- :clj-jobrunr.core/storage-provider
- {:datasource #ig/ref :datasource/postgres}
-
- :clj-jobrunr.core/server
- {:storage-provider #ig/ref :clj-jobrunr.core/storage-provider
-  :serialization #ig/ref :clj-jobrunr.core/serialization
-  :dashboard? true
-  :dashboard-port 8080
-  :poll-interval 15
-  :worker-count 4}}
-```
-
-The `:serialization` component is optional. When omitted, the library uses standard EDN readers (`inst`, `uuid`) and `pr-str` for writing.
 
 ## Tradeoffs
 
 ### Requires AOT Compilation
 
-Job namespaces must be AOT-compiled before deployment. This adds a build step but is standard practice for production Clojure applications. Dynamic job definition at runtime is not supported.
+The bridge class must be AOT-compiled before deployment. This adds a build step but is standard practice for production Clojure applications.
 
 ### JobRunr Version Constraints
 
-JobRunr 8.x dropped Redis and Elasticsearch support. This library targets JobRunr 7.x for broader storage options or 8.x for PostgreSQL/MySQL-only deployments.
+JobRunr 8.x dropped Redis and Elasticsearch support. This library targets JobRunr 7.x for broader storage options.
 
 ### Payload Size Limits
 
 EDN payloads are stored as strings in the database. Very large payloads should store references (IDs, S3 keys) rather than embedding data directly.
 
+### Dashboard Job Names
+
+With the single bridge class approach, all jobs appear as `ClojureBridge` in the dashboard. The EDN payload is still visible and readable.
+
 ## Future Considerations
 
-- **Batch jobs**: JobRunr Pro supports batch processing; the wrapper could expose this
+- **Per-job classes**: Generate a class per job type for better dashboard display
+- **Actual enqueue functions**: Add `enqueue!`, `schedule!`, `recurring!` that call JobRunr APIs
+- **Batch jobs**: JobRunr Pro supports batch processing
 - **Job chaining**: Parent/child job relationships for workflows
 - **Custom retry policies**: Per-job retry configuration via metadata
 - **Metrics integration**: Hook into JobRunr's metrics for monitoring systems

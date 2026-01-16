@@ -2,203 +2,160 @@
 
 This plan follows Test-Driven Development: write failing tests first, then implement to make them pass.
 
-## Phase 1: Core Library (Unit Tests)
+## Status Overview
 
-### 1.1 Serialization Module
+| Phase | Status | Tests |
+|-------|--------|-------|
+| Phase 1: Core Library | ✅ Complete | 43 |
+| Phase 2: Integrant Components | ✅ Complete | 5 |
+| Phase 3: Test Infrastructure | ✅ Complete | 4 |
+| Phase 4: Edge Cases | ✅ Complete | 5 |
+| Phase 5: AOT/gen-class | ✅ Complete | 4 |
+| **Total** | | **61 tests, 120 assertions** |
+
+---
+
+## Phase 1: Core Library (Unit Tests) ✅ COMPLETE
+
+### 1.1 Serialization Module ✅
 
 **Namespace**: `clj-jobrunr.serialization`
 
-**Tests** (`clj-jobrunr.serialization-test`):
-- `serialize-simple-map` - round-trips a basic map through write/read
-- `serialize-with-standard-readers` - handles `#inst` and `#uuid` tagged literals
-- `serialize-with-custom-readers` - custom reader for `#time/instant` works
-- `serialize-with-custom-write-fn` - custom write function is used
-- `default-serialization` - works without any configuration
+**Implemented**:
+- `make-serializer` - creates serializer with custom readers/writers
+- `default-serializer` - returns default serializer
+- `serialize` / `deserialize` - EDN round-trip
+- `install-time-print-methods!` - java.time tagged literal support
+- `*serializer*` - dynamic var for runtime access
 
-**Implementation**:
-- `(defn make-serializer [{:keys [readers read-fn write-fn]}])` - returns `{:read-fn :write-fn}`
-- `(defn default-serializer [])` - returns default serializer
-- `(defn serialize [serializer data])` - calls write-fn
-- `(defn deserialize [serializer s])` - calls read-fn
-- `(defn install-time-print-methods! [])` - installs print-method for java.time types
-
-### 1.2 Multimethod and Handler Generation
+### 1.2 Multimethod and Handler Generation ✅
 
 **Namespace**: `clj-jobrunr.job`
 
-**Tests** (`clj-jobrunr.job-test`):
-- `defjob-creates-function` - macro creates a callable function with correct name
-- `defjob-function-has-docstring` - generated function has docstring metadata
-- `defjob-registers-multimethod` - handler is registered on `handle-job`
-- `defjob-multimethod-dispatches` - `handle-job` routes to correct handler
-- `defjob-without-docstring` - works when docstring is omitted
-- `handle-job-default` - `:default` method handles unknown job types
-- `handle-job-hierarchy` - `derive` hierarchies work for job type grouping
+**Implemented**:
+- `handle-job` multimethod with `:default` handler
+- `defjob` macro generating function + defmethod
+- Docstring support
+- `:job/derives` attr-map for hierarchies
+- Namespaced keyword dispatch
 
-**Implementation**:
-- `(defmulti handle-job (fn [job-type payload] job-type))`
-- `(defmethod handle-job :default ...)` - throws or logs unknown job type
-- `(defmacro defjob [name & args])` - generates defn + defmethod
-
-### 1.3 Job Class Generation
+### 1.3 Bridge Module ✅
 
 **Namespace**: `clj-jobrunr.bridge`
 
-**Tests** (`clj-jobrunr.bridge-test`):
-- `job-class-name` - converts job keyword to Java class name correctly
-- `job-edn-format` - job EDN includes job-type and payload
-- `execute-deserializes-and-dispatches` - bridge execute fn calls handle-job
+**Implemented**:
+- `job-class-name` - converts keyword to Java class name
+- `job-edn` - creates EDN string with job-type and payload
+- `execute!` - deserializes and dispatches to handler
 
-**Implementation**:
-- `(defn job-class-name [job-kw])` - `:send-email` → `"clj_jobrunr.jobs.SendEmail"`
-- `(defn job-edn [job-type payload])` - creates the EDN string for storage
-- `(defn execute! [job-edn])` - deserializes and calls handle-job
-
-Note: Actual gen-class testing is deferred to integration tests since it requires AOT.
-
-### 1.4 Enqueue API (Mocked)
+### 1.4 Enqueue API ✅
 
 **Namespace**: `clj-jobrunr.enqueue`
 
-**Tests** (`clj-jobrunr.enqueue-test`):
-- `enqueue!-creates-job-lambda` - constructs correct lambda for JobRunr
-- `schedule!-with-instant` - accepts Instant for scheduling
-- `schedule!-with-duration` - accepts Duration, converts to Instant
-- `recurring!-with-cron` - accepts cron expression and job-id
-
-**Implementation** (interfaces only, actual JobRunr calls mocked):
-- `(defn enqueue! [job-type payload])`
-- `(defn schedule! [job-type payload time])`
-- `(defn recurring! [job-id job-type cron payload])`
-- `(defn delete-recurring! [job-id])`
+**Implemented**:
+- `make-job-request` - immediate execution request
+- `make-scheduled-request` - scheduled execution (Instant or Duration)
+- `make-recurring-request` - cron-based scheduling
+- `make-delete-recurring-request` - delete recurring job
 
 ---
 
-## Phase 2: Integrant Components (Unit Tests)
+## Phase 2: Integrant Components ✅ COMPLETE
 
 **Namespace**: `clj-jobrunr.integrant`
 
-**Tests** (`clj-jobrunr.integrant-test`):
-- `serialization-component-default` - creates default serializer when no config
-- `serialization-component-custom-readers` - merges custom readers
-- `storage-provider-component` - creates PostgresStorageProvider from datasource (mocked)
-- `server-component-lifecycle` - init starts server, halt stops it (mocked)
-
-**Implementation**:
-- `(defmethod ig/init-key ::serialization [_ opts])`
-- `(defmethod ig/init-key ::storage-provider [_ {:keys [datasource]}])`
-- `(defmethod ig/init-key ::server [_ opts])`
-- `(defmethod ig/halt-key! ::server [_ server])`
+**Implemented**:
+- `::serialization` - creates serializer from config
+- `::storage-provider` - creates PostgresStorageProvider
+- `::server` - starts/stops JobRunr server with dashboard
 
 ---
 
-## Phase 3: Integration Tests
-
-These tests require a real PostgreSQL database and actually run JobRunr.
-
-### 3.1 Test Infrastructure
+## Phase 3: Test Infrastructure ✅ COMPLETE
 
 **Namespace**: `clj-jobrunr.test-utils`
 
-- Docker-based PostgreSQL for CI (or use existing test DB)
-- Helper to start/stop JobRunr server for tests
-- Helper to wait for job completion
-- Helper to inspect job status via JobRunr API
-
-```clojure
-(defn with-jobrunr [f]
-  ;; Fixture that starts JobRunr, runs test, stops JobRunr
-  )
-
-(defn wait-for-job [job-id & {:keys [timeout-ms] :or {timeout-ms 5000}}]
-  ;; Polls until job completes or times out
-  )
-
-(defn job-status [job-id]
-  ;; Returns :enqueued, :processing, :succeeded, :failed
-  )
-```
-
-### 3.2 Integration Test Cases
+**Implemented**:
+- `job-status` - query job status from storage
+- `wait-for-job` - poll until job completes
+- `with-jobrunr-fixture` - test fixture for integration tests
+- `with-test-serializer` - macro for binding test serializer
 
 **Namespace**: `clj-jobrunr.integration-test`
 
-**Setup**: Define test jobs that record their execution to an atom
+**Implemented**:
+- Test jobs (`test-simple-job`, `test-failing-job`)
+- Unit tests for job execution without database
+- Placeholder integration tests (require PostgreSQL)
+
+---
+
+## Phase 4: Edge Cases ✅ COMPLETE
+
+**Added tests**:
+- `defjob-nested-destructuring-test`
+- `defjob-side-effect-only-test`
+- `defjob-with-let-binding-test`
+- `defjob-job-type-keyword-format-test`
+- `defjob-exception-propagation-test`
+
+---
+
+## Phase 5: AOT Compilation ✅ COMPLETE
+
+**Namespace**: `clj-jobrunr.java-bridge`
+
+**Implemented**:
+- `gen-class` for `clj_jobrunr.ClojureBridge`
+- Static `run(String)` method for JobRunr
+- `build.clj` with `compile-bridge` task
+
+**Build command**: `clojure -T:build compile-bridge`
+
+---
+
+## Remaining Work
+
+### Phase 6: JobRunr API Integration (Not Started)
+
+Add functions that actually call JobRunr APIs:
 
 ```clojure
-(def executions (atom []))
+;; In clj-jobrunr.core or new namespace
+(defn enqueue! [job-type payload]
+  ;; Calls BackgroundJob/enqueue with ClojureBridge lambda
+  )
 
-(defjob test-job
-  "A test job that records its execution."
-  [payload]
-  (swap! executions conj {:job-type :test-job :payload payload :at (Instant/now)}))
+(defn schedule! [job-type payload time]
+  ;; Calls BackgroundJob/schedule
+  )
+
+(defn recurring! [job-id job-type cron payload]
+  ;; Calls BackgroundJob/scheduleRecurrently
+  )
+
+(defn delete-recurring! [job-id]
+  ;; Calls BackgroundJob/delete
+  )
 ```
 
-**Tests**:
+### Phase 7: Integration Tests with PostgreSQL (Not Started)
 
-- `enqueue-executes-job`
-  - Enqueue a job
-  - Wait for completion
-  - Verify execution was recorded
+Requires running PostgreSQL database:
 
-- `schedule-executes-at-time`
-  - Schedule job for 2 seconds in future
-  - Verify not executed immediately
-  - Wait and verify executed after delay
+- `enqueue-executes-job-test`
+- `schedule-executes-at-time-test`
+- `recurring-executes-on-schedule-test`
+- `failed-job-retries-test`
+- `custom-serialization-roundtrip-test`
+- `job-survives-restart-test`
 
-- `recurring-executes-on-schedule`
-  - Schedule recurring job with short interval (every 2 seconds)
-  - Wait for multiple executions
-  - Delete recurring job
-  - Verify no more executions
+### Phase 8: Per-Job Class Generation (Future Enhancement)
 
-- `failed-job-retries`
-  - Define job that fails first N times, then succeeds
-  - Enqueue and wait
-  - Verify retries happened and job eventually succeeded
+Generate a class per job type for better dashboard display:
 
-- `custom-serialization-roundtrip`
-  - Configure custom reader for `#time/instant`
-  - Enqueue job with Instant in payload
-  - Verify handler receives correct Instant value
-
-- `gen-class-serialization`
-  - Verify JobRunr can serialize/deserialize the generated class
-  - Restart JobRunr server
-  - Verify pending job still executes (survives restart)
-
-### 3.3 Dashboard Verification (Manual)
-
-- Start server with dashboard enabled
-- Navigate to `http://localhost:8080`
-- Verify jobs appear with readable EDN payloads
-- Verify job details show correct class names
-
----
-
-## Phase 4: Macro Polish and Edge Cases
-
-**Tests** (`clj-jobrunr.job-test` additions):
-- `defjob-with-destructuring` - complex destructuring in params works
-- `defjob-arglists-metadata` - function has correct `:arglists` metadata
-- `defjob-multiple-jobs` - multiple defjobs in same namespace work
-- `defjob-namespaced-keyword` - job type can be namespaced keyword
-
----
-
-## Implementation Order
-
-```
-1. clj-jobrunr.serialization      (tests → impl)
-2. clj-jobrunr.job                (tests → impl)
-3. clj-jobrunr.bridge             (tests → impl)
-4. clj-jobrunr.enqueue            (tests → impl, mocked)
-5. clj-jobrunr.integrant          (tests → impl, mocked)
-6. Integration test infrastructure
-7. Integration tests (with real JobRunr)
-8. AOT compilation setup + gen-class
-9. Edge cases and polish
-```
+- Build-time code generation
+- Or runtime bytecode generation with ASM
 
 ---
 
@@ -207,43 +164,46 @@ These tests require a real PostgreSQL database and actually run JobRunr.
 ```
 clj-jobrunr/
 ├── deps.edn
-├── build.clj
+├── build.clj                    # AOT compilation tasks
 ├── DESIGN.md
 ├── PLAN.md
+├── README.md
 ├── src/
 │   └── clj_jobrunr/
-│       ├── core.clj          # Public API, re-exports
-│       ├── serialization.clj
-│       ├── job.clj           # defjob, handle-job
-│       ├── bridge.clj        # Java interop, gen-class
-│       ├── enqueue.clj       # enqueue!, schedule!, etc.
-│       └── integrant.clj     # Integrant components
+│       ├── serialization.clj    ✅
+│       ├── job.clj              ✅
+│       ├── bridge.clj           ✅
+│       ├── enqueue.clj          ✅
+│       ├── integrant.clj        ✅
+│       └── java_bridge.clj      ✅
 ├── test/
 │   └── clj_jobrunr/
-│       ├── serialization_test.clj
-│       ├── job_test.clj
-│       ├── bridge_test.clj
-│       ├── enqueue_test.clj
-│       ├── integrant_test.clj
-│       ├── integration_test.clj
-│       └── test_utils.clj
-└── dev/
-    └── user.clj
+│       ├── serialization_test.clj  ✅
+│       ├── job_test.clj            ✅
+│       ├── bridge_test.clj         ✅
+│       ├── enqueue_test.clj        ✅
+│       ├── integrant_test.clj      ✅
+│       ├── java_bridge_test.clj    ✅
+│       ├── integration_test.clj    ✅ (scaffolding)
+│       └── test_utils.clj          ✅
+└── target/
+    └── classes/                 # AOT-compiled classes
 ```
 
 ---
 
 ## Success Criteria
 
-### Unit Tests
-- [ ] All serialization round-trips work
-- [ ] `defjob` generates function with docstring
-- [ ] `defjob` registers multimethod handler
-- [ ] `handle-job` dispatches correctly
-- [ ] Hierarchy dispatch works
-- [ ] Enqueue functions create correct structures
+### Unit Tests ✅
+- [x] All serialization round-trips work
+- [x] `defjob` generates function with docstring
+- [x] `defjob` registers multimethod handler
+- [x] `handle-job` dispatches correctly
+- [x] Hierarchy dispatch works
+- [x] Enqueue functions create correct structures
+- [x] AOT bridge class compiles and executes
 
-### Integration Tests
+### Integration Tests (Requires PostgreSQL)
 - [ ] Jobs enqueue and execute
 - [ ] Scheduled jobs execute at correct time
 - [ ] Recurring jobs execute on schedule
