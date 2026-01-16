@@ -174,3 +174,73 @@
       [payload]
       payload)
     (is (= '([payload]) (:arglists (meta #'test-job-args))))))
+
+;; ---------------------------------------------------------------------------
+;; Phase 4: Additional edge case tests
+;; ---------------------------------------------------------------------------
+
+(deftest defjob-nested-destructuring-test
+  (testing "deeply nested destructuring works"
+    (defjob test-nested-job
+      [{:keys [user]
+        {:keys [street city]} :address
+        :as payload}]
+      {:user-id (:id user)
+       :location (str street ", " city)
+       :raw payload})
+    (let [result (test-nested-job {:user {:id 123}
+                                   :address {:street "123 Main St" :city "Boston"}})]
+      (is (= 123 (:user-id result)))
+      (is (= "123 Main St, Boston" (:location result))))))
+
+(deftest defjob-side-effect-only-test
+  (testing "job that performs side effects and returns nil"
+    (let [side-effect (atom nil)]
+      (defjob test-side-effect-job
+        [payload]
+        (reset! side-effect (:value payload))
+        nil)
+      (let [result (test-side-effect-job {:value "done"})]
+        (is (nil? result))
+        (is (= "done" @side-effect))))))
+
+(deftest defjob-with-let-binding-test
+  (testing "job can use let bindings in body"
+    (defjob test-let-job
+      [{:keys [items]}]
+      (let [total (reduce + items)
+            count (count items)
+            avg   (/ total count)]
+        {:total total :count count :avg avg}))
+    (let [result (test-let-job {:items [10 20 30]})]
+      (is (= 60 (:total result)))
+      (is (= 3 (:count result)))
+      (is (= 20 (:avg result))))))
+
+(deftest defjob-job-type-keyword-format-test
+  (testing "job type keyword is properly namespaced with current namespace"
+    (defjob test-namespace-job [p] p)
+    (let [job-type ::test-namespace-job]
+      ;; Verify it's a keyword
+      (is (keyword? job-type))
+      ;; Verify it has a namespace
+      (is (some? (namespace job-type)))
+      ;; Verify the namespace matches this test namespace
+      (is (= "clj-jobrunr.job-test" (namespace job-type)))
+      ;; Verify the name
+      (is (= "test-namespace-job" (name job-type))))))
+
+(deftest defjob-exception-propagation-test
+  (testing "exceptions from job body propagate correctly"
+    (defjob test-throwing-job
+      [{:keys [should-throw]}]
+      (when should-throw
+        (throw (ex-info "Job error" {:reason :test})))
+      :success)
+    ;; Normal execution
+    (is (= :success (test-throwing-job {:should-throw false})))
+    ;; Exception propagates
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"Job error"
+         (test-throwing-job {:should-throw true})))))
