@@ -276,9 +276,9 @@ Each `defjob` generates a regular function, making handlers easy to test:
 
 The bridge class must be AOT-compiled before deployment. This adds a build step but is standard practice for production Clojure applications.
 
-### JobRunr Version Constraints
+### JobRunr Version
 
-JobRunr 8.x dropped Redis and Elasticsearch support. This library targets JobRunr 7.x for broader storage options.
+This library uses JobRunr 8.x which dropped Redis and Elasticsearch support. If you need those storage backends, you'll need to use an older JobRunr version.
 
 ### Payload Size Limits
 

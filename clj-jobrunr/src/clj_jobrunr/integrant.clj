@@ -25,7 +25,8 @@
             [integrant.core :as ig])
   (:import [org.jobrunr.configuration JobRunr]
            [org.jobrunr.dashboard JobRunrDashboardWebServer]
-           [org.jobrunr.storage.sql.postgres PostgresStorageProvider]))
+           [org.jobrunr.storage.sql.postgres PostgresStorageProvider]
+           [org.jobrunr.utils.mapper.gson GsonJsonMapper]))
 
 ;; ---------------------------------------------------------------------------
 ;; Serialization Component
@@ -73,7 +74,7 @@
     (let [job-runr (.initialize config)
           server   {:job-runr job-runr
                     :dashboard (when dashboard?
-                                 (doto (JobRunrDashboardWebServer. storage-provider dashboard-port)
+                                 (doto (JobRunrDashboardWebServer. storage-provider (GsonJsonMapper.) dashboard-port)
                                    (.start)))}]
       server)))
 

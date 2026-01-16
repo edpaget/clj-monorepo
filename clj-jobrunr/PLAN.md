@@ -11,7 +11,27 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 3: Test Infrastructure | ✅ Complete | 4 |
 | Phase 4: Edge Cases | ✅ Complete | 5 |
 | Phase 5: AOT/gen-class | ✅ Complete | 4 |
-| **Total** | | **61 tests, 120 assertions** |
+| Phase 5.5: JobRunr 8.x Upgrade | ✅ Complete | - |
+| **Total** | | **62 tests, 124 assertions** |
+
+---
+
+## Phase 5.5: JobRunr 8.x Upgrade ✅ COMPLETE
+
+Upgraded from JobRunr 7.3.2 to 8.4.0.
+
+**Changes**:
+- Updated `deps.edn` to JobRunr 8.4.0
+- Added Gson 2.11.0 dependency (JobRunr requires a JSON library)
+- Updated `JobRunrDashboardWebServer` constructor to include `GsonJsonMapper`
+
+**Breaking changes handled**:
+- Dashboard constructor now requires `JsonMapper` parameter
+
+**New capabilities available**:
+- Carbon-aware job scheduling (EU only for now)
+- Improved database performance
+- Kotlin serialization support (if needed)
 
 ---
 
