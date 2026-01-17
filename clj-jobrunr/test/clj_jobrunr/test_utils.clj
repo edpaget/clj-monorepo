@@ -4,8 +4,12 @@
   Provides helpers for:
   - Starting/stopping JobRunr server in tests
   - Waiting for job completion
-  - Inspecting job status"
-  (:require [clj-jobrunr.integrant :as ig-jobrunr]
+  - Inspecting job status
+  - Classloader verification
+  - Multimethod reset between tests"
+  (:require [clj-jobrunr.classloader :as cl]
+            [clj-jobrunr.integrant :as ig-jobrunr]
+            [clj-jobrunr.job :refer [handle-job]]
             [clj-jobrunr.serialization :as ser]
             [integrant.core :as ig])
   (:import [org.jobrunr.jobs.states StateName]
@@ -89,3 +93,45 @@
   `(let [serializer# (ser/default-serializer)]
      (binding [ser/*serializer* serializer#]
        ~@body)))
+
+;; ---------------------------------------------------------------------------
+;; Classloader utilities
+;; ---------------------------------------------------------------------------
+
+(defn verify-classloader-setup
+  "Verifies that a thread with our custom classloader can load Clojure classes.
+   Returns true if successful, throws if not."
+  []
+  (let [factory (cl/make-clojure-aware-thread-factory)
+        result  (promise)
+        test-fn (fn []
+                  (try
+                    (let [cl  (.getContextClassLoader (Thread/currentThread))
+                          cls (Class/forName "clojure.lang.IFn" true cl)]
+                      (deliver result {:success true :class cls}))
+                    (catch Exception e
+                      (deliver result {:success false :error e}))))
+        thread  (.newThread factory test-fn)]
+    (.start thread)
+    (.join thread 5000)
+    (let [{:keys [success error]} @result]
+      (if success
+        true
+        (throw (ex-info "Classloader verification failed" {:error error}))))))
+
+;; ---------------------------------------------------------------------------
+;; Multimethod reset utilities
+;; ---------------------------------------------------------------------------
+
+(defn reset-handlers
+  "Test fixture that resets the [[handle-job]] multimethod between tests.
+
+  Removes all non-default methods to prevent test pollution.
+
+  Usage:
+    (use-fixtures :each reset-handlers)"
+  [f]
+  (doseq [k (keys (methods handle-job))]
+    (when (not= k :default)
+      (remove-method handle-job k)))
+  (f))

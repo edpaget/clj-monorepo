@@ -2,16 +2,10 @@
   {:clj-kondo/config '{:linters {:unresolved-symbol {:level :off}
                                  :inline-def {:level :off}}}}
   (:require [clj-jobrunr.job :as job :refer [defjob handle-job]]
+            [clj-jobrunr.test-utils :as tu]
             [clojure.test :refer [deftest is testing use-fixtures]]))
 
-;; Reset multimethod between tests to avoid pollution
-(defn reset-handlers [f]
-  (doseq [k (keys (methods handle-job))]
-    (when (not= k :default)
-      (remove-method handle-job k)))
-  (f))
-
-(use-fixtures :each reset-handlers)
+(use-fixtures :each tu/reset-handlers)
 
 ;; ---------------------------------------------------------------------------
 ;; defjob macro tests

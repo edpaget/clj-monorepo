@@ -64,29 +64,3 @@
            (.setContextClassLoader thread composite-classloader)
            thread))))))
 
-;; ---------------------------------------------------------------------------
-;; Test utilities
-;; ---------------------------------------------------------------------------
-
-(defn verify-classloader-setup
-  "Verifies that a thread with our custom classloader can load Clojure classes.
-   Returns true if successful, throws if not."
-  []
-  (let [factory (make-clojure-aware-thread-factory)
-        result  (promise)
-        test-fn (fn []
-                  (try
-                    ;; Try to load a core Clojure class via Class.forName
-                    ;; using the thread's context classloader
-                    (let [cl  (.getContextClassLoader (Thread/currentThread))
-                          cls (Class/forName "clojure.lang.IFn" true cl)]
-                      (deliver result {:success true :class cls}))
-                    (catch Exception e
-                      (deliver result {:success false :error e}))))
-        thread  (.newThread factory test-fn)]
-    (.start thread)
-    (.join thread 5000)
-    (let [{:keys [success error]} @result]
-      (if success
-        true
-        (throw (ex-info "Classloader verification failed" {:error error}))))))

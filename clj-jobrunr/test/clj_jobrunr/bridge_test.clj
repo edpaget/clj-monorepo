@@ -1,18 +1,12 @@
 (ns clj-jobrunr.bridge-test
   {:clj-kondo/config '{:linters {:unresolved-symbol {:level :off}}}}
   (:require [clj-jobrunr.bridge :as bridge]
-            [clj-jobrunr.job :refer [defjob handle-job]]
+            [clj-jobrunr.job :refer [defjob]]
             [clj-jobrunr.serialization :as ser]
+            [clj-jobrunr.test-utils :as tu]
             [clojure.test :refer [deftest is testing use-fixtures]]))
 
-;; Reset multimethod between tests
-(defn reset-handlers [f]
-  (doseq [k (keys (methods handle-job))]
-    (when (not= k :default)
-      (remove-method handle-job k)))
-  (f))
-
-(use-fixtures :each reset-handlers)
+(use-fixtures :each tu/reset-handlers)
 
 ;; ---------------------------------------------------------------------------
 ;; job-class-name tests

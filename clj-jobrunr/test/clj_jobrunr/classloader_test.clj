@@ -1,6 +1,7 @@
 (ns clj-jobrunr.classloader-test
   "Tests for custom classloader and ThreadFactory."
   (:require [clj-jobrunr.classloader :as cl]
+            [clj-jobrunr.test-utils :as tu]
             [clojure.test :refer [deftest is testing]]))
 
 ;; Define a test type dynamically (no AOT)
@@ -34,7 +35,7 @@
 
 (deftest thread-can-load-clojure-class-test
   (testing "worker thread can load Clojure classes via Class.forName"
-    (is (true? (cl/verify-classloader-setup)))))
+    (is (true? (tu/verify-classloader-setup)))))
 
 (deftest thread-can-load-deftype-class-test
   (testing "worker thread can load dynamically-defined deftype class"
