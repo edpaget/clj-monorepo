@@ -17,11 +17,13 @@
     (-> (BackgroundJobServerConfiguration/usingStandardBackgroundJobServerConfiguration)
         (.andBackgroundJobServerWorkerPolicy policy)))
   ```"
-  (:require [clj-jobrunr.classloader :as cl])
-  (:import [java.util.concurrent Executors ThreadFactory TimeUnit]
-           [org.jobrunr.server.configuration BackgroundJobServerWorkerPolicy]
-           [org.jobrunr.server.strategy BasicWorkDistributionStrategy]
-           [org.jobrunr.server.threadpool JobRunrExecutor]))
+  (:require
+   [clj-jobrunr.classloader :as cl])
+  (:import
+   [java.util.concurrent Executors ThreadFactory TimeUnit]
+   [org.jobrunr.server.configuration BackgroundJobServerWorkerPolicy]
+   [org.jobrunr.server.strategy BasicWorkDistributionStrategy]
+   [org.jobrunr.server.threadpool JobRunrExecutor]))
 
 ;; ---------------------------------------------------------------------------
 ;; Virtual Thread Factory

@@ -1,13 +1,15 @@
 (ns clj-jobrunr.worker-policy-test
   "Tests for custom BackgroundJobServerWorkerPolicy."
-  (:require [clj-jobrunr.classloader :as cl]
-            [clj-jobrunr.request :as req]
-            [clj-jobrunr.worker-policy :as wp]
-            [clojure.test :refer [deftest is testing]])
-  (:import [java.time Duration]
-           [java.util.concurrent CountDownLatch TimeUnit]
-           [org.jobrunr.server.configuration BackgroundJobServerWorkerPolicy]
-           [org.jobrunr.server.threadpool JobRunrExecutor]))
+  (:require
+   [clj-jobrunr.classloader :as cl]
+   [clj-jobrunr.request :as req]
+   [clj-jobrunr.worker-policy :as wp]
+   [clojure.test :refer [deftest is testing]])
+  (:import
+   [java.time Duration]
+   [java.util.concurrent CountDownLatch TimeUnit]
+   [org.jobrunr.server.configuration BackgroundJobServerWorkerPolicy]
+   [org.jobrunr.server.threadpool JobRunrExecutor]))
 
 ;; ---------------------------------------------------------------------------
 ;; Executor Tests

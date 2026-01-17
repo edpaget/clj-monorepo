@@ -1,14 +1,16 @@
 (ns clj-jobrunr.request-test
   "Tests for ClojureJobRequest and ClojureJobRequestHandler."
   {:clj-kondo/config '{:linters {:unresolved-symbol {:level :off}}}}
-  (:require [clj-jobrunr.job :refer [defjob]]
-            [clj-jobrunr.request :as req]
-            [clj-jobrunr.serialization :as ser]
-            [clojure.string :as str]
-            [clojure.test :refer [deftest is testing use-fixtures]])
-  (:import [clj_jobrunr.request ClojureJobRequest ClojureJobRequestHandler]
-           [org.jobrunr.jobs.lambdas JobRequest JobRequestHandler]
-           [org.jobrunr.utils.mapper.gson GsonJsonMapper]))
+  (:require
+   [clj-jobrunr.job :refer [defjob]]
+   [clj-jobrunr.request :as req]
+   [clj-jobrunr.serialization :as ser]
+   [clojure.string :as str]
+   [clojure.test :refer [deftest is testing use-fixtures]])
+  (:import
+   [clj_jobrunr.request ClojureJobRequest ClojureJobRequestHandler]
+   [org.jobrunr.jobs.lambdas JobRequest JobRequestHandler]
+   [org.jobrunr.utils.mapper.gson GsonJsonMapper]))
 
 ;; Test job for execution tests
 (def test-results (atom []))

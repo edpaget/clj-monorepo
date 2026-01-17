@@ -6,14 +6,20 @@
   - Waiting for job completion
   - Inspecting job status
   - Classloader verification
-  - Multimethod reset between tests"
-  (:require [clj-jobrunr.classloader :as cl]
-            [clj-jobrunr.integrant :as ig-jobrunr]
-            [clj-jobrunr.job :refer [handle-job]]
-            [clj-jobrunr.serialization :as ser]
-            [integrant.core :as ig])
-  (:import [org.jobrunr.jobs.states StateName]
-           [org.jobrunr.storage JobNotFoundException]))
+  - Multimethod reset between tests
+  - Testcontainers-based PostgreSQL fixtures"
+  (:require
+   [clj-jobrunr.classloader :as cl]
+   [clj-jobrunr.integrant :as ig-jobrunr]
+   [clj-jobrunr.job :refer [handle-job]]
+   [clj-jobrunr.serialization :as ser]
+   [clojure.test :as t]
+   [integrant.core :as ig])
+  (:import
+   [com.zaxxer.hikari HikariConfig HikariDataSource]
+   [org.jobrunr.jobs.states StateName]
+   [org.jobrunr.storage JobNotFoundException]
+   [org.testcontainers.containers PostgreSQLContainer]))
 
 (def ^:dynamic *storage-provider*
   "Storage provider for the current test context."
@@ -135,3 +141,124 @@
     (when (not= k :default)
       (remove-method handle-job k)))
   (f))
+
+;; ---------------------------------------------------------------------------
+;; Testcontainers fixtures for integration tests
+;; ---------------------------------------------------------------------------
+
+(def ^:dynamic *datasource*
+  "HikariCP datasource connected to the test PostgreSQL container."
+  nil)
+
+(def ^:dynamic *system*
+  "Current Integrant system for the test context."
+  nil)
+
+(def ^:dynamic *container*
+  "Current PostgreSQL Testcontainer instance."
+  nil)
+
+(def executions
+  "Atom to track job executions for verification in integration tests."
+  (atom []))
+
+(defn- start-postgres-container!
+  "Starts a PostgreSQL Testcontainer and returns it."
+  []
+  (doto (PostgreSQLContainer. "postgres:16-alpine")
+    (.start)))
+
+(defn- stop-postgres-container!
+  "Stops the given PostgreSQL Testcontainer."
+  [^PostgreSQLContainer container]
+  (.stop container))
+
+(defn- create-datasource
+  "Creates a HikariCP datasource from the Testcontainer."
+  [^PostgreSQLContainer container]
+  (let [config (doto (HikariConfig.)
+                 (.setJdbcUrl (.getJdbcUrl container))
+                 (.setUsername (.getUsername container))
+                 (.setPassword (.getPassword container))
+                 (.setMaximumPoolSize 5))]
+    (HikariDataSource. config)))
+
+(defn postgres-fixture
+  "Test fixture that starts a PostgreSQL Testcontainer and creates a connection pool.
+
+  Binds `*container*` and `*datasource*` for use in tests.
+
+  Usage:
+    (use-fixtures :once postgres-fixture)"
+  [f]
+  (let [container (start-postgres-container!)
+        ds        (create-datasource container)]
+    (try
+      (binding [*container*  container
+                *datasource* ds]
+        (f))
+      (finally
+        (.close ds)
+        (stop-postgres-container! container)))))
+
+(defn jobrunr-fixture
+  "Test fixture that starts a JobRunr server connected to `*datasource*`.
+
+  Uses a 1-second poll interval for fast test feedback.
+  Binds `*storage-provider*`, `*serializer*`, and `*system*`.
+
+  Usage:
+    (use-fixtures :once (t/join-fixtures [postgres-fixture jobrunr-fixture]))"
+  [f]
+  (let [config {::ig-jobrunr/serialization {}
+                ::ig-jobrunr/storage-provider {:datasource *datasource*}
+                ::ig-jobrunr/server {:storage-provider (ig/ref ::ig-jobrunr/storage-provider)
+                                     :serialization (ig/ref ::ig-jobrunr/serialization)
+                                     :poll-interval 1
+                                     :dashboard? false}}
+        system (ig/init config)]
+    (try
+      (binding [*storage-provider* (::ig-jobrunr/storage-provider system)
+                *serializer*       (::ig-jobrunr/serialization system)
+                *system*           system]
+        (f))
+      (finally
+        (ig/halt! system)))))
+
+(defn integration-fixture
+  "Combined fixture for integration tests.
+
+  Starts PostgreSQL container, creates connection pool, and starts JobRunr server.
+
+  Usage:
+    (use-fixtures :once (integration-fixture))"
+  []
+  (t/join-fixtures [postgres-fixture jobrunr-fixture]))
+
+(defn reset-executions-fixture
+  "Per-test fixture that resets the executions atom.
+
+  Usage:
+    (use-fixtures :each reset-executions-fixture)"
+  [f]
+  (reset! executions [])
+  (f))
+
+(defn restart-jobrunr!
+  "Stops the current JobRunr server and starts a new one.
+
+  Used for testing job persistence across server restarts.
+  Updates the dynamic vars to point to the new system."
+  []
+  (ig/halt! *system*)
+  (let [config     {::ig-jobrunr/serialization {}
+                    ::ig-jobrunr/storage-provider {:datasource *datasource*}
+                    ::ig-jobrunr/server {:storage-provider (ig/ref ::ig-jobrunr/storage-provider)
+                                         :serialization (ig/ref ::ig-jobrunr/serialization)
+                                         :poll-interval 1
+                                         :dashboard? false}}
+        new-system (ig/init config)]
+    (alter-var-root #'*system* (constantly new-system))
+    (alter-var-root #'*storage-provider* (constantly (::ig-jobrunr/storage-provider new-system)))
+    (alter-var-root #'*serializer* (constantly (::ig-jobrunr/serialization new-system)))
+    new-system))

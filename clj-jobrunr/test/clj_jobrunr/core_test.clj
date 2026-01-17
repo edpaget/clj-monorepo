@@ -4,11 +4,13 @@
   Note: Tests that actually submit jobs to JobRunr require a running
   BackgroundJobServer and are marked with ^:integration metadata."
   {:clj-kondo/config '{:linters {:unresolved-symbol {:level :off}}}}
-  (:require [clj-jobrunr.core :as core]
-            [clj-jobrunr.job :refer [defjob]]
-            [clojure.test :refer [deftest is testing use-fixtures]])
-  (:import [java.time Duration Instant]
-           [java.util UUID]))
+  (:require
+   [clj-jobrunr.core :as core]
+   [clj-jobrunr.job :refer [defjob]]
+   [clojure.test :refer [deftest is testing use-fixtures]])
+  (:import
+   [java.time Duration Instant]
+   [java.util UUID]))
 
 ;; ---------------------------------------------------------------------------
 ;; Test job definition

@@ -26,15 +26,17 @@
         :dashboard-port 8080
         :poll-interval 15
         :worker-count 4}}"
-  (:require [clj-jobrunr.request :as req]
-            [clj-jobrunr.serialization :as ser]
-            [clj-jobrunr.worker-policy :as wp]
-            [integrant.core :as ig])
-  (:import [org.jobrunr.configuration JobRunr]
-           [org.jobrunr.dashboard JobRunrDashboardWebServer]
-           [org.jobrunr.server BackgroundJobServerConfiguration]
-           [org.jobrunr.storage.sql.postgres PostgresStorageProvider]
-           [org.jobrunr.utils.mapper.gson GsonJsonMapper]))
+  (:require
+   [clj-jobrunr.request :as req]
+   [clj-jobrunr.serialization :as ser]
+   [clj-jobrunr.worker-policy :as wp]
+   [integrant.core :as ig])
+  (:import
+   [org.jobrunr.configuration JobRunr]
+   [org.jobrunr.dashboard JobRunrDashboardWebServer]
+   [org.jobrunr.server BackgroundJobServerConfiguration]
+   [org.jobrunr.storage.sql.postgres PostgresStorageProvider]
+   [org.jobrunr.utils.mapper.gson GsonJsonMapper]))
 
 ;; ---------------------------------------------------------------------------
 ;; Serialization Component

@@ -1,8 +1,9 @@
 (ns clj-jobrunr.classloader-test
   "Tests for custom classloader and ThreadFactory."
-  (:require [clj-jobrunr.classloader :as cl]
-            [clj-jobrunr.test-utils :as tu]
-            [clojure.test :refer [deftest is testing]]))
+  (:require
+   [clj-jobrunr.classloader :as cl]
+   [clj-jobrunr.test-utils :as tu]
+   [clojure.test :refer [deftest is testing]]))
 
 ;; Define a test type dynamically (no AOT)
 (deftype TestJobRequest [edn])

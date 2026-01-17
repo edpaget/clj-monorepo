@@ -1,10 +1,12 @@
 (ns clj-jobrunr.serialization-test
-  (:require [clj-jobrunr.serialization :as ser]
-            [clojure.edn :as edn]
-            [clojure.string :as str]
-            [clojure.test :refer [deftest is testing]])
-  (:import [java.time Instant Duration LocalDate]
-           [java.util UUID Date]))
+  (:require
+   [clj-jobrunr.serialization :as ser]
+   [clojure.edn :as edn]
+   [clojure.string :as str]
+   [clojure.test :refer [deftest is testing]])
+  (:import
+   [java.time Instant Duration LocalDate]
+   [java.util UUID Date]))
 
 (deftest default-serialization-test
   (testing "default serializer round-trips basic data"

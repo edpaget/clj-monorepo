@@ -8,9 +8,10 @@
   - Clojure job type keywords (e.g., `:my.app.jobs/send-email`)
   - Java class names derived from the namespace (e.g., `my.app.jobs.SendEmail`)
   - EDN payloads stored in the database"
-  (:require [camel-snake-kebab.core :as csk]
-            [clj-jobrunr.job :refer [handle-job]]
-            [clj-jobrunr.serialization :as ser]))
+  (:require
+   [camel-snake-kebab.core :as csk]
+   [clj-jobrunr.job :refer [handle-job]]
+   [clj-jobrunr.serialization :as ser]))
 
 (defn job-class-name
   "Converts a job type keyword to a Java class name.

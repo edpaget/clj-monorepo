@@ -18,7 +18,8 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 6.4: Core API | ✅ Complete | 13 |
 | Phase 6.5: Integrant Updates | ✅ Complete | - |
 | Phase 6.6: Cleanup | ✅ Complete | -13 |
-| **Total** | | **89 tests, 145 assertions** |
+| Phase 7: Integration Tests | ✅ Complete | 6 |
+| **Total** | | **95 tests (89 unit + 6 integration)** |
 
 ---
 
@@ -287,16 +288,41 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 - Deleted `src/clj_jobrunr/enqueue.clj` - superseded by `request.clj` and `core.clj`
 - Deleted `test/clj_jobrunr/enqueue_test.clj` - tests for removed namespace
 
-### Phase 7: Integration Tests with PostgreSQL (Not Started)
+### Phase 7: Integration Tests with PostgreSQL ✅ COMPLETE
 
-Requires running PostgreSQL database:
+Uses Testcontainers for isolated PostgreSQL - requires Docker.
 
-- `enqueue-executes-job-test`
-- `schedule-executes-at-time-test`
-- `recurring-executes-on-schedule-test`
-- `failed-job-retries-test`
-- `custom-serialization-roundtrip-test`
-- `job-survives-restart-test`
+**Dependencies added** (`deps.edn :test`):
+- `org.testcontainers/testcontainers` 1.20.4
+- `org.testcontainers/postgresql` 1.20.4
+- `org.postgresql/postgresql` 42.7.4
+- `com.zaxxer/HikariCP` 6.2.1
+
+**Test utilities** (`test_utils.clj`):
+- `postgres-fixture` - starts PostgreSQL Testcontainer
+- `jobrunr-fixture` - starts JobRunr server with 1s poll interval
+- `integration-fixture` - combined fixture for integration tests
+- `restart-jobrunr!` - helper for restart test
+
+**Integration tests** (6 tests):
+- `enqueue-executes-job-test` - immediate job execution
+- `schedule-executes-at-time-test` - delayed execution
+- `recurring-executes-on-schedule-test` - cron scheduling
+- `failed-job-retries-test` - retry on failure
+- `custom-serialization-roundtrip-test` - java.time serialization
+- `job-survives-restart-test` - persistence across restarts
+
+**Run commands**:
+```bash
+# Unit tests only (no Docker needed)
+clojure -X:test :excludes '[:integration]'
+
+# Integration tests only (requires Docker)
+clojure -X:test :includes '[:integration]'
+
+# All tests
+clojure -X:test
+```
 
 ### Phase 8: Documentation & Polish (Future)
 
@@ -335,7 +361,7 @@ clj-jobrunr/
         ├── request_test.clj        ✅
         ├── worker_policy_test.clj  ✅
         ├── core_test.clj           ✅
-        ├── integration_test.clj    ✅ (scaffolding)
+        ├── integration_test.clj    ✅ (6 integration tests)
         └── test_utils.clj          ✅
 ```
 
@@ -354,11 +380,11 @@ clj-jobrunr/
 - [x] Virtual thread worker policy sets correct classloader
 - [x] Core API functions (enqueue!, schedule!, recurring!) build jobs correctly
 
-### Integration Tests (Requires PostgreSQL)
-- [ ] Jobs enqueue and execute
-- [ ] Scheduled jobs execute at correct time
-- [ ] Recurring jobs execute on schedule
-- [ ] Failed jobs retry
-- [ ] Custom serialization works end-to-end
-- [ ] Jobs survive server restart
-- [ ] Dashboard shows jobs correctly
+### Integration Tests (Requires Docker) ✅
+- [x] Jobs enqueue and execute
+- [x] Scheduled jobs execute at correct time
+- [x] Recurring jobs execute on schedule
+- [x] Failed jobs retry
+- [x] Custom serialization works end-to-end
+- [x] Jobs survive server restart
+- [ ] Dashboard shows jobs correctly (not tested)

@@ -1,10 +1,12 @@
 (ns clj-jobrunr.integrant-test
   {:clj-kondo/config '{:linters {:unresolved-symbol {:level :off}}}}
-  (:require [clj-jobrunr.integrant :as ig-jobrunr]
-            [clj-jobrunr.serialization :as ser]
-            [clojure.test :refer [deftest is testing]]
-            [integrant.core :as ig])
-  (:import [java.time Instant]))
+  (:require
+   [clj-jobrunr.integrant :as ig-jobrunr]
+   [clj-jobrunr.serialization :as ser]
+   [clojure.test :refer [deftest is testing]]
+   [integrant.core :as ig])
+  (:import
+   [java.time Instant]))
 
 ;; ---------------------------------------------------------------------------
 ;; Serialization Component Tests

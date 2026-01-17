@@ -7,10 +7,12 @@
   global state.
 
   Users can exclude default handlers or add custom ones that compose with them."
-  (:require [clojure.edn :as edn]
-            [clojure.instant]
-            [clojure.walk :as walk])
-  (:import [java.time Instant Duration LocalDate]))
+  (:require
+   [clojure.edn :as edn]
+   [clojure.instant]
+   [clojure.walk :as walk])
+  (:import
+   [java.time Instant Duration LocalDate]))
 
 (def ^:dynamic *serializer*
   "Dynamic var holding the active serializer for job execution.

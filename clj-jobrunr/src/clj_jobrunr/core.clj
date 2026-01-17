@@ -30,11 +30,13 @@
   (jobrunr/recurring! \"daily-report\" ::generate-report {}
                       \"0 9 * * *\")
   ```"
-  (:require [clj-jobrunr.request :as req]
-            [clj-jobrunr.serialization :as ser])
-  (:import [java.time Duration Instant]
-           [java.util UUID]
-           [org.jobrunr.scheduling BackgroundJob JobBuilder RecurringJobBuilder]))
+  (:require
+   [clj-jobrunr.request :as req]
+   [clj-jobrunr.serialization :as ser])
+  (:import
+   [java.time Duration Instant]
+   [java.util UUID]
+   [org.jobrunr.scheduling BackgroundJob JobBuilder RecurringJobBuilder]))
 
 ;; ---------------------------------------------------------------------------
 ;; Utility functions

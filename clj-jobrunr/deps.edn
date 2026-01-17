@@ -14,7 +14,14 @@
   :test
   {:extra-paths ["test"]
    :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1"
-                                                      :git/sha "dfb30dd"}}
+                                                      :git/sha "dfb30dd"}
+                ;; Testcontainers for isolated PostgreSQL
+                org.testcontainers/testcontainers {:mvn/version "1.20.4"}
+                org.testcontainers/postgresql {:mvn/version "1.20.4"}
+                ;; PostgreSQL driver
+                org.postgresql/postgresql {:mvn/version "42.7.4"}
+                ;; Connection pooling
+                com.zaxxer/HikariCP {:mvn/version "6.2.1"}}
    :exec-fn cognitect.test-runner.api/test
    :exec-args {:dirs ["test"]}}
 

@@ -1,9 +1,10 @@
 (ns clj-jobrunr.job-test
   {:clj-kondo/config '{:linters {:unresolved-symbol {:level :off}
                                  :inline-def {:level :off}}}}
-  (:require [clj-jobrunr.job :as job :refer [defjob handle-job]]
-            [clj-jobrunr.test-utils :as tu]
-            [clojure.test :refer [deftest is testing use-fixtures]]))
+  (:require
+   [clj-jobrunr.job :as job :refer [defjob handle-job]]
+   [clj-jobrunr.test-utils :as tu]
+   [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :each tu/reset-handlers)
 

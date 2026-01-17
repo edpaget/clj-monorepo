@@ -12,9 +12,11 @@
   Note: These types are created dynamically when this namespace is loaded.
   JobRunr worker threads must use a classloader that can find them - see
   [[clj-jobrunr.classloader]] for the custom classloader setup."
-  (:require [clj-jobrunr.bridge :as bridge]
-            [clj-jobrunr.serialization :as ser])
-  (:import [org.jobrunr.jobs.lambdas JobRequest JobRequestHandler]))
+  (:require
+   [clj-jobrunr.bridge :as bridge]
+   [clj-jobrunr.serialization :as ser])
+  (:import
+   [org.jobrunr.jobs.lambdas JobRequest JobRequestHandler]))
 
 ;; ---------------------------------------------------------------------------
 ;; ClojureJobRequestHandler (defined first - no dependencies on ClojureJobRequest at compile time)
