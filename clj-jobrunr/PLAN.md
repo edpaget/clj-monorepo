@@ -15,8 +15,9 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 6.1: ClassLoader Spike | ✅ Complete | 5 |
 | Phase 6.2: JobRequest Types | ✅ Complete | 12 |
 | Phase 6.3: Worker Policy | ✅ Complete | 10 |
-| Phase 6.4-6.6: Core API & Cleanup | ⏳ Not Started | - |
-| **Total** | | **89 tests, 164 assertions** |
+| Phase 6.4: Core API | ✅ Complete | 13 |
+| Phase 6.5-6.6: Integrant & Cleanup | ⏳ Not Started | - |
+| **Total** | | **102 tests, 177 assertions** |
 
 ---
 
@@ -211,44 +212,34 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 - Uses `BasicWorkDistributionStrategy` (same as `DefaultBackgroundJobServerWorkerPolicy`)
 - `worker-count` is logical for work distribution, not actual thread limit (virtual threads are per-task)
 
-#### 6.4 Core API
+#### 6.4 Core API ✅ COMPLETE
 
 **Namespace**: `clj-jobrunr.core`
 
-**To implement**:
-```clojure
-(defn enqueue!
-  "Enqueues a job for immediate execution. Returns job ID."
-  ([job-type payload] (enqueue! job-type payload {}))
-  ([job-type payload opts]
-   (let [edn (bridge/job-edn *serializer* job-type payload)
-         request (ClojureJobRequest. edn)
-         job-name (or (:name opts) (job-type->name job-type))
-         builder (-> (aJob)
-                     (.withName job-name)
-                     (.withJobRequest request))]
-     (when-let [labels (:labels opts)]
-       (.withLabels builder (into-array String labels)))
-     (.enqueue JobScheduler builder))))
+**Implemented**:
+- `enqueue!` - immediate job execution with JobBuilder
+- `schedule!` - scheduled execution (Duration or Instant) with JobBuilder
+- `recurring!` - cron-based recurring jobs with RecurringJobBuilder
+- `delete-recurring!` - delete recurring jobs by ID
 
-(defn schedule!
-  "Schedules a job for future execution. Time is Duration or Instant."
-  ([job-type payload time] (schedule! job-type payload time {}))
-  ([job-type payload time opts]
-   ;; Similar to enqueue! but with .scheduledAt
-   ))
+**Options supported**:
+- `:name` - custom display name for dashboard
+- `:labels` - vector of up to 3 labels for filtering
+- `:id` - custom UUID to prevent duplicates
+- `:retries` - number of retry attempts on failure
+- `:zone` - timezone for recurring jobs (recurring! only)
 
-(defn recurring!
-  "Creates or updates a recurring job with cron schedule."
-  [recurring-id job-type payload cron & [opts]]
-  ;; Use RecurringJobBuilder
-  )
+**Tests** (13 tests):
+- `job-type->name` conversion (namespaced, simple, current namespace)
+- `build-job` with various option combinations
+- API function existence verification
+- Integration tests (commented, require running JobRunr server)
 
-(defn delete-recurring!
-  "Deletes a recurring job by ID."
-  [recurring-id]
-  (JobScheduler/deleteRecurringJob recurring-id))
-```
+**Key design decisions**:
+- Uses `BackgroundJob.create(JobBuilder)` for immediate and scheduled jobs
+- Uses `BackgroundJob.createRecurrently(RecurringJobBuilder)` for recurring
+- Converts job-type keyword to human-readable name for dashboard
+- Supports all JobBuilder options via opts map
 
 #### 6.5 Integrant Updates
 
@@ -319,7 +310,7 @@ clj-jobrunr/
 │       ├── classloader.clj      ✅ (spike complete)
 │       ├── request.clj          ✅ (Phase 6.2)
 │       ├── worker_policy.clj    ✅ (Phase 6.3)
-│       └── core.clj             ⏳ (Phase 6.4)
+│       └── core.clj             ✅ (Phase 6.4)
 ├── test/
 │   └── clj_jobrunr/
 │       ├── serialization_test.clj  ✅
@@ -330,6 +321,7 @@ clj-jobrunr/
 │       ├── classloader_test.clj    ✅
 │       ├── request_test.clj        ✅ (Phase 6.2)
 │       ├── worker_policy_test.clj  ✅ (Phase 6.3)
+│       ├── core_test.clj           ✅ (Phase 6.4)
 │       ├── integration_test.clj    ✅ (scaffolding)
 │       └── test_utils.clj          ✅
 └── build.clj                    # Simplified (no AOT needed)
