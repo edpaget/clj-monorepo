@@ -14,8 +14,9 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 5.5: JobRunr 8.x Upgrade | ✅ Complete | - |
 | Phase 6.1: ClassLoader Spike | ✅ Complete | 5 |
 | Phase 6.2: JobRequest Types | ✅ Complete | 12 |
-| Phase 6.3-6.6: Integration | ⏳ Not Started | - |
-| **Total** | | **79 tests, 147 assertions** |
+| Phase 6.3: Worker Policy | ✅ Complete | 9 |
+| Phase 6.4-6.6: Core API & Cleanup | ⏳ Not Started | - |
+| **Total** | | **88 tests, 163 assertions** |
 
 ---
 
@@ -181,25 +182,32 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 - Handler uses reflection to access `.edn` field to avoid compile-time dependency
 - Uses `ser/*serializer*` dynamic var for runtime serializer access
 
-#### 6.3 Custom WorkerPolicy
+#### 6.3 Custom WorkerPolicy ✅ COMPLETE
 
 **Namespace**: `clj-jobrunr.worker-policy`
 
-**To implement**:
-```clojure
-(defn make-clojure-worker-policy
-  "Creates a BackgroundJobServerWorkerPolicy that uses our custom classloader."
-  [worker-count classloader]
-  (let [executor-fn (fn [n]
-                      (make-clojure-executor n classloader))]
-    (DefaultBackgroundJobServerWorkerPolicy. worker-count executor-fn)))
+**Implemented**:
+- `make-clojure-executor` - creates a `JobRunrExecutor` with threads that have
+  the composite classloader set as their context classloader
+- `make-clojure-worker-policy` - creates a `BackgroundJobServerWorkerPolicy`
+  that returns our custom executor and uses `BasicWorkDistributionStrategy`
+- `default-worker-count` - returns available processors
 
-(defn make-clojure-executor
-  "Creates a JobRunrExecutor with threads using our composite classloader."
-  [worker-count classloader]
-  ;; Wrap PlatformThreadPoolJobRunrExecutor or create custom
-  )
-```
+**Tests** (9 tests):
+- Executor implements JobRunrExecutor interface
+- Executor reports correct worker count
+- Executor can start and stop
+- Worker threads have correct context classloader
+- Worker threads can load ClojureJobRequest via Class.forName
+- Worker policy implements BackgroundJobServerWorkerPolicy
+- Worker policy creates working executor
+- Default worker count returns available processors
+- Full integration test: policy → executor → thread → Class.forName → instantiate handler
+
+**Key design decisions**:
+- Implemented custom `JobRunrExecutor` via `reify` wrapping `ScheduledThreadPoolExecutor`
+- Custom `ThreadFactory` sets context classloader on each new thread
+- Uses `BasicWorkDistributionStrategy` (same as `DefaultBackgroundJobServerWorkerPolicy`)
 
 #### 6.4 Core API
 
@@ -308,7 +316,7 @@ clj-jobrunr/
 │       ├── integrant.clj        ✅ (needs updates for Phase 6)
 │       ├── classloader.clj      ✅ (spike complete)
 │       ├── request.clj          ✅ (Phase 6.2)
-│       ├── worker_policy.clj    ⏳ (Phase 6.3)
+│       ├── worker_policy.clj    ✅ (Phase 6.3)
 │       └── core.clj             ⏳ (Phase 6.4)
 ├── test/
 │   └── clj_jobrunr/
@@ -319,6 +327,7 @@ clj-jobrunr/
 │       ├── integrant_test.clj      ✅
 │       ├── classloader_test.clj    ✅
 │       ├── request_test.clj        ✅ (Phase 6.2)
+│       ├── worker_policy_test.clj  ✅ (Phase 6.3)
 │       ├── integration_test.clj    ✅ (scaffolding)
 │       └── test_utils.clj          ✅
 └── build.clj                    # Simplified (no AOT needed)
