@@ -34,6 +34,21 @@
       (.stop executor (Duration/ofSeconds 5))
       (is (.isStopping executor)))))
 
+(deftest executor-uses-virtual-threads-test
+  (testing "executor creates virtual threads"
+    (let [composite-cl (cl/make-composite-classloader)
+          executor     (wp/make-clojure-executor 2 composite-cl)
+          latch        (CountDownLatch. 1)
+          is-virtual   (atom nil)]
+      (.start executor)
+      (.execute executor
+                (fn []
+                  (reset! is-virtual (.isVirtual (Thread/currentThread)))
+                  (.countDown latch)))
+      (.await latch 5 TimeUnit/SECONDS)
+      (.stop executor (Duration/ofSeconds 5))
+      (is (true? @is-virtual) "Expected virtual thread"))))
+
 (deftest executor-threads-have-correct-classloader-test
   (testing "executor threads have the composite classloader set"
     (let [source-cl            (.getClassLoader (req/request-class))

@@ -14,9 +14,9 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 5.5: JobRunr 8.x Upgrade | ✅ Complete | - |
 | Phase 6.1: ClassLoader Spike | ✅ Complete | 5 |
 | Phase 6.2: JobRequest Types | ✅ Complete | 12 |
-| Phase 6.3: Worker Policy | ✅ Complete | 9 |
+| Phase 6.3: Worker Policy | ✅ Complete | 10 |
 | Phase 6.4-6.6: Core API & Cleanup | ⏳ Not Started | - |
-| **Total** | | **88 tests, 163 assertions** |
+| **Total** | | **89 tests, 164 assertions** |
 
 ---
 
@@ -187,16 +187,17 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 **Namespace**: `clj-jobrunr.worker-policy`
 
 **Implemented**:
-- `make-clojure-executor` - creates a `JobRunrExecutor` with threads that have
-  the composite classloader set as their context classloader
+- `make-clojure-executor` - creates a `JobRunrExecutor` using Java 21+ virtual threads
+  with the composite classloader set as their context classloader
 - `make-clojure-worker-policy` - creates a `BackgroundJobServerWorkerPolicy`
   that returns our custom executor and uses `BasicWorkDistributionStrategy`
 - `default-worker-count` - returns available processors
 
-**Tests** (9 tests):
+**Tests** (10 tests):
 - Executor implements JobRunrExecutor interface
 - Executor reports correct worker count
 - Executor can start and stop
+- Executor creates virtual threads (verified via `Thread.isVirtual()`)
 - Worker threads have correct context classloader
 - Worker threads can load ClojureJobRequest via Class.forName
 - Worker policy implements BackgroundJobServerWorkerPolicy
@@ -205,9 +206,10 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 - Full integration test: policy → executor → thread → Class.forName → instantiate handler
 
 **Key design decisions**:
-- Implemented custom `JobRunrExecutor` via `reify` wrapping `ScheduledThreadPoolExecutor`
-- Custom `ThreadFactory` sets context classloader on each new thread
+- Uses Java 21+ virtual threads via `Executors.newThreadPerTaskExecutor()`
+- Custom `ThreadFactory` wraps virtual thread factory and sets context classloader
 - Uses `BasicWorkDistributionStrategy` (same as `DefaultBackgroundJobServerWorkerPolicy`)
+- `worker-count` is logical for work distribution, not actual thread limit (virtual threads are per-task)
 
 #### 6.4 Core API
 
