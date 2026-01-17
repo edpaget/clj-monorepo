@@ -5,7 +5,8 @@
             db.core/with-connection clj-kondo.lint-as/def-catch-all
             db.core/with-transaction clj-kondo.lint-as/def-catch-all
             polix.core/defpolicy clj-kondo.lint-as/def-catch-all
-            repository.test/with-repository clojure.core/let}
+            repository.test/with-repository clojure.core/let
+            clj-jobrunr.job/defjob clojure.core/defn}
  :linters {:unresolved-symbol {:exclude [resolvers
                                           Query-gameState
                                           Query-looseBall]}
@@ -21,4 +22,9 @@
                                        graphql-server.test-streamers/resolvers
                                        graphql-server.test-streamers/Subscription-messageAdded
                                        graphql-server.test-streamers/Subscription-gameUpdated]}}
- :config-in-ns {user {:linters {:redefined-var {:level :off}}}}}
+ :config-in-ns {user {:linters {:redefined-var {:level :off}}}
+                 clj-jobrunr.bridge-test {:linters {:inline-def {:level :off}}}
+                 clj-jobrunr.integration-test {:linters {:inline-def {:level :off}}}
+                 clj-jobrunr.java-bridge-test {:linters {:inline-def {:level :off}}}
+                 clj-jobrunr.request-test {:linters {:inline-def {:level :off}}}
+                 clj-jobrunr.job-test {:linters {:unused-binding {:level :off}}}}}
