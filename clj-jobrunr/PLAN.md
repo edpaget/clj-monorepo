@@ -13,8 +13,9 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 5: AOT/gen-class | ✅ Complete | 4 |
 | Phase 5.5: JobRunr 8.x Upgrade | ✅ Complete | - |
 | Phase 6.1: ClassLoader Spike | ✅ Complete | 5 |
-| Phase 6.2-6.6: JobRequest Pattern | ⏳ Not Started | - |
-| **Total** | | **67 tests, 131 assertions** |
+| Phase 6.2: JobRequest Types | ✅ Complete | 12 |
+| Phase 6.3-6.6: Integration | ⏳ Not Started | - |
+| **Total** | | **79 tests, 147 assertions** |
 
 ---
 
@@ -157,27 +158,28 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 - `make-composite-classloader` - creates classloader that delegates to Clojure's DL
 - `make-clojure-aware-thread-factory` - creates threads with correct context classloader
 
-#### 6.2 JobRequest/JobRequestHandler Types
+#### 6.2 JobRequest/JobRequestHandler Types ✅ COMPLETE
 
 **Namespace**: `clj-jobrunr.request`
 
-**To implement**:
-```clojure
-(deftype ClojureJobRequest [edn]
-  JobRequest
-  (getJobRequestHandler [_] ClojureJobRequestHandler))
+**Implemented**:
+- `ClojureJobRequestHandler` deftype implementing `JobRequestHandler`
+- `ClojureJobRequest` deftype implementing `JobRequest`
+- `make-job-request` factory function (2 arities: with/without explicit serializer)
+- `request-edn`, `handler-class`, `request-class` utility functions
 
-(deftype ClojureJobRequestHandler []
-  JobRequestHandler
-  (run [_ request]
-    (let [edn (.edn request)]
-      (bridge/execute-raw! edn))))
-```
+**Tests** (12 tests):
+- Interface implementation validation
+- `getJobRequestHandler` returns correct class
+- Factory function creates proper requests
+- Handler executes jobs correctly via multimethod dispatch
+- Gson JSON serialization/deserialization round-trip
+- Class loading via reflection (no-arg constructor)
 
-**Challenges**:
-- `JobRequestHandler<T>` is generic - need to handle type erasure
-- `getJobRequestHandler` must return a `Class<?>` - verify this works with deftype
-- Handler needs no-arg constructor for JobRunr's reflection-based instantiation
+**Key design decisions**:
+- Handler defined before Request to avoid forward declaration issues with Class return type
+- Handler uses reflection to access `.edn` field to avoid compile-time dependency
+- Uses `ser/*serializer*` dynamic var for runtime serializer access
 
 #### 6.3 Custom WorkerPolicy
 
@@ -305,7 +307,7 @@ clj-jobrunr/
 │       ├── enqueue.clj          ✅ (to be replaced by core.clj)
 │       ├── integrant.clj        ✅ (needs updates for Phase 6)
 │       ├── classloader.clj      ✅ (spike complete)
-│       ├── request.clj          ⏳ (Phase 6.2)
+│       ├── request.clj          ✅ (Phase 6.2)
 │       ├── worker_policy.clj    ⏳ (Phase 6.3)
 │       └── core.clj             ⏳ (Phase 6.4)
 ├── test/
@@ -316,6 +318,7 @@ clj-jobrunr/
 │       ├── enqueue_test.clj        ✅
 │       ├── integrant_test.clj      ✅
 │       ├── classloader_test.clj    ✅
+│       ├── request_test.clj        ✅ (Phase 6.2)
 │       ├── integration_test.clj    ✅ (scaffolding)
 │       └── test_utils.clj          ✅
 └── build.clj                    # Simplified (no AOT needed)

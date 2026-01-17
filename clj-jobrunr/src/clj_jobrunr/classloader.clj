@@ -10,8 +10,8 @@
   2. Create a composite classloader that delegates to both Clojure's DL and system CL
   3. Provide a custom ThreadFactory that sets this classloader on worker threads
   4. Configure JobRunr to use our custom executor"
-  (:import [java.util.concurrent ThreadFactory Executors]
-           [clojure.lang DynamicClassLoader RT]))
+  (:import [clojure.lang RT]
+           [java.util.concurrent ThreadFactory Executors]))
 
 ;; ---------------------------------------------------------------------------
 ;; Composite ClassLoader
