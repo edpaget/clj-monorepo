@@ -16,8 +16,9 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 6.2: JobRequest Types | ✅ Complete | 12 |
 | Phase 6.3: Worker Policy | ✅ Complete | 10 |
 | Phase 6.4: Core API | ✅ Complete | 13 |
-| Phase 6.5-6.6: Integrant & Cleanup | ⏳ Not Started | - |
-| **Total** | | **102 tests, 177 assertions** |
+| Phase 6.5: Integrant Updates | ✅ Complete | - |
+| Phase 6.6: Cleanup | ✅ Complete | -4 |
+| **Total** | | **98 tests, 169 assertions** |
 
 ---
 
@@ -241,37 +242,61 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 - Converts job-type keyword to human-readable name for dashboard
 - Supports all JobBuilder options via opts map
 
-#### 6.5 Integrant Updates
+#### 6.5 Integrant Updates ✅ COMPLETE
 
 **Namespace**: `clj-jobrunr.integrant`
 
-**Changes needed**:
-- Capture classloader from `ClojureJobRequest` at server start
-- Create composite classloader
-- Create custom `BackgroundJobServerWorkerPolicy`
-- Pass to JobRunr configuration
+**Implemented**:
+- `::server` component now uses custom worker policy with virtual threads
+- Gets classloader from `ClojureJobRequest` at server start
+- Creates `BackgroundJobServerConfiguration` with custom worker policy
+- Sets serializer before workers start (via `alter-var-root`)
+- Supports `:worker-count` config option (defaults to available processors)
 
+**Configuration example**:
+```clojure
+{::server
+ {:storage-provider #ig/ref ::storage-provider
+  :serialization #ig/ref ::serialization
+  :dashboard? true
+  :dashboard-port 8080
+  :poll-interval 15
+  :worker-count 4}}
+```
+
+**Key implementation**:
 ```clojure
 (defmethod ig/init-key ::server
-  [_ {:keys [storage-provider serialization ...]}]
-  (let [;; Get classloader from our deftype
-        source-cl (.getClassLoader ClojureJobRequest)
-        composite-cl (cl/make-composite-classloader source-cl)
-        worker-policy (make-clojure-worker-policy worker-count composite-cl)
-        config (-> (JobRunr/configure)
-                   (.useStorageProvider storage-provider)
-                   (.useBackgroundJobServerWithWorkerPolicy worker-policy)
-                   ...)]
+  [_ {:keys [storage-provider serialization dashboard? dashboard-port
+             poll-interval worker-count]
+      :or {dashboard? false
+           dashboard-port 8000
+           poll-interval 15}}]
+  (alter-var-root #'ser/*serializer* (constantly serialization))
+  (let [source-cl     (.getClassLoader (req/request-class))
+        worker-count  (or worker-count (wp/default-worker-count))
+        worker-policy (wp/make-clojure-worker-policy worker-count source-cl)
+        server-config (-> (BackgroundJobServerConfiguration/usingStandardBackgroundJobServerConfiguration)
+                          (.andPollIntervalInSeconds poll-interval)
+                          (.andBackgroundJobServerWorkerPolicy worker-policy))
+        config        (-> (JobRunr/configure)
+                          (.useStorageProvider storage-provider)
+                          (.useBackgroundJobServer server-config))
+        ...]
     ...))
 ```
 
-#### 6.6 Remove AOT Code
+#### 6.6 Remove AOT Code ✅ COMPLETE
 
-**Files to remove/modify**:
-- Delete `src/clj_jobrunr/java_bridge.clj`
-- Delete `test/clj_jobrunr/java_bridge_test.clj`
-- Simplify `build.clj` (no more `compile-bridge` task)
-- Update `deps.edn` paths
+**Removed**:
+- Deleted `src/clj_jobrunr/java_bridge.clj` - AOT gen-class bridge no longer needed
+- Deleted `test/clj_jobrunr/java_bridge_test.clj` - removed 4 tests for deleted code
+- Simplified `build.clj` - removed `compile-bridge` and `compile-all` tasks
+- Updated `deps.edn` - removed `target/classes` from test paths
+- Updated `.clj-kondo/config.edn` - removed java-bridge-test config
+
+**Kept**:
+- `enqueue.clj` - still used by integration tests for creating request maps
 
 ### Phase 7: Integration Tests with PostgreSQL (Not Started)
 
@@ -300,31 +325,31 @@ clj-jobrunr/
 ├── DESIGN.md
 ├── PLAN.md
 ├── README.md
+├── build.clj                    ✅ (simplified - no AOT needed)
 ├── src/
 │   └── clj_jobrunr/
 │       ├── serialization.clj    ✅
 │       ├── job.clj              ✅
 │       ├── bridge.clj           ✅
-│       ├── enqueue.clj          ✅ (to be replaced by core.clj)
-│       ├── integrant.clj        ✅ (needs updates for Phase 6)
-│       ├── classloader.clj      ✅ (spike complete)
-│       ├── request.clj          ✅ (Phase 6.2)
-│       ├── worker_policy.clj    ✅ (Phase 6.3)
-│       └── core.clj             ✅ (Phase 6.4)
-├── test/
-│   └── clj_jobrunr/
-│       ├── serialization_test.clj  ✅
-│       ├── job_test.clj            ✅
-│       ├── bridge_test.clj         ✅
-│       ├── enqueue_test.clj        ✅
-│       ├── integrant_test.clj      ✅
-│       ├── classloader_test.clj    ✅
-│       ├── request_test.clj        ✅ (Phase 6.2)
-│       ├── worker_policy_test.clj  ✅ (Phase 6.3)
-│       ├── core_test.clj           ✅ (Phase 6.4)
-│       ├── integration_test.clj    ✅ (scaffolding)
-│       └── test_utils.clj          ✅
-└── build.clj                    # Simplified (no AOT needed)
+│       ├── enqueue.clj          ✅ (utility for request maps)
+│       ├── integrant.clj        ✅ (with worker policy)
+│       ├── classloader.clj      ✅
+│       ├── request.clj          ✅ (ClojureJobRequest/Handler)
+│       ├── worker_policy.clj    ✅ (virtual threads)
+│       └── core.clj             ✅ (public API)
+└── test/
+    └── clj_jobrunr/
+        ├── serialization_test.clj  ✅
+        ├── job_test.clj            ✅
+        ├── bridge_test.clj         ✅
+        ├── enqueue_test.clj        ✅
+        ├── integrant_test.clj      ✅
+        ├── classloader_test.clj    ✅
+        ├── request_test.clj        ✅
+        ├── worker_policy_test.clj  ✅
+        ├── core_test.clj           ✅
+        ├── integration_test.clj    ✅ (scaffolding)
+        └── test_utils.clj          ✅
 ```
 
 ---
@@ -338,7 +363,9 @@ clj-jobrunr/
 - [x] `handle-job` dispatches correctly
 - [x] Hierarchy dispatch works
 - [x] Enqueue functions create correct structures
-- [x] AOT bridge class compiles and executes
+- [x] ClojureJobRequest/Handler deftype classes work (replaced AOT)
+- [x] Virtual thread worker policy sets correct classloader
+- [x] Core API functions (enqueue!, schedule!, recurring!) build jobs correctly
 
 ### Integration Tests (Requires PostgreSQL)
 - [ ] Jobs enqueue and execute

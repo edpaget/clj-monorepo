@@ -26,6 +26,5 @@
                  clj-jobrunr.bridge-test {:linters {:inline-def {:level :off}}}
                  clj-jobrunr.core-test {:linters {:inline-def {:level :off}}}
                  clj-jobrunr.integration-test {:linters {:inline-def {:level :off}}}
-                 clj-jobrunr.java-bridge-test {:linters {:inline-def {:level :off}}}
                  clj-jobrunr.request-test {:linters {:inline-def {:level :off}}}
                  clj-jobrunr.job-test {:linters {:unused-binding {:level :off}}}}}

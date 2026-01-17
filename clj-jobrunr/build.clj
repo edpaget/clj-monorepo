@@ -1,14 +1,13 @@
 (ns build
   "Build script for clj-jobrunr.
 
-  Provides tasks for:
-  - AOT compilation of the Java bridge class
-  - Building a JAR for distribution
+  Provides tasks for building JARs for distribution. No AOT compilation
+  is required - the library uses deftype classes that are dynamically
+  generated at runtime.
 
   Usage:
-    clojure -T:build compile-bridge  ; AOT compile the bridge class
-    clojure -T:build jar             ; Build a JAR with AOT classes
-    clojure -T:build clean           ; Clean build artifacts"
+    clojure -T:build jar    ; Build a JAR for distribution
+    clojure -T:build clean  ; Clean build artifacts"
   (:require [clojure.tools.build.api :as b]))
 
 (def lib 'com.github.your-org/clj-jobrunr)
@@ -22,33 +21,14 @@
   [_]
   (b/delete {:path "target"}))
 
-(defn compile-bridge
-  "AOT compile the Java bridge class.
-
-  This must be run before using clj-jobrunr with JobRunr, as JobRunr
-  requires actual Java classes for serialization."
-  [_]
-  (b/compile-clj {:basis basis
-                  :src-dirs ["src"]
-                  :class-dir class-dir
-                  :ns-compile ['clj-jobrunr.java-bridge]}))
-
-(defn compile-all
-  "AOT compile all namespaces.
-
-  Use this for full AOT compilation if needed."
-  [_]
-  (b/compile-clj {:basis basis
-                  :src-dirs ["src"]
-                  :class-dir class-dir}))
-
 (defn jar
-  "Build a JAR file with AOT-compiled classes.
+  "Build a JAR file for distribution.
 
-  The JAR includes the compiled Java bridge class and all source files."
+  The JAR includes all source files. No AOT compilation is needed because
+  clj-jobrunr uses deftype classes that are dynamically generated when the
+  namespace is loaded."
   [_]
   (clean nil)
-  (compile-bridge nil)
   (b/write-pom {:class-dir class-dir
                 :lib lib
                 :version version
@@ -63,7 +43,6 @@
   "Build an uberjar with all dependencies."
   [_]
   (clean nil)
-  (compile-bridge nil)
   (b/copy-dir {:src-dirs ["src" "resources"]
                :target-dir class-dir})
   (b/uber {:class-dir class-dir
