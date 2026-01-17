@@ -70,25 +70,25 @@ This AOT-compiles `clj_jobrunr.ClojureBridge` to `target/classes/`.
 (def system (ig/init config))
 ```
 
-### 4. Create Job Requests
+### 4. Enqueue Jobs
 
 ```clojure
-(require '[clj-jobrunr.enqueue :as enqueue]
-         '[clj-jobrunr.serialization :as ser])
-
-(def serializer (ser/default-serializer))
+(require '[clj-jobrunr.core :as jobrunr])
 
 ;; Immediate execution
-(enqueue/make-job-request serializer ::send-email {:user-id 123 :email "user@example.com"})
+(jobrunr/enqueue! ::send-email {:user-id 123 :email "user@example.com"})
 
 ;; Scheduled (in 1 hour)
-(enqueue/make-scheduled-request serializer ::send-email {:user-id 123} (Duration/ofHours 1))
+(jobrunr/schedule! ::send-email {:user-id 123} (Duration/ofHours 1))
 
 ;; Scheduled (at specific time)
-(enqueue/make-scheduled-request serializer ::send-email {:user-id 123} (Instant/parse "2024-06-15T10:00:00Z"))
+(jobrunr/schedule! ::send-email {:user-id 123} (Instant/parse "2024-06-15T10:00:00Z"))
 
 ;; Recurring (daily at 9 AM)
-(enqueue/make-recurring-request serializer "daily-digest" ::send-email "0 9 * * *" {:template :digest})
+(jobrunr/recurring! "daily-digest" ::send-email {:template :digest} "0 9 * * *")
+
+;; Delete recurring job
+(jobrunr/delete-recurring! "daily-digest")
 ```
 
 ## API Reference
@@ -226,19 +226,20 @@ clj-jobrunr/
 ├── src/clj_jobrunr/
 │   ├── serialization.clj   # EDN serialization
 │   ├── job.clj             # defjob macro, handle-job multimethod
-│   ├── bridge.clj          # Job class name generation
-│   ├── enqueue.clj         # Job request creation
-│   ├── integrant.clj       # Lifecycle components
-│   └── java_bridge.clj     # AOT gen-class
+│   ├── bridge.clj          # Job class name generation, execute!
+│   ├── request.clj         # ClojureJobRequest/Handler deftypes
+│   ├── classloader.clj     # Custom classloader for worker threads
+│   ├── worker_policy.clj   # Virtual thread worker policy
+│   ├── core.clj            # Public API (enqueue!, schedule!, recurring!)
+│   └── integrant.clj       # Lifecycle components
 ├── build.clj               # Build tasks
 └── deps.edn
 ```
 
 ## Current Limitations
 
-- **Single bridge class**: All jobs appear as `ClojureBridge` in the JobRunr dashboard (not individual job names)
-- **No direct enqueue functions**: Currently only creates job request maps; actual `enqueue!` functions that call JobRunr APIs are not yet implemented
-- **Requires AOT compilation**: The bridge class must be compiled before use
+- **Job display names**: All jobs use the same `ClojureJobRequest` class in JobRunr, but custom names can be set via the `:name` option
+- **Java 21+ required**: Uses virtual threads for worker execution
 
 ## License
 

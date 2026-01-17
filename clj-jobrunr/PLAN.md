@@ -17,8 +17,8 @@ This plan follows Test-Driven Development: write failing tests first, then imple
 | Phase 6.3: Worker Policy | ✅ Complete | 10 |
 | Phase 6.4: Core API | ✅ Complete | 13 |
 | Phase 6.5: Integrant Updates | ✅ Complete | - |
-| Phase 6.6: Cleanup | ✅ Complete | -4 |
-| **Total** | | **98 tests, 169 assertions** |
+| Phase 6.6: Cleanup | ✅ Complete | -13 |
+| **Total** | | **89 tests, 145 assertions** |
 
 ---
 
@@ -74,16 +74,6 @@ Upgraded from JobRunr 7.3.2 to 8.4.0.
 - `job-class-name` - converts keyword to Java class name
 - `job-edn` - creates EDN string with job-type and payload
 - `execute!` - deserializes and dispatches to handler
-
-### 1.4 Enqueue API ✅
-
-**Namespace**: `clj-jobrunr.enqueue`
-
-**Implemented**:
-- `make-job-request` - immediate execution request
-- `make-scheduled-request` - scheduled execution (Instant or Duration)
-- `make-recurring-request` - cron-based scheduling
-- `make-delete-recurring-request` - delete recurring job
 
 ---
 
@@ -294,9 +284,8 @@ This phase eliminates AOT compilation by using `deftype` with a custom classload
 - Simplified `build.clj` - removed `compile-bridge` and `compile-all` tasks
 - Updated `deps.edn` - removed `target/classes` from test paths
 - Updated `.clj-kondo/config.edn` - removed java-bridge-test config
-
-**Kept**:
-- `enqueue.clj` - still used by integration tests for creating request maps
+- Deleted `src/clj_jobrunr/enqueue.clj` - superseded by `request.clj` and `core.clj`
+- Deleted `test/clj_jobrunr/enqueue_test.clj` - tests for removed namespace
 
 ### Phase 7: Integration Tests with PostgreSQL (Not Started)
 
@@ -331,7 +320,6 @@ clj-jobrunr/
 │       ├── serialization.clj    ✅
 │       ├── job.clj              ✅
 │       ├── bridge.clj           ✅
-│       ├── enqueue.clj          ✅ (utility for request maps)
 │       ├── integrant.clj        ✅ (with worker policy)
 │       ├── classloader.clj      ✅
 │       ├── request.clj          ✅ (ClojureJobRequest/Handler)
@@ -342,7 +330,6 @@ clj-jobrunr/
         ├── serialization_test.clj  ✅
         ├── job_test.clj            ✅
         ├── bridge_test.clj         ✅
-        ├── enqueue_test.clj        ✅
         ├── integrant_test.clj      ✅
         ├── classloader_test.clj    ✅
         ├── request_test.clj        ✅

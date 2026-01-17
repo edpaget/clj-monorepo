@@ -11,8 +11,8 @@
     clojure -X:test :excludes [:integration]"
   {:clj-kondo/config '{:linters {:unresolved-symbol {:level :off}}}}
   (:require [clj-jobrunr.bridge :as bridge]
-            [clj-jobrunr.enqueue :as enqueue]
             [clj-jobrunr.job :refer [defjob handle-job]]
+            [clj-jobrunr.request :as req]
             [clj-jobrunr.serialization :as ser]
             [clj-jobrunr.test-utils :as test-utils]
             [clojure.test :refer [deftest is testing use-fixtures]])
@@ -131,11 +131,12 @@
   (testing "job request is created correctly"
     (test-utils/with-test-serializer
       (let [serializer (ser/default-serializer)
-            request    (enqueue/make-job-request serializer ::test-simple-job {:x 1})]
-        (is (= ::test-simple-job (:job-type request)))
-        (is (= {:x 1} (:payload request)))
-        (is (string? (:edn request)))
-        (is (= "clj_jobrunr.integration_test.TestSimpleJob" (:class-name request)))))))
+            request    (req/make-job-request serializer ::test-simple-job {:x 1})
+            edn-str    (req/request-edn request)
+            parsed     (ser/deserialize serializer edn-str)]
+        (is (= ::test-simple-job (:job-type parsed)))
+        (is (= {:x 1} (:payload parsed)))
+        (is (string? edn-str))))))
 
 (deftest test-bridge-execute-test
   (testing "bridge execute! dispatches to handler"
