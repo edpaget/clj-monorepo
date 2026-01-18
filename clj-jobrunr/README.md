@@ -1,6 +1,6 @@
 # clj-jobrunr
 
-A Clojure wrapper for [JobRunr](https://www.jobrunr.io/), providing idiomatic APIs for background job processing with PostgreSQL persistence and a built-in dashboard.
+A Clojure wrapper for [JobRunr](https://www.jobrunr.io/), providing idiomatic APIs for background job processing with SQL database persistence and a built-in dashboard.
 
 ## Features
 
@@ -15,7 +15,15 @@ A Clojure wrapper for [JobRunr](https://www.jobrunr.io/), providing idiomatic AP
 ## Requirements
 
 - **Java 21+** (uses virtual threads)
-- **PostgreSQL** (for job persistence)
+- **Supported databases** (for job persistence):
+  - PostgreSQL
+  - MySQL
+  - MariaDB
+  - Oracle
+  - SQL Server
+  - H2 (embedded, useful for testing)
+
+Note: Redis and Elasticsearch were dropped in JobRunr 8.x. If you need those backends, you'll need an older JobRunr version.
 
 ## Installation
 
@@ -55,7 +63,8 @@ The `defjob` macro creates:
    {:readers {'time/instant #(java.time.Instant/parse %)}}
 
    :clj-jobrunr.integrant/storage-provider
-   {:datasource (ig/ref :your.app/datasource)}
+   {:datasource (ig/ref :your.app/datasource)
+    :backend :postgres}  ;; :postgres, :mysql, :mariadb, :oracle, :sqlserver, :h2
 
    :clj-jobrunr.integrant/server
    {:storage-provider (ig/ref :clj-jobrunr.integrant/storage-provider)
@@ -191,11 +200,12 @@ Creates an EDN serializer.
 
 ### `:clj-jobrunr.integrant/storage-provider`
 
-Creates a PostgresStorageProvider.
+Creates a storage provider for the configured database backend.
 
-| Option | Description |
-|--------|-------------|
-| `:datasource` | JDBC DataSource (required) |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `:datasource` | JDBC DataSource (required) | - |
+| `:backend` | Database type: `:postgres`, `:mysql`, `:mariadb`, `:oracle`, `:sqlserver`, `:h2` | `:postgres` |
 
 ### `:clj-jobrunr.integrant/server`
 
@@ -226,6 +236,8 @@ clojure -X:test
 The test suite includes:
 - **89 unit tests** - Test job definition, serialization, multimethod dispatch
 - **6 integration tests** - Test full job lifecycle with PostgreSQL via Testcontainers
+
+Note: Integration tests use PostgreSQL, but the library supports all backends listed in Requirements.
 
 ## Build Tasks
 

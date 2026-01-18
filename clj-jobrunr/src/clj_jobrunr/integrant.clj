@@ -3,7 +3,7 @@
 
   Provides lifecycle management for:
   - [[::serialization]] - EDN serializer configuration
-  - [[::storage-provider]] - JobRunr storage backend (PostgreSQL)
+  - [[::storage-provider]] - JobRunr storage backend (supports multiple databases)
   - [[::server]] - JobRunr background job server with virtual threads
 
   The server component configures JobRunr with a custom worker policy that:
@@ -11,13 +11,22 @@
   - Sets the correct context classloader so workers can find Clojure deftype classes
   - Binds the EDN serializer for job deserialization
 
+  Supported storage backends (via `:backend` key):
+  - `:postgres` (default) - PostgreSQL
+  - `:mysql` - MySQL
+  - `:mariadb` - MariaDB
+  - `:oracle` - Oracle Database
+  - `:sqlserver` - Microsoft SQL Server
+  - `:h2` - H2 (embedded, useful for testing)
+
   Example Integrant configuration:
 
       {::serialization
        {:readers {'time/instant #(java.time.Instant/parse %)}}
 
        ::storage-provider
-       {:datasource #ig/ref :datasource/postgres}
+       {:datasource #ig/ref :datasource/postgres
+        :backend :postgres}  ;; optional, defaults to :postgres
 
        ::server
        {:storage-provider #ig/ref ::storage-provider
@@ -36,7 +45,12 @@
    [org.jobrunr.configuration JobRunr]
    [org.jobrunr.dashboard JobRunrDashboardWebServer]
    [org.jobrunr.server BackgroundJobServerConfiguration]
+   [org.jobrunr.storage.sql.h2 H2StorageProvider]
+   [org.jobrunr.storage.sql.mariadb MariaDbStorageProvider]
+   [org.jobrunr.storage.sql.mysql MySqlStorageProvider]
+   [org.jobrunr.storage.sql.oracle OracleStorageProvider]
    [org.jobrunr.storage.sql.postgres PostgresStorageProvider]
+   [org.jobrunr.storage.sql.sqlserver SqlServerStorageProvider]
    [org.jobrunr.utils.mapper.gson GsonJsonMapper]))
 
 ;; ---------------------------------------------------------------------------
@@ -61,8 +75,17 @@
 ;; ---------------------------------------------------------------------------
 
 (defmethod ig/init-key ::storage-provider
-  [_ {:keys [datasource]}]
-  (PostgresStorageProvider. datasource))
+  [_ {:keys [datasource backend] :or {backend :postgres}}]
+  (case backend
+    :postgres  (PostgresStorageProvider. datasource)
+    :mysql     (MySqlStorageProvider. datasource)
+    :mariadb   (MariaDbStorageProvider. datasource)
+    :oracle    (OracleStorageProvider. datasource)
+    :sqlserver (SqlServerStorageProvider. datasource)
+    :h2        (H2StorageProvider. datasource)
+    (throw (ex-info "Unsupported storage backend"
+                    {:backend backend
+                     :supported #{:postgres :mysql :mariadb :oracle :sqlserver :h2}}))))
 
 ;; Storage provider doesn't need explicit cleanup - JobRunr handles it
 (defmethod ig/halt-key! ::storage-provider [_ _storage-provider])
