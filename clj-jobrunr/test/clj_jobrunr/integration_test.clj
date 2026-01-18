@@ -140,11 +140,11 @@
      (fn []
        (register-test-jobs!)
        (reset! tu/executions [])
-       ;; Every 2 seconds
+       ;; Every 5 seconds (minimum supported by JobRunr 8.x)
        (core/recurring! "test-recurring" ::test-simple-job {:value "recurring"}
-                        "*/2 * * * * *")
-       ;; Wait for at least 2 executions
-       (Thread/sleep 5000)
+                        "*/5 * * * * *")
+       ;; Wait for at least 2 executions (need 11+ seconds for 2 runs at 5s interval)
+       (Thread/sleep 12000)
        (is (>= (count @tu/executions) 2))
        ;; Delete and verify no more executions
        (core/delete-recurring! "test-recurring")

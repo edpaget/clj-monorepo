@@ -36,7 +36,7 @@
   (:import
    [java.time Duration Instant]
    [java.util UUID]
-   [org.jobrunr.scheduling BackgroundJob JobBuilder RecurringJobBuilder]))
+   [org.jobrunr.scheduling BackgroundJobRequest JobBuilder RecurringJobBuilder]))
 
 ;; ---------------------------------------------------------------------------
 ;; Utility functions
@@ -103,7 +103,7 @@
    (enqueue! job-type payload {}))
   ([job-type payload opts]
    (let [builder (build-job job-type payload opts)]
-     (BackgroundJob/create builder))))
+     (.asUUID (BackgroundJobRequest/create builder)))))
 
 (defn schedule!
   "Schedules a job for future background execution.
@@ -135,7 +135,7 @@
      (if (instance? Duration time)
        (.scheduleIn builder ^Duration time)
        (.scheduleAt builder ^Instant time))
-     (BackgroundJob/create builder))))
+     (.asUUID (BackgroundJobRequest/create builder)))))
 
 (defn recurring!
   "Creates or updates a recurring job with a cron schedule.
@@ -186,7 +186,7 @@
      ;; Add timezone if provided
      (when-let [zone (:zone opts)]
        (.withZoneId builder (java.time.ZoneId/of zone)))
-     (BackgroundJob/createRecurrently builder)
+     (BackgroundJobRequest/createRecurrently builder)
      recurring-id)))
 
 (defn delete-recurring!
@@ -202,4 +202,4 @@
   (delete-recurring! \"daily-digest\")
   ```"
   [recurring-id]
-  (BackgroundJob/deleteRecurringJob recurring-id))
+  (BackgroundJobRequest/deleteRecurringJob recurring-id))

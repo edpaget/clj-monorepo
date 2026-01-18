@@ -37,7 +37,7 @@
   [storage-provider job-id]
   (try
     (let [job        (.getJobById storage-provider job-id)
-          state-name (.getStateName (.getJobState job))]
+          state-name (.getState job)]
       (condp = state-name
         StateName/ENQUEUED :enqueued
         StateName/SCHEDULED :scheduled
@@ -204,7 +204,7 @@
 (defn jobrunr-fixture
   "Test fixture that starts a JobRunr server connected to `*datasource*`.
 
-  Uses a 1-second poll interval for fast test feedback.
+  Uses a 5-second poll interval (minimum supported by JobRunr 8.x).
   Binds `*storage-provider*`, `*serializer*`, and `*system*`.
 
   Usage:
@@ -214,7 +214,7 @@
                 ::ig-jobrunr/storage-provider {:datasource *datasource*}
                 ::ig-jobrunr/server {:storage-provider (ig/ref ::ig-jobrunr/storage-provider)
                                      :serialization (ig/ref ::ig-jobrunr/serialization)
-                                     :poll-interval 1
+                                     :poll-interval 5
                                      :dashboard? false}}
         system (ig/init config)]
     (try
@@ -255,7 +255,7 @@
                     ::ig-jobrunr/storage-provider {:datasource *datasource*}
                     ::ig-jobrunr/server {:storage-provider (ig/ref ::ig-jobrunr/storage-provider)
                                          :serialization (ig/ref ::ig-jobrunr/serialization)
-                                         :poll-interval 1
+                                         :poll-interval 5
                                          :dashboard? false}}
         new-system (ig/init config)]
     (alter-var-root #'*system* (constantly new-system))
