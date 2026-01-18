@@ -70,9 +70,9 @@
 ;; Unit Tests (can run without database)
 ;; ---------------------------------------------------------------------------
 
-(deftest test-job-function-works-test
-  (testing "test job function can be called directly"
-    (test-simple-job {:user-id 123})
+(deftest test-job-handler-works-test
+  (testing "test job can be called via handle-job"
+    (handle-job test-simple-job {:user-id 123})
     (is (= 1 (count @tu/executions)))
     (is (= {:user-id 123} (:payload (first @tu/executions))))))
 
@@ -111,7 +111,8 @@
      (fn []
        (register-test-jobs!)
        (reset! tu/executions [])
-       (let [job-id (core/enqueue! ::test-simple-job {:value "test-enqueue"})]
+       ;; Use the var instead of keyword - demonstrates new API
+       (let [job-id (core/enqueue! test-simple-job {:value "test-enqueue"})]
          (is (uuid? job-id))
          (let [status (tu/wait-for-job tu/*storage-provider* job-id :timeout-ms 10000)]
            (is (= :succeeded status))

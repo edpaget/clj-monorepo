@@ -26,7 +26,7 @@ Our solution uses JobRunr's **JobRequest/JobRequestHandler pattern** combined wi
    - `deftype` creates `ClojureJobRequest` (implements `JobRequest`)
    - `deftype` creates `ClojureJobRequestHandler` (implements `JobRequestHandler`)
    - These classes exist in Clojure's `DynamicClassLoader`
-   - The `defjob` macro creates a function and registers a `defmethod` on `handle-job`
+   - The `defjob` macro creates a var holding the job keyword and registers a `defmethod` on `handle-job`
 
 2. **When the JobRunr server starts**:
    - A composite classloader is created that delegates to Clojure's `DynamicClassLoader`
@@ -73,19 +73,19 @@ This allows `deftype` classes to be found without AOT compilation.
 
 This generates:
 
-- A function `send-email` with the docstring, for direct invocation and testing
-- A `defmethod` on `handle-job` for `::send-email` (namespaced keyword)
+- A var `send-email` holding the namespaced keyword `::send-email`
+- A `defmethod` on `handle-job` for `::send-email` with the job body
 
-The generated function enables standard Clojure tooling:
+The generated var enables standard Clojure tooling:
 
 ```clojure
 (doc send-email)
 ;; => "Sends a welcome email to a new user."
 
-;; Direct invocation for unit testing
-(send-email {:user-id 123 :email "test@example.com" :template :welcome})
+;; Test via multimethod dispatch
+(handle-job send-email {:user-id 123 :email "test@example.com" :template :welcome})
 
-;; Via multimethod (note: namespaced keyword)
+;; Or with the keyword directly
 (handle-job ::send-email {:user-id 123 :email "test@example.com"})
 ```
 
@@ -173,7 +173,7 @@ The implementation uses a single pair of classes (`ClojureJobRequest` and `Cloju
 
 ```clojure
 ;; When enqueueing:
-(enqueue! ::send-email {:to "user@example.com"})
+(enqueue! send-email {:to "user@example.com"})
 
 ;; Creates a job with:
 ;; - Name: "my.app/send-email" (shown in dashboard)
@@ -194,7 +194,7 @@ Simply require the namespace and start using:
 
 ```clojure
 (require '[clj-jobrunr.core :as jobrunr])
-(jobrunr/enqueue! ::send-email {:to "user@example.com"})
+(jobrunr/enqueue! send-email {:to "user@example.com"})
 ```
 
 The classloader magic happens automatically when the Integrant server component starts.
@@ -218,15 +218,14 @@ Job handlers are implemented as methods on the `handle-job` multimethod, dispatc
   "Dispatches job execution by job type keyword."
   (fn [job-type payload] job-type))
 
-;; The defjob macro expands to a defn + defmethod
-(defn send-email
+;; The defjob macro expands to a def + defmethod
+(def send-email
   "Sends an email."
-  [{:keys [to subject body]}]
-  (email/send! to subject body))
+  ::send-email)
 
-;; Note: namespaced keyword based on defining namespace
-(defmethod handle-job ::send-email [_ payload]
-  (send-email payload))
+;; Note: namespaced keyword, job body is inline
+(defmethod handle-job ::send-email [_ {:keys [to subject body]}]
+  (email/send! to subject body))
 ```
 
 **Introspection**: List all registered handlers with `(keys (methods handle-job))`.
@@ -289,16 +288,17 @@ The `core` module provides the public API for job operations:
 ```clojure
 (require '[clj-jobrunr.core :as jobrunr])
 
-;; Immediate execution - returns job ID
+;; Immediate execution - use the var or keyword
+(jobrunr/enqueue! send-email {:to "user@example.com"})
 (jobrunr/enqueue! ::send-email {:to "user@example.com"})
 ;; => #uuid "550e8400-e29b-41d4-a716-446655440000"
 
 ;; Scheduled execution - Duration or Instant
-(jobrunr/schedule! ::send-email {:to "..."} (Duration/ofHours 1))
-(jobrunr/schedule! ::send-email {:to "..."} (Instant/parse "2024-01-15T10:00:00Z"))
+(jobrunr/schedule! send-email {:to "..."} (Duration/ofHours 1))
+(jobrunr/schedule! send-email {:to "..."} (Instant/parse "2024-01-15T10:00:00Z"))
 
 ;; Recurring (cron) - requires a unique job ID
-(jobrunr/recurring! "daily-digest" ::send-digest {:template :digest} "0 9 * * *")
+(jobrunr/recurring! "daily-digest" send-digest {:template :digest} "0 9 * * *")
 
 ;; Delete recurring job
 (jobrunr/delete-recurring! "daily-digest")
@@ -310,32 +310,32 @@ For more control, use the options map:
 
 ```clojure
 ;; Custom job name (shown in dashboard)
-(jobrunr/enqueue! ::send-email {:to "user@example.com"}
+(jobrunr/enqueue! send-email {:to "user@example.com"}
   {:name "Send welcome to user@example.com"})
 
 ;; With labels (up to 3, for filtering in dashboard)
-(jobrunr/enqueue! ::send-email {:to "user@example.com"}
+(jobrunr/enqueue! send-email {:to "user@example.com"}
   {:labels ["email" "onboarding"]})
 
 ;; Both
-(jobrunr/enqueue! ::process-order {:order-id 123}
+(jobrunr/enqueue! process-order {:order-id 123}
   {:name "Process order #123"
    :labels ["orders" "priority"]})
 ```
 
 ### Testing Handlers
 
-Each `defjob` generates a regular function, making handlers easy to test:
+Job handlers can be tested via the `handle-job` multimethod:
 
 ```clojure
-;; Unit test - call the function directly
-(send-email {:to "test@example.com" :subject "Test"})
+;; Test via dispatch - using the var
+(handle-job send-email {:to "test@example.com" :subject "Test"})
 
-;; Integration test - verify dispatch works
+;; Or using the keyword directly
 (handle-job ::send-email {:to "test@example.com" :subject "Test"})
 
 ;; Check if handler exists
-(contains? (methods handle-job) ::send-email)
+(contains? (methods handle-job) send-email)
 ```
 
 ## Testing Infrastructure

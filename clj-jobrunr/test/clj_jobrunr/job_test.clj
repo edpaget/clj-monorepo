@@ -12,16 +12,17 @@
 ;; defjob macro tests
 ;; ---------------------------------------------------------------------------
 
-(deftest defjob-creates-function-test
-  (testing "macro creates a callable function with correct name"
+(deftest defjob-creates-keyword-var-test
+  (testing "macro creates a var holding the job type keyword"
     (defjob test-job-1
       [payload]
       (:value payload))
-    (is (fn? test-job-1))
-    (is (= 42 (test-job-1 {:value 42})))))
+    (is (keyword? test-job-1))
+    (is (= ::test-job-1 test-job-1))
+    (is (= 42 (handle-job test-job-1 {:value 42})))))
 
-(deftest defjob-function-has-docstring-test
-  (testing "generated function has docstring metadata"
+(deftest defjob-var-has-docstring-test
+  (testing "generated var has docstring metadata"
     (defjob test-job-2
       "This is a test job."
       [payload]
@@ -33,7 +34,7 @@
     (defjob test-job-3
       [payload]
       (* 2 (:n payload)))
-    (is (= 10 (test-job-3 {:n 5})))))
+    (is (= 10 (handle-job test-job-3 {:n 5})))))
 
 (deftest defjob-registers-multimethod-test
   (testing "handler is registered on handle-job multimethod with namespaced keyword"
@@ -57,7 +58,7 @@
       [{:keys [user] :as payload}]
       {:user-name (:name user)
        :total-keys (count (keys payload))})
-    (let [result (test-job-6 {:user {:name "Alice"} :extra :data})]
+    (let [result (handle-job test-job-6 {:user {:name "Alice"} :extra :data})]
       (is (= "Alice" (:user-name result)))
       (is (= 2 (:total-keys result))))))
 
@@ -77,7 +78,7 @@
       {:job/derives [::some-category]}
       [payload]
       payload)
-    (is (fn? test-job-attr))
+    (is (keyword? test-job-attr))
     (is (= "A job with attr-map." (:doc (meta #'test-job-attr))))))
 
 (deftest defjob-attr-map-without-docstring-test
@@ -86,7 +87,7 @@
       {:job/derives [::category]}
       [payload]
       (* 2 (:n payload)))
-    (is (= 20 (test-job-attr-no-doc {:n 10})))))
+    (is (= 20 (handle-job test-job-attr-no-doc {:n 10})))))
 
 ;; ---------------------------------------------------------------------------
 ;; handle-job multimethod tests
@@ -162,13 +163,14 @@
     (is (= :c (handle-job ::job-c {})))
     (is (= 3 (count (filter #{::job-a ::job-b ::job-c} (keys (methods handle-job))))))))
 
-(deftest defjob-arglists-metadata-test
-  (testing "function has correct :arglists metadata"
+(deftest defjob-var-value-test
+  (testing "var value is the namespaced keyword"
     (defjob test-job-args
       "Docstring here."
       [payload]
       payload)
-    (is (= '([payload]) (:arglists (meta #'test-job-args))))))
+    (is (= ::test-job-args test-job-args))
+    (is (= :test-job-args (keyword (name test-job-args))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Phase 4: Additional edge case tests
@@ -183,8 +185,8 @@
       {:user-id (:id user)
        :location (str street ", " city)
        :raw payload})
-    (let [result (test-nested-job {:user {:id 123}
-                                   :address {:street "123 Main St" :city "Boston"}})]
+    (let [result (handle-job test-nested-job {:user {:id 123}
+                                              :address {:street "123 Main St" :city "Boston"}})]
       (is (= 123 (:user-id result)))
       (is (= "123 Main St, Boston" (:location result))))))
 
@@ -195,7 +197,7 @@
         [payload]
         (reset! side-effect (:value payload))
         nil)
-      (let [result (test-side-effect-job {:value "done"})]
+      (let [result (handle-job test-side-effect-job {:value "done"})]
         (is (nil? result))
         (is (= "done" @side-effect))))))
 
@@ -204,10 +206,10 @@
     (defjob test-let-job
       [{:keys [items]}]
       (let [total (reduce + items)
-            count (count items)
-            avg   (/ total count)]
-        {:total total :count count :avg avg}))
-    (let [result (test-let-job {:items [10 20 30]})]
+            cnt   (count items)
+            avg   (/ total cnt)]
+        {:total total :count cnt :avg avg}))
+    (let [result (handle-job test-let-job {:items [10 20 30]})]
       (is (= 60 (:total result)))
       (is (= 3 (:count result)))
       (is (= 20 (:avg result))))))
@@ -233,9 +235,9 @@
         (throw (ex-info "Job error" {:reason :test})))
       :success)
     ;; Normal execution
-    (is (= :success (test-throwing-job {:should-throw false})))
+    (is (= :success (handle-job test-throwing-job {:should-throw false})))
     ;; Exception propagates
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
          #"Job error"
-         (test-throwing-job {:should-throw true})))))
+         (handle-job test-throwing-job {:should-throw true})))))

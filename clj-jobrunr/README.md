@@ -42,8 +42,8 @@ Add to your `deps.edn`:
 ```
 
 The `defjob` macro creates:
-- A function `send-email` you can call directly
-- A multimethod handler for `::send-email` (namespaced keyword)
+- A var `send-email` holding the namespaced keyword `::send-email`
+- A multimethod handler on `handle-job` for dispatch
 
 ### 2. Configure Integrant
 
@@ -73,17 +73,20 @@ The `defjob` macro creates:
 ```clojure
 (require '[clj-jobrunr.core :as jobrunr])
 
-;; Immediate execution
+;; Immediate execution - use the var directly
+(jobrunr/enqueue! send-email {:user-id 123 :email "user@example.com"})
+
+;; Or use the keyword
 (jobrunr/enqueue! ::send-email {:user-id 123 :email "user@example.com"})
 
 ;; Scheduled (in 1 hour)
-(jobrunr/schedule! ::send-email {:user-id 123} (Duration/ofHours 1))
+(jobrunr/schedule! send-email {:user-id 123} (Duration/ofHours 1))
 
 ;; Scheduled (at specific time)
-(jobrunr/schedule! ::send-email {:user-id 123} (Instant/parse "2026-06-15T10:00:00Z"))
+(jobrunr/schedule! send-email {:user-id 123} (Instant/parse "2026-06-15T10:00:00Z"))
 
 ;; Recurring (daily at 9 AM)
-(jobrunr/recurring! "daily-digest" ::send-email {:template :digest} "0 9 * * *")
+(jobrunr/recurring! "daily-digest" send-email {:template :digest} "0 9 * * *")
 
 ;; Delete recurring job
 (jobrunr/delete-recurring! "daily-digest")
@@ -109,7 +112,7 @@ The job type keyword is automatically namespaced: `::job-name` becomes `:my.name
 All enqueue/schedule functions accept an optional options map:
 
 ```clojure
-(jobrunr/enqueue! ::send-email {:to "user@example.com"}
+(jobrunr/enqueue! send-email {:to "user@example.com"}
   {:name "Send welcome to user@example.com"  ;; custom display name
    :labels ["email" "onboarding"]            ;; up to 3 labels for filtering
    :id #uuid "..."                           ;; custom UUID to prevent duplicates
@@ -159,18 +162,19 @@ The default serializer handles `java.time.Instant`, `Duration`, and `LocalDate` 
 
 ### Testing Jobs
 
-Jobs are regular functions, making them easy to test:
+Jobs can be tested by calling `handle-job` directly:
 
 ```clojure
-;; Direct call
-(send-email {:user-id 123 :email "test@example.com"})
-
-;; Via multimethod
 (require '[clj-jobrunr.job :refer [handle-job]])
+
+;; Call using the var (evaluates to keyword)
+(handle-job send-email {:user-id 123 :email "test@example.com"})
+
+;; Or use the keyword directly
 (handle-job ::send-email {:user-id 123 :email "test@example.com"})
 
 ;; Check if handler exists
-(contains? (methods handle-job) ::send-email)
+(contains? (methods handle-job) send-email)
 ```
 
 ## Integrant Components

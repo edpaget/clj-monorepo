@@ -5,8 +5,8 @@
   the [[handle-job]] multimethod for dispatching job execution by job type.
 
   Jobs are defined using the [[defjob]] macro which generates:
-  - A function with the job name for direct invocation and testing
-  - A method on [[handle-job]] for multimethod dispatch using a namespaced keyword
+  - A var holding the namespaced keyword for the job type
+  - A method on [[handle-job]] for multimethod dispatch
 
   Example:
   ```clojure
@@ -15,11 +15,14 @@
     [{:keys [to subject body]}]
     (email/send! to subject body))
 
-  ;; Direct invocation
-  (send-email {:to \"user@example.com\" :subject \"Hi\"})
+  ;; Via multimethod dispatch
+  (handle-job send-email {:to \"user@example.com\" :subject \"Hi\"})
 
-  ;; Via multimethod dispatch (note: namespaced keyword)
+  ;; Or with the keyword directly
   (handle-job ::send-email {:to \"user@example.com\" :subject \"Hi\"})
+
+  ;; Use with enqueue!
+  (enqueue! send-email {:to \"user@example.com\"})
   ```
 
   Jobs can participate in hierarchies using the `:job/derives` attr-map:
@@ -63,9 +66,9 @@
 (defmacro defjob
   "Defines a background job handler.
 
-  Creates a function with the given name and registers it as a method on
-  the [[handle-job]] multimethod. The job type is a namespaced keyword derived
-  from the function name and the current namespace.
+  Creates a var holding the namespaced job type keyword and registers a method
+  on the [[handle-job]] multimethod. The job type keyword is derived from the
+  var name and the current namespace.
 
   Follows `defn` conventions for optional docstring and attr-map.
 
@@ -82,22 +85,21 @@
   ```
 
   Generates:
-  - `(defn my-job [payload] ...)` - callable function with docstring
+  - `(def my-job ::my-job)` - var holding the job type keyword
   - `(defmethod handle-job ::my-job ...)` - multimethod registration
   - `(derive ::my-job ::some-category)` - for each parent in :job/derives"
   {:arglists '([name docstring? attr-map? [params] & body])}
   [name & args]
   (let [[docstring attr-map params body] (parse-defjob-args args)
         derives                          (:job/derives attr-map)
+        ;; params is a vector like [{:keys [x y]}], extract the binding form
+        payload-binding                  (first params)
         ;; Create namespaced keyword using the current namespace
         job-type                         (keyword (str *ns*) (str name))]
     `(do
-       (defn ~name
-         ~@(when docstring [docstring])
-         ~params
+       (def ~name ~@(when docstring [docstring]) ~job-type)
+       (defmethod handle-job ~job-type [~'_job-type ~payload-binding]
          ~@body)
-       (defmethod handle-job ~job-type [~'_ payload#]
-         (~name payload#))
        ~@(for [parent derives]
            `(derive ~job-type ~parent))
        ~job-type)))
