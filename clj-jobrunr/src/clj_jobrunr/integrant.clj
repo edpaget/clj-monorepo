@@ -42,11 +42,11 @@
    [clj-jobrunr.worker-policy :as wp]
    [integrant.core :as ig])
   (:import
+   [javax.sql DataSource]
    [org.jobrunr.configuration JobRunr]
    [org.jobrunr.dashboard JobRunrDashboardWebServer]
    [org.jobrunr.server BackgroundJobServerConfiguration]
-   [org.jobrunr.utils.mapper.gson GsonJsonMapper]
-   [javax.sql DataSource]))
+   [org.jobrunr.utils.mapper.gson GsonJsonMapper]))
 
 ;; ---------------------------------------------------------------------------
 ;; Serialization Component
