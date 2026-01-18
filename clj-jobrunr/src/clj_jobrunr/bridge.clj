@@ -56,10 +56,3 @@
   (let [{:keys [job-type payload]} (ser/deserialize serializer edn-str)]
     (handle-job job-type payload)))
 
-(defn execute-raw!
-  "Deserializes job EDN and dispatches using the global serializer.
-
-  Entry point for [[clj-jobrunr.request/ClojureJobRequestHandler]].
-  Uses the globally bound `*serializer*` or falls back to the default."
-  [edn-str]
-  (execute! (or ser/*serializer* (ser/default-serializer)) edn-str))
