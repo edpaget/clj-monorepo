@@ -80,7 +80,7 @@ The `defjob` macro creates:
 (jobrunr/schedule! ::send-email {:user-id 123} (Duration/ofHours 1))
 
 ;; Scheduled (at specific time)
-(jobrunr/schedule! ::send-email {:user-id 123} (Instant/parse "2024-06-15T10:00:00Z"))
+(jobrunr/schedule! ::send-email {:user-id 123} (Instant/parse "2026-06-15T10:00:00Z"))
 
 ;; Recurring (daily at 9 AM)
 (jobrunr/recurring! "daily-digest" ::send-email {:template :digest} "0 9 * * *")
@@ -148,7 +148,7 @@ The default serializer handles `java.time.Instant`, `Duration`, and `LocalDate` 
 
 ;; java.time types serialize as tagged literals
 (ser/serialize serializer {:at (java.time.Instant/now)})
-;; => "{:at #time/instant \"2024-01-15T10:30:00Z\"}"
+;; => "{:at #time/instant \"2026-01-15T10:30:00Z\"}"
 
 ;; Add custom types or exclude defaults
 (ser/make-serializer
@@ -270,6 +270,6 @@ See [DESIGN.md](DESIGN.md) for detailed architecture documentation.
 
 ## License
 
-Copyright © 2024
+Copyright © 2026
 
-Distributed under the Eclipse Public License version 1.0.
+Distributed under the [GNU Affero General Public License v3.0](../LICENSE) (AGPLv3).
