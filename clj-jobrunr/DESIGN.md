@@ -30,7 +30,7 @@ Our solution uses JobRunr's **JobRequest/JobRequestHandler pattern** combined wi
 
 2. **When the JobRunr server starts**:
    - A composite classloader is created that delegates to Clojure's `DynamicClassLoader`
-   - A custom `BackgroundJobServerWorkerPolicy` configures worker threads to use this classloader
+   - A custom `BackgroundJobServerWorkerPolicy` configures virtual thread workers with this classloader
    - Worker threads can now load Clojure-generated classes via `Class.forName()`
 
 3. **When enqueueing**, the library:
@@ -52,7 +52,8 @@ JobRunr uses `Class.forName(className, true, contextClassLoader)` to load classe
 Our solution:
 1. **Composite ClassLoader**: Wraps Clojure's `DynamicClassLoader` and delegates to it for class lookups
 2. **Custom ThreadFactory**: Sets the composite classloader as the context classloader on worker threads
-3. **Custom WorkerPolicy**: Configures JobRunr to use our ThreadFactory when creating worker threads
+3. **Custom WorkerPolicy**: Configures JobRunr to use Java 21+ virtual threads with our ThreadFactory
+4. **Virtual Threads**: Uses `Executors.newThreadPerTaskExecutor()` for efficient per-job thread allocation
 
 This allows `deftype` classes to be found without AOT compilation.
 
@@ -100,6 +101,7 @@ clj-jobrunr/
 │   ├── bridge.clj          # Job EDN creation and execution
 │   ├── request.clj         # ClojureJobRequest/Handler deftypes
 │   ├── classloader.clj     # Composite classloader, ThreadFactory
+│   ├── worker_policy.clj   # Virtual thread worker policy
 │   ├── core.clj            # Public API: enqueue!, schedule!, etc.
 │   └── integrant.clj       # Lifecycle components
 └── deps.edn
@@ -112,6 +114,7 @@ clj-jobrunr/
 - **bridge**: Utilities for creating job EDN and executing handlers
 - **request**: `deftype` implementations of `JobRequest` and `JobRequestHandler`
 - **classloader**: Composite classloader and ThreadFactory for dynamic class loading
+- **worker_policy**: Virtual thread executor and worker policy for JobRunr
 - **core**: Public API (`enqueue!`, `schedule!`, `recurring!`, `delete-recurring!`)
 - **integrant**: Integrant components for lifecycle management
 
@@ -196,6 +199,16 @@ Simply require the namespace and start using:
 
 The classloader magic happens automatically when the Integrant server component starts.
 
+### Virtual Threads for Workers
+
+The library uses Java 21+ virtual threads for job execution. This provides:
+
+- **Efficient I/O**: Virtual threads park during blocking I/O without consuming OS threads
+- **High concurrency**: Can handle many concurrent jobs without thread pool exhaustion
+- **Simple model**: One thread per job, no callback complexity
+
+The worker policy creates a `ThreadPerTaskExecutor` backed by virtual threads, with each thread's context classloader set to our composite classloader.
+
 ### Multimethod Dispatch
 
 Job handlers are implemented as methods on the `handle-job` multimethod, dispatching on namespaced job type keywords:
@@ -253,7 +266,8 @@ The library provides Integrant components for lifecycle management:
   :serialization (ig/ref :clj-jobrunr.integrant/serialization)
   :dashboard? true
   :dashboard-port 8080
-  :poll-interval 15}}
+  :poll-interval 15
+  :worker-count 4}}
 ```
 
 ## API Surface
@@ -324,11 +338,65 @@ Each `defjob` generates a regular function, making handlers easy to test:
 (contains? (methods handle-job) ::send-email)
 ```
 
+## Testing Infrastructure
+
+The library includes comprehensive test coverage with both unit and integration tests.
+
+### Unit Tests (89 tests)
+
+Unit tests run without external dependencies and cover:
+
+- **Serialization**: EDN round-trips, custom tagged literals, java.time types
+- **Job definition**: `defjob` macro expansion, docstrings, hierarchies
+- **Multimethod dispatch**: Handler registration, hierarchy dispatch, default handlers
+- **Request/Handler types**: Interface implementation, class loading, JSON serialization
+- **Worker policy**: Virtual thread creation, classloader propagation
+- **Core API**: Job builder construction, option handling
+
+### Integration Tests (6 tests)
+
+Integration tests use Testcontainers to spin up isolated PostgreSQL instances:
+
+- **enqueue-executes-job-test**: Immediate job execution
+- **schedule-executes-at-time-test**: Delayed execution
+- **recurring-executes-on-schedule-test**: Cron scheduling
+- **failed-job-retries-test**: Retry on failure with exponential backoff
+- **custom-serialization-roundtrip-test**: java.time serialization end-to-end
+- **job-survives-restart-test**: Persistence across server restarts
+
+### Test Utilities
+
+The `test-utils` namespace provides:
+
+- `postgres-fixture` - Starts PostgreSQL Testcontainer
+- `jobrunr-fixture` - Starts JobRunr server with 1-second poll interval
+- `integration-fixture` - Combined fixture for integration tests
+- `wait-for-job` - Polls until job reaches terminal state
+- `job-status` - Queries job status from storage
+- `restart-jobrunr!` - Restarts server while preserving database
+
+### Running Tests
+
+```bash
+# Unit tests only (no Docker required)
+clojure -X:test :excludes '[:integration]'
+
+# Integration tests only (requires Docker)
+clojure -X:test :includes '[:integration]'
+
+# All tests
+clojure -X:test
+```
+
 ## Tradeoffs
 
 ### Custom ClassLoader Complexity
 
 The library uses a custom classloader to enable dynamic class loading. While this eliminates AOT compilation, it adds complexity to the server initialization. The classloader is automatically configured by the Integrant component, so users don't need to manage it directly.
+
+### Java 21+ Requirement
+
+The library requires Java 21+ for virtual thread support. This provides significant benefits for I/O-bound jobs but limits compatibility with older JVMs.
 
 ### JobRunr Version
 

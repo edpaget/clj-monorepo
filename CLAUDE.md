@@ -106,10 +106,10 @@ Shared ClojureScript UI component library for Bashketball applications.
 
 ### clj-jobrunr
 Clojure wrapper for JobRunr background job processing library.
-- **Namespaces**: `clj-jobrunr.job`, `clj-jobrunr.serialization`, `clj-jobrunr.bridge`, `clj-jobrunr.enqueue`, `clj-jobrunr.integrant`, `clj-jobrunr.java-bridge`
-- **Features**: `defjob` macro for defining jobs, multimethod dispatch with hierarchy support, EDN serialization with custom tagged literals, Integrant lifecycle components, AOT-compiled Java bridge for JobRunr
-- **Build**: Requires AOT compilation: `clojure -T:build compile-bridge`
-- **Key files**: See `clj-jobrunr/DESIGN.md` for architecture, `clj-jobrunr/PLAN.md` for implementation status
+- **Namespaces**: `clj-jobrunr.core`, `clj-jobrunr.job`, `clj-jobrunr.serialization`, `clj-jobrunr.bridge`, `clj-jobrunr.request`, `clj-jobrunr.classloader`, `clj-jobrunr.worker-policy`, `clj-jobrunr.integrant`
+- **Features**: `defjob` macro for defining jobs, multimethod dispatch with hierarchy support, EDN serialization with java.time support, Integrant lifecycle components, virtual thread workers, no AOT required
+- **Requirements**: Java 21+, PostgreSQL
+- **Key files**: See `clj-jobrunr/DESIGN.md` for architecture
 
 ---
 

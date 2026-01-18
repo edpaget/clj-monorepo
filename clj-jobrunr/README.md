@@ -9,6 +9,13 @@ A Clojure wrapper for [JobRunr](https://www.jobrunr.io/), providing idiomatic AP
 - **EDN serialization** - Human-readable payloads with custom tagged literal support
 - **Integrant components** - Lifecycle management for JobRunr server
 - **java.time support** - Built-in serialization for Instant, Duration, LocalDate
+- **Virtual threads** - Java 21+ virtual thread execution for workers
+- **No AOT required** - Uses deftype with custom classloader, no compilation step
+
+## Requirements
+
+- **Java 21+** (uses virtual threads)
+- **PostgreSQL** (for job persistence)
 
 ## Installation
 
@@ -38,17 +45,7 @@ The `defjob` macro creates:
 - A function `send-email` you can call directly
 - A multimethod handler for `::send-email` (namespaced keyword)
 
-### 2. Build the Bridge Class
-
-JobRunr requires a Java class it can serialize. Build with:
-
-```bash
-clojure -T:build compile-bridge
-```
-
-This AOT-compiles `clj_jobrunr.ClojureBridge` to `target/classes/`.
-
-### 3. Configure Integrant
+### 2. Configure Integrant
 
 ```clojure
 (require '[integrant.core :as ig])
@@ -65,12 +62,13 @@ This AOT-compiles `clj_jobrunr.ClojureBridge` to `target/classes/`.
     :serialization (ig/ref :clj-jobrunr.integrant/serialization)
     :dashboard? true
     :dashboard-port 8080
-    :poll-interval 15}})
+    :poll-interval 15
+    :worker-count 4}})
 
 (def system (ig/init config))
 ```
 
-### 4. Enqueue Jobs
+### 3. Enqueue Jobs
 
 ```clojure
 (require '[clj-jobrunr.core :as jobrunr])
@@ -105,6 +103,18 @@ This AOT-compiles `clj_jobrunr.ClojureBridge` to `target/classes/`.
 ```
 
 The job type keyword is automatically namespaced: `::job-name` becomes `:my.namespace/job-name`.
+
+### Job Options
+
+All enqueue/schedule functions accept an optional options map:
+
+```clojure
+(jobrunr/enqueue! ::send-email {:to "user@example.com"}
+  {:name "Send welcome to user@example.com"  ;; custom display name
+   :labels ["email" "onboarding"]            ;; up to 3 labels for filtering
+   :id #uuid "..."                           ;; custom UUID to prevent duplicates
+   :retries 5})                              ;; number of retry attempts
+```
 
 ### Job Hierarchies
 
@@ -185,7 +195,7 @@ Creates a PostgresStorageProvider.
 
 ### `:clj-jobrunr.integrant/server`
 
-Starts the JobRunr background job server.
+Starts the JobRunr background job server with virtual thread workers.
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -194,13 +204,28 @@ Starts the JobRunr background job server.
 | `:dashboard?` | Enable web dashboard | `false` |
 | `:dashboard-port` | Dashboard port | `8000` |
 | `:poll-interval` | Job poll interval (seconds) | `15` |
+| `:worker-count` | Number of worker threads | Available processors |
+
+## Running Tests
+
+```bash
+# Run unit tests (no Docker required)
+clojure -X:test :excludes '[:integration]'
+
+# Run integration tests (requires Docker for Testcontainers)
+clojure -X:test :includes '[:integration]'
+
+# Run all tests
+clojure -X:test
+```
+
+The test suite includes:
+- **89 unit tests** - Test job definition, serialization, multimethod dispatch
+- **6 integration tests** - Test full job lifecycle with PostgreSQL via Testcontainers
 
 ## Build Tasks
 
 ```bash
-# AOT compile the bridge class (required before running)
-clojure -T:build compile-bridge
-
 # Build a JAR
 clojure -T:build jar
 
@@ -209,14 +234,6 @@ clojure -T:build uber
 
 # Clean build artifacts
 clojure -T:build clean
-```
-
-## Running Tests
-
-```bash
-# Run all tests (requires AOT compilation first)
-clojure -T:build compile-bridge
-clojure -X:test
 ```
 
 ## Project Structure
@@ -232,14 +249,24 @@ clj-jobrunr/
 │   ├── worker_policy.clj   # Virtual thread worker policy
 │   ├── core.clj            # Public API (enqueue!, schedule!, recurring!)
 │   └── integrant.clj       # Lifecycle components
+├── test/clj_jobrunr/
+│   ├── *_test.clj          # Unit tests
+│   ├── integration_test.clj # Integration tests (Testcontainers)
+│   └── test_utils.clj      # Test fixtures and utilities
 ├── build.clj               # Build tasks
 └── deps.edn
 ```
 
-## Current Limitations
+## How It Works
 
-- **Job display names**: All jobs use the same `ClojureJobRequest` class in JobRunr, but custom names can be set via the `:name` option
-- **Java 21+ required**: Uses virtual threads for worker execution
+Unlike typical Java-based JobRunr usage, this library doesn't require AOT compilation. Instead:
+
+1. `deftype` creates `ClojureJobRequest` and `ClojureJobRequestHandler` at namespace load time
+2. A composite classloader makes these classes visible to JobRunr's worker threads
+3. Virtual threads execute jobs with the correct context classloader set
+4. The `handle-job` multimethod dispatches to the appropriate Clojure handler
+
+See [DESIGN.md](DESIGN.md) for detailed architecture documentation.
 
 ## License
 
