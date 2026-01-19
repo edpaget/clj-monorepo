@@ -1,6 +1,7 @@
 (ns ball-tracking.components.app
   "Main UIx application component for ball tracking."
-  (:require [ball-tracking.controller :as controller]
+  (:require [ball-tracking.camera :as camera]
+            [ball-tracking.controller :as controller]
             [ball-tracking.state :refer [app-state]]
             [ball-tracking.yolo :as yolo]
             [uix.core :refer [defui $ use-state use-effect use-ref]]))
@@ -19,6 +20,18 @@
      ($ :div "FPS: " ($ :span {:class "text-cyan-400"} fps))
      ($ :div "Tracks: " ($ :span {:class "text-green-400"} (count tracks)))))
 
+(defui camera-selector [{:keys [cameras selected on-change disabled?]}]
+  ($ :div {:class "flex items-center gap-3"}
+     ($ :label {:class "text-gray-400 text-sm"} "Camera:")
+     ($ :select
+        {:class    "bg-gray-800 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm focus:border-cyan-400 focus:outline-none disabled:opacity-50"
+         :value    (or selected "")
+         :disabled disabled?
+         :on-change (fn [e] (on-change (.-value (.-target e))))}
+        ($ :option {:value ""} "Default camera")
+        (for [{:keys [device-id label]} cameras]
+          ($ :option {:key device-id :value device-id} label)))))
+
 (defui control-button [{:keys [running? on-start on-stop]}]
   (if running?
     ($ :button {:class "px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
@@ -31,32 +44,47 @@
        "Start Tracking")))
 
 (defui video-canvas []
-  (let [video-ref               (use-ref nil)
-        canvas-ref              (use-ref nil)
-        [running? set-running!] (use-state false)
-        [state set-state!]      (use-state {:fps 0 :tracks {} :error nil})]
+  (let [video-ref                       (use-ref nil)
+        canvas-ref                      (use-ref nil)
+        [running? set-running!]         (use-state false)
+        [cameras set-cameras!]          (use-state [])
+        [selected-camera set-selected!] (use-state nil)
+        [state set-state!]              (use-state {:fps 0 :tracks {} :error nil})]
 
+    ;; Enumerate available cameras on mount
+    (use-effect
+     (fn []
+       (-> (camera/enumerate-video-devices)
+           (.then (fn [devices]
+                    (set-cameras! devices)
+                    (swap! app-state assoc :available-cameras devices)))
+           (.catch (fn [err]
+                     (js/console.warn "Could not enumerate cameras:" err))))
+       js/undefined)
+     [])
+
+    ;; Sync app-state to local state
     (use-effect
      (fn []
        (let [update-state (fn []
-                            (set-state! {:fps (:fps @app-state)
+                            (set-state! {:fps    (:fps @app-state)
                                          :tracks (:tracks @app-state)
-                                         :error (:error @app-state)}))]
+                                         :error  (:error @app-state)}))]
          (add-watch app-state :ui-sync (fn [_ _ _ _] (update-state)))
          #(remove-watch app-state :ui-sync)))
      [])
 
     ($ :div {:class "flex flex-col items-center gap-6"}
        ($ :div {:class "relative w-full max-w-4xl rounded-lg overflow-hidden shadow-2xl border border-gray-700"}
-          ($ :video {:ref video-ref
-                     :class "w-full bg-gray-800"
+          ($ :video {:ref     video-ref
+                     :class   "w-full bg-gray-800"
                      :autoPlay true
                      :playsInline true
-                     :muted true})
-          ($ :canvas {:ref canvas-ref
+                     :muted   true})
+          ($ :canvas {:ref   canvas-ref
                       :class "absolute top-0 left-0 w-full h-full pointer-events-none"})
           (when running?
-            ($ stats-overlay {:fps (:fps state)
+            ($ stats-overlay {:fps    (:fps state)
                               :tracks (:tracks state)}))
           (when-not running?
             ($ :div {:class "absolute inset-0 flex items-center justify-center bg-gray-800/80"}
@@ -65,14 +93,24 @@
        (when-let [error (:error state)]
          ($ error-message {:message error}))
 
-       ($ control-button
-          {:running? running?
-           :on-start (fn []
-                       (controller/start-tracking @video-ref @canvas-ref)
-                       (set-running! true))
-           :on-stop (fn []
-                      (controller/stop-tracking @video-ref)
-                      (set-running! false))}))))
+       ($ :div {:class "flex flex-wrap items-center justify-center gap-4"}
+          (when (seq cameras)
+            ($ camera-selector
+               {:cameras   cameras
+                :selected  selected-camera
+                :disabled? running?
+                :on-change (fn [device-id]
+                             (set-selected! (when (seq device-id) device-id))
+                             (swap! app-state assoc :selected-camera
+                                    (when (seq device-id) device-id)))}))
+          ($ control-button
+             {:running?  running?
+              :on-start  (fn []
+                           (controller/start-tracking @video-ref @canvas-ref selected-camera)
+                           (set-running! true))
+              :on-stop   (fn []
+                           (controller/stop-tracking @video-ref)
+                           (set-running! false))})))))
 
 (defui app []
   (let [[model-ready? set-model-ready!] (use-state false)

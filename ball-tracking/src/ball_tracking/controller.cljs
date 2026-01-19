@@ -60,21 +60,24 @@
       (js/requestAnimationFrame loop-fn))))
 
 (defn start-tracking
-  "Initializes camera and starts the detection loop."
-  [video-el canvas-el]
-  (-> (camera/request-camera)
-      (.then (fn [stream]
-               (camera/attach-stream video-el stream)
-               (.addEventListener video-el "loadedmetadata"
-                                  (fn []
-                                    (let [{:keys [width height]} (camera/get-video-dimensions video-el)]
-                                      (set! (.-width canvas-el) width)
-                                      (set! (.-height canvas-el) height)
-                                      (swap! app-state assoc :running? true :error nil)
-                                      (detection-loop video-el canvas-el))))))
-      (.catch (fn [err]
-                (js/console.error "Camera access denied:" err)
-                (swap! app-state assoc :error (str "Camera access denied: " (.-message err)))))))
+  "Initializes camera and starts the detection loop.
+   Optionally accepts a device-id to select a specific camera."
+  ([video-el canvas-el]
+   (start-tracking video-el canvas-el nil))
+  ([video-el canvas-el device-id]
+   (-> (camera/request-camera device-id)
+       (.then (fn [stream]
+                (camera/attach-stream video-el stream)
+                (.addEventListener video-el "loadedmetadata"
+                                   (fn []
+                                     (let [{:keys [width height]} (camera/get-video-dimensions video-el)]
+                                       (set! (.-width canvas-el) width)
+                                       (set! (.-height canvas-el) height)
+                                       (swap! app-state assoc :running? true :error nil)
+                                       (detection-loop video-el canvas-el))))))
+       (.catch (fn [err]
+                 (js/console.error "Camera access denied:" err)
+                 (swap! app-state assoc :error (str "Camera access denied: " (.-message err))))))))
 
 (defn stop-tracking
   "Stops tracking and releases camera."

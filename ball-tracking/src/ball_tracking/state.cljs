@@ -10,4 +10,6 @@
          :model-loaded?      false
          :error              nil
          :collisions         []
-         :collision-callback nil}))
+         :collision-callback nil
+         :available-cameras  []
+         :selected-camera    nil}))
