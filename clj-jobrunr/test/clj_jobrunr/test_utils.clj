@@ -16,9 +16,9 @@
    [clojure.test :as t]
    [integrant.core :as ig])
   (:import
-   [com.zaxxer.hikari HikariConfig HikariDataSource]
    [org.jobrunr.jobs.states StateName]
    [org.jobrunr.storage JobNotFoundException]
+   [org.postgresql.ds PGSimpleDataSource]
    [org.testcontainers.containers PostgreSQLContainer]))
 
 (def ^:dynamic *storage-provider*
@@ -147,7 +147,7 @@
 ;; ---------------------------------------------------------------------------
 
 (def ^:dynamic *datasource*
-  "HikariCP datasource connected to the test PostgreSQL container."
+  "Datasource connected to the test PostgreSQL container."
   nil)
 
 (def ^:dynamic *system*
@@ -174,17 +174,19 @@
   (.stop container))
 
 (defn- create-datasource
-  "Creates a HikariCP datasource from the Testcontainer."
+  "Creates a PostgreSQL datasource from the Testcontainer.
+
+  Uses PGSimpleDataSource which is a simple, unpooled datasource included
+  with the PostgreSQL JDBC driver. For production use, users should provide
+  their own pooled datasource (HikariCP, c3p0, etc.)."
   [^PostgreSQLContainer container]
-  (let [config (doto (HikariConfig.)
-                 (.setJdbcUrl (.getJdbcUrl container))
-                 (.setUsername (.getUsername container))
-                 (.setPassword (.getPassword container))
-                 (.setMaximumPoolSize 5))]
-    (HikariDataSource. config)))
+  (doto (PGSimpleDataSource.)
+    (.setUrl (.getJdbcUrl container))
+    (.setUser (.getUsername container))
+    (.setPassword (.getPassword container))))
 
 (defn postgres-fixture
-  "Test fixture that starts a PostgreSQL Testcontainer and creates a connection pool.
+  "Test fixture that starts a PostgreSQL Testcontainer and creates a datasource.
 
   Binds `*container*` and `*datasource*` for use in tests.
 
@@ -198,7 +200,6 @@
                 *datasource* ds]
         (f))
       (finally
-        (.close ds)
         (stop-postgres-container! container)))))
 
 (defn jobrunr-fixture
