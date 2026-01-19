@@ -257,9 +257,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-clojure-
 
-      - name: Build AOT bridge class
-        working-directory: clj-jobrunr
-        run: clojure -T:build compile-bridge
-
       - name: Test clj-jobrunr
         run: clojure -X:clj-jobrunr-test
