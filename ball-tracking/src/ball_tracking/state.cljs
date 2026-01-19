@@ -22,4 +22,6 @@
          :available-cameras  []
          :selected-camera    nil
          :config             default-config
-         :show-settings?     false}))
+         :show-settings?     false
+         :recording?         false
+         :clips              []}))

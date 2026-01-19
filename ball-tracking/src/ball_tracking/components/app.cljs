@@ -2,6 +2,7 @@
   "Main UIx application component for ball tracking."
   (:require [ball-tracking.camera :as camera]
             [ball-tracking.controller :as controller]
+            [ball-tracking.recorder :as recorder]
             [ball-tracking.state :refer [app-state default-config]]
             [ball-tracking.yolo :as yolo]
             [uix.core :refer [defui $ use-state use-effect use-ref]]))
@@ -47,6 +48,54 @@
   ($ :button {:class "px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors"
               :on-click on-click}
      "Settings"))
+
+(defui record-button [{:keys [recording? disabled? on-start on-stop]}]
+  (if recording?
+    ($ :button {:class "px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 animate-pulse"
+                :on-click on-stop}
+       ($ :span {:class "w-3 h-3 bg-white rounded-full"})
+       "Stop Rec")
+    ($ :button {:class    "px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
+                :disabled disabled?
+                :on-click on-start}
+       ($ :span {:class "w-3 h-3 bg-red-500 rounded-full"})
+       "Record")))
+
+(defn- format-timestamp [ts]
+  (let [date (js/Date. ts)]
+    (str (.toLocaleDateString date) " " (.toLocaleTimeString date))))
+
+(defui clip-card [{:keys [clip on-delete]}]
+  ($ :div {:class "bg-gray-800 rounded-lg overflow-hidden border border-gray-700"}
+     ($ :video {:class    "w-full h-32 object-cover bg-black"
+                :src      (:url clip)
+                :controls true
+                :preload  "metadata"})
+     ($ :div {:class "p-2 flex justify-between items-center"}
+        ($ :span {:class "text-xs text-gray-400"}
+           (format-timestamp (:timestamp clip)))
+        ($ :div {:class "flex gap-2"}
+           ($ :button {:class    "text-cyan-400 hover:text-cyan-300 text-sm"
+                       :on-click #(recorder/download-clip clip)}
+              "Download")
+           ($ :button {:class    "text-red-400 hover:text-red-300 text-sm"
+                       :on-click #(on-delete (:id clip))}
+              "Delete")))))
+
+(defui clips-gallery [{:keys [clips on-delete on-clear]}]
+  (when (seq clips)
+    ($ :div {:class "mt-6 w-full max-w-4xl"}
+       ($ :div {:class "flex justify-between items-center mb-3"}
+          ($ :h3 {:class "text-lg font-semibold text-white"}
+             (str "Saved Clips (" (count clips) ")"))
+          ($ :button {:class    "text-sm text-red-400 hover:text-red-300"
+                      :on-click on-clear}
+             "Clear All"))
+       ($ :div {:class "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"}
+          (for [clip (reverse clips)]
+            ($ clip-card {:key       (:id clip)
+                          :clip      clip
+                          :on-delete on-delete}))))))
 
 (defui range-slider [{:keys [label value min max step on-change format-fn]}]
   ($ :div {:class "flex flex-col gap-1"}
@@ -185,11 +234,12 @@
   (let [video-ref                           (use-ref nil)
         canvas-ref                          (use-ref nil)
         [running? set-running!]             (use-state false)
+        [recording? set-recording!]         (use-state false)
+        [clips set-clips!]                  (use-state [])
         [cameras set-cameras!]              (use-state [])
         [selected-camera set-selected!]     (use-state nil)
         [show-settings? set-show-settings!] (use-state false)
-        [config set-config!]                (use-state (:config @app-state))
-        [state set-state!]                  (use-state {:fps 0 :tracks {} :error nil})]
+        [config set-config!]                (use-state (:config @app-state))]
 
     ;; Enumerate available cameras on mount
     (use-effect
@@ -207,16 +257,16 @@
     (use-effect
      (fn []
        (let [update-state (fn []
-                            (set-state! {:fps    (:fps @app-state)
-                                         :tracks (:tracks @app-state)
-                                         :error  (:error @app-state)}))]
-         (add-watch app-state :ui-sync (fn [_ _ _ _] (update-state)))
-         #(remove-watch app-state :ui-sync)))
+                            (set-recording! (:recording? @app-state))
+                            (set-clips! (:clips @app-state)))]
+         (add-watch app-state :recording-sync (fn [_ _ _ _] (update-state)))
+         #(remove-watch app-state :recording-sync)))
      [])
 
     ($ :<>
        ($ :div {:class "flex flex-col items-center gap-6"}
-          ($ :div {:class "relative w-full max-w-4xl rounded-lg overflow-hidden shadow-2xl border border-gray-700"}
+          ($ :div {:class (str "relative w-full max-w-4xl rounded-lg overflow-hidden shadow-2xl border "
+                               (if recording? "border-red-500 border-2" "border-gray-700"))}
              ($ :video {:ref       video-ref
                         :class     "w-full bg-gray-800"
                         :autoPlay  true
@@ -225,13 +275,18 @@
              ($ :canvas {:ref   canvas-ref
                          :class "absolute top-0 left-0 w-full h-full pointer-events-none"})
              (when running?
-               ($ stats-overlay {:fps    (:fps state)
-                                 :tracks (:tracks state)}))
+               ($ :div {:class "absolute top-4 left-4 bg-black/70 text-white px-3 py-2 rounded-lg font-mono text-sm"}
+                  ($ :div "FPS: " ($ :span {:class "text-cyan-400"} (:fps @app-state)))
+                  ($ :div "Tracks: " ($ :span {:class "text-green-400"} (count (:tracks @app-state))))))
+             (when recording?
+               ($ :div {:class "absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2"}
+                  ($ :span {:class "w-2 h-2 bg-white rounded-full animate-pulse"})
+                  "REC"))
              (when-not running?
                ($ :div {:class "absolute inset-0 flex items-center justify-center bg-gray-800/80"}
                   ($ :p {:class "text-gray-400 text-lg"} "Click \"Start Tracking\" to begin"))))
 
-          (when-let [error (:error state)]
+          (when-let [error (:error @app-state)]
             ($ error-message {:message error}))
 
           ($ :div {:class "flex flex-wrap items-center justify-center gap-4"}
@@ -250,9 +305,22 @@
                               (controller/start-tracking @video-ref @canvas-ref selected-camera)
                               (set-running! true))
                  :on-stop   (fn []
+                              (when recording?
+                                (recorder/stop-recording)
+                                (set-recording! false))
                               (controller/stop-tracking @video-ref)
                               (set-running! false))})
-             ($ settings-button {:on-click #(set-show-settings! true)})))
+             ($ record-button
+                {:recording? recording?
+                 :disabled?  (not running?)
+                 :on-start   #(recorder/start-recording @video-ref @canvas-ref)
+                 :on-stop    #(recorder/stop-recording)})
+             ($ settings-button {:on-click #(set-show-settings! true)}))
+
+          ($ clips-gallery
+             {:clips     clips
+              :on-delete recorder/delete-clip
+              :on-clear  recorder/clear-all-clips}))
 
        (when show-settings?
          ($ settings-panel
