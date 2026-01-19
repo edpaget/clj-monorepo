@@ -7,9 +7,7 @@
    :max-distance       100
    :track-timeout      500
    :velocity-threshold 15
-   :enabled-classes    #{"sports ball" "frisbee" "bottle" "cup" "cell phone"
-                         "remote" "scissors" "toothbrush" "apple" "orange"
-                         "banana" "teddy bear" "clock" "vase" "book"}})
+   :enabled-classes    #{"sports ball" "frisbee" "toilet"}})
 
 (defonce app-state
   (atom {:running?           false
