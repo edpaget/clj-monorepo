@@ -1,0 +1,23 @@
+{
+  "name": "ball-tracking",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx shadow-cljs watch app",
+    "build": "npx shadow-cljs release app",
+    "clean": "rm -rf resources/public/js",
+    "export-model": "cd scripts && uv run python export_model.py",
+    "export-model:yolo26n": "cd scripts && uv run python export_model.py --model yolo26n",
+    "export-model:yolo26s": "cd scripts && uv run python export_model.py --model yolo26s",
+    "export-model:yolo11n": "cd scripts && uv run python export_model.py --model yolo11n",
+    "export-model:yolov8n": "cd scripts && uv run python export_model.py --model yolov8n"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^2.28.20"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}

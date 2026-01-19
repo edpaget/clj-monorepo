@@ -1,0 +1,14 @@
+{:source-paths ["src"]
+
+ :dependencies [[com.pitch/uix.core "1.4.8"]
+                [com.pitch/uix.dom "1.4.8"]
+                [funcool/promesa "11.0.678"]]
+
+ :dev-http {8888 "resources/public"}
+
+ :builds
+ {:app {:target :browser
+        :output-dir "resources/public/js"
+        :asset-path "/js"
+        :modules {:main {:entries [ball-tracking.core]}}
+        :devtools {:repl-pprint true}}}}

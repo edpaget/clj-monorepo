@@ -1,0 +1,23 @@
+node_modules/
+resources/public/js/
+.shadow-cljs/
+.cpcache/
+.nrepl-port
+*.log
+
+# Model files (regenerate with: npm run export-model)
+resources/public/model/
+
+# Python/uv artifacts
+scripts/.venv/
+scripts/uv.lock
+__pycache__/
+*.pyc
+
+# Intermediate model files (generated during export)
+scripts/*.pt
+scripts/*.onnx
+scripts/*.pb
+scripts/*.npy
+scripts/*_saved_model/
+scripts/*_web_model/
