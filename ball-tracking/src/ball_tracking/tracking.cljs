@@ -45,13 +45,13 @@
 
 (defn update-track
   "Updates an existing track with a new detection."
-  [track detection]
+  [track detection velocity-threshold]
   (let [center     (bbox-center (:bbox detection))
         now        (js/Date.now)
         history    (take-last 50 (conj (:history track) center))
         timestamps (take-last 50 (conj (:timestamps track) now))
         velocity   (collision/calculate-velocity history timestamps)
-        motion     (collision/classify-motion velocity)]
+        motion     (collision/classify-motion velocity velocity-threshold)]
     (-> track
         (assoc :position center)
         (assoc :bbox (:bbox detection))
@@ -66,14 +66,14 @@
 (defn update-tracks
   "Updates tracks with new detections. Returns updated tracks map.
    Creates new tracks for unmatched detections."
-  [tracks detections max-distance]
+  [tracks detections {:keys [max-distance velocity-threshold]}]
   (let [matched-track-ids (atom #{})]
     (reduce
      (fn [acc detection]
        (if-let [track-id (match-detection-to-track detection acc max-distance)]
          (do
            (swap! matched-track-ids conj track-id)
-           (update acc track-id update-track detection))
+           (update acc track-id update-track detection velocity-threshold))
          (let [new-track (create-track detection)]
            (assoc acc (:id new-track) new-track))))
      tracks

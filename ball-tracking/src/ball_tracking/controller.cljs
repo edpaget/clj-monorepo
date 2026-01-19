@@ -35,27 +35,31 @@
     (letfn [(loop-fn []
               (when (:running? @app-state)
                 (update-fps)
-                (-> (yolo/detect-objects video-el :score-threshold 0.25)
-                    (.then (fn [detections]
-                             (let [candidates (->> detections
-                                                   (remove #(= "person" (:class %))))]
-                               ;; Update tracks
-                               (swap! app-state update :tracks
-                                      #(-> %
-                                           (tracking/update-tracks candidates 100)
-                                           (tracking/prune-stale-tracks 500)))
-                               ;; Detect collisions
-                               (let [tracks     (:tracks @app-state)
-                                     collisions (collision/detect-collisions tracks)]
-                                 (swap! app-state assoc :collisions collisions)
-                                 (when (seq collisions)
-                                   (invoke-collision-callback collisions))
-                                 ;; Render
-                                 (canvas/clear-canvas ctx width height)
-                                 (canvas/draw-tracks ctx tracks collisions)))))
-                    (.catch (fn [err]
-                              (js/console.error "Detection error:" err)))
-                    (.finally #(js/requestAnimationFrame loop-fn)))))]
+                (let [{:keys [score-threshold max-distance track-timeout
+                              velocity-threshold enabled-classes]}       (:config @app-state)]
+                  (-> (yolo/detect-objects video-el :score-threshold score-threshold)
+                      (.then (fn [detections]
+                               (let [candidates (->> detections
+                                                     (filter #(contains? enabled-classes (:class %))))]
+                                 ;; Update tracks
+                                 (swap! app-state update :tracks
+                                        #(-> %
+                                             (tracking/update-tracks candidates
+                                                                     {:max-distance       max-distance
+                                                                      :velocity-threshold velocity-threshold})
+                                             (tracking/prune-stale-tracks track-timeout)))
+                                 ;; Detect collisions
+                                 (let [tracks     (:tracks @app-state)
+                                       collisions (collision/detect-collisions tracks)]
+                                   (swap! app-state assoc :collisions collisions)
+                                   (when (seq collisions)
+                                     (invoke-collision-callback collisions))
+                                   ;; Render
+                                   (canvas/clear-canvas ctx width height)
+                                   (canvas/draw-tracks ctx tracks collisions)))))
+                      (.catch (fn [err]
+                                (js/console.error "Detection error:" err)))
+                      (.finally #(js/requestAnimationFrame loop-fn))))))]
       (swap! app-state assoc :last-fps-time (js/performance.now))
       (js/requestAnimationFrame loop-fn))))
 

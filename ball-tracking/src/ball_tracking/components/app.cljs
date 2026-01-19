@@ -2,7 +2,7 @@
   "Main UIx application component for ball tracking."
   (:require [ball-tracking.camera :as camera]
             [ball-tracking.controller :as controller]
-            [ball-tracking.state :refer [app-state]]
+            [ball-tracking.state :refer [app-state default-config]]
             [ball-tracking.yolo :as yolo]
             [uix.core :refer [defui $ use-state use-effect use-ref]]))
 
@@ -43,13 +43,153 @@
        ($ :span {:class "w-0 h-0 border-l-[16px] border-l-white border-y-[8px] border-y-transparent"})
        "Start Tracking")))
 
+(defui settings-button [{:keys [on-click]}]
+  ($ :button {:class "px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors"
+              :on-click on-click}
+     "Settings"))
+
+(defui range-slider [{:keys [label value min max step on-change format-fn]}]
+  ($ :div {:class "flex flex-col gap-1"}
+     ($ :div {:class "flex justify-between text-sm"}
+        ($ :span {:class "text-gray-400"} label)
+        ($ :span {:class "text-cyan-400 font-mono"} ((or format-fn str) value)))
+     ($ :input {:type      "range"
+                :class     "w-full accent-cyan-400"
+                :value     value
+                :min       min
+                :max       max
+                :step      step
+                :on-change (fn [e] (on-change (js/parseFloat (.-value (.-target e)))))})))
+
+(defui class-checkbox [{:keys [label checked? on-change]}]
+  ($ :label {:class "flex items-center gap-2 cursor-pointer hover:bg-gray-700/50 px-2 py-1 rounded"}
+     ($ :input {:type      "checkbox"
+                :class     "accent-cyan-400 w-4 h-4"
+                :checked   checked?
+                :on-change (fn [_] (on-change))})
+     ($ :span {:class "text-sm text-gray-300"} label)))
+
+(def class-categories
+  "Object classes grouped by category for easier selection."
+  {"Sports & Toys"   ["sports ball" "frisbee" "kite" "baseball bat" "baseball glove"
+                      "skateboard" "surfboard" "tennis racket" "skis" "snowboard"]
+   "Food"            ["banana" "apple" "sandwich" "orange" "broccoli" "carrot"
+                      "hot dog" "pizza" "donut" "cake"]
+   "Kitchen"         ["bottle" "wine glass" "cup" "fork" "knife" "spoon" "bowl"]
+   "Electronics"     ["tv" "laptop" "mouse" "remote" "keyboard" "cell phone"]
+   "Personal Items"  ["backpack" "umbrella" "handbag" "tie" "suitcase"]
+   "Household"       ["chair" "couch" "potted plant" "bed" "dining table" "toilet"
+                      "book" "clock" "vase" "scissors" "teddy bear" "hair drier" "toothbrush"]
+   "Appliances"      ["microwave" "oven" "toaster" "sink" "refrigerator"]
+   "Vehicles"        ["bicycle" "car" "motorcycle" "airplane" "bus" "train" "truck" "boat"]
+   "Animals"         ["bird" "cat" "dog" "horse" "sheep" "cow" "elephant" "bear" "zebra" "giraffe"]
+   "Street"          ["traffic light" "fire hydrant" "stop sign" "parking meter" "bench"]
+   "People"          ["person"]})
+
+(defui settings-panel [{:keys [config on-change on-close]}]
+  (let [[expanded-cat set-expanded!] (use-state #{"Sports & Toys"})]
+    ($ :div {:class "fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+             :on-click (fn [e]
+                         (when (= (.-target e) (.-currentTarget e))
+                           (on-close)))}
+       ($ :div {:class "bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"}
+          ($ :div {:class "flex justify-between items-center mb-6"}
+             ($ :h2 {:class "text-xl font-bold text-white"} "Tracking Settings")
+             ($ :button {:class "text-gray-400 hover:text-white text-2xl"
+                         :on-click on-close}
+                "×"))
+
+          ;; Numeric sliders
+          ($ :div {:class "space-y-4 mb-6"}
+             ($ :h3 {:class "text-sm font-semibold text-gray-500 uppercase tracking-wide"} "Detection")
+             ($ range-slider
+                {:label     "Confidence Threshold"
+                 :value     (:score-threshold config)
+                 :min       0.1
+                 :max       0.9
+                 :step      0.05
+                 :format-fn #(.toFixed % 2)
+                 :on-change #(on-change :score-threshold %)})
+
+             ($ :h3 {:class "text-sm font-semibold text-gray-500 uppercase tracking-wide mt-6"} "Tracking")
+             ($ range-slider
+                {:label     "Max Match Distance (px)"
+                 :value     (:max-distance config)
+                 :min       20
+                 :max       300
+                 :step      10
+                 :on-change #(on-change :max-distance %)})
+             ($ range-slider
+                {:label     "Track Timeout (ms)"
+                 :value     (:track-timeout config)
+                 :min       100
+                 :max       2000
+                 :step      100
+                 :on-change #(on-change :track-timeout %)})
+
+             ($ :h3 {:class "text-sm font-semibold text-gray-500 uppercase tracking-wide mt-6"} "Collision")
+             ($ range-slider
+                {:label     "Velocity Threshold (px/s)"
+                 :value     (:velocity-threshold config)
+                 :min       5
+                 :max       100
+                 :step      5
+                 :format-fn #(str (int %) " px/s")
+                 :on-change #(on-change :velocity-threshold %)}))
+
+          ;; Class selection
+          ($ :div {:class "mb-6"}
+             ($ :div {:class "flex justify-between items-center mb-3"}
+                ($ :h3 {:class "text-sm font-semibold text-gray-500 uppercase tracking-wide"}
+                   "Object Classes")
+                ($ :div {:class "flex gap-2"}
+                   ($ :button {:class "text-xs text-cyan-400 hover:text-cyan-300"
+                               :on-click #(on-change :enabled-classes (set yolo/coco-labels))}
+                      "Select All")
+                   ($ :button {:class "text-xs text-cyan-400 hover:text-cyan-300"
+                               :on-click #(on-change :enabled-classes #{})}
+                      "Clear All")))
+
+             ($ :div {:class "space-y-2"}
+                (for [[category classes] (sort-by first class-categories)]
+                  ($ :div {:key category :class "border border-gray-700 rounded-lg overflow-hidden"}
+                     ($ :button
+                        {:class    "w-full px-3 py-2 bg-gray-700/50 flex justify-between items-center hover:bg-gray-700"
+                         :on-click #(set-expanded! (if (contains? expanded-cat category)
+                                                     (disj expanded-cat category)
+                                                     (conj expanded-cat category)))}
+                        ($ :span {:class "text-sm font-medium text-gray-300"} category)
+                        ($ :span {:class "text-gray-500"}
+                           (str (count (filter #(contains? (:enabled-classes config) %) classes))
+                                "/" (count classes))
+                           (if (contains? expanded-cat category) " ▼" " ▶")))
+                     (when (contains? expanded-cat category)
+                       ($ :div {:class "p-2 grid grid-cols-2 sm:grid-cols-3 gap-1 bg-gray-800"}
+                          (for [cls (sort classes)]
+                            ($ class-checkbox
+                               {:key       cls
+                                :label     cls
+                                :checked?  (contains? (:enabled-classes config) cls)
+                                :on-change #(on-change :enabled-classes
+                                                       (if (contains? (:enabled-classes config) cls)
+                                                         (disj (:enabled-classes config) cls)
+                                                         (conj (:enabled-classes config) cls)))}))))))))
+
+          ;; Reset button
+          ($ :div {:class "flex justify-end"}
+             ($ :button {:class    "px-4 py-2 text-sm text-gray-400 hover:text-white"
+                         :on-click #(on-change :reset default-config)}
+                "Reset to Defaults"))))))
+
 (defui video-canvas []
-  (let [video-ref                       (use-ref nil)
-        canvas-ref                      (use-ref nil)
-        [running? set-running!]         (use-state false)
-        [cameras set-cameras!]          (use-state [])
-        [selected-camera set-selected!] (use-state nil)
-        [state set-state!]              (use-state {:fps 0 :tracks {} :error nil})]
+  (let [video-ref                           (use-ref nil)
+        canvas-ref                          (use-ref nil)
+        [running? set-running!]             (use-state false)
+        [cameras set-cameras!]              (use-state [])
+        [selected-camera set-selected!]     (use-state nil)
+        [show-settings? set-show-settings!] (use-state false)
+        [config set-config!]                (use-state (:config @app-state))
+        [state set-state!]                  (use-state {:fps 0 :tracks {} :error nil})]
 
     ;; Enumerate available cameras on mount
     (use-effect
@@ -74,43 +214,57 @@
          #(remove-watch app-state :ui-sync)))
      [])
 
-    ($ :div {:class "flex flex-col items-center gap-6"}
-       ($ :div {:class "relative w-full max-w-4xl rounded-lg overflow-hidden shadow-2xl border border-gray-700"}
-          ($ :video {:ref     video-ref
-                     :class   "w-full bg-gray-800"
-                     :autoPlay true
-                     :playsInline true
-                     :muted   true})
-          ($ :canvas {:ref   canvas-ref
-                      :class "absolute top-0 left-0 w-full h-full pointer-events-none"})
-          (when running?
-            ($ stats-overlay {:fps    (:fps state)
-                              :tracks (:tracks state)}))
-          (when-not running?
-            ($ :div {:class "absolute inset-0 flex items-center justify-center bg-gray-800/80"}
-               ($ :p {:class "text-gray-400 text-lg"} "Click \"Start Tracking\" to begin"))))
+    ($ :<>
+       ($ :div {:class "flex flex-col items-center gap-6"}
+          ($ :div {:class "relative w-full max-w-4xl rounded-lg overflow-hidden shadow-2xl border border-gray-700"}
+             ($ :video {:ref       video-ref
+                        :class     "w-full bg-gray-800"
+                        :autoPlay  true
+                        :playsInline true
+                        :muted     true})
+             ($ :canvas {:ref   canvas-ref
+                         :class "absolute top-0 left-0 w-full h-full pointer-events-none"})
+             (when running?
+               ($ stats-overlay {:fps    (:fps state)
+                                 :tracks (:tracks state)}))
+             (when-not running?
+               ($ :div {:class "absolute inset-0 flex items-center justify-center bg-gray-800/80"}
+                  ($ :p {:class "text-gray-400 text-lg"} "Click \"Start Tracking\" to begin"))))
 
-       (when-let [error (:error state)]
-         ($ error-message {:message error}))
+          (when-let [error (:error state)]
+            ($ error-message {:message error}))
 
-       ($ :div {:class "flex flex-wrap items-center justify-center gap-4"}
-          (when (seq cameras)
-            ($ camera-selector
-               {:cameras   cameras
-                :selected  selected-camera
-                :disabled? running?
-                :on-change (fn [device-id]
-                             (set-selected! (when (seq device-id) device-id))
-                             (swap! app-state assoc :selected-camera
-                                    (when (seq device-id) device-id)))}))
-          ($ control-button
-             {:running?  running?
-              :on-start  (fn []
-                           (controller/start-tracking @video-ref @canvas-ref selected-camera)
-                           (set-running! true))
-              :on-stop   (fn []
-                           (controller/stop-tracking @video-ref)
-                           (set-running! false))})))))
+          ($ :div {:class "flex flex-wrap items-center justify-center gap-4"}
+             (when (seq cameras)
+               ($ camera-selector
+                  {:cameras   cameras
+                   :selected  selected-camera
+                   :disabled? running?
+                   :on-change (fn [device-id]
+                                (set-selected! (when (seq device-id) device-id))
+                                (swap! app-state assoc :selected-camera
+                                       (when (seq device-id) device-id)))}))
+             ($ control-button
+                {:running?  running?
+                 :on-start  (fn []
+                              (controller/start-tracking @video-ref @canvas-ref selected-camera)
+                              (set-running! true))
+                 :on-stop   (fn []
+                              (controller/stop-tracking @video-ref)
+                              (set-running! false))})
+             ($ settings-button {:on-click #(set-show-settings! true)})))
+
+       (when show-settings?
+         ($ settings-panel
+            {:config    config
+             :on-close  #(set-show-settings! false)
+             :on-change (fn [key value]
+                          (if (= key :reset)
+                            (do (set-config! value)
+                                (swap! app-state assoc :config value))
+                            (let [new-config (assoc config key value)]
+                              (set-config! new-config)
+                              (swap! app-state assoc :config new-config))))})))))
 
 (defui app []
   (let [[model-ready? set-model-ready!] (use-state false)

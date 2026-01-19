@@ -2,8 +2,8 @@
   "Collision detection between tracked objects.
    Detects when moving objects collide with stationary ones.")
 
-(def ^:private velocity-threshold
-  "Velocity magnitude below this (px/sec) is considered stationary."
+(def default-velocity-threshold
+  "Default velocity magnitude below which object is considered stationary."
   15)
 
 (def ^:private velocity-samples
@@ -37,10 +37,12 @@
 
 (defn classify-motion
   "Classifies an object as :moving or :stationary based on velocity."
-  [velocity]
-  (if (< (velocity-magnitude velocity) velocity-threshold)
-    :stationary
-    :moving))
+  ([velocity]
+   (classify-motion velocity default-velocity-threshold))
+  ([velocity threshold]
+   (if (< (velocity-magnitude velocity) threshold)
+     :stationary
+     :moving)))
 
 (defn aabb-intersect?
   "Tests if two axis-aligned bounding boxes intersect.
