@@ -1,5 +1,6 @@
 (ns ball-tracking.canvas
-  "Canvas rendering utilities for drawing detection overlays and tracking trails.")
+  "Canvas rendering utilities for drawing detection overlays and tracking trails."
+  (:require [ball-tracking.collision :as collision]))
 
 (defn clear-canvas
   "Clears the entire canvas."
@@ -53,12 +54,39 @@
     (.lineTo ctx cx (+ cy size))
     (.stroke ctx)))
 
+(defn draw-collision-point
+  "Draws a collision indicator at the intersection point."
+  [ctx [x y]]
+  (let [now    (js/Date.now)
+        pulse  (+ 0.5 (* 0.5 (js/Math.sin (/ now 100))))
+        radius (* 15 pulse)]
+    (set! (.-globalAlpha ctx) pulse)
+    (set! (.-fillStyle ctx) "#ff4444")
+    (.beginPath ctx)
+    (.arc ctx x y radius 0 (* 2 js/Math.PI))
+    (.fill ctx)
+    (set! (.-strokeStyle ctx) "#ffffff")
+    (set! (.-lineWidth ctx) 2)
+    (.stroke ctx)
+    (set! (.-globalAlpha ctx) 1.0)))
+
 (defn draw-tracks
-  "Draws all active tracks with bounding boxes, crosshairs, and trails."
-  [ctx tracks]
-  (doseq [[_ track] tracks]
-    (draw-trail ctx (:history track) :color "#00ffff")
-    (draw-bbox ctx (:bbox track)
-               :color "#00ff00"
-               :label (str (:class track) " " (int (* 100 (:score track))) "%"))
-    (draw-crosshair ctx (:bbox track) :color "#ff0000")))
+  "Draws all active tracks with bounding boxes, crosshairs, and trails.
+   Highlights tracks involved in collisions."
+  [ctx tracks collisions]
+  (let [colliding-ids (collision/colliding-track-ids collisions)]
+    (doseq [[_ track] tracks]
+      (let [colliding? (contains? colliding-ids (:id track))
+            box-color  (if colliding? "#ff4444" "#00ff00")
+            motion-tag (when colliding?
+                         (if (= :moving (:motion track)) " [MOVING]" " [STATIC]"))]
+        (draw-trail ctx (:history track) :color "#00ffff")
+        (draw-bbox ctx (:bbox track)
+                   :color box-color
+                   :label (str (:class track) " "
+                               (int (* 100 (:score track))) "%"
+                               motion-tag))
+        (draw-crosshair ctx (:bbox track) :color (if colliding? "#ffffff" "#ff0000"))))
+    ;; Draw collision points
+    (doseq [{:keys [point]} collisions]
+      (draw-collision-point ctx point))))

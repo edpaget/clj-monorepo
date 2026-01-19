@@ -1,5 +1,6 @@
 (ns ball-tracking.tracking
-  "Temporal object tracking with trail history for detected objects.")
+  "Temporal object tracking with trail history for detected objects."
+  (:require [ball-tracking.collision :as collision]))
 
 (defn euclidean-distance
   "Calculates Euclidean distance between two [x y] points."
@@ -29,26 +30,38 @@
   "Creates a new track from a detection."
   [detection]
   (let [center (bbox-center (:bbox detection))
-        id     (random-uuid)]
-    {:id id
-     :class (:class detection)
-     :score (:score detection)
-     :position center
-     :bbox (:bbox detection)
-     :history [center]
-     :last-seen (js/Date.now)}))
+        id     (random-uuid)
+        now    (js/Date.now)]
+    {:id         id
+     :class      (:class detection)
+     :score      (:score detection)
+     :position   center
+     :bbox       (:bbox detection)
+     :history    [center]
+     :timestamps [now]
+     :velocity   [0 0]
+     :motion     :stationary
+     :last-seen  now}))
 
 (defn update-track
   "Updates an existing track with a new detection."
   [track detection]
-  (let [center (bbox-center (:bbox detection))]
+  (let [center     (bbox-center (:bbox detection))
+        now        (js/Date.now)
+        history    (take-last 50 (conj (:history track) center))
+        timestamps (take-last 50 (conj (:timestamps track) now))
+        velocity   (collision/calculate-velocity history timestamps)
+        motion     (collision/classify-motion velocity)]
     (-> track
         (assoc :position center)
         (assoc :bbox (:bbox detection))
         (assoc :class (:class detection))
         (assoc :score (:score detection))
-        (update :history #(take-last 50 (conj % center)))
-        (assoc :last-seen (js/Date.now)))))
+        (assoc :history (vec history))
+        (assoc :timestamps (vec timestamps))
+        (assoc :velocity velocity)
+        (assoc :motion motion)
+        (assoc :last-seen now))))
 
 (defn update-tracks
   "Updates tracks with new detections. Returns updated tracks map.

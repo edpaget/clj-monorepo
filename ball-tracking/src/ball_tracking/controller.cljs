@@ -2,6 +2,7 @@
   "Camera and detection loop control functions."
   (:require [ball-tracking.camera :as camera]
             [ball-tracking.canvas :as canvas]
+            [ball-tracking.collision :as collision]
             [ball-tracking.state :refer [app-state]]
             [ball-tracking.tracking :as tracking]
             [ball-tracking.yolo :as yolo]))
@@ -19,6 +20,13 @@
              :frame-count 0
              :last-fps-time now))))
 
+(defn- invoke-collision-callback
+  "Invokes the collision callback for each new collision event."
+  [collisions]
+  (when-let [callback (:collision-callback @app-state)]
+    (doseq [c collisions]
+      (callback (clj->js c)))))
+
 (defn detection-loop
   "Main detection loop using requestAnimationFrame."
   [video-el canvas-el]
@@ -29,15 +37,22 @@
                 (update-fps)
                 (-> (yolo/detect-objects video-el :score-threshold 0.25)
                     (.then (fn [detections]
-                             ;; Show all non-person detections for debugging
                              (let [candidates (->> detections
                                                    (remove #(= "person" (:class %))))]
+                               ;; Update tracks
                                (swap! app-state update :tracks
                                       #(-> %
                                            (tracking/update-tracks candidates 100)
                                            (tracking/prune-stale-tracks 500)))
-                               (canvas/clear-canvas ctx width height)
-                               (canvas/draw-tracks ctx (:tracks @app-state)))))
+                               ;; Detect collisions
+                               (let [tracks     (:tracks @app-state)
+                                     collisions (collision/detect-collisions tracks)]
+                                 (swap! app-state assoc :collisions collisions)
+                                 (when (seq collisions)
+                                   (invoke-collision-callback collisions))
+                                 ;; Render
+                                 (canvas/clear-canvas ctx width height)
+                                 (canvas/draw-tracks ctx tracks collisions)))))
                     (.catch (fn [err]
                               (js/console.error "Detection error:" err)))
                     (.finally #(js/requestAnimationFrame loop-fn)))))]

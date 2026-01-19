@@ -1,6 +1,7 @@
 (ns ball-tracking.core
   "Entry point for ball tracking application."
   (:require [ball-tracking.components.app :as app]
+            [ball-tracking.state :refer [app-state]]
             [uix.core :refer [$]]
             [uix.dom]))
 
@@ -22,3 +23,14 @@
   "Re-renders after hot reload."
   []
   (render!))
+
+(defn ^:export on-collision
+  "Registers a callback for collision events.
+   Callback receives collision object: {moving, stationary, point, timestamp}"
+  [callback]
+  (swap! app-state assoc :collision-callback callback))
+
+(defn ^:export remove-collision-callback
+  "Removes the collision callback."
+  []
+  (swap! app-state dissoc :collision-callback))
