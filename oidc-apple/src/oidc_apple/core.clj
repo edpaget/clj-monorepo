@@ -44,6 +44,7 @@
   (:require
    [malli.core :as m]
    [oidc-apple.claims :as claims]
+   [oidc-apple.client :as client]
    [oidc-apple.validator :as validator]
    [oidc.id-token :as id-token]))
 
@@ -157,3 +158,46 @@
    disabled by the user at any time."
   [email]
   (claims/private-relay-email? email))
+
+;; ---------------------------------------------------------------------------
+;; Web OAuth Flow Functions
+
+(defn generate-client-secret
+  "Generates a JWT client secret for Apple Sign-In web flow.
+
+   Apple requires a JWT signed with ES256 containing team-id, client-id,
+   and expiration. This secret is used in place of a static client secret.
+
+   Arguments:
+   - config: Map with :team-id, :key-id, :client-id, :private-key
+   - opts: Optional map with :expires-in-seconds (default 86400)
+
+   Returns a JWT string."
+  [config & opts]
+  (apply client/generate-client-secret config opts))
+
+(defn authorization-url
+  "Generates Apple Sign-In authorization URL.
+
+   Arguments:
+   - config: Map with :client-id and :redirect-uri
+   - state: Random state string for CSRF protection
+   - opts: Optional map with :response-mode and :scope
+
+   Returns the authorization URL string."
+  [config state & opts]
+  (apply client/authorization-url config state opts))
+
+(defn exchange-code
+  "Exchanges authorization code for tokens.
+
+   Generates a client secret JWT and exchanges the code at Apple's token
+   endpoint.
+
+   Arguments:
+   - config: Map with :client-id, :team-id, :key-id, :private-key, :redirect-uri
+   - code: Authorization code from Apple callback
+
+   Returns token response map with :access_token, :id_token, etc."
+  [config code]
+  (client/exchange-code config code))
